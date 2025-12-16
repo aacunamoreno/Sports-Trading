@@ -342,29 +342,65 @@ class Plays888Service:
                 await self.page.screenshot(path="/tmp/plays888_selected.png")
                 logger.info("Screenshot 5: After selecting bet")
                 
-                # Step 6: Enter wager amount in bet slip
+                # Step 6: Wait for redirect to bet slip page
+                await self.page.wait_for_timeout(3000)
+                await self.page.screenshot(path="/tmp/plays888_betslip_page.png")
+                logger.info("Screenshot 6: Bet slip page")
+                
+                # Step 7: Select "To Win Amount" radio button (user wants this 95% of the time)
                 try:
-                    await self.page.fill('input[type="number"], input[name*="amount"], input[name*="wager"], input[placeholder*="amount"]', str(wager))
+                    await self.page.click('input[value="To Win Amount"], label:has-text("To Win Amount")', timeout=5000)
+                    await self.page.wait_for_timeout(500)
+                    logger.info("Selected 'To Win Amount' radio button")
+                except Exception as e:
+                    logger.error(f"Could not select 'To Win Amount': {str(e)}")
+                    # Try clicking the text
+                    await self.page.click('text=/to win amount/i', timeout=5000)
+                    await self.page.wait_for_timeout(500)
+                
+                # Step 8: Enter the wager amount (300)
+                try:
+                    # Find and fill the amount input field
+                    await self.page.fill('input[type="text"]:visible, input[type="number"]:visible', str(wager))
                     await self.page.wait_for_timeout(1000)
-                    logger.info(f"Entered wager amount: ${wager}")
+                    logger.info(f"Entered amount: ${wager}")
                 except Exception as e:
-                    logger.error(f"Could not enter wager amount: {str(e)}")
+                    logger.error(f"Could not enter amount: {str(e)}")
+                    # Try alternative selector
+                    await self.page.fill('input', str(wager))
+                    await self.page.wait_for_timeout(1000)
                 
-                # Take screenshot of bet slip with amount
-                await self.page.screenshot(path="/tmp/plays888_betslip.png")
-                logger.info("Screenshot 6: Bet slip with wager")
+                await self.page.screenshot(path="/tmp/plays888_amount_entered.png")
+                logger.info("Screenshot 7: Amount entered")
                 
-                # Step 7: Click place bet button
+                # Step 9: Click "Continue" button
                 try:
-                    await self.page.click('button:has-text("Place Bet"), button:has-text("Confirm"), button:has-text("Submit"), button:has-text("Accept")', timeout=5000)
+                    await self.page.click('button:has-text("Continue")', timeout=5000)
                     await self.page.wait_for_timeout(3000)
-                    logger.info("Clicked place bet button")
+                    logger.info("Clicked Continue button")
                 except Exception as e:
-                    logger.error(f"Could not find place bet button: {str(e)}")
+                    logger.error(f"Could not find Continue button: {str(e)}")
+                    # Try alternative
+                    await self.page.click('[value="Continue"], input[type="submit"]', timeout=5000)
+                    await self.page.wait_for_timeout(3000)
+                
+                await self.page.screenshot(path="/tmp/plays888_confirmation_page.png")
+                logger.info("Screenshot 8: Confirmation page")
+                
+                # Step 10: Click "Confirm" button on confirmation page
+                try:
+                    await self.page.click('button:has-text("Confirm")', timeout=5000)
+                    await self.page.wait_for_timeout(3000)
+                    logger.info("Clicked Confirm button - Bet placed!")
+                except Exception as e:
+                    logger.error(f"Could not find Confirm button: {str(e)}")
+                    # Try alternative
+                    await self.page.click('[value="Confirm"], button:has-text("Place Bet")', timeout=5000)
+                    await self.page.wait_for_timeout(3000)
                 
                 # Take final screenshot
-                await self.page.screenshot(path="/tmp/plays888_confirmation.png")
-                logger.info("Screenshot 7: Final confirmation")
+                await self.page.screenshot(path="/tmp/plays888_final.png")
+                logger.info("Screenshot 9: Final confirmation")
                 
                 return {
                     "success": True,
