@@ -555,6 +555,73 @@ async def place_bet(bet_request: PlaceBetRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class SpecificBetRequest(BaseModel):
+    game: str
+    bet_type: str
+    line: str
+    odds: int
+    wager: float
+
+
+@api_router.post("/bets/place-specific")
+async def place_specific_bet(bet_request: SpecificBetRequest):
+    """Place a specific bet on plays888.co"""
+    try:
+        # Get connection credentials
+        conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+        
+        if not conn or not conn.get("is_connected"):
+            raise HTTPException(status_code=400, detail="Not connected to plays888.co")
+        
+        # Login and place bet
+        username = conn["username"]
+        password = decrypt_password(conn["password_encrypted"])
+        
+        await plays888_service.initialize()
+        login_result = await plays888_service.login(username, password)
+        
+        if not login_result["success"]:
+            await plays888_service.close()
+            raise HTTPException(status_code=400, detail=f"Login failed: {login_result['message']}")
+        
+        # Place the bet
+        result = await plays888_service.place_specific_bet(
+            game=bet_request.game,
+            bet_type=bet_request.bet_type,
+            line=bet_request.line,
+            odds=bet_request.odds,
+            wager=bet_request.wager
+        )
+        
+        await plays888_service.close()
+        
+        # Store in history
+        if result["success"]:
+            bet_doc = {
+                "id": str(uuid.uuid4()),
+                "opportunity_id": "specific",
+                "rule_id": "manual",
+                "wager_amount": bet_request.wager,
+                "odds": bet_request.odds,
+                "status": "placed",
+                "placed_at": datetime.now(timezone.utc).isoformat(),
+                "result": None,
+                "game": bet_request.game,
+                "bet_type": bet_request.bet_type,
+                "line": bet_request.line
+            }
+            await db.bet_history.insert_one(bet_doc)
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Place specific bet error: {str(e)}")
+        await plays888_service.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.get("/bets/history")
 async def get_bet_history():
     """Get betting history"""
