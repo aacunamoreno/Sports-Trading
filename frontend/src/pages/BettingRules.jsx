@@ -238,13 +238,17 @@ export default function BettingRules() {
                   {rule.min_odds && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Min Odds:</span>
-                      <span className="font-mono text-foreground">{rule.min_odds}</span>
+                      <span className="font-mono text-foreground">
+                        {rule.min_odds > 0 ? `+${rule.min_odds}` : rule.min_odds}
+                      </span>
                     </div>
                   )}
                   {rule.max_odds && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Max Odds:</span>
-                      <span className="font-mono text-foreground">{rule.max_odds}</span>
+                      <span className="font-mono text-foreground">
+                        {rule.max_odds > 0 ? `+${rule.max_odds}` : rule.max_odds}
+                      </span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm">
