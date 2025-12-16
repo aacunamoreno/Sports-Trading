@@ -269,22 +269,46 @@ class Plays888Service:
             
             logger.info(f"Placing bet: {game} - {bet_type} {line} @ {odds} for ${wager}")
             
-            # Navigate to sports betting page
-            await self.page.goto('https://www.plays888.co/Deportes.html', timeout=30000)
+            # Navigate to main betting page
+            await self.page.goto('https://www.plays888.co', timeout=30000)
             await self.page.wait_for_timeout(3000)
             
-            # Take screenshot for debugging
-            await self.page.screenshot(path="/tmp/plays888_sports.png")
-            logger.info("Screenshot saved to /tmp/plays888_sports.png")
+            # Take screenshot of home page
+            await self.page.screenshot(path="/tmp/plays888_home.png")
+            logger.info("Screenshot 1: Home page")
             
-            # Save page HTML for inspection
+            # Step 1: Click on "Straight" section on the left side
+            try:
+                await self.page.click('text=/straight/i', timeout=10000)
+                await self.page.wait_for_timeout(2000)
+                logger.info("Clicked on Straight section")
+            except Exception as e:
+                logger.error(f"Could not find Straight section: {str(e)}")
+                # Try alternative selectors
+                await self.page.click('a:has-text("Straight"), button:has-text("Straight")', timeout=5000)
+                await self.page.wait_for_timeout(2000)
+            
+            await self.page.screenshot(path="/tmp/plays888_straight.png")
+            logger.info("Screenshot 2: After clicking Straight")
+            
+            # Step 2: Click on "NCAA BASKETBALL - MEN"
+            try:
+                await self.page.click('text=/ncaa basketball.*men/i', timeout=10000)
+                await self.page.wait_for_timeout(2000)
+                logger.info("Clicked on NCAA BASKETBALL - MEN")
+            except Exception as e:
+                logger.error(f"Could not find NCAA Basketball: {str(e)}")
+                # Try alternative
+                await self.page.click('text=/ncaa/i', timeout=5000)
+                await self.page.wait_for_timeout(2000)
+            
+            await self.page.screenshot(path="/tmp/plays888_ncaa.png")
+            logger.info("Screenshot 3: NCAA Basketball page")
+            
+            # Step 3: Find DePaul vs St. Johns game
             page_content = await self.page.content()
-            with open("/tmp/plays888_page.html", "w", encoding="utf-8") as f:
-                f.write(page_content)
-            logger.info("Page HTML saved to /tmp/plays888_page.html")
             
-            # Look for the game (case insensitive search)
-            if "depaul" in page_content.lower() and "st" in page_content.lower():
+            if "depaul" in page_content.lower() and "johns" in page_content.lower():
                 logger.info("Found DePaul vs St. Johns game on page")
                 
                 # Try different selectors to find and click the game
