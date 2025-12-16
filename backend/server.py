@@ -729,6 +729,38 @@ async def get_bet_history():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/bets/record-manual")
+async def record_manual_bet(bet: ManualBetRecord):
+    """Record a manually placed bet"""
+    try:
+        bet_doc = {
+            "id": str(uuid.uuid4()),
+            "opportunity_id": "manual",
+            "rule_id": "manual",
+            "wager_amount": bet.wager,
+            "odds": bet.odds,
+            "status": "placed",
+            "placed_at": datetime.now(timezone.utc).isoformat(),
+            "result": None,
+            "game": bet.game,
+            "bet_type": bet.bet_type,
+            "line": bet.line,
+            "bet_slip_id": bet.bet_slip_id,
+            "notes": bet.notes
+        }
+        
+        await db.bet_history.insert_one(bet_doc)
+        
+        return {
+            "success": True,
+            "message": f"Bet recorded: {bet.game} - {bet.bet_type} {bet.line} @ {bet.odds} for ${bet.wager}",
+            "bet_id": bet_doc["id"]
+        }
+    except Exception as e:
+        logger.error(f"Record manual bet error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.get("/stats")
 async def get_stats():
     """Get statistics for dashboard"""
