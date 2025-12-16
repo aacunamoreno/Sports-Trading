@@ -415,14 +415,6 @@ class Plays888Service:
                         "wager": wager
                     }
                 }
-                    
-                except Exception as click_error:
-                    logger.error(f"Error clicking elements: {str(click_error)}")
-                    return {
-                        "success": False,
-                        "message": f"Found game but couldn't place bet: {str(click_error)}",
-                        "note": "Screenshots saved to /tmp/plays888_*.png for debugging"
-                    }
             else:
                 return {
                     "success": False,
