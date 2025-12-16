@@ -119,6 +119,19 @@ def encrypt_password(password: str) -> str:
 def decrypt_password(encrypted: str) -> str:
     return cipher_suite.decrypt(encrypted.encode()).decode()
 
+def calculate_american_odds_payout(wager: float, odds: int) -> float:
+    """Calculate potential payout from American odds"""
+    if odds > 0:
+        # Positive odds: shows profit on $100 bet
+        return wager * (odds / 100)
+    else:
+        # Negative odds: shows how much to bet to win $100
+        return wager * (100 / abs(odds))
+
+def format_american_odds(odds: int) -> str:
+    """Format American odds with + or - sign"""
+    return f"+{odds}" if odds > 0 else str(odds)
+
 
 # Playwright automation service
 class Plays888Service:
