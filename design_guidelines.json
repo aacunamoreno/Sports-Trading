@@ -1,0 +1,175 @@
+{
+  "identity": {
+    "persona": "E1",
+    "mission": "Create a 'Control Room' style betting automation dashboard that feels like a high-frequency trading terminal. Precision, speed, and stealth.",
+    "principles": [
+      "Fusion: Bloomberg Terminal meets Cyberpunk 2077",
+      "Emotion: Power, Control, Insight",
+      "Content: Data is the hero. Legibility of odds and logs is paramount.",
+      "Contrast: High contrast neon against deep void backgrounds."
+    ]
+  },
+  "design_system": {
+    "theme": "dark",
+    "typography": {
+      "headings": {
+        "font_family": "Chivo, sans-serif",
+        "weight": "700",
+        "tracking": "tight",
+        "usage": "Page titles, Section headers, Key Metrics"
+      },
+      "body": {
+        "font_family": "Manrope, sans-serif",
+        "weight": "400",
+        "usage": "General UI text, labels, descriptions"
+      },
+      "mono": {
+        "font_family": "JetBrains Mono, monospace",
+        "usage": "Odds, Wager Amounts, Logs, IDs, Timestamps"
+      }
+    },
+    "colors": {
+      "palette_name": "Neon Terminal",
+      "base": {
+        "background": "224 71% 4%",
+        "foreground": "210 40% 98%"
+      },
+      "primary": {
+        "default": "142 70% 50%",
+        "foreground": "144 80% 5%"
+      },
+      "secondary": {
+        "default": "217 19% 27%",
+        "foreground": "210 40% 98%"
+      },
+      "accent": {
+        "default": "262 80% 50%",
+        "foreground": "210 40% 98%"
+      },
+      "muted": {
+        "default": "217 19% 15%",
+        "foreground": "215 20% 65%"
+      },
+      "border": "217 19% 20%",
+      "input": "217 19% 20%",
+      "ring": "142 70% 50%"
+    },
+    "visual_enhancers": {
+      "borders": "1px solid rgba(255,255,255,0.1)",
+      "glassmorphism": "backdrop-filter: blur(12px); background: rgba(10, 10, 15, 0.6); border: 1px solid rgba(255,255,255,0.08);",
+      "shadows": "0 0 20px rgba(0, 255, 148, 0.1)",
+      "radius": "rounded-sm"
+    },
+    "layout": {
+      "grid_system": "Control Room Grid (Dense)",
+      "spacing": "Compact but breathable. Use p-4 for cards, gap-4 for grids.",
+      "container": "max-w-[1600px] mx-auto p-6"
+    },
+    "motion": {
+      "micro_interactions": "Hover: Brighten border, slight glow. Active: Scale 0.98.",
+      "transitions": "transition-all duration-200 ease-out",
+      "loading": "Skeleton loaders with a scanning shimmer effect."
+    }
+  },
+  "components": {
+    "buttons": {
+      "style": "Sharp edges or rounded-sm. Primary: Neon Green bg, Black text. Secondary: Ghost with border.",
+      "hover": "Glow effect on primary. Border brighten on secondary."
+    },
+    "cards": {
+      "style": "Glassmorphism background. Thin border. No heavy shadows.",
+      "header": "Border-bottom separator. Mono font for title if technical."
+    },
+    "inputs": {
+      "style": "Dark bg (muted). Border-input. Focus: Ring-primary (Neon Green).",
+      "font": "Manrope for text, JetBrains Mono for numbers."
+    },
+    "charts": {
+      "library": "Recharts (via Shadcn)",
+      "style": "Minimal axes. Neon lines. Gradient fills (opacity 0.2 to 0). Tooltip: Glassmorphism."
+    },
+    "tables": {
+      "style": "Compact. Row hover: bg-white/5. Header: Uppercase, tracking-wider, text-muted-foreground.",
+      "font": "JetBrains Mono for all data cells."
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "layout": "Bento Grid (Mode B)",
+      "sections": [
+        {
+          "name": "Status Bar",
+          "type": "row",
+          "content": "Connection Status (Green Dot), Balance (Big Mono Font), Active Bets Count"
+        },
+        {
+          "name": "Main Chart",
+          "type": "col-span-2 row-span-2",
+          "content": "Profit/Loss over time"
+        },
+        {
+          "name": "Live Feed",
+          "type": "col-span-1 row-span-2",
+          "content": "Scrolling log of bot actions (Place Bet, Skip, Error)"
+        },
+        {
+          "name": "Active Bets",
+          "type": "col-span-3",
+          "content": "Table of currently running wagers"
+        }
+      ]
+    },
+    "connection_setup": {
+      "layout": "Centered Card with Background Image",
+      "background_image": "https://images.unsplash.com/photo-1761319659795-543075eaeaad?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjB0ZWNobm9sb2d5JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NjU5MTcwMDN8MA&ixlib=rb-4.1.0&q=85",
+      "content": "Form for Username/Password. 'Secure Storage' badge."
+    },
+    "betting_rules": {
+      "layout": "Split View",
+      "left": "List of Scenarios (Cards)",
+      "right": "Editor Panel (Form with sliders, inputs, logic builders)"
+    }
+  },
+  "assets": {
+    "images": [
+      {
+        "category": "background",
+        "url": "https://images.unsplash.com/photo-1761319659795-543075eaeaad?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjB0ZWNobm9sb2d5JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NjU5MTcwMDN8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract dark streaks for login background"
+      },
+      {
+        "category": "header",
+        "url": "https://images.unsplash.com/photo-1676746424139-77f8bd8922a8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxzb2NjZXIlMjBzdGFkaXVtJTIwbmlnaHQlMjBsaWdodHN8ZW58MHx8fHwxNzY1OTE3MDA1fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Stadium lights for 'Live Opportunities' header"
+      }
+    ],
+    "icons": {
+      "library": "Lucide React",
+      "style": "Stroke width 1.5px. Small size (w-4 h-4) for density."
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. INSTALL FONTS: Add '@fontsource/chivo', '@fontsource/manrope', '@fontsource/jetbrains-mono' to package.json and import in index.js.",
+    "2. CONFIGURE TAILWIND: Update tailwind.config.js with the 'Neon Terminal' color palette (convert HSL values).",
+    "3. OVERRIDE CSS: Replace contents of index.css with the dark mode variables provided.",
+    "4. CREATE LAYOUT: Build a 'DashboardLayout' component with a fixed sidebar and top bar.",
+    "5. USE SHADCN: Use Card, Table, Form, Input, Button, Badge, Dialog, ScrollArea.",
+    "6. DATA-TESTID: Add data-testid to all interactive elements (e.g., 'login-btn', 'place-bet-btn').",
+    "7. CHARTS: Use Recharts for the P/L graph. Style it with the primary neon green color.",
+    "8. LOGS: Create a 'LogViewer' component that looks like a terminal (black bg, green mono text).",
+    "9. NO INTER: Do not use Inter font. Use Manrope for UI and Chivo for Headings."
+  ],
+  "universal_guidelines": [
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy",
+    "Use glass-morphism effects with backdrop filters (12-24px blur)",
+    "You MUST NOT apply universal transition. Eg: transition: all.",
+    "You MUST NOT center align the app container.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style",
+    "NEVER: use AI assistant Emoji characters like 🤖🧠 etc for icons.",
+    "Every interaction needs micro-animations.",
+    "Use 2-3x more spacing than feels comfortable.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary."
+  ]
+}
