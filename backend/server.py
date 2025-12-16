@@ -584,11 +584,11 @@ async def place_specific_bet(bet_request: SpecificBetRequest):
         login_result = await bet_service.login(username, password)
         
         if not login_result["success"]:
-            await plays888_service.close()
+            await bet_service.close()
             raise HTTPException(status_code=400, detail=f"Login failed: {login_result['message']}")
         
         # Place the bet
-        result = await plays888_service.place_specific_bet(
+        result = await bet_service.place_specific_bet(
             game=bet_request.game,
             bet_type=bet_request.bet_type,
             line=bet_request.line,
@@ -596,7 +596,7 @@ async def place_specific_bet(bet_request: SpecificBetRequest):
             wager=bet_request.wager
         )
         
-        await plays888_service.close()
+        await bet_service.close()
         
         # Store in history
         if result["success"]:
