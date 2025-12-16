@@ -47,8 +47,8 @@ export default function BettingRules() {
     try {
       const payload = {
         name: formData.name,
-        min_odds: formData.min_odds ? parseFloat(formData.min_odds) : null,
-        max_odds: formData.max_odds ? parseFloat(formData.max_odds) : null,
+        min_odds: formData.min_odds ? parseInt(formData.min_odds) : null,
+        max_odds: formData.max_odds ? parseInt(formData.max_odds) : null,
         wager_amount: parseFloat(formData.wager_amount),
         sport: formData.sport || null,
         enabled: formData.enabled,
