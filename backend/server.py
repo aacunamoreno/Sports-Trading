@@ -364,7 +364,7 @@ class Plays888Service:
                 logger.info(f"Step 5: Entered wager amount: ${wager}")
                 
                 # Click Continue
-                await self.page.click('input[value="Continue"], button:has-text("Continue")', timeout=5000)
+                await self.page.click('input[value="Continue"]', force=True, timeout=5000)
                 await self.page.wait_for_timeout(3000)
                 logger.info("Step 5: Clicked Continue")
                 
