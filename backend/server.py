@@ -340,7 +340,7 @@ class Plays888Service:
                 await self.page.wait_for_timeout(2000)
                 
                 # Click Continue button
-                await self.page.click('input[value="Continue"], button:has-text("Continue")', timeout=5000)
+                await self.page.click('input[value="Continue"]', force=True, timeout=5000)
                 await self.page.wait_for_timeout(3000)
                 logger.info("Step 4: Clicked Continue after selecting odds")
                 
