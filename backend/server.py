@@ -261,170 +261,172 @@ class Plays888Service:
         
         return opportunities
     
-    async def place_specific_bet(self, game: str, bet_type: str, line: str, odds: int, wager: float) -> Dict[str, Any]:
-        """Place a specific bet on plays888.co"""
+    async def place_specific_bet(self, game: str, bet_type: str, line: str, odds: int, wager: float, league: str = "NATIONAL HOCKEY LEAGUE - OT INCLUDED") -> Dict[str, Any]:
+        """
+        Place a specific bet on plays888.co
+        NOTE: User must be connecting from Phoenix, Arizona IP for accurate location
+        """
         try:
             if not self.page:
                 return {"success": False, "message": "Browser not initialized"}
             
             logger.info(f"Placing bet: {game} - {bet_type} {line} @ {odds} for ${wager}")
             
-            # Navigate to main betting page
-            await self.page.goto('https://www.plays888.co', timeout=30000)
-            await self.page.wait_for_timeout(3000)
+            # Step 1: Navigate to plays888.co (should already be logged in)
+            await self.page.goto('https://www.plays888.co/wager/Welcome.aspx', timeout=30000)
+            await self.page.wait_for_load_state('networkidle')
+            await self.page.wait_for_timeout(2000)
             
-            # Take screenshot of home page
-            await self.page.screenshot(path="/tmp/plays888_home.png")
-            logger.info("Screenshot 1: Home page")
+            await self.page.screenshot(path="/tmp/step1_welcome.png")
+            logger.info("Step 1: Welcome page loaded")
             
-            # Step 1: Click on "Straight" section on the left side
+            # Step 2: Click "Straight" in the left sidebar
             try:
-                await self.page.click('text=/straight/i', timeout=10000)
+                # Look for the Straight link in the sidebar
+                await self.page.click('a:has-text("Straight")', timeout=10000)
                 await self.page.wait_for_timeout(2000)
-                logger.info("Clicked on Straight section")
+                logger.info("Step 2: Clicked 'Straight' in sidebar")
             except Exception as e:
-                logger.error(f"Could not find Straight section: {str(e)}")
-                # Try alternative selectors
-                await self.page.click('a:has-text("Straight"), button:has-text("Straight")', timeout=5000)
-                await self.page.wait_for_timeout(2000)
+                logger.error(f"Could not find Straight link: {str(e)}")
+                return {"success": False, "message": f"Could not find 'Straight' section: {str(e)}"}
             
-            await self.page.screenshot(path="/tmp/plays888_straight.png")
-            logger.info("Screenshot 2: After clicking Straight")
+            await self.page.screenshot(path="/tmp/step2_league_selection.png")
             
-            # Step 2: Click on "NCAA BASKETBALL - MEN"
+            # Step 3: Check the league checkbox and click Continue
             try:
-                await self.page.click('text=/ncaa basketball.*men/i', timeout=10000)
-                await self.page.wait_for_timeout(2000)
-                logger.info("Clicked on NCAA BASKETBALL - MEN")
-            except Exception as e:
-                logger.error(f"Could not find NCAA Basketball: {str(e)}")
-                # Try alternative
-                await self.page.click('text=/ncaa/i', timeout=5000)
-                await self.page.wait_for_timeout(2000)
-            
-            await self.page.screenshot(path="/tmp/plays888_ncaa.png")
-            logger.info("Screenshot 3: NCAA Basketball page")
-            
-            # Step 3: Find DePaul vs St. Johns game
-            page_content = await self.page.content()
-            
-            if "depaul" in page_content.lower() and "johns" in page_content.lower():
-                logger.info("Found DePaul vs St. Johns game on page")
+                # Find and check the checkbox for the specified league
+                checkbox_selector = f'input[type="checkbox"] ~ text=/{league}/i'
+                await self.page.click(checkbox_selector, timeout=10000)
+                await self.page.wait_for_timeout(1000)
+                logger.info(f"Step 3: Checked '{league}' checkbox")
                 
-                # Step 4: Click "more" button to expand betting options
-                try:
-                    # Find the game row first
-                    # Try clicking "more" button near DePaul
-                    await self.page.click('button:has-text("more"), button:has-text("More"), a:has-text("more")', timeout=5000)
-                    await self.page.wait_for_timeout(2000)
-                    logger.info("Clicked 'more' button to expand options")
-                except Exception as e:
-                    logger.error(f"Could not find 'more' button: {str(e)}")
-                    # Try alternative
-                    await self.page.click('[class*="more"], [id*="more"]', timeout=5000)
-                    await self.page.wait_for_timeout(2000)
-                
-                await self.page.screenshot(path="/tmp/plays888_expanded.png")
-                logger.info("Screenshot 4: After expanding betting options")
-                
-                # Step 5: Find and click the Under 70.5 at -113
-                try:
-                    # Look for the specific button with "u70%-113" or "Under 70.5 -113"
-                    await self.page.click('button:has-text("u70%-113"), button:has-text("U70.5"), button:has-text("Under 70.5")', timeout=5000)
-                    await self.page.wait_for_timeout(2000)
-                    logger.info("Clicked on Under 70.5 at -113")
-                except Exception as e:
-                    logger.error(f"Could not find Under 70.5 button: {str(e)}")
-                    # Try clicking any button with "70" and "113"
-                    await self.page.click('button:has-text("70"), button:has-text("-113")', timeout=5000)
-                    await self.page.wait_for_timeout(2000)
-                
-                await self.page.screenshot(path="/tmp/plays888_selected.png")
-                logger.info("Screenshot 5: After selecting bet")
-                
-                # Step 6: Wait for redirect to bet slip page
+                # Click Continue button at bottom
+                await self.page.click('input[value="Continue"], button:has-text("Continue")', timeout=5000)
                 await self.page.wait_for_timeout(3000)
-                await self.page.screenshot(path="/tmp/plays888_betslip_page.png")
-                logger.info("Screenshot 6: Bet slip page")
+                logger.info("Step 3: Clicked Continue button")
+            except Exception as e:
+                logger.error(f"Could not select league: {str(e)}")
+                return {"success": False, "message": f"Could not select league: {str(e)}"}
+            
+            await self.page.screenshot(path="/tmp/step3_games_list.png")
+            
+            # Step 4: Find the game and click the odds button
+            try:
+                # Format odds with + or - sign
+                odds_text = f"+{odds}" if odds > 0 else str(odds)
                 
-                # Step 7: Select "To Win Amount" radio button (user wants this 95% of the time)
-                try:
-                    await self.page.click('input[value="To Win Amount"], label:has-text("To Win Amount")', timeout=5000)
-                    await self.page.wait_for_timeout(500)
-                    logger.info("Selected 'To Win Amount' radio button")
-                except Exception as e:
-                    logger.error(f"Could not select 'To Win Amount': {str(e)}")
-                    # Try clicking the text
-                    await self.page.click('text=/to win amount/i', timeout=5000)
-                    await self.page.wait_for_timeout(500)
+                # Look for the odds button - it's a clickable element with the odds value
+                # Try multiple selectors
+                selectors = [
+                    f'button:has-text("{odds_text}")',
+                    f'input[value="{odds_text}"]',
+                    f'a:has-text("{odds_text}")',
+                    f'text=/{odds_text}/'
+                ]
                 
-                # Step 8: Enter the wager amount (300)
-                try:
-                    # Find and fill the amount input field
-                    await self.page.fill('input[type="text"]:visible, input[type="number"]:visible', str(wager))
-                    await self.page.wait_for_timeout(1000)
-                    logger.info(f"Entered amount: ${wager}")
-                except Exception as e:
-                    logger.error(f"Could not enter amount: {str(e)}")
-                    # Try alternative selector
-                    await self.page.fill('input', str(wager))
-                    await self.page.wait_for_timeout(1000)
+                clicked = False
+                for selector in selectors:
+                    try:
+                        await self.page.click(selector, timeout=5000)
+                        clicked = True
+                        logger.info(f"Step 4: Clicked odds button '{odds_text}' using selector: {selector}")
+                        break
+                    except:
+                        continue
                 
-                await self.page.screenshot(path="/tmp/plays888_amount_entered.png")
-                logger.info("Screenshot 7: Amount entered")
+                if not clicked:
+                    return {"success": False, "message": f"Could not find odds button '{odds_text}' for game"}
                 
-                # Step 9: Click "Continue" button
-                try:
-                    await self.page.click('button:has-text("Continue")', timeout=5000)
-                    await self.page.wait_for_timeout(3000)
-                    logger.info("Clicked Continue button")
-                except Exception as e:
-                    logger.error(f"Could not find Continue button: {str(e)}")
-                    # Try alternative
-                    await self.page.click('[value="Continue"], input[type="submit"]', timeout=5000)
-                    await self.page.wait_for_timeout(3000)
+                await self.page.wait_for_timeout(2000)
                 
-                await self.page.screenshot(path="/tmp/plays888_confirmation_page.png")
-                logger.info("Screenshot 8: Confirmation page")
+                # Click Continue button
+                await self.page.click('input[value="Continue"], button:has-text("Continue")', timeout=5000)
+                await self.page.wait_for_timeout(3000)
+                logger.info("Step 4: Clicked Continue after selecting odds")
                 
-                # Step 10: Click "Confirm" button on confirmation page
-                try:
-                    await self.page.click('button:has-text("Confirm")', timeout=5000)
-                    await self.page.wait_for_timeout(3000)
-                    logger.info("Clicked Confirm button - Bet placed!")
-                except Exception as e:
-                    logger.error(f"Could not find Confirm button: {str(e)}")
-                    # Try alternative
-                    await self.page.click('[value="Confirm"], button:has-text("Place Bet")', timeout=5000)
-                    await self.page.wait_for_timeout(3000)
+            except Exception as e:
+                logger.error(f"Could not find/click odds: {str(e)}")
+                return {"success": False, "message": f"Could not find/click odds: {str(e)}"}
+            
+            await self.page.screenshot(path="/tmp/step4_betslip.png")
+            
+            # Step 5: Select "To Win Amount" radio button and enter amount
+            try:
+                # Select "To Win Amount" radio button
+                await self.page.click('input[value="To Win Amount"]', timeout=5000)
+                await self.page.wait_for_timeout(500)
+                logger.info("Step 5: Selected 'To Win Amount' radio button")
                 
-                # Take final screenshot
-                await self.page.screenshot(path="/tmp/plays888_final.png")
-                logger.info("Screenshot 9: Final confirmation")
+                # Find the input field and enter wager amount
+                # The input is typically near the radio buttons
+                await self.page.fill('input[type="text"]:visible', str(int(wager)))
+                await self.page.wait_for_timeout(1000)
+                logger.info(f"Step 5: Entered wager amount: ${wager}")
                 
-                return {
-                    "success": True,
-                    "message": f"Bet placed: {game} - {bet_type} {line} @ {odds} for ${wager} MXN",
-                    "note": "Please verify the bet was placed successfully on plays888.co",
-                    "screenshots": "Saved to /tmp/plays888_*.png",
-                    "bet_details": {
-                        "game": game,
-                        "bet_type": bet_type,
-                        "line": line,
-                        "odds": odds,
-                        "wager": wager
+                # Click Continue
+                await self.page.click('input[value="Continue"], button:has-text("Continue")', timeout=5000)
+                await self.page.wait_for_timeout(3000)
+                logger.info("Step 5: Clicked Continue")
+                
+            except Exception as e:
+                logger.error(f"Could not enter wager amount: {str(e)}")
+                return {"success": False, "message": f"Could not enter wager amount: {str(e)}"}
+            
+            await self.page.screenshot(path="/tmp/step5_confirmation.png")
+            
+            # Step 6: Click Confirm button to place the bet
+            try:
+                await self.page.click('input[value="Confirm"], button:has-text("Confirm")', timeout=5000)
+                await self.page.wait_for_timeout(3000)
+                logger.info("Step 6: Clicked Confirm button")
+                
+            except Exception as e:
+                logger.error(f"Could not click Confirm: {str(e)}")
+                return {"success": False, "message": f"Could not click Confirm: {str(e)}"}
+            
+            await self.page.screenshot(path="/tmp/step6_final.png")
+            
+            # Step 7: Verify bet was placed by checking for Ticket# on confirmation page
+            try:
+                # Look for "Ticket#" text on the page
+                page_content = await self.page.content()
+                
+                if "Ticket#" in page_content or "ticket" in page_content.lower():
+                    # Try to extract ticket number
+                    import re
+                    ticket_match = re.search(r'Ticket#?[:\s]*(\d+)', page_content)
+                    ticket_number = ticket_match.group(1) if ticket_match else "Unknown"
+                    
+                    logger.info(f"BET PLACED SUCCESSFULLY! Ticket#: {ticket_number}")
+                    
+                    return {
+                        "success": True,
+                        "message": f"Bet placed successfully: {game} - {bet_type} {line} @ {odds} for ${wager} MXN",
+                        "ticket_number": ticket_number,
+                        "bet_details": {
+                            "game": game,
+                            "bet_type": bet_type,
+                            "line": line,
+                            "odds": odds,
+                            "wager": wager
+                        },
+                        "screenshots": "Check /tmp/step*.png for verification"
                     }
-                }
-            else:
-                return {
-                    "success": False,
-                    "message": "Could not find DePaul vs St. Johns game on the page",
-                    "note": "Game might not be available or navigation needs adjustment"
-                }
+                else:
+                    return {
+                        "success": False,
+                        "message": "Reached final page but could not verify bet placement (no Ticket# found)",
+                        "screenshots": "Check /tmp/step*.png for debugging"
+                    }
+                    
+            except Exception as e:
+                logger.error(f"Error verifying bet: {str(e)}")
+                return {"success": False, "message": f"Error verifying bet: {str(e)}"}
                 
         except Exception as e:
             logger.error(f"Error placing bet: {str(e)}")
-            return {"success": False, "message": f"Error: {str(e)}"}
+            await self.page.screenshot(path="/tmp/error.png")
+            return {"success": False, "message": f"Error: {str(e)}", "screenshot": "/tmp/error.png"}
 
 
 plays888_service = Plays888Service()
