@@ -300,8 +300,8 @@ class Plays888Service:
                 await self.page.wait_for_timeout(1000)
                 logger.info(f"Step 3: Checked '{league}' checkbox")
                 
-                # Click Continue button at bottom
-                await self.page.click('input[value="Continue"], button:has-text("Continue")', timeout=5000)
+                # Click Continue button at bottom - use force to bypass overlays
+                await self.page.click('input[value="Continue"]', force=True, timeout=5000)
                 await self.page.wait_for_timeout(3000)
                 logger.info("Step 3: Clicked Continue button")
             except Exception as e:
