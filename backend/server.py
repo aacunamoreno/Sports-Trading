@@ -315,27 +315,53 @@ class Plays888Service:
                 # Format odds with + or - sign
                 odds_text = f"+{odds}" if odds > 0 else str(odds)
                 
+                # Save HTML for debugging
+                page_content = await self.page.content()
+                with open("/tmp/step3_games_html.html", "w", encoding="utf-8") as f:
+                    f.write(page_content)
+                logger.info("Saved games page HTML")
+                
                 # Look for the odds button - it's a clickable element with the odds value
-                # Try multiple selectors
+                # The odds might be in an input button or link
+                # Try to find all clickable elements with the odds value
                 selectors = [
-                    f'button:has-text("{odds_text}")',
                     f'input[value="{odds_text}"]',
+                    f'button:has-text("{odds_text}")',
                     f'a:has-text("{odds_text}")',
-                    f'text=/{odds_text}/'
+                    f'//input[@value="{odds_text}"]',  # XPath
+                    f'//*[contains(text(), "{odds_text}")]',  # XPath for any element containing text
                 ]
                 
                 clicked = False
                 for selector in selectors:
                     try:
-                        await self.page.click(selector, timeout=5000)
+                        if selector.startswith('//'):
+                            # XPath selector
+                            await self.page.click(f'xpath={selector}', timeout=5000)
+                        else:
+                            await self.page.click(selector, timeout=5000)
                         clicked = True
                         logger.info(f"Step 4: Clicked odds button '{odds_text}' using selector: {selector}")
                         break
-                    except:
+                    except Exception as click_err:
+                        logger.error(f"Selector '{selector}' failed: {str(click_err)}")
                         continue
                 
                 if not clicked:
-                    return {"success": False, "message": f"Could not find odds button '{odds_text}' for game"}
+                    # Try one more time by looking for the absolute value without sign
+                    try:
+                        abs_odds = str(abs(odds))
+                        await self.page.click(f'input[value*="{abs_odds}"]', timeout=5000)
+                        clicked = True
+                        logger.info(f"Step 4: Clicked odds using absolute value: {abs_odds}")
+                    except:
+                        pass
+                
+                if not clicked:
+                    return {
+                        "success": False, 
+                        "message": f"Could not find odds button '{odds_text}' for game. Check /tmp/step3_games_html.html for debugging"
+                    }
                 
                 await self.page.wait_for_timeout(2000)
                 
