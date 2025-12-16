@@ -303,8 +303,17 @@ class Plays888Service:
                 # Click Continue button at bottom - use force to bypass overlays
                 await self.page.click('input[value="Continue"]', force=True, timeout=5000)
                 await self.page.wait_for_load_state('networkidle')
-                await self.page.wait_for_timeout(5000)  # Wait longer for games to load
-                logger.info("Step 3: Clicked Continue button and waiting for games to load")
+                
+                # Wait for games to load - look for multiple submit buttons (one per betting option)
+                logger.info("Waiting for games to load...")
+                for i in range(10):  # Try up to 10 times
+                    await self.page.wait_for_timeout(2000)
+                    button_count = await self.page.locator('input[type="submit"]').count()
+                    logger.info(f"Attempt {i+1}: Found {button_count} buttons")
+                    if button_count > 20:  # Games have loaded if there are many buttons
+                        break
+                
+                logger.info("Step 3: Clicked Continue button and games loaded")
             except Exception as e:
                 logger.error(f"Could not select league: {str(e)}")
                 return {"success": False, "message": f"Could not select league: {str(e)}"}
