@@ -621,7 +621,7 @@ async def place_specific_bet(bet_request: SpecificBetRequest):
         raise
     except Exception as e:
         logger.error(f"Place specific bet error: {str(e)}")
-        await plays888_service.close()
+        await bet_service.close()
         raise HTTPException(status_code=500, detail=str(e))
 
 
