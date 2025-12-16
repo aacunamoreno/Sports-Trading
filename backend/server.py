@@ -566,6 +566,9 @@ class SpecificBetRequest(BaseModel):
 @api_router.post("/bets/place-specific")
 async def place_specific_bet(bet_request: SpecificBetRequest):
     """Place a specific bet on plays888.co"""
+    # Create a new service instance for this bet
+    bet_service = Plays888Service()
+    
     try:
         # Get connection credentials
         conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
@@ -577,8 +580,8 @@ async def place_specific_bet(bet_request: SpecificBetRequest):
         username = conn["username"]
         password = decrypt_password(conn["password_encrypted"])
         
-        await plays888_service.initialize()
-        login_result = await plays888_service.login(username, password)
+        await bet_service.initialize()
+        login_result = await bet_service.login(username, password)
         
         if not login_result["success"]:
             await plays888_service.close()
