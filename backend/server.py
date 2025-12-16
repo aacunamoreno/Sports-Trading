@@ -376,7 +376,7 @@ class Plays888Service:
             
             # Step 6: Click Confirm button to place the bet
             try:
-                await self.page.click('input[value="Confirm"], button:has-text("Confirm")', timeout=5000)
+                await self.page.click('input[value="Confirm"]', force=True, timeout=5000)
                 await self.page.wait_for_timeout(3000)
                 logger.info("Step 6: Clicked Confirm button")
                 
