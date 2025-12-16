@@ -150,7 +150,7 @@ class Plays888Service:
             await self.initialize()
             
             if not self.page:
-                return {\"success\": False, \"message\": \"Failed to initialize browser\"}
+                return {"success": False, "message": "Failed to initialize browser"}
             
             logger.info(f"Navigating to plays888.co for user {username}")
             await self.page.goto('https://www.plays888.co', timeout=30000)
