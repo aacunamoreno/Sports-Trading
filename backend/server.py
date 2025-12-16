@@ -260,6 +260,92 @@ class Plays888Service:
             logger.error(f"Error getting opportunities: {str(e)}")
         
         return opportunities
+    
+    async def place_specific_bet(self, game: str, bet_type: str, line: str, odds: int, wager: float) -> Dict[str, Any]:
+        """Place a specific bet on plays888.co"""
+        try:
+            if not self.page:
+                return {"success": False, "message": "Browser not initialized"}
+            
+            logger.info(f"Placing bet: {game} - {bet_type} {line} @ {odds} for ${wager}")
+            
+            # Navigate to sports betting page
+            await self.page.goto('https://www.plays888.co/Deportes.html', timeout=30000)
+            await self.page.wait_for_timeout(3000)
+            
+            # Take screenshot for debugging
+            await self.page.screenshot(path="/tmp/plays888_sports.png")
+            logger.info("Screenshot saved to /tmp/plays888_sports.png")
+            
+            # Try to find NCAA Basketball section
+            page_content = await self.page.content()
+            
+            # Look for the game (case insensitive search)
+            if "depaul" in page_content.lower() and "johns" in page_content.lower():
+                logger.info("Found DePaul vs St. Johns game on page")
+                
+                # Try different selectors to find and click the game
+                try:
+                    # Look for links or buttons containing the team names
+                    await self.page.click('text=/depaul/i', timeout=5000)
+                    await self.page.wait_for_timeout(2000)
+                    logger.info("Clicked on game")
+                    
+                    # Take screenshot after clicking game
+                    await self.page.screenshot(path="/tmp/plays888_game.png")
+                    
+                    # Look for 1st Half totals
+                    await self.page.click('text=/1st half/i', timeout=5000)
+                    await self.page.wait_for_timeout(2000)
+                    
+                    # Look for Under 70.5
+                    await self.page.click('text=/under.*70.5/i', timeout=5000)
+                    await self.page.wait_for_timeout(1000)
+                    
+                    # Enter wager amount
+                    await self.page.fill('input[type="number"], input[name*="amount"], input[name*="wager"]', str(wager))
+                    await self.page.wait_for_timeout(1000)
+                    
+                    # Take screenshot before placing bet
+                    await self.page.screenshot(path="/tmp/plays888_betslip.png")
+                    logger.info("Bet slip screenshot saved")
+                    
+                    # Click place bet button
+                    await self.page.click('button:has-text("Place Bet"), button:has-text("Confirm"), button:has-text("Submit")', timeout=5000)
+                    await self.page.wait_for_timeout(2000)
+                    
+                    # Take screenshot after placing bet
+                    await self.page.screenshot(path="/tmp/plays888_confirmation.png")
+                    
+                    return {
+                        "success": True,
+                        "message": f"Bet placed: {game} - {bet_type} {line} @ {odds} for ${wager}",
+                        "bet_details": {
+                            "game": game,
+                            "bet_type": bet_type,
+                            "line": line,
+                            "odds": odds,
+                            "wager": wager
+                        }
+                    }
+                    
+                except Exception as click_error:
+                    logger.error(f"Error clicking elements: {str(click_error)}")
+                    return {
+                        "success": False,
+                        "message": f"Found game but couldn't place bet: {str(click_error)}",
+                        "note": "Screenshots saved to /tmp/plays888_*.png for debugging"
+                    }
+            else:
+                return {
+                    "success": False,
+                    "message": "Could not find DePaul vs St. Johns game on the page",
+                    "note": "Game might not be available or navigation needs adjustment"
+                }
+                
+        except Exception as e:
+            logger.error(f"Error placing bet: {str(e)}")
+            return {"success": False, "message": f"Error: {str(e)}"}
 
 
 plays888_service = Plays888Service()
