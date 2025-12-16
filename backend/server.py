@@ -641,6 +641,15 @@ class SpecificBetRequest(BaseModel):
     odds: int
     wager: float
 
+class ManualBetRecord(BaseModel):
+    game: str
+    bet_type: str
+    line: str
+    odds: int
+    wager: float
+    bet_slip_id: Optional[str] = None
+    notes: Optional[str] = None
+
 
 @api_router.post("/bets/place-specific")
 async def place_specific_bet(bet_request: SpecificBetRequest):
