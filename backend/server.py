@@ -221,19 +221,25 @@ class Plays888Service:
             await self.page.goto('https://www.plays888.co/Deportes.html', timeout=30000)
             await self.page.wait_for_timeout(2000)
             
-            # Mock opportunities for demo
+            # Mock opportunities for demo - American odds
             opportunities = [
                 {
                     "event_name": "Team A vs Team B",
-                    "odds": 2.5,
+                    "odds": +150,  # American odds
                     "sport": "Soccer",
                     "bet_type": "Match Winner"
                 },
                 {
                     "event_name": "Team C vs Team D",
-                    "odds": 1.8,
+                    "odds": -110,  # American odds
                     "sport": "Basketball",
                     "bet_type": "Match Winner"
+                },
+                {
+                    "event_name": "Lakers vs Warriors",
+                    "odds": +200,  # American odds
+                    "sport": "Basketball",
+                    "bet_type": "Spread"
                 },
             ]
             
