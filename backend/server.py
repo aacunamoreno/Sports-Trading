@@ -63,8 +63,8 @@ class BettingRule(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     enabled: bool = True
-    min_odds: Optional[float] = None
-    max_odds: Optional[float] = None
+    min_odds: Optional[int] = None  # American odds (e.g., -110, +150)
+    max_odds: Optional[int] = None  # American odds (e.g., -110, +150)
     wager_amount: float
     auto_place: bool = False
     sport: Optional[str] = None
@@ -73,8 +73,8 @@ class BettingRule(BaseModel):
 class BettingRuleCreate(BaseModel):
     name: str
     enabled: bool = True
-    min_odds: Optional[float] = None
-    max_odds: Optional[float] = None
+    min_odds: Optional[int] = None  # American odds (e.g., -110, +150)
+    max_odds: Optional[int] = None  # American odds (e.g., -110, +150)
     wager_amount: float
     auto_place: bool = False
     sport: Optional[str] = None
