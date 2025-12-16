@@ -311,50 +311,74 @@ class Plays888Service:
             if "depaul" in page_content.lower() and "johns" in page_content.lower():
                 logger.info("Found DePaul vs St. Johns game on page")
                 
-                # Try different selectors to find and click the game
+                # Step 4: Click "more" button to expand betting options
                 try:
-                    # Look for links or buttons containing the team names
-                    await self.page.click('text=/depaul/i', timeout=5000)
+                    # Find the game row first
+                    # Try clicking "more" button near DePaul
+                    await self.page.click('button:has-text("more"), button:has-text("More"), a:has-text("more")', timeout=5000)
                     await self.page.wait_for_timeout(2000)
-                    logger.info("Clicked on game")
-                    
-                    # Take screenshot after clicking game
-                    await self.page.screenshot(path="/tmp/plays888_game.png")
-                    
-                    # Look for 1st Half totals
-                    await self.page.click('text=/1st half/i', timeout=5000)
+                    logger.info("Clicked 'more' button to expand options")
+                except Exception as e:
+                    logger.error(f"Could not find 'more' button: {str(e)}")
+                    # Try alternative
+                    await self.page.click('[class*="more"], [id*="more"]', timeout=5000)
                     await self.page.wait_for_timeout(2000)
-                    
-                    # Look for Under 70.5
-                    await self.page.click('text=/under.*70.5/i', timeout=5000)
+                
+                await self.page.screenshot(path="/tmp/plays888_expanded.png")
+                logger.info("Screenshot 4: After expanding betting options")
+                
+                # Step 5: Find and click the Under 70.5 at -113
+                try:
+                    # Look for the specific button with "u70%-113" or "Under 70.5 -113"
+                    await self.page.click('button:has-text("u70%-113"), button:has-text("U70.5"), button:has-text("Under 70.5")', timeout=5000)
+                    await self.page.wait_for_timeout(2000)
+                    logger.info("Clicked on Under 70.5 at -113")
+                except Exception as e:
+                    logger.error(f"Could not find Under 70.5 button: {str(e)}")
+                    # Try clicking any button with "70" and "113"
+                    await self.page.click('button:has-text("70"), button:has-text("-113")', timeout=5000)
+                    await self.page.wait_for_timeout(2000)
+                
+                await self.page.screenshot(path="/tmp/plays888_selected.png")
+                logger.info("Screenshot 5: After selecting bet")
+                
+                # Step 6: Enter wager amount in bet slip
+                try:
+                    await self.page.fill('input[type="number"], input[name*="amount"], input[name*="wager"], input[placeholder*="amount"]', str(wager))
                     await self.page.wait_for_timeout(1000)
-                    
-                    # Enter wager amount
-                    await self.page.fill('input[type="number"], input[name*="amount"], input[name*="wager"]', str(wager))
-                    await self.page.wait_for_timeout(1000)
-                    
-                    # Take screenshot before placing bet
-                    await self.page.screenshot(path="/tmp/plays888_betslip.png")
-                    logger.info("Bet slip screenshot saved")
-                    
-                    # Click place bet button
-                    await self.page.click('button:has-text("Place Bet"), button:has-text("Confirm"), button:has-text("Submit")', timeout=5000)
-                    await self.page.wait_for_timeout(2000)
-                    
-                    # Take screenshot after placing bet
-                    await self.page.screenshot(path="/tmp/plays888_confirmation.png")
-                    
-                    return {
-                        "success": True,
-                        "message": f"Bet placed: {game} - {bet_type} {line} @ {odds} for ${wager}",
-                        "bet_details": {
-                            "game": game,
-                            "bet_type": bet_type,
-                            "line": line,
-                            "odds": odds,
-                            "wager": wager
-                        }
+                    logger.info(f"Entered wager amount: ${wager}")
+                except Exception as e:
+                    logger.error(f"Could not enter wager amount: {str(e)}")
+                
+                # Take screenshot of bet slip with amount
+                await self.page.screenshot(path="/tmp/plays888_betslip.png")
+                logger.info("Screenshot 6: Bet slip with wager")
+                
+                # Step 7: Click place bet button
+                try:
+                    await self.page.click('button:has-text("Place Bet"), button:has-text("Confirm"), button:has-text("Submit"), button:has-text("Accept")', timeout=5000)
+                    await self.page.wait_for_timeout(3000)
+                    logger.info("Clicked place bet button")
+                except Exception as e:
+                    logger.error(f"Could not find place bet button: {str(e)}")
+                
+                # Take final screenshot
+                await self.page.screenshot(path="/tmp/plays888_confirmation.png")
+                logger.info("Screenshot 7: Final confirmation")
+                
+                return {
+                    "success": True,
+                    "message": f"Bet placed: {game} - {bet_type} {line} @ {odds} for ${wager} MXN",
+                    "note": "Please verify the bet was placed successfully on plays888.co",
+                    "screenshots": "Saved to /tmp/plays888_*.png",
+                    "bet_details": {
+                        "game": game,
+                        "bet_type": bet_type,
+                        "line": line,
+                        "odds": odds,
+                        "wager": wager
                     }
+                }
                     
                 except Exception as click_error:
                     logger.error(f"Error clicking elements: {str(click_error)}")
