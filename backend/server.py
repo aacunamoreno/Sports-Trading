@@ -96,7 +96,7 @@ class BetHistory(BaseModel):
     opportunity_id: str
     rule_id: str
     wager_amount: float
-    odds: float
+    odds: int  # American odds (e.g., -110, +150)
     status: str  # placed, won, lost, pending
     placed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     result: Optional[str] = None
