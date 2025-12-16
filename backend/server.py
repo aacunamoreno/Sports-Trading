@@ -83,7 +83,7 @@ class BetOpportunity(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     event_name: str
-    odds: float
+    odds: int  # American odds (e.g., -110, +150)
     sport: str
     bet_type: str
     available: bool = True
