@@ -642,6 +642,7 @@ class SpecificBetRequest(BaseModel):
     line: str
     odds: int
     wager: float
+    league: str = "NATIONAL HOCKEY LEAGUE - OT INCLUDED"  # Default to NHL
 
 class ManualBetRecord(BaseModel):
     game: str
