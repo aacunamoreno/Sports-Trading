@@ -322,41 +322,43 @@ class Plays888Service:
                     f.write(page_content)
                 logger.info("Saved games page HTML")
                 
-                # Look for the odds button - it's a clickable element with the odds value
-                # The odds might be in an input button or link
-                # Try to find all clickable elements with the odds value
-                selectors = [
-                    f'input[value="{odds_text}"]',
-                    f'button:has-text("{odds_text}")',
-                    f'a:has-text("{odds_text}")',
-                    f'//input[@value="{odds_text}"]',  # XPath
-                    f'//*[contains(text(), "{odds_text}")]',  # XPath for any element containing text
-                ]
+                # The odds are in input elements in the M Line column
+                # First, try to find all input elements on the page
+                all_inputs = await self.page.query_selector_all('input[type="submit"]')
+                logger.info(f"Found {len(all_inputs)} input buttons on page")
                 
+                # Look through all inputs for one matching our odds
                 clicked = False
-                for selector in selectors:
+                for input_elem in all_inputs:
                     try:
-                        if selector.startswith('//'):
-                            # XPath selector
-                            await self.page.click(f'xpath={selector}', timeout=5000)
-                        else:
-                            await self.page.click(selector, timeout=5000)
-                        clicked = True
-                        logger.info(f"Step 4: Clicked odds button '{odds_text}' using selector: {selector}")
-                        break
-                    except Exception as click_err:
-                        logger.error(f"Selector '{selector}' failed: {str(click_err)}")
+                        value = await input_elem.get_attribute('value')
+                        if value == odds_text:
+                            await input_elem.click(force=True)
+                            clicked = True
+                            logger.info(f"Step 4: Clicked odds button '{odds_text}' via element search")
+                            break
+                    except:
                         continue
                 
+                # If that didn't work, try direct selectors
                 if not clicked:
-                    # Try one more time by looking for the absolute value without sign
-                    try:
-                        abs_odds = str(abs(odds))
-                        await self.page.click(f'input[value*="{abs_odds}"]', timeout=5000)
-                        clicked = True
-                        logger.info(f"Step 4: Clicked odds using absolute value: {abs_odds}")
-                    except:
-                        pass
+                    selectors = [
+                        f'input[value="{odds_text}"]',
+                        f'//input[@value="{odds_text}"]',
+                    ]
+                    
+                    for selector in selectors:
+                        try:
+                            if selector.startswith('//'):
+                                await self.page.click(f'xpath={selector}', force=True, timeout=5000)
+                            else:
+                                await self.page.click(selector, force=True, timeout=5000)
+                            clicked = True
+                            logger.info(f"Step 4: Clicked odds button '{odds_text}' using selector: {selector}")
+                            break
+                        except Exception as click_err:
+                            logger.error(f"Selector '{selector}' failed: {str(click_err)}")
+                            continue
                 
                 if not clicked:
                     return {
