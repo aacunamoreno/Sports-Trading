@@ -684,7 +684,8 @@ async def place_specific_bet(bet_request: SpecificBetRequest):
             bet_type=bet_request.bet_type,
             line=bet_request.line,
             odds=bet_request.odds,
-            wager=bet_request.wager
+            wager=bet_request.wager,
+            league=bet_request.league
         )
         
         await bet_service.close()
