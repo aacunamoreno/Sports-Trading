@@ -129,11 +129,18 @@ class Plays888Service:
         self.playwright = None
         
     async def initialize(self):
-        if not self.playwright:
-            self.playwright = await async_playwright().start()
-            self.browser = await self.playwright.chromium.launch(headless=True)
-            self.context = await self.browser.new_context()
-            self.page = await self.context.new_page()
+        try:
+            if not self.playwright:
+                self.playwright = await async_playwright().start()
+            if not self.browser:
+                self.browser = await self.playwright.chromium.launch(headless=True)
+            if not self.context:
+                self.context = await self.browser.new_context()
+            if not self.page:
+                self.page = await self.context.new_page()
+        except Exception as e:
+            logger.error(f"Failed to initialize Playwright: {str(e)}")
+            raise
     
     async def close(self):
         if self.page:
