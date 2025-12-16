@@ -277,11 +277,14 @@ class Plays888Service:
             await self.page.screenshot(path="/tmp/plays888_sports.png")
             logger.info("Screenshot saved to /tmp/plays888_sports.png")
             
-            # Try to find NCAA Basketball section
+            # Save page HTML for inspection
             page_content = await self.page.content()
+            with open("/tmp/plays888_page.html", "w", encoding="utf-8") as f:
+                f.write(page_content)
+            logger.info("Page HTML saved to /tmp/plays888_page.html")
             
             # Look for the game (case insensitive search)
-            if "depaul" in page_content.lower() and "johns" in page_content.lower():
+            if "depaul" in page_content.lower() and "st" in page_content.lower():
                 logger.info("Found DePaul vs St. Johns game on page")
                 
                 # Try different selectors to find and click the game
