@@ -128,28 +128,28 @@ export default function BettingRules() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="min_odds">Min Odds</Label>
+                  <Label htmlFor="min_odds">Min Odds (American)</Label>
                   <Input
                     id="min_odds"
                     data-testid="min-odds-input"
                     type="number"
-                    step="0.1"
+                    step="1"
                     value={formData.min_odds}
                     onChange={(e) => setFormData({ ...formData, min_odds: e.target.value })}
-                    placeholder="1.5"
+                    placeholder="-200 or +100"
                     className="bg-muted border-input font-mono"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="max_odds">Max Odds</Label>
+                  <Label htmlFor="max_odds">Max Odds (American)</Label>
                   <Input
                     id="max_odds"
                     data-testid="max-odds-input"
                     type="number"
-                    step="0.1"
+                    step="1"
                     value={formData.max_odds}
                     onChange={(e) => setFormData({ ...formData, max_odds: e.target.value })}
-                    placeholder="3.0"
+                    placeholder="+300"
                     className="bg-muted border-input font-mono"
                   />
                 </div>
