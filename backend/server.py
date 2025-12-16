@@ -294,9 +294,9 @@ class Plays888Service:
             
             # Step 3: Check the league checkbox and click Continue
             try:
-                # Find and check the checkbox for the specified league
-                checkbox_selector = f'input[type="checkbox"] ~ text=/{league}/i'
-                await self.page.click(checkbox_selector, timeout=10000)
+                # Find the checkbox for the specified league
+                # The checkbox is next to the league text
+                await self.page.click(f'text=/{league}/i', timeout=10000)
                 await self.page.wait_for_timeout(1000)
                 logger.info(f"Step 3: Checked '{league}' checkbox")
                 
