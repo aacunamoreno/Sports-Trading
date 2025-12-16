@@ -116,7 +116,7 @@ export default function Opportunities() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Potential Win:</span>
                     <span className="font-mono text-green-400">
-                      ${(opp.wager_amount * opp.odds).toFixed(2)}
+                      ${opp.potential_win ? opp.potential_win.toFixed(2) : '0.00'}
                     </span>
                   </div>
                 </div>
