@@ -419,6 +419,7 @@ async def get_opportunities():
                     matches = False
                 
                 if matches:
+                    potential_win = calculate_american_odds_payout(rule["wager_amount"], opp["odds"])
                     opp_doc = {
                         "id": str(uuid.uuid4()),
                         "event_name": opp["event_name"],
@@ -429,6 +430,7 @@ async def get_opportunities():
                         "matched_rule_id": rule["id"],
                         "matched_rule_name": rule["name"],
                         "wager_amount": rule["wager_amount"],
+                        "potential_win": potential_win,
                         "auto_place": rule["auto_place"],
                         "discovered_at": datetime.now(timezone.utc).isoformat()
                     }
