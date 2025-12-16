@@ -311,6 +311,10 @@ class Plays888Service:
             
             await self.page.screenshot(path="/tmp/step3_games_list.png")
             
+            # Check current URL
+            current_url = self.page.url
+            logger.info(f"Current URL after Continue: {current_url}")
+            
             # Step 4: Find the game and click the odds button
             try:
                 # Format odds with + or - sign
