@@ -302,8 +302,9 @@ class Plays888Service:
                 
                 # Click Continue button at bottom - use force to bypass overlays
                 await self.page.click('input[value="Continue"]', force=True, timeout=5000)
-                await self.page.wait_for_timeout(3000)
-                logger.info("Step 3: Clicked Continue button")
+                await self.page.wait_for_load_state('networkidle')
+                await self.page.wait_for_timeout(5000)  # Wait longer for games to load
+                logger.info("Step 3: Clicked Continue button and waiting for games to load")
             except Exception as e:
                 logger.error(f"Could not select league: {str(e)}")
                 return {"success": False, "message": f"Could not select league: {str(e)}"}
