@@ -6,6 +6,7 @@ import ConnectionSetup from './pages/ConnectionSetup';
 import BettingRules from './pages/BettingRules';
 import Opportunities from './pages/Opportunities';
 import History from './pages/History';
+import Settings from './pages/Settings';
 import Layout from './components/Layout';
 import { Toaster } from './components/ui/sonner';
 
