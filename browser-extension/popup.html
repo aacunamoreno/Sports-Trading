@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 400px;
+      padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0c1445 0%, #1a2456 100%);
+      color: #e0e0e0;
+      margin: 0;
+    }
+    
+    h1 {
+      color: #00ff94;
+      font-size: 20px;
+      margin: 0 0 20px 0;
+      text-align: center;
+    }
+    
+    .section {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      border: 1px solid rgba(0, 255, 148, 0.2);
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      color: #a0a0a0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid rgba(0, 255, 148, 0.3);
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: #00ff94;
+    }
+    
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #00ff94;
+      color: #0c1445;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.3s;
+    }
+    
+    button:hover {
+      background: #00cc76;
+      box-shadow: 0 0 20px rgba(0, 255, 148, 0.3);
+    }
+    
+    button:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+    
+    .status {
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+      text-align: center;
+      font-size: 12px;
+    }
+    
+    .status.success {
+      background: rgba(0, 255, 148, 0.2);
+      color: #00ff94;
+    }
+    
+    .status.error {
+      background: rgba(255, 68, 68, 0.2);
+      color: #ff4444;
+    }
+    
+    .info {
+      font-size: 11px;
+      color: #888;
+      margin-top: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎰 Betting Automation</h1>
+  
+  <div class="section">
+    <label>Backend API URL</label>
+    <input type="text" id="apiUrl" placeholder="https://your-api-url.com">
+    <button id="saveApi">Save API URL</button>
+  </div>
+  
+  <div class="section">
+    <label>League</label>
+    <select id="league">
+      <option value="NCAA BASKETBALL - MEN">NCAA BASKETBALL - MEN</option>
+      <option value="NATIONAL HOCKEY LEAGUE - OT INCLUDED">NHL - OT INCLUDED</option>
+      <option value="NBA">NBA</option>
+    </select>
+    
+    <label>Game</label>
+    <input type="text" id="game" placeholder="e.g., Towson vs Kansas">
+    
+    <label>Bet Type & Line</label>
+    <input type="text" id="betType" placeholder="e.g., Over 138 (o138)">
+    
+    <label>Odds (American)</label>
+    <input type="number" id="odds" placeholder="e.g., -110 or +150">
+    
+    <label>Wager Amount (To Win)</label>
+    <input type="number" id="wager" placeholder="e.g., 300">
+    
+    <button id="placeBet">Place Bet</button>
+  </div>
+  
+  <div id="status" class="status" style="display: none;"></div>
+  
+  <div class="info">
+    Make sure you're logged into plays888.co before placing bets.
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
