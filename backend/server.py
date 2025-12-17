@@ -154,6 +154,43 @@ def format_american_odds(odds: int) -> str:
     """Format American odds with + or - sign"""
     return f"+{odds}" if odds > 0 else str(odds)
 
+async def send_telegram_notification(bet_details: dict):
+    """Send Telegram notification when a bet is placed"""
+    if not telegram_bot or not telegram_chat_id:
+        logger.info("Telegram not configured, skipping notification")
+        return
+    
+    try:
+        # Format the message with bet details
+        odds_formatted = format_american_odds(bet_details['odds'])
+        potential_win = bet_details.get('potential_win', bet_details['wager'])
+        
+        message = f"""
+🎰 *BET PLACED*
+
+*Game:* {bet_details['game']}
+*League:* {bet_details.get('league', 'N/A')}
+*Bet:* {bet_details['bet_type']} {bet_details.get('line', '')}
+*Odds:* {odds_formatted}
+*Wager:* ${bet_details['wager']} MXN
+*To Win:* ${potential_win:.2f} MXN
+
+*Ticket#:* {bet_details.get('ticket_number', 'Pending')}
+*Status:* {bet_details.get('status', 'Placed')}
+
+_Automated via BetBot System_
+        """
+        
+        await telegram_bot.send_message(
+            chat_id=telegram_chat_id,
+            text=message.strip(),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.info(f"Telegram notification sent for Ticket#{bet_details.get('ticket_number')}")
+        
+    except Exception as e:
+        logger.error(f"Failed to send Telegram notification: {str(e)}")
+
 
 # Playwright automation service
 class Plays888Service:
