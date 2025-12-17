@@ -358,64 +358,62 @@ class Plays888Service:
             
             # Step 4: Find the game and click the odds button
             try:
-                # Format odds with + or - sign
+                # Format odds - need to handle both positive and negative
+                # e.g., +110, -125, o150+110
                 odds_text = f"+{odds}" if odds > 0 else str(odds)
                 
                 # Save HTML for debugging
                 page_content = await self.page.content()
                 with open("/tmp/step3_games_html.html", "w", encoding="utf-8") as f:
                     f.write(page_content)
-                logger.info("Saved games page HTML")
+                logger.info("Saved games page HTML for debugging")
                 
-                # The odds are in input elements in the M Line column
-                # First, try to find all input elements on the page
+                # Find all betting buttons (input type="submit")
                 all_inputs = await self.page.query_selector_all('input[type="submit"]')
-                logger.info(f"Found {len(all_inputs)} input buttons on page")
+                logger.info(f"Found {len(all_inputs)} total input buttons on page")
                 
-                # Look through all inputs for one matching our odds
+                # Look for the specific odds button
+                # The odds might be part of a larger string like "o150+110" or just "+110"
                 clicked = False
+                matched_button = None
+                
                 for input_elem in all_inputs:
                     try:
                         value = await input_elem.get_attribute('value')
-                        if value == odds_text:
+                        # Check if this button contains our odds
+                        if value and odds_text in value:
+                            matched_button = input_elem
+                            logger.info(f"Found matching button with value: {value}")
                             await input_elem.click(force=True)
                             clicked = True
-                            logger.info(f"Step 4: Clicked odds button '{odds_text}' via element search")
+                            logger.info(f"Step 4: Clicked odds button containing '{odds_text}' (full value: {value})")
                             break
-                    except:
+                    except Exception as e:
+                        logger.error(f"Error checking button: {str(e)}")
                         continue
                 
-                # If that didn't work, try direct selectors
                 if not clicked:
-                    selectors = [
-                        f'input[value="{odds_text}"]',
-                        f'//input[@value="{odds_text}"]',
-                    ]
-                    
-                    for selector in selectors:
+                    # Log all button values for debugging
+                    logger.error("Could not find matching odds button. Available buttons:")
+                    for i, input_elem in enumerate(all_inputs[:20]):  # Log first 20
                         try:
-                            if selector.startswith('//'):
-                                await self.page.click(f'xpath={selector}', force=True, timeout=5000)
-                            else:
-                                await self.page.click(selector, force=True, timeout=5000)
-                            clicked = True
-                            logger.info(f"Step 4: Clicked odds button '{odds_text}' using selector: {selector}")
-                            break
-                        except Exception as click_err:
-                            logger.error(f"Selector '{selector}' failed: {str(click_err)}")
-                            continue
-                
-                if not clicked:
+                            value = await input_elem.get_attribute('value')
+                            logger.error(f"  Button {i}: {value}")
+                        except:
+                            pass
+                    
                     return {
                         "success": False, 
-                        "message": f"Could not find odds button '{odds_text}' for game. Check /tmp/step3_games_html.html for debugging"
+                        "message": f"Could not find odds button containing '{odds_text}' for game. Found {len(all_inputs)} buttons total. Check /tmp/step3_games_html.html and logs for details."
                     }
                 
+                # Wait for button selection to register
                 await self.page.wait_for_timeout(2000)
                 
-                # Click Continue button
+                # Click Continue button to go to bet slip
                 await self.page.click('input[value="Continue"]', force=True, timeout=5000)
-                await self.page.wait_for_timeout(3000)
+                await self.page.wait_for_load_state('networkidle')
+                await self.page.wait_for_timeout(2000)
                 logger.info("Step 4: Clicked Continue after selecting odds")
                 
             except Exception as e:
