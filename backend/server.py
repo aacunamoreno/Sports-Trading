@@ -950,6 +950,82 @@ async def record_manual_bet(bet: ManualBetRecord):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class TelegramConfig(BaseModel):
+    bot_token: str
+    chat_id: int
+
+@api_router.post("/telegram/config")
+async def configure_telegram(config: TelegramConfig):
+    """Configure Telegram bot for notifications"""
+    global telegram_bot, telegram_chat_id
+    
+    try:
+        # Test the bot token
+        test_bot = Bot(token=config.bot_token)
+        bot_info = await test_bot.get_me()
+        
+        # Store configuration
+        telegram_bot = test_bot
+        telegram_chat_id = config.chat_id
+        
+        # Update environment (for persistence, you'd write to .env file)
+        os.environ['TELEGRAM_BOT_TOKEN'] = config.bot_token
+        os.environ['TELEGRAM_CHAT_ID'] = str(config.chat_id)
+        
+        # Send test message
+        await telegram_bot.send_message(
+            chat_id=telegram_chat_id,
+            text="✅ *Telegram Notifications Enabled*\\n\\nYou will receive notifications when bets are placed\\.",
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+        
+        return {
+            "success": True,
+            "message": f"Telegram configured successfully. Bot: @{bot_info.username}",
+            "bot_name": bot_info.first_name
+        }
+    except Exception as e:
+        logger.error(f"Telegram configuration error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to configure Telegram: {str(e)}")
+
+@api_router.get("/telegram/status")
+async def telegram_status():
+    """Check Telegram configuration status"""
+    if telegram_bot and telegram_chat_id:
+        try:
+            bot_info = await telegram_bot.get_me()
+            return {
+                "configured": True,
+                "bot_username": bot_info.username,
+                "bot_name": bot_info.first_name,
+                "chat_id": telegram_chat_id
+            }
+        except:
+            return {"configured": False, "error": "Bot token invalid"}
+    return {"configured": False}
+
+@api_router.post("/telegram/test")
+async def test_telegram():
+    """Send a test notification"""
+    if not telegram_bot or not telegram_chat_id:
+        raise HTTPException(status_code=400, detail="Telegram not configured")
+    
+    try:
+        await send_telegram_notification({
+            "game": "Test Game",
+            "league": "TEST LEAGUE",
+            "bet_type": "Test Bet",
+            "line": "Test",
+            "odds": -110,
+            "wager": 100,
+            "potential_win": 90.91,
+            "ticket_number": "TEST123",
+            "status": "Test"
+        })
+        return {"success": True, "message": "Test notification sent"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/stats")
 async def get_stats():
     """Get statistics for dashboard"""
