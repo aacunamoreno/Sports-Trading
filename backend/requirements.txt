@@ -16,6 +16,8 @@ fastapi==0.110.1
 flake8==7.3.0
 greenlet==3.3.0
 h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
 idna==3.11
 iniconfig==2.3.0
 isort==7.0.0
@@ -52,6 +54,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-jose==3.5.0
 python-multipart==0.0.20
+python-telegram-bot==22.5
 pytokens==0.3.0
 pytz==2025.2
 requests==2.32.5
