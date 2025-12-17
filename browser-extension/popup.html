@@ -1,145 +1,200 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <style>
-    body {
-      width: 400px;
-      padding: 20px;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #0c1445 0%, #1a2456 100%);
-      color: #e0e0e0;
+    * {
+      box-sizing: border-box;
       margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      width: 350px;
+      min-height: 500px;
+      background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 20px;
     }
     
     h1 {
-      color: #00ff94;
       font-size: 20px;
-      margin: 0 0 20px 0;
+      margin-bottom: 16px;
+      color: #10b981;
       text-align: center;
     }
     
     .section {
-      background: rgba(255, 255, 255, 0.05);
-      padding: 15px;
+      margin-bottom: 20px;
+      padding: 16px;
+      background: rgba(30, 41, 59, 0.8);
       border-radius: 8px;
-      margin-bottom: 15px;
-      border: 1px solid rgba(0, 255, 148, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    
+    .section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #64748b;
+      margin-bottom: 12px;
     }
     
     label {
       display: block;
-      margin-bottom: 5px;
       font-size: 12px;
-      color: #a0a0a0;
+      color: #94a3b8;
+      margin-bottom: 4px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
     
     input, select {
       width: 100%;
-      padding: 10px;
-      margin-bottom: 15px;
-      border: 1px solid rgba(0, 255, 148, 0.3);
-      background: rgba(0, 0, 0, 0.3);
-      color: #fff;
-      border-radius: 4px;
+      padding: 10px 12px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #e2e8f0;
       font-size: 14px;
-      box-sizing: border-box;
+      margin-bottom: 12px;
     }
     
     input:focus, select:focus {
       outline: none;
-      border-color: #00ff94;
+      border-color: #10b981;
+    }
+    
+    input::placeholder {
+      color: #475569;
     }
     
     button {
       width: 100%;
       padding: 12px;
-      background: #00ff94;
-      color: #0c1445;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 14px;
-      font-weight: bold;
+      font-weight: 600;
       cursor: pointer;
+      transition: all 0.2s;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      transition: all 0.3s;
+      letter-spacing: 0.5px;
     }
     
-    button:hover {
-      background: #00cc76;
-      box-shadow: 0 0 20px rgba(0, 255, 148, 0.3);
+    .btn-primary {
+      background: #10b981;
+      color: #0a1628;
     }
     
-    button:disabled {
-      background: #555;
-      cursor: not-allowed;
+    .btn-primary:hover {
+      background: #059669;
+    }
+    
+    .btn-secondary {
+      background: #334155;
+      color: #e2e8f0;
+      margin-top: 8px;
+    }
+    
+    .btn-secondary:hover {
+      background: #475569;
     }
     
     .status {
-      padding: 10px;
-      border-radius: 4px;
-      margin-top: 10px;
-      text-align: center;
-      font-size: 12px;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
     }
     
     .status.success {
-      background: rgba(0, 255, 148, 0.2);
-      color: #00ff94;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid #10b981;
+      color: #10b981;
     }
     
     .status.error {
-      background: rgba(255, 68, 68, 0.2);
-      color: #ff4444;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid #ef4444;
+      color: #ef4444;
     }
     
-    .info {
+    .status.info {
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid #3b82f6;
+      color: #3b82f6;
+    }
+    
+    .helper-text {
       font-size: 11px;
-      color: #888;
-      margin-top: 10px;
-      text-align: center;
+      color: #64748b;
+      margin-top: -8px;
+      margin-bottom: 12px;
+    }
+    
+    .instructions {
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    
+    .instructions li {
+      margin-bottom: 4px;
     }
   </style>
 </head>
 <body>
-  <h1>🎰 Betting Automation</h1>
+  <h1>🎰 Plays888 Automation</h1>
   
   <div class="section">
-    <label>Backend API URL</label>
-    <input type="text" id="apiUrl" placeholder="https://your-api-url.com">
-    <button id="saveApi">Save API URL</button>
+    <div class="section-title">API Configuration</div>
+    <label for="apiUrl">Backend API URL</label>
+    <input type="text" id="apiUrl" placeholder="https://your-app.preview.emergentagent.com">
+    <button class="btn-secondary" id="saveApi">Save API URL</button>
   </div>
   
   <div class="section">
-    <label>League</label>
+    <div class="section-title">Place Bet</div>
+    
+    <label for="league">League</label>
     <select id="league">
       <option value="NCAA BASKETBALL - MEN">NCAA BASKETBALL - MEN</option>
-      <option value="NATIONAL HOCKEY LEAGUE - OT INCLUDED">NHL - OT INCLUDED</option>
       <option value="NBA">NBA</option>
+      <option value="NFL">NFL</option>
+      <option value="NHL - OT INCLUDED">NHL - OT INCLUDED</option>
+      <option value="MLB">MLB</option>
+      <option value="SOCCER">SOCCER</option>
     </select>
     
-    <label>Game</label>
+    <label for="game">Game</label>
     <input type="text" id="game" placeholder="e.g., Towson vs Kansas">
     
-    <label>Bet Type & Line</label>
+    <label for="betType">Bet Type & Line</label>
     <input type="text" id="betType" placeholder="e.g., Over 138 (o138)">
+    <p class="helper-text">Examples: Over 138, Under 45.5, Moneyline, Spread -3.5</p>
     
-    <label>Odds (American)</label>
+    <label for="odds">Odds (American)</label>
     <input type="number" id="odds" placeholder="e.g., -110 or +150">
     
-    <label>Wager Amount (To Win)</label>
+    <label for="wager">Wager Amount (To Win)</label>
     <input type="number" id="wager" placeholder="e.g., 300">
     
-    <button id="placeBet">Place Bet</button>
+    <button class="btn-primary" id="placeBet">Place Bet</button>
+    
+    <div id="status" class="status"></div>
   </div>
   
-  <div id="status" class="status" style="display: none;"></div>
-  
-  <div class="info">
-    Make sure you're logged into plays888.co before placing bets.
+  <div class="section">
+    <div class="section-title">Instructions</div>
+    <ol class="instructions">
+      <li>Open plays888.co and log in</li>
+      <li>Navigate to the betting section</li>
+      <li>Fill in bet details above</li>
+      <li>Click "Place Bet" and watch the automation</li>
+      <li>Check console (F12) on plays888.co for logs</li>
+    </ol>
   </div>
   
   <script src="popup.js"></script>

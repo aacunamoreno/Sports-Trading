@@ -28,11 +28,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Send bet to content script on plays888.co tab
     chrome.tabs.query({ url: 'https://www.plays888.co/*' }, (tabs) => {
       if (tabs.length > 0) {
+        console.log('Found plays888.co tab, sending bet:', pendingBet);
         chrome.tabs.sendMessage(tabs[0].id, {
           action: 'executeBet',
           bet: pendingBet
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Error sending to content script:', chrome.runtime.lastError);
+            notifyPopup('Content script not loaded. Refresh plays888.co page.', 'error');
+            sendResponse({ success: false, message: 'Content script not loaded. Please refresh plays888.co page.' });
+          } else {
+            sendResponse({ success: true, message: 'Bet sent to plays888.co tab' });
+          }
         });
-        sendResponse({ success: true, message: 'Bet sent to plays888.co tab' });
       } else {
         sendResponse({ success: false, message: 'No plays888.co tab found. Please open the site first.' });
       }
@@ -40,8 +48,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
   
+  if (request.action === 'betStatus') {
+    // Forward status to popup
+    notifyPopup(request.message, request.type);
+  }
+  
   if (request.action === 'betComplete') {
     // Report bet result back to backend
+    notifyPopup(`✅ Bet placed! Ticket#: ${request.result.ticket_number}`, 'success');
+    
     chrome.storage.local.get(['apiUrl'], async (result) => {
       if (result.apiUrl) {
         try {
@@ -67,4 +82,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     pendingBet = null;
   }
+  
+  if (request.action === 'betFailed') {
+    notifyPopup(`❌ ${request.message}`, 'error');
+    pendingBet = null;
+  }
 });
+
+function notifyPopup(message, type) {
+  chrome.runtime.sendMessage({
+    action: 'betStatus',
+    message: message,
+    type: type
+  }).catch(() => {
+    // Popup might be closed, that's ok
+  });
+}

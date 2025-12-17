@@ -38,22 +38,34 @@ document.addEventListener('DOMContentLoaded', () => {
       wager: wager
     };
     
+    showStatus('Sending bet to plays888.co...', 'info');
+    
     // Send bet to background script
     chrome.runtime.sendMessage(
       { action: 'placeBet', bet: bet },
       (response) => {
         if (response.success) {
-          showStatus('Bet sent! Check plays888.co tab...', 'success');
-          // Clear form
-          document.getElementById('game').value = '';
-          document.getElementById('betType').value = '';
-          document.getElementById('odds').value = '';
-          document.getElementById('wager').value = '';
+          showStatus('Automation started! Watch plays888.co tab...', 'info');
+          // Don't clear form until bet is confirmed
         } else {
           showStatus(response.message, 'error');
         }
       }
     );
+  });
+  
+  // Listen for bet completion messages
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'betStatus') {
+      showStatus(request.message, request.type);
+      if (request.type === 'success') {
+        // Clear form on success
+        document.getElementById('game').value = '';
+        document.getElementById('betType').value = '';
+        document.getElementById('odds').value = '';
+        document.getElementById('wager').value = '';
+      }
+    }
   });
 });
 
@@ -63,7 +75,10 @@ function showStatus(message, type) {
   statusDiv.className = `status ${type}`;
   statusDiv.style.display = 'block';
   
-  setTimeout(() => {
-    statusDiv.style.display = 'none';
-  }, 5000);
+  // Don't auto-hide info messages
+  if (type !== 'info') {
+    setTimeout(() => {
+      statusDiv.style.display = 'none';
+    }, 10000);
+  }
 }
