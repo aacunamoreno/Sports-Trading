@@ -32,6 +32,25 @@ if not encryption_key:
     print(f"Generated new encryption key. Add to .env: ENCRYPTION_KEY={encryption_key}")
 cipher_suite = Fernet(encryption_key.encode())
 
+# Telegram Bot setup (optional - will be configured later)
+telegram_bot = None
+telegram_chat_id = None
+
+def init_telegram():
+    """Initialize Telegram bot if credentials are configured"""
+    global telegram_bot, telegram_chat_id
+    token = os.environ.get('TELEGRAM_BOT_TOKEN')
+    chat_id = os.environ.get('TELEGRAM_CHAT_ID')
+    
+    if token and chat_id:
+        telegram_bot = Bot(token=token)
+        telegram_chat_id = int(chat_id)
+        logger.info("Telegram notifications enabled")
+    else:
+        logger.info("Telegram not configured (optional feature)")
+
+init_telegram()
+
 # Create the main app without a prefix
 app = FastAPI()
 
