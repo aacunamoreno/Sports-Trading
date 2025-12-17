@@ -310,18 +310,42 @@ class Plays888Service:
                 
                 # Click Continue button at bottom - use force to bypass overlays
                 await self.page.click('input[value="Continue"]', force=True, timeout=5000)
-                await self.page.wait_for_load_state('networkidle')
+                logger.info("Clicked Continue, waiting for games to load...")
                 
-                # Wait for games to load - look for multiple submit buttons (one per betting option)
-                logger.info("Waiting for games to load...")
-                for i in range(10):  # Try up to 10 times
+                # CRITICAL: Wait for the games table to actually populate
+                # The URL stays the same but content changes via AJAX
+                # Wait for the page to finish loading
+                await self.page.wait_for_load_state('networkidle', timeout=15000)
+                
+                # Wait longer and check for game content to appear
+                logger.info("Waiting for game data to populate via AJAX...")
+                games_loaded = False
+                for i in range(15):  # Try up to 15 times (30 seconds)
                     await self.page.wait_for_timeout(2000)
-                    button_count = await self.page.locator('input[type="submit"]').count()
-                    logger.info(f"Attempt {i+1}: Found {button_count} buttons")
-                    if button_count > 20:  # Games have loaded if there are many buttons
+                    
+                    # Check multiple indicators that games have loaded
+                    button_count = await self.page.locator('input[type="submit"][value*="+"], input[type="submit"][value*="-"]').count()
+                    
+                    # Also check for team names or game content
+                    page_text = await self.page.content()
+                    has_game_content = 'vs' in page_text.lower() or 'vrs' in page_text.lower()
+                    
+                    logger.info(f"Attempt {i+1}: Found {button_count} betting buttons, has_game_content={has_game_content}")
+                    
+                    if button_count > 10 and has_game_content:  # Games have loaded
+                        games_loaded = True
+                        logger.info(f"Games loaded successfully! Found {button_count} betting options")
                         break
                 
-                logger.info("Step 3: Clicked Continue button and games loaded")
+                if not games_loaded:
+                    # Take screenshot for debugging
+                    await self.page.screenshot(path="/tmp/games_not_loaded.png")
+                    return {
+                        "success": False,
+                        "message": "Games did not load after waiting 30 seconds. Check /tmp/games_not_loaded.png"
+                    }
+                
+                logger.info("Step 3: Games loaded successfully")
             except Exception as e:
                 logger.error(f"Could not select league: {str(e)}")
                 return {"success": False, "message": f"Could not select league: {str(e)}"}
