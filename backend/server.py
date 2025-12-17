@@ -422,23 +422,39 @@ class Plays888Service:
             
             await self.page.screenshot(path="/tmp/step4_betslip.png")
             
-            # Step 5: Select "To Win Amount" radio button and enter amount
+            # Step 5: On bet slip page - Select "To Win Amount" and enter amount
             try:
+                # Wait for bet slip page to load
+                await self.page.wait_for_selector('input[value="To Win Amount"]', timeout=10000)
+                logger.info("Bet slip page loaded")
+                
+                await self.page.screenshot(path="/tmp/step4_betslip.png")
+                
                 # Select "To Win Amount" radio button
-                await self.page.click('input[value="To Win Amount"]', timeout=5000)
+                await self.page.click('input[value="To Win Amount"]', force=True, timeout=5000)
                 await self.page.wait_for_timeout(500)
                 logger.info("Step 5: Selected 'To Win Amount' radio button")
                 
-                # Find the input field and enter wager amount
-                # The input is typically near the radio buttons
-                await self.page.fill('input[type="text"]:visible', str(int(wager)))
-                await self.page.wait_for_timeout(1000)
-                logger.info(f"Step 5: Entered wager amount: ${wager}")
+                # Find the text input field for amount and clear it first
+                # Look for visible text input (not password, not hidden)
+                input_field = await self.page.query_selector('input[type="text"]:not([style*="display: none"]):not([style*="display:none"])')
+                if input_field:
+                    await input_field.click()
+                    await input_field.fill('')  # Clear first
+                    await input_field.fill(str(int(wager)))
+                    logger.info(f"Step 5: Entered wager amount: ${wager}")
+                else:
+                    logger.error("Could not find amount input field")
+                    return {"success": False, "message": "Could not find amount input field"}
                 
-                # Click Continue
+                await self.page.wait_for_timeout(1000)
+                await self.page.screenshot(path="/tmp/step5_amount_entered.png")
+                
+                # Click Continue to go to confirmation
                 await self.page.click('input[value="Continue"]', force=True, timeout=5000)
-                await self.page.wait_for_timeout(3000)
-                logger.info("Step 5: Clicked Continue")
+                await self.page.wait_for_load_state('networkidle')
+                await self.page.wait_for_timeout(2000)
+                logger.info("Step 5: Clicked Continue, going to confirmation")
                 
             except Exception as e:
                 logger.error(f"Could not enter wager amount: {str(e)}")
