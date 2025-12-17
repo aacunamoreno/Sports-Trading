@@ -1158,18 +1158,6 @@ async def get_stats():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Include the router in the main app
-app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
 @api_router.post("/monitoring/start")
 async def start_monitoring():
     """Start the bet monitoring system"""
@@ -1240,6 +1228,19 @@ async def check_now():
         "success": True,
         "message": "Manual bet check triggered. Results will be logged and notifications sent if new bets found."
     }
+
+
+# Include the router in the main app
+app.include_router(api_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
