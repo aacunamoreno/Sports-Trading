@@ -1093,13 +1093,20 @@ async def configure_telegram(config: TelegramConfig):
         test_bot = Bot(token=config.bot_token)
         bot_info = await test_bot.get_me()
         
-        # Store configuration
+        # Store configuration in memory
         telegram_bot = test_bot
         telegram_chat_id = config.chat_id
         
-        # Update environment (for persistence, you'd write to .env file)
-        os.environ['TELEGRAM_BOT_TOKEN'] = config.bot_token
-        os.environ['TELEGRAM_CHAT_ID'] = str(config.chat_id)
+        # Persist to MongoDB (upsert - update or insert)
+        await db.telegram_config.delete_many({})  # Remove old config
+        await db.telegram_config.insert_one({
+            "bot_token": config.bot_token,
+            "chat_id": config.chat_id,
+            "bot_username": bot_info.username,
+            "bot_name": bot_info.first_name,
+            "configured_at": datetime.now(timezone.utc).isoformat()
+        })
+        logger.info(f"Telegram config saved to database for @{bot_info.username}")
         
         # Send test message
         await telegram_bot.send_message(
