@@ -483,37 +483,47 @@ class Plays888Service:
             
             await self.page.screenshot(path="/tmp/step6_success_page.png")
             
-            # Step 7: Verify bet was placed by checking for Ticket# on confirmation page
+            # Step 7: Verify bet was placed by checking for Ticket# on success page
             try:
+                # Check if we're on the ConfirmWager.aspx success page
+                current_url = self.page.url
+                logger.info(f"Final URL: {current_url}")
+                
                 # Look for "Ticket#" text on the page
                 page_content = await self.page.content()
+                with open("/tmp/success_page.html", "w", encoding="utf-8") as f:
+                    f.write(page_content)
                 
-                if "Ticket#" in page_content or "ticket" in page_content.lower():
-                    # Try to extract ticket number
-                    import re
-                    ticket_match = re.search(r'Ticket#?[:\s]*(\d+)', page_content)
-                    ticket_number = ticket_match.group(1) if ticket_match else "Unknown"
+                # Extract ticket number
+                import re
+                ticket_match = re.search(r'Ticket#?[:\s]*(\d+)', page_content, re.IGNORECASE)
+                
+                if ticket_match or "ConfirmWager" in current_url:
+                    ticket_number = ticket_match.group(1) if ticket_match else "Check screenshot"
                     
-                    logger.info(f"BET PLACED SUCCESSFULLY! Ticket#: {ticket_number}")
+                    logger.info(f"🎉 BET PLACED SUCCESSFULLY! Ticket#: {ticket_number}")
                     
                     return {
                         "success": True,
-                        "message": f"Bet placed successfully: {game} - {bet_type} {line} @ {odds} for ${wager} MXN",
+                        "message": f"✅ Bet placed successfully: {game} - {bet_type} {line} @ {odds} for ${wager} MXN",
                         "ticket_number": ticket_number,
                         "bet_details": {
                             "game": game,
                             "bet_type": bet_type,
                             "line": line,
                             "odds": odds,
-                            "wager": wager
+                            "wager": wager,
+                            "league": league
                         },
-                        "screenshots": "Check /tmp/step*.png for verification"
+                        "verification": "Check /tmp/step6_success_page.png for visual confirmation"
                     }
                 else:
+                    logger.error("Could not verify bet placement")
                     return {
                         "success": False,
                         "message": "Reached final page but could not verify bet placement (no Ticket# found)",
-                        "screenshots": "Check /tmp/step*.png for debugging"
+                        "current_url": current_url,
+                        "screenshots": "Check /tmp/step*.png and /tmp/success_page.html for debugging"
                     }
                     
             except Exception as e:
