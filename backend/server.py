@@ -1170,7 +1170,82 @@ app.add_middleware(
 )
 
 
+@api_router.post("/monitoring/start")
+async def start_monitoring():
+    """Start the bet monitoring system"""
+    global monitoring_enabled
+    
+    # Check if connection is configured
+    conn = await db.connections.find_one({}, {"_id": 0})
+    if not conn or not conn.get("is_connected"):
+        raise HTTPException(status_code=400, detail="Please configure plays888.co connection first")
+    
+    monitoring_enabled = True
+    
+    # Schedule the job to run every 30 minutes
+    if not scheduler.running:
+        scheduler.add_job(
+            monitor_open_bets,
+            trigger=IntervalTrigger(minutes=30),
+            id='bet_monitor',
+            replace_existing=True
+        )
+        scheduler.start()
+    
+    logger.info("Bet monitoring started - checking every 30 minutes")
+    
+    return {
+        "success": True,
+        "message": "Bet monitoring started. Will check plays888.co every 30 minutes for new bets.",
+        "interval": "30 minutes"
+    }
+
+@api_router.post("/monitoring/stop")
+async def stop_monitoring():
+    """Stop the bet monitoring system"""
+    global monitoring_enabled
+    
+    monitoring_enabled = False
+    
+    if scheduler.running:
+        scheduler.remove_job('bet_monitor')
+    
+    logger.info("Bet monitoring stopped")
+    
+    return {
+        "success": True,
+        "message": "Bet monitoring stopped"
+    }
+
+@api_router.get("/monitoring/status")
+async def monitoring_status():
+    """Get monitoring system status"""
+    return {
+        "enabled": monitoring_enabled,
+        "interval": "30 minutes",
+        "running": scheduler.running,
+        "next_check": scheduler.get_job('bet_monitor').next_run_time.isoformat() if monitoring_enabled and scheduler.running else None
+    }
+
+@api_router.post("/monitoring/check-now")
+async def check_now():
+    """Manually trigger a bet check immediately"""
+    if not monitoring_enabled:
+        raise HTTPException(status_code=400, detail="Monitoring is not enabled. Please start monitoring first.")
+    
+    # Run the check immediately in background
+    asyncio.create_task(monitor_open_bets())
+    
+    return {
+        "success": True,
+        "message": "Manual bet check triggered. Results will be logged and notifications sent if new bets found."
+    }
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    global monitoring_enabled
+    monitoring_enabled = False
+    if scheduler.running:
+        scheduler.shutdown()
     client.close()
     await plays888_service.close()
