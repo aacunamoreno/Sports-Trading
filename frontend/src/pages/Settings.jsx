@@ -215,6 +215,82 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      <Card className="glass-card neon-border" data-testid="monitoring-settings">
+        <CardHeader className="border-b border-border">
+          <div className="flex items-center gap-3">
+            <Bell className="w-6 h-6 text-primary" strokeWidth={1.5} />
+            <div>
+              <CardTitle className="font-heading text-xl">Bet Monitoring</CardTitle>
+              <CardDescription className="text-sm mt-1">
+                Automatically detect bets placed from mobile or web
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6 space-y-6">
+          {monitoringStatus && (
+            <div className="p-4 rounded-sm border border-border bg-muted/30">
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  monitoringStatus.enabled ? 'bg-primary animate-pulse' : 'bg-muted-foreground'
+                }`} />
+                <span className="text-sm font-medium">
+                  {monitoringStatus.enabled ? 'Active - Checking every 30 minutes' : 'Inactive'}
+                </span>
+              </div>
+              {monitoringStatus.enabled && monitoringStatus.next_check && (
+                <div className="text-xs text-muted-foreground">
+                  Next check: {new Date(monitoringStatus.next_check).toLocaleString()}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div className="p-4 rounded-sm bg-muted/50 border border-border">
+              <h4 className="text-sm font-medium mb-2 text-foreground">How it works:</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                <li>System checks your plays888.co "Open Bets" every 30 minutes</li>
+                <li>Detects any new bets placed from mobile or website</li>
+                <li>Sends instant Telegram notification with Ticket#</li>
+                <li>Works even when you're away from your computer</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={toggleMonitoring}
+                disabled={monitoringLoading}
+                className={monitoringStatus?.enabled 
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+                }
+              >
+                {monitoringStatus?.enabled ? 'Stop Monitoring' : 'Start Monitoring'}
+              </Button>
+
+              {monitoringStatus?.enabled && (
+                <Button
+                  onClick={checkNow}
+                  disabled={monitoringLoading}
+                  variant="outline"
+                  className="border-primary text-primary hover:bg-primary/10"
+                >
+                  Check Now
+                </Button>
+              )}
+            </div>
+
+            <div className="p-3 rounded-sm bg-primary/10 border border-primary/30">
+              <p className="text-xs text-muted-foreground">
+                💡 <strong>Tip:</strong> Enable both Telegram notifications and Bet Monitoring to get notified 
+                for all bets, whether placed via extension, mobile, or directly on plays888.co
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
