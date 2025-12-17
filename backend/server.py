@@ -49,6 +49,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Initialize Telegram after logger is set up
+def init_telegram():
+    """Initialize Telegram bot if credentials are configured"""
+    global telegram_bot, telegram_chat_id
+    token = os.environ.get('TELEGRAM_BOT_TOKEN')
+    chat_id = os.environ.get('TELEGRAM_CHAT_ID')
+    
+    if token and chat_id:
+        telegram_bot = Bot(token=token)
+        telegram_chat_id = int(chat_id)
+        logger.info("Telegram notifications enabled")
+    else:
+        logger.info("Telegram not configured (optional feature)")
+
+init_telegram()
+
 
 # Models
 class ConnectionConfig(BaseModel):
