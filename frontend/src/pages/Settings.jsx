@@ -15,6 +15,8 @@ export default function Settings() {
   const [botToken, setBotToken] = useState('');
   const [chatId, setChatId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [monitoringStatus, setMonitoringStatus] = useState(null);
+  const [monitoringLoading, setMonitoringLoading] = useState(false);
 
   useEffect(() => {
     checkTelegramStatus();
