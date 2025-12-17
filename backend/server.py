@@ -52,20 +52,35 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize Telegram after logger is set up
-def init_telegram():
-    """Initialize Telegram bot if credentials are configured"""
+async def init_telegram_from_db():
+    """Initialize Telegram bot from database configuration"""
     global telegram_bot, telegram_chat_id
+    try:
+        # Try to load from database first
+        config = await db.telegram_config.find_one({}, {"_id": 0})
+        if config:
+            telegram_bot = Bot(token=config["bot_token"])
+            telegram_chat_id = int(config["chat_id"])
+            logger.info(f"Telegram initialized from database (Chat ID: {telegram_chat_id})")
+            return
+    except Exception as e:
+        logger.error(f"Error loading Telegram from database: {e}")
+    
+    # Fall back to environment variables
     token = os.environ.get('TELEGRAM_BOT_TOKEN')
     chat_id = os.environ.get('TELEGRAM_CHAT_ID')
     
     if token and chat_id:
         telegram_bot = Bot(token=token)
         telegram_chat_id = int(chat_id)
-        logger.info("Telegram notifications enabled")
+        logger.info("Telegram initialized from environment variables")
     else:
         logger.info("Telegram not configured (optional feature)")
 
-init_telegram()
+# Startup event to initialize Telegram
+@app.on_event("startup")
+async def startup_event():
+    await init_telegram_from_db()
 
 
 # Models
