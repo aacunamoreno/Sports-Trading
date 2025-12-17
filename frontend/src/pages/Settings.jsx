@@ -70,6 +70,43 @@ export default function Settings() {
     }
   };
 
+  const checkMonitoringStatus = async () => {
+    try {
+      const response = await axios.get(`${API}/monitoring/status`);
+      setMonitoringStatus(response.data);
+    } catch (error) {
+      console.error('Error checking monitoring status:', error);
+    }
+  };
+
+  const toggleMonitoring = async () => {
+    setMonitoringLoading(true);
+    try {
+      const endpoint = monitoringStatus?.enabled ? 'stop' : 'start';
+      const response = await axios.post(`${API}/monitoring/${endpoint}`);
+      toast.success(response.data.message);
+      checkMonitoringStatus();
+    } catch (error) {
+      console.error('Error toggling monitoring:', error);
+      toast.error(error.response?.data?.detail || 'Failed to toggle monitoring');
+    } finally {
+      setMonitoringLoading(false);
+    }
+  };
+
+  const checkNow = async () => {
+    setMonitoringLoading(true);
+    try {
+      const response = await axios.post(`${API}/monitoring/check-now`);
+      toast.success(response.data.message);
+    } catch (error) {
+      console.error('Error checking now:', error);
+      toast.error(error.response?.data?.detail || 'Failed to trigger manual check');
+    } finally {
+      setMonitoringLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
