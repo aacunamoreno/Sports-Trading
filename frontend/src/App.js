@@ -23,6 +23,7 @@ function App() {
             <Route path="rules" element={<BettingRules />} />
             <Route path="opportunities" element={<Opportunities />} />
             <Route path="history" element={<History />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
       </BrowserRouter>
