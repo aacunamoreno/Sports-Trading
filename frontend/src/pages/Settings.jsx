@@ -68,16 +68,16 @@ export default function Settings() {
   };
 
   return (
-    <div className=\"space-y-6\">
+    <div className="space-y-6">
       <div>
-        <h1 className=\"text-4xl font-heading font-bold tracking-tight mb-2\" data-testid=\"settings-title\">
+        <h1 className="text-4xl font-heading font-bold tracking-tight mb-2" data-testid="settings-title">
           Settings
         </h1>
-        <p className=\"text-muted-foreground\">Configure your betting automation preferences</p>
+        <p className="text-muted-foreground">Configure your betting automation preferences</p>
       </div>
 
       {/* Telegram Notifications */}
-      <Card className=\"glass-card neon-border\" data-testid=\"telegram-settings\">
+      <Card className="glass-card neon-border" data-testid="telegram-settings">
         <CardHeader className=\"border-b border-border\">
           <div className=\"flex items-center gap-3\">
             <Bell className=\"w-6 h-6 text-primary\" strokeWidth={1.5} />
