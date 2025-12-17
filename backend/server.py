@@ -907,6 +907,8 @@ async def get_bet_history():
 async def record_manual_bet(bet: ManualBetRecord):
     """Record a manually placed bet"""
     try:
+        potential_win = calculate_american_odds_payout(bet.wager, bet.odds)
+        
         bet_doc = {
             "id": str(uuid.uuid4()),
             "opportunity_id": "manual",
@@ -924,6 +926,19 @@ async def record_manual_bet(bet: ManualBetRecord):
         }
         
         await db.bet_history.insert_one(bet_doc)
+        
+        # Send Telegram notification
+        await send_telegram_notification({
+            "game": bet.game,
+            "bet_type": bet.bet_type,
+            "line": bet.line,
+            "odds": bet.odds,
+            "wager": bet.wager,
+            "potential_win": potential_win,
+            "ticket_number": bet.bet_slip_id or bet_doc["id"],
+            "status": "Placed",
+            "league": bet.notes if "via extension" not in (bet.notes or "") else ""
+        })
         
         return {
             "success": True,
