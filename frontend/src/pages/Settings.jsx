@@ -20,6 +20,7 @@ export default function Settings() {
 
   useEffect(() => {
     checkTelegramStatus();
+    checkMonitoringStatus();
   }, []);
 
   const checkTelegramStatus = async () => {
