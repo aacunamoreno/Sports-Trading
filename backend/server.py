@@ -146,10 +146,14 @@ class Plays888Service:
             if not self.playwright:
                 self.playwright = await async_playwright().start()
             if not self.browser:
-                # Launch with headless=False to allow full JavaScript execution
+                # Launch in headless mode with flags to help with JavaScript execution
                 self.browser = await self.playwright.chromium.launch(
-                    headless=False,
-                    args=['--disable-blink-features=AutomationControlled']
+                    headless=True,
+                    args=[
+                        '--disable-blink-features=AutomationControlled',
+                        '--disable-dev-shm-usage',
+                        '--no-sandbox'
+                    ]
                 )
             if not self.context:
                 # Set a realistic viewport and user agent
