@@ -28,6 +28,7 @@ export default function Layout() {
     { path: '/rules', label: 'Rules', icon: Settings },
     { path: '/opportunities', label: 'Opportunities', icon: Target },
     { path: '/history', label: 'History', icon: List },
+    { path: '/settings', label: 'Settings', icon: Settings },
   ];
 
   return (
