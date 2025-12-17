@@ -462,17 +462,26 @@ class Plays888Service:
             
             await self.page.screenshot(path="/tmp/step5_confirmation.png")
             
-            # Step 6: Click Confirm button to place the bet
+            # Step 6: On confirmation page - Click Confirm button to place bet
             try:
+                # Wait for confirmation page to load
+                await self.page.wait_for_selector('input[value="Confirm"]', timeout=10000)
+                logger.info("Confirmation page loaded")
+                
+                await self.page.screenshot(path="/tmp/step5_confirmation_page.png")
+                
+                # Click Confirm to place the bet
                 await self.page.click('input[value="Confirm"]', force=True, timeout=5000)
+                await self.page.wait_for_load_state('networkidle')
                 await self.page.wait_for_timeout(3000)
-                logger.info("Step 6: Clicked Confirm button")
+                logger.info("Step 6: Clicked Confirm button - bet should be placed!")
                 
             except Exception as e:
                 logger.error(f"Could not click Confirm: {str(e)}")
+                await self.page.screenshot(path="/tmp/confirm_error.png")
                 return {"success": False, "message": f"Could not click Confirm: {str(e)}"}
             
-            await self.page.screenshot(path="/tmp/step6_final.png")
+            await self.page.screenshot(path="/tmp/step6_success_page.png")
             
             # Step 7: Verify bet was placed by checking for Ticket# on confirmation page
             try:
