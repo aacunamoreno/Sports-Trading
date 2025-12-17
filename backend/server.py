@@ -604,6 +604,117 @@ class Plays888Service:
 
 plays888_service = Plays888Service()
 
+# Bet monitoring scheduler
+scheduler = AsyncIOScheduler()
+monitoring_enabled = False
+
+async def monitor_open_bets():
+    """Background job to monitor plays888.co for new bets"""
+    global monitoring_enabled
+    
+    if not monitoring_enabled:
+        return
+    
+    logger.info("Checking plays888.co for new bets...")
+    
+    try:
+        # Get connection credentials
+        conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+        
+        if not conn or not conn.get("is_connected"):
+            logger.info("No active connection, skipping bet monitoring")
+            return
+        
+        username = conn["username"]
+        password = decrypt_password(conn["password_encrypted"])
+        
+        # Create a new service instance for monitoring
+        monitor_service = Plays888Service()
+        await monitor_service.initialize()
+        
+        # Login
+        login_result = await monitor_service.login(username, password)
+        if not login_result["success"]:
+            logger.error(f"Monitor login failed: {login_result['message']}")
+            await monitor_service.close()
+            return
+        
+        # Navigate to Open Bets page
+        await monitor_service.page.goto('https://www.plays888.co/wager/OpenBets.aspx', timeout=30000)
+        await monitor_service.page.wait_for_timeout(3000)
+        
+        # Extract open bets from the page
+        page_content = await monitor_service.page.content()
+        
+        # Parse ticket numbers and bet details
+        import re
+        ticket_matches = re.findall(r'Ticket#?[:\s]*(\d+)', page_content)
+        
+        logger.info(f"Found {len(ticket_matches)} open bets on plays888.co")
+        
+        # Check each ticket against our database
+        for ticket_num in ticket_matches:
+            # Check if this ticket already exists in our database
+            existing_bet = await db.bet_history.find_one({"bet_slip_id": ticket_num})
+            
+            if not existing_bet:
+                # New bet detected! Extract details and notify
+                logger.info(f"New bet detected: Ticket#{ticket_num}")
+                
+                # Try to extract bet details from page content
+                # This is simplified - in production, you'd parse the HTML table properly
+                bet_details = {
+                    "game": "Unknown Game",
+                    "bet_type": "Unknown Bet",
+                    "line": "",
+                    "odds": 0,
+                    "wager": 0,
+                    "ticket_number": ticket_num,
+                    "status": "Placed",
+                    "league": "Detected from mobile/web"
+                }
+                
+                # Store in database
+                bet_doc = {
+                    "id": str(uuid.uuid4()),
+                    "opportunity_id": "mobile_detected",
+                    "rule_id": "mobile_detected",
+                    "wager_amount": 0,
+                    "odds": 0,
+                    "status": "placed",
+                    "placed_at": datetime.now(timezone.utc).isoformat(),
+                    "result": None,
+                    "game": "Mobile/Web Bet",
+                    "bet_type": "Detected",
+                    "line": "",
+                    "bet_slip_id": ticket_num,
+                    "notes": "Auto-detected from plays888.co"
+                }
+                await db.bet_history.insert_one(bet_doc)
+                
+                # Send Telegram notification
+                await send_telegram_notification({
+                    "game": "New Bet Detected",
+                    "bet_type": "Mobile/Web",
+                    "line": "",
+                    "odds": 0,
+                    "wager": 0,
+                    "potential_win": 0,
+                    "ticket_number": ticket_num,
+                    "status": "Placed",
+                    "league": "⚠️ Placed from mobile/web (check plays888.co for details)"
+                })
+        
+        await monitor_service.close()
+        logger.info("Bet monitoring check complete")
+        
+    except Exception as e:
+        logger.error(f"Error in bet monitoring: {str(e)}")
+        try:
+            await monitor_service.close()
+        except:
+            pass
+
 
 # API Routes
 @api_router.get("/")
