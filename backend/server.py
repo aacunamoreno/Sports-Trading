@@ -1127,6 +1127,19 @@ async def configure_telegram(config: TelegramConfig):
 @api_router.get("/telegram/status")
 async def telegram_status():
     """Check Telegram configuration status"""
+    global telegram_bot, telegram_chat_id
+    
+    # If not in memory, try loading from database
+    if not telegram_bot or not telegram_chat_id:
+        try:
+            config = await db.telegram_config.find_one({}, {"_id": 0})
+            if config:
+                telegram_bot = Bot(token=config["bot_token"])
+                telegram_chat_id = int(config["chat_id"])
+                logger.info("Telegram reloaded from database")
+        except Exception as e:
+            logger.error(f"Error loading Telegram from database: {e}")
+    
     if telegram_bot and telegram_chat_id:
         try:
             bot_info = await telegram_bot.get_me()
