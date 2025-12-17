@@ -146,9 +146,17 @@ class Plays888Service:
             if not self.playwright:
                 self.playwright = await async_playwright().start()
             if not self.browser:
-                self.browser = await self.playwright.chromium.launch(headless=True)
+                # Launch with headless=False to allow full JavaScript execution
+                self.browser = await self.playwright.chromium.launch(
+                    headless=False,
+                    args=['--disable-blink-features=AutomationControlled']
+                )
             if not self.context:
-                self.context = await self.browser.new_context()
+                # Set a realistic viewport and user agent
+                self.context = await self.browser.new_context(
+                    viewport={'width': 1920, 'height': 1080},
+                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                )
             if not self.page:
                 self.page = await self.context.new_page()
         except Exception as e:
