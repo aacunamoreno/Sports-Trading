@@ -1243,11 +1243,20 @@ async def stop_monitoring():
 @api_router.get("/monitoring/status")
 async def monitoring_status():
     """Get monitoring system status"""
+    next_check = None
+    try:
+        if monitoring_enabled and scheduler.running:
+            job = scheduler.get_job('bet_monitor')
+            if job and job.next_run_time:
+                next_check = job.next_run_time.isoformat()
+    except Exception as e:
+        logger.error(f"Error getting next check time: {e}")
+    
     return {
         "enabled": monitoring_enabled,
         "interval": "30 minutes",
         "running": scheduler.running,
-        "next_check": scheduler.get_job('bet_monitor').next_run_time.isoformat() if monitoring_enabled and scheduler.running else None
+        "next_check": next_check
     }
 
 @api_router.post("/monitoring/check-now")
