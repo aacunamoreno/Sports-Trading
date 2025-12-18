@@ -90,6 +90,9 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   
   if (request.action === 'placeBet') {
     var bet = request.bet;
+    // Add timestamp and bot_initiated flag to distinguish from manual bets
+    bet.timestamp = Date.now();
+    bet.bot_initiated = true;
     localStorage.setItem('plays888_pending_bet', JSON.stringify(bet));
     
     var lineNumber = bet.bet_type.replace(/[^0-9.]/g, '');
