@@ -1352,6 +1352,13 @@ async def stop_monitoring():
     
     monitoring_enabled = False
     
+    # Update DB to disable auto-start
+    await db.monitor_config.update_one(
+        {},
+        {"$set": {"auto_start": False}},
+        upsert=True
+    )
+    
     if scheduler.running:
         scheduler.remove_job('bet_monitor')
     
