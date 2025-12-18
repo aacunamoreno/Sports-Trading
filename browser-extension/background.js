@@ -26,7 +26,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     
     // Get the API URL from storage and send to backend
     chrome.storage.local.get(['apiUrl'], function(result) {
-      var apiUrl = result.apiUrl || 'https://betautopilot-1.preview.emergentagent.com';
+      var apiUrl = result.apiUrl || 'https://betbot-1.preview.emergentagent.com';
       
       fetch(apiUrl + '/api/bets/record-manual', {
         method: 'POST',
