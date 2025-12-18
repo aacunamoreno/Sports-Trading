@@ -1,84 +1,61 @@
-// Popup script
-
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
   // Load saved API URL
-  chrome.storage.local.get(['apiUrl'], (result) => {
+  chrome.storage.local.get(['apiUrl'], function(result) {
     if (result.apiUrl) {
       document.getElementById('apiUrl').value = result.apiUrl;
+      document.getElementById('apiStatus').textContent = '✓ Connected to backend';
     }
   });
   
   // Save API URL
-  document.getElementById('saveApi').addEventListener('click', () => {
-    const apiUrl = document.getElementById('apiUrl').value;
-    chrome.storage.local.set({ apiUrl: apiUrl }, () => {
-      showStatus('API URL saved successfully!', 'success');
-    });
+  document.getElementById('saveApi').addEventListener('click', function() {
+    var apiUrl = document.getElementById('apiUrl').value.trim();
+    if (apiUrl) {
+      // Remove trailing slash
+      if (apiUrl.endsWith('/')) {
+        apiUrl = apiUrl.slice(0, -1);
+      }
+      
+      chrome.storage.local.set({ apiUrl: apiUrl }, function() {
+        document.getElementById('apiStatus').textContent = '✓ API URL saved!';
+        document.getElementById('apiStatus').style.color = '#10b981';
+        
+        // Test the connection
+        fetch(apiUrl + '/api/telegram/status')
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.configured) {
+              document.getElementById('apiStatus').textContent = '✓ Connected! Telegram: @' + data.bot_username;
+            } else {
+              document.getElementById('apiStatus').textContent = '✓ Connected (Telegram not configured)';
+            }
+          })
+          .catch(function(err) {
+            document.getElementById('apiStatus').textContent = '⚠ Could not connect to backend';
+            document.getElementById('apiStatus').style.color = '#f59e0b';
+          });
+      });
+    }
   });
   
   // Place bet
-  document.getElementById('placeBet').addEventListener('click', async () => {
-    const league = document.getElementById('league').value;
-    const game = document.getElementById('game').value;
-    const betType = document.getElementById('betType').value;
-    const odds = parseInt(document.getElementById('odds').value);
-    const wager = parseFloat(document.getElementById('wager').value);
+  document.getElementById('placeBtn').addEventListener('click', function() {
+    var status = document.getElementById('status');
+    status.className = 'wait';
+    status.textContent = 'Sending...';
     
-    if (!game || !betType || !odds || !wager) {
-      showStatus('Please fill in all fields', 'error');
-      return;
-    }
-    
-    const bet = {
-      league: league,
-      game: game,
-      bet_type: betType,
-      line: betType.match(/[ou]\d+/i)?.[0] || betType,
-      odds: odds,
-      wager: wager
-    };
-    
-    showStatus('Sending bet to plays888.co...', 'info');
-    
-    // Send bet to background script
-    chrome.runtime.sendMessage(
-      { action: 'placeBet', bet: bet },
-      (response) => {
-        if (response.success) {
-          showStatus('Automation started! Watch plays888.co tab...', 'info');
-          // Don't clear form until bet is confirmed
-        } else {
-          showStatus(response.message, 'error');
-        }
+    chrome.runtime.sendMessage({
+      action: 'placeBet',
+      bet: {
+        league: document.getElementById('league').value,
+        game: document.getElementById('game').value,
+        bet_type: document.getElementById('betType').value,
+        odds: parseInt(document.getElementById('odds').value),
+        wager: parseFloat(document.getElementById('wager').value)
       }
-    );
-  });
-  
-  // Listen for bet completion messages
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'betStatus') {
-      showStatus(request.message, request.type);
-      if (request.type === 'success') {
-        // Clear form on success
-        document.getElementById('game').value = '';
-        document.getElementById('betType').value = '';
-        document.getElementById('odds').value = '';
-        document.getElementById('wager').value = '';
-      }
-    }
+    }, function(r) {
+      status.className = r && r.success ? 'ok' : 'err';
+      status.textContent = r ? r.message : 'Error';
+    });
   });
 });
-
-function showStatus(message, type) {
-  const statusDiv = document.getElementById('status');
-  statusDiv.textContent = message;
-  statusDiv.className = `status ${type}`;
-  statusDiv.style.display = 'block';
-  
-  // Don't auto-hide info messages
-  if (type !== 'info') {
-    setTimeout(() => {
-      statusDiv.style.display = 'none';
-    }, 10000);
-  }
-}
