@@ -671,52 +671,61 @@ async def monitor_open_bets():
                 const row = rows[i];
                 const cells = row.querySelectorAll('td');
                 
-                if (cells.length >= 6) {
+                // Table structure based on plays888.co:
+                // 0: GameDate (contains Ticket#)
+                // 1: User/Phone
+                // 2: Date Placed
+                // 3: Sport (CBB, NBA, NHL, SOC, etc)
+                // 4: Description (bet details, game name)
+                // 5: Risk/Win amounts
+                
+                if (cells.length >= 5) {
                     // Extract ticket number from first column
                     const ticketCell = cells[0].textContent || '';
-                    const ticketMatch = ticketCell.match(/Ticket#?[:\\s]*(\\d+)/i);
+                    const ticketMatch = ticketCell.match(/Ticket#?[:\\s-]*(\\d+)/i);
                     
                     if (ticketMatch) {
                         const ticket = ticketMatch[1];
                         
-                        // Extract description (usually has game info, bet type, odds)
-                        const description = cells[5] ? cells[5].textContent.trim() : '';
-                        const sport = cells[4] ? cells[4].textContent.trim() : '';
-                        const riskWin = cells[6] ? cells[6].textContent.trim() : '';
+                        // Column indices - adjusted based on actual table structure
+                        const sport = cells[3] ? cells[3].textContent.trim() : '';
+                        const description = cells[4] ? cells[4].textContent.trim() : '';
+                        const riskWin = cells[5] ? cells[5].textContent.trim() : '';
                         
-                        // Parse risk/win amounts (format: "1100.00 / 1000.00")
+                        // Parse risk/win amounts (format: "1100.00 / 1000.00" or "2400.00 / 2000.00")
                         let wager = 0;
                         let toWin = 0;
-                        const riskMatch = riskWin.match(/([\\d,.]+)\\s*\\/\\s*([\\d,.]+)/);
+                        const riskMatch = riskWin.match(/([\\d,]+\\.?\\d*)\\s*\\/\\s*([\\d,]+\\.?\\d*)/);
                         if (riskMatch) {
-                            wager = parseFloat(riskMatch[1].replace(',', ''));
-                            toWin = parseFloat(riskMatch[2].replace(',', ''));
+                            wager = parseFloat(riskMatch[1].replace(/,/g, ''));
+                            toWin = parseFloat(riskMatch[2].replace(/,/g, ''));
                         }
                         
-                        // Extract odds from description (look for -110, +150, etc.)
+                        // Extract odds from description (look for -110, +150, -120, etc.)
                         let odds = -110;
-                        const oddsMatch = description.match(/([+-]\\d+)(?:\\s|$|\\))/);
+                        const oddsMatch = description.match(/([+-]\\d{3,})(?:[\\s\\)]|$)/);
                         if (oddsMatch) {
                             odds = parseInt(oddsMatch[1]);
                         }
                         
-                        // Extract game name (usually in parentheses at end)
+                        // Extract game name (usually in parentheses at end like "(TEAM A vs TEAM B)" or "(TEAM A vrs TEAM B)")
                         let game = '';
-                        const gameMatch = description.match(/\\(([^)]+vs[^)]+)\\)/i);
+                        const gameMatch = description.match(/\\(([^)]*(?:vs|vrs)[^)]*)\\)/i);
                         if (gameMatch) {
                             game = gameMatch[1].trim();
                         }
                         
-                        // Extract bet type (TOTAL, spread, etc.)
+                        // Extract bet type (TOTAL o/u, spread, etc.)
                         let betType = '';
+                        // Look for TOTAL with over/under like "TOTAL o228" or "TOTAL u6"
                         const totalMatch = description.match(/TOTAL\\s+([ou][\\d.½]+)/i);
                         if (totalMatch) {
                             betType = totalMatch[1];
                         } else {
-                            // Try to get spread
-                            const spreadMatch = description.match(/([+-][\\d.½]+)\\s*[(-]/);
+                            // Try to get spread like "-12" or "+5.5"
+                            const spreadMatch = description.match(/\\]\\s*([A-Z\\s]+)\\s+([+-][\\d.½]+)/);
                             if (spreadMatch) {
-                                betType = spreadMatch[1];
+                                betType = spreadMatch[2];
                             }
                         }
                         
