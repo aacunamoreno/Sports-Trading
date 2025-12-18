@@ -2,16 +2,43 @@ console.log('=== PLAYS888 BOT LOADED ===');
 console.log('Page:', window.location.href);
 
 // Check for pending bet on ANY page load
-var pendingBet = localStorage.getItem('plays888_pending_bet');
-console.log('Pending bet in localStorage:', pendingBet ? 'YES' : 'NO');
+var pendingBetRaw = localStorage.getItem('plays888_pending_bet');
+var pendingBet = null;
+
+// Only use pending bet if it's recent (within 60 seconds) and has bot_initiated flag
+if (pendingBetRaw) {
+  try {
+    var parsed = JSON.parse(pendingBetRaw);
+    var betTime = parsed.timestamp || 0;
+    var now = Date.now();
+    var age = (now - betTime) / 1000;
+    
+    // Only consider it valid if:
+    // 1. It was created within the last 60 seconds
+    // 2. It has the bot_initiated flag (meaning it came from the extension popup)
+    if (age < 60 && parsed.bot_initiated === true) {
+      pendingBet = pendingBetRaw;
+      console.log('Valid pending bot bet found, age:', age, 'seconds');
+    } else {
+      console.log('Pending bet expired or not bot-initiated, ignoring. Age:', age, 'Bot initiated:', parsed.bot_initiated);
+      localStorage.removeItem('plays888_pending_bet');
+    }
+  } catch(e) {
+    console.log('Error parsing pending bet, clearing it');
+    localStorage.removeItem('plays888_pending_bet');
+  }
+}
+
+console.log('Active pending bet:', pendingBet ? 'YES' : 'NO');
 
 // Check if Confirm button exists on this page
 setTimeout(function() {
   var confirmBtn = document.querySelector('input[value="Confirm"]');
   console.log('Confirm button found:', confirmBtn ? 'YES' : 'NO');
   
+  // ONLY auto-click if there's a valid, recent, bot-initiated pending bet
   if (confirmBtn && pendingBet) {
-    console.log('CONFIRM BUTTON FOUND! Clicking...');
+    console.log('CONFIRM BUTTON FOUND with valid bot bet! Clicking...');
     confirmBtn.click();
     
     // Wait for confirmation and extract ticket number
