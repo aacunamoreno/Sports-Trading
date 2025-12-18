@@ -1327,22 +1327,22 @@ async def start_monitoring():
         "enabled_at": datetime.now(timezone.utc).isoformat()
     })
     
-    # Schedule the job to run every 2 minutes (for testing - change to 15 for production)
+    # Schedule the job to run every 15 minutes
     if not scheduler.running:
         scheduler.add_job(
             monitor_open_bets,
-            trigger=IntervalTrigger(minutes=2),
+            trigger=IntervalTrigger(minutes=15),
             id='bet_monitor',
             replace_existing=True
         )
         scheduler.start()
     
-    logger.info("Bet monitoring started - checking every 2 minutes")
+    logger.info("Bet monitoring started - checking every 15 minutes")
     
     return {
         "success": True,
-        "message": "Bet monitoring started. Will check plays888.co every 2 minutes for new bets.",
-        "interval": "2 minutes"
+        "message": "Bet monitoring started. Will check plays888.co every 15 minutes for new bets.",
+        "interval": "15 minutes"
     }
 
 @api_router.post("/monitoring/stop")
