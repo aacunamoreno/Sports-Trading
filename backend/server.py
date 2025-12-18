@@ -1319,6 +1319,14 @@ async def start_monitoring():
     
     monitoring_enabled = True
     
+    # Save monitoring config to DB for auto-start on restart
+    await db.monitor_config.delete_many({})
+    await db.monitor_config.insert_one({
+        "auto_start": True,
+        "interval_minutes": 15,  # Production interval
+        "enabled_at": datetime.now(timezone.utc).isoformat()
+    })
+    
     # Schedule the job to run every 2 minutes (for testing - change to 15 for production)
     if not scheduler.running:
         scheduler.add_job(
