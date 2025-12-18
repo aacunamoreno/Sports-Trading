@@ -97,12 +97,12 @@ async def auto_start_monitoring():
                 if not scheduler.running:
                     scheduler.add_job(
                         monitor_open_bets,
-                        trigger=IntervalTrigger(minutes=2),  # Current interval for testing
+                        trigger=IntervalTrigger(minutes=15),  # Production interval
                         id='bet_monitor',
                         replace_existing=True
                     )
                     scheduler.start()
-                logger.info("Bet monitoring auto-started on server startup")
+                logger.info("Bet monitoring auto-started on server startup (checking every 15 minutes)")
             else:
                 logger.info("Bet monitoring not auto-started (disabled in config)")
         else:
