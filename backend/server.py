@@ -656,68 +656,145 @@ async def monitor_open_bets():
         
         # Navigate to Open Bets page
         await monitor_service.page.goto('https://www.plays888.co/wager/OpenBets.aspx', timeout=30000)
-        await monitor_service.page.wait_for_timeout(3000)
+        await monitor_service.page.wait_for_timeout(5000)  # Wait longer for table to load
         
-        # Extract open bets from the page
-        page_content = await monitor_service.page.content()
-        
-        # Parse ticket numbers and bet details
+        # Extract open bets by parsing the table rows using Playwright
         import re
-        ticket_matches = re.findall(r'Ticket#?[:\s]*(\d+)', page_content)
         
-        logger.info(f"Found {len(ticket_matches)} open bets on plays888.co")
+        # Try to extract bet data from table rows
+        bets_data = await monitor_service.page.evaluate('''() => {
+            const bets = [];
+            // Find all table rows in the bets table
+            const rows = document.querySelectorAll('table tr');
+            
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const cells = row.querySelectorAll('td');
+                
+                if (cells.length >= 6) {
+                    // Extract ticket number from first column
+                    const ticketCell = cells[0].textContent || '';
+                    const ticketMatch = ticketCell.match(/Ticket#?[:\\s]*(\\d+)/i);
+                    
+                    if (ticketMatch) {
+                        const ticket = ticketMatch[1];
+                        
+                        // Extract description (usually has game info, bet type, odds)
+                        const description = cells[5] ? cells[5].textContent.trim() : '';
+                        const sport = cells[4] ? cells[4].textContent.trim() : '';
+                        const riskWin = cells[6] ? cells[6].textContent.trim() : '';
+                        
+                        // Parse risk/win amounts (format: "1100.00 / 1000.00")
+                        let wager = 0;
+                        let toWin = 0;
+                        const riskMatch = riskWin.match(/([\\d,.]+)\\s*\\/\\s*([\\d,.]+)/);
+                        if (riskMatch) {
+                            wager = parseFloat(riskMatch[1].replace(',', ''));
+                            toWin = parseFloat(riskMatch[2].replace(',', ''));
+                        }
+                        
+                        // Extract odds from description (look for -110, +150, etc.)
+                        let odds = -110;
+                        const oddsMatch = description.match(/([+-]\\d+)(?:\\s|$|\\))/);
+                        if (oddsMatch) {
+                            odds = parseInt(oddsMatch[1]);
+                        }
+                        
+                        // Extract game name (usually in parentheses at end)
+                        let game = '';
+                        const gameMatch = description.match(/\\(([^)]+vs[^)]+)\\)/i);
+                        if (gameMatch) {
+                            game = gameMatch[1].trim();
+                        }
+                        
+                        // Extract bet type (TOTAL, spread, etc.)
+                        let betType = '';
+                        const totalMatch = description.match(/TOTAL\\s+([ou][\\d.½]+)/i);
+                        if (totalMatch) {
+                            betType = totalMatch[1];
+                        } else {
+                            // Try to get spread
+                            const spreadMatch = description.match(/([+-][\\d.½]+)\\s*[(-]/);
+                            if (spreadMatch) {
+                                betType = spreadMatch[1];
+                            }
+                        }
+                        
+                        bets.push({
+                            ticket: ticket,
+                            description: description,
+                            sport: sport,
+                            game: game,
+                            betType: betType,
+                            odds: odds,
+                            wager: wager,
+                            toWin: toWin
+                        });
+                    }
+                }
+            }
+            return bets;
+        }''')
         
-        # Check each ticket against our database
-        for ticket_num in ticket_matches:
+        logger.info(f"Extracted {len(bets_data)} open bets from plays888.co table")
+        
+        # Check each bet against our database
+        for bet_info in bets_data:
+            ticket_num = bet_info.get('ticket', '')
+            
+            if not ticket_num:
+                continue
+                
             # Check if this ticket already exists in our database
             existing_bet = await db.bet_history.find_one({"bet_slip_id": ticket_num})
             
             if not existing_bet:
-                # New bet detected! Extract details and notify
+                # New bet detected! 
                 logger.info(f"New bet detected: Ticket#{ticket_num}")
+                logger.info(f"Bet details: {bet_info}")
                 
-                # Try to extract bet details from page content
-                # This is simplified - in production, you'd parse the HTML table properly
-                bet_details = {
-                    "game": "Unknown Game",
-                    "bet_type": "Unknown Bet",
-                    "line": "",
-                    "odds": 0,
-                    "wager": 0,
-                    "ticket_number": ticket_num,
-                    "status": "Placed",
-                    "league": "Detected from mobile/web"
-                }
+                game = bet_info.get('game', '') or 'Unknown Game'
+                bet_type = bet_info.get('betType', '') or 'Unknown'
+                odds = bet_info.get('odds', -110)
+                wager = bet_info.get('wager', 0)
+                to_win = bet_info.get('toWin', 0)
+                sport = bet_info.get('sport', '')
+                description = bet_info.get('description', '')
+                
+                # If game is still unknown, use part of description
+                if game == 'Unknown Game' and description:
+                    # Try to extract game from description
+                    game = description[:50] + '...' if len(description) > 50 else description
                 
                 # Store in database
                 bet_doc = {
                     "id": str(uuid.uuid4()),
                     "opportunity_id": "mobile_detected",
                     "rule_id": "mobile_detected",
-                    "wager_amount": 0,
-                    "odds": 0,
+                    "wager_amount": wager,
+                    "odds": odds,
                     "status": "placed",
                     "placed_at": datetime.now(timezone.utc).isoformat(),
                     "result": None,
-                    "game": "Mobile/Web Bet",
-                    "bet_type": "Detected",
-                    "line": "",
+                    "game": game,
+                    "bet_type": bet_type,
+                    "line": bet_type,
                     "bet_slip_id": ticket_num,
-                    "notes": "Auto-detected from plays888.co"
+                    "notes": f"Auto-detected from plays888.co. Sport: {sport}"
                 }
                 await db.bet_history.insert_one(bet_doc)
                 
-                # Send Telegram notification
+                # Send Telegram notification with actual details
                 await send_telegram_notification({
-                    "game": "New Bet Detected",
-                    "bet_type": "Mobile/Web",
-                    "line": "",
-                    "odds": 0,
-                    "wager": 0,
-                    "potential_win": 0,
+                    "game": game,
+                    "bet_type": bet_type,
+                    "line": bet_type,
+                    "odds": odds,
+                    "wager": wager,
+                    "potential_win": to_win,
                     "ticket_number": ticket_num,
                     "status": "Placed",
-                    "league": "⚠️ Placed from mobile/web (check plays888.co for details)"
+                    "league": f"{sport} - Detected from mobile/web"
                 })
         
         await monitor_service.close()
