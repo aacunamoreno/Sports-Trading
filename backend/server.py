@@ -77,10 +77,38 @@ async def init_telegram_from_db():
     else:
         logger.info("Telegram not configured (optional feature)")
 
-# Startup event to initialize Telegram
+# Startup event to initialize Telegram and auto-start monitoring
 @app.on_event("startup")
 async def startup_event():
     await init_telegram_from_db()
+    await auto_start_monitoring()
+
+async def auto_start_monitoring():
+    """Auto-start bet monitoring if it was previously enabled"""
+    global monitoring_enabled
+    try:
+        # Check if there's an active connection
+        conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+        if conn and conn.get("is_connected"):
+            # Check if monitoring was previously enabled (stored in DB)
+            monitor_config = await db.monitor_config.find_one({}, {"_id": 0})
+            if monitor_config and monitor_config.get("auto_start", True):
+                monitoring_enabled = True
+                if not scheduler.running:
+                    scheduler.add_job(
+                        monitor_open_bets,
+                        trigger=IntervalTrigger(minutes=2),  # Current interval for testing
+                        id='bet_monitor',
+                        replace_existing=True
+                    )
+                    scheduler.start()
+                logger.info("Bet monitoring auto-started on server startup")
+            else:
+                logger.info("Bet monitoring not auto-started (disabled in config)")
+        else:
+            logger.info("Bet monitoring not auto-started (no active connection)")
+    except Exception as e:
+        logger.error(f"Error auto-starting monitoring: {str(e)}")
 
 
 # Models
