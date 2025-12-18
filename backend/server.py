@@ -1292,12 +1292,12 @@ async def start_monitoring():
         )
         scheduler.start()
     
-    logger.info("Bet monitoring started - checking every 30 minutes")
+    logger.info("Bet monitoring started - checking every 2 minutes")
     
     return {
         "success": True,
-        "message": "Bet monitoring started. Will check plays888.co every 30 minutes for new bets.",
-        "interval": "30 minutes"
+        "message": "Bet monitoring started. Will check plays888.co every 2 minutes for new bets.",
+        "interval": "2 minutes"
     }
 
 @api_router.post("/monitoring/stop")
