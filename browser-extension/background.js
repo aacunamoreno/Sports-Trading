@@ -22,32 +22,63 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   
   // Handle bet completion - send to backend for Telegram notification
   if (request.action === 'betComplete') {
-    console.log('Bet complete, sending to backend:', request);
+    console.log('=== BET COMPLETE RECEIVED ===');
+    console.log('Ticket:', request.ticketNumber);
+    console.log('Bet details:', JSON.stringify(request.bet));
     
     // Get the API URL from storage and send to backend
     chrome.storage.local.get(['apiUrl'], function(result) {
       var apiUrl = result.apiUrl || 'https://betbot-1.preview.emergentagent.com';
+      console.log('Using API URL:', apiUrl);
+      
+      var payload = {
+        game: request.bet.game || 'Unknown Game',
+        bet_type: request.bet.bet_type || 'Unknown',
+        line: request.bet.line || request.bet.bet_type || 'Unknown',
+        odds: request.bet.odds || -110,
+        wager: request.bet.wager || 0,
+        bet_slip_id: request.ticketNumber,
+        notes: 'Placed via Chrome Extension. Ticket#: ' + request.ticketNumber
+      };
+      
+      console.log('Sending to backend:', JSON.stringify(payload));
       
       fetch(apiUrl + '/api/bets/record-manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          game: request.bet.game,
-          bet_type: request.bet.bet_type,
-          line: request.bet.line || request.bet.bet_type,
-          odds: request.bet.odds,
-          wager: request.bet.wager,
-          bet_slip_id: request.ticketNumber,
-          notes: 'Placed via Chrome Extension. Ticket#: ' + request.ticketNumber
-        })
+        body: JSON.stringify(payload)
       })
-      .then(function(response) { return response.json(); })
+      .then(function(response) { 
+        console.log('Response status:', response.status);
+        return response.json(); 
+      })
       .then(function(data) {
-        console.log('Backend recorded bet:', data);
+        console.log('=== BACKEND RESPONSE ===');
+        console.log('Success:', data.success);
+        console.log('Message:', data.message);
+        // Show notification to user
+        if (data.success) {
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icon48.png',
+            title: 'Bet Recorded!',
+            message: 'Telegram notification sent for Ticket#' + request.ticketNumber
+          });
+        }
       })
       .catch(function(err) {
-        console.error('Failed to record bet:', err);
+        console.error('=== BACKEND ERROR ===');
+        console.error('Error:', err.message || err);
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icon48.png',
+          title: 'Error Recording Bet',
+          message: 'Failed to send notification: ' + (err.message || 'Unknown error')
+        });
       });
     });
+    
+    sendResponse({ received: true });
+    return true;
   }
 });
