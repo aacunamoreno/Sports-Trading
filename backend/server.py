@@ -1282,11 +1282,11 @@ async def start_monitoring():
     
     monitoring_enabled = True
     
-    # Schedule the job to run every 30 minutes
+    # Schedule the job to run every 2 minutes (for testing - change to 15 for production)
     if not scheduler.running:
         scheduler.add_job(
             monitor_open_bets,
-            trigger=IntervalTrigger(minutes=30),
+            trigger=IntervalTrigger(minutes=2),
             id='bet_monitor',
             replace_existing=True
         )
