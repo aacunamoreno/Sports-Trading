@@ -1,202 +1,59 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    body {
-      width: 350px;
-      min-height: 500px;
-      background: linear-gradient(135deg, #0a1628 0%, #1a2942 100%);
-      color: #e2e8f0;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      padding: 20px;
-    }
-    
-    h1 {
-      font-size: 20px;
-      margin-bottom: 16px;
-      color: #10b981;
-      text-align: center;
-    }
-    
-    .section {
-      margin-bottom: 20px;
-      padding: 16px;
-      background: rgba(30, 41, 59, 0.8);
-      border-radius: 8px;
-      border: 1px solid rgba(16, 185, 129, 0.2);
-    }
-    
-    .section-title {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #64748b;
-      margin-bottom: 12px;
-    }
-    
-    label {
-      display: block;
-      font-size: 12px;
-      color: #94a3b8;
-      margin-bottom: 4px;
-      text-transform: uppercase;
-    }
-    
-    input, select {
-      width: 100%;
-      padding: 10px 12px;
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      color: #e2e8f0;
-      font-size: 14px;
-      margin-bottom: 12px;
-    }
-    
-    input:focus, select:focus {
-      outline: none;
-      border-color: #10b981;
-    }
-    
-    input::placeholder {
-      color: #475569;
-    }
-    
-    button {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .btn-primary {
-      background: #10b981;
-      color: #0a1628;
-    }
-    
-    .btn-primary:hover {
-      background: #059669;
-    }
-    
-    .btn-secondary {
-      background: #334155;
-      color: #e2e8f0;
-      margin-top: 8px;
-    }
-    
-    .btn-secondary:hover {
-      background: #475569;
-    }
-    
-    .status {
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 13px;
-      margin-top: 12px;
-      display: none;
-    }
-    
-    .status.success {
-      background: rgba(16, 185, 129, 0.2);
-      border: 1px solid #10b981;
-      color: #10b981;
-    }
-    
-    .status.error {
-      background: rgba(239, 68, 68, 0.2);
-      border: 1px solid #ef4444;
-      color: #ef4444;
-    }
-    
-    .status.info {
-      background: rgba(59, 130, 246, 0.2);
-      border: 1px solid #3b82f6;
-      color: #3b82f6;
-    }
-    
-    .helper-text {
-      font-size: 11px;
-      color: #64748b;
-      margin-top: -8px;
-      margin-bottom: 12px;
-    }
-    
-    .instructions {
-      font-size: 11px;
-      color: #64748b;
-      line-height: 1.5;
-    }
-    
-    .instructions li {
-      margin-bottom: 4px;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Plays888 Bot</title>
+<style>
+body{width:380px;padding:20px;background:#1a1a2e;color:#eee;font-family:Arial}
+h2{color:#10b981;text-align:center;margin:0 0 15px}
+.section{background:#16213e;border-radius:8px;padding:15px;margin-bottom:15px}
+.section-title{color:#888;font-size:11px;text-transform:uppercase;margin-bottom:10px}
+label{display:block;margin:8px 0 4px;font-size:11px;color:#888}
+input,select{width:100%;padding:10px;background:#0f172a;border:1px solid #333;color:#fff;border-radius:4px;box-sizing:border-box}
+button{width:100%;padding:12px;background:#10b981;color:#000;border:none;border-radius:4px;font-weight:bold;cursor:pointer;margin-top:10px;font-size:14px}
+button:hover{background:#059669}
+button.secondary{background:#334155;color:#fff}
+#status{margin-top:10px;padding:10px;border-radius:4px;text-align:center;display:none}
+.ok{background:#065f46;display:block}
+.err{background:#7f1d1d;display:block}
+.wait{background:#1e40af;display:block}
+.connected{color:#10b981;font-size:12px}
+</style>
 </head>
 <body>
-  <h1>🎰 Plays888 Automation</h1>
-  
-  <div class="section">
-    <div class="section-title">API Configuration</div>
-    <label for="apiUrl">Backend API URL</label>
-    <input type="text" id="apiUrl" placeholder="https://your-app.preview.emergentagent.com">
-    <button class="btn-secondary" id="saveApi">Save API URL</button>
-  </div>
-  
-  <div class="section">
-    <div class="section-title">Place Bet</div>
-    
-    <label for="league">League</label>
-    <select id="league">
-      <option value="NCAA BASKETBALL - MEN">NCAA BASKETBALL - MEN</option>
-      <option value="NBA">NBA</option>
-      <option value="NFL">NFL</option>
-      <option value="NHL - OT INCLUDED">NHL - OT INCLUDED</option>
-      <option value="MLB">MLB</option>
-      <option value="SOCCER">SOCCER</option>
-    </select>
-    
-    <label for="game">Game</label>
-    <input type="text" id="game" placeholder="e.g., Towson vs Kansas">
-    
-    <label for="betType">Bet Type & Line</label>
-    <input type="text" id="betType" placeholder="e.g., Over 138 (o138)">
-    <p class="helper-text">Examples: Over 138, Under 45.5, Moneyline, Spread -3.5</p>
-    
-    <label for="odds">Odds (American)</label>
-    <input type="number" id="odds" placeholder="e.g., -110 or +150">
-    
-    <label for="wager">Wager Amount (To Win)</label>
-    <input type="number" id="wager" placeholder="e.g., 300">
-    
-    <button class="btn-primary" id="placeBet">Place Bet</button>
-    
-    <div id="status" class="status"></div>
-  </div>
-  
-  <div class="section">
-    <div class="section-title">Instructions</div>
-    <ol class="instructions">
-      <li>Open plays888.co and log in</li>
-      <li>Navigate to the betting section</li>
-      <li>Fill in bet details above</li>
-      <li>Click "Place Bet" and watch the automation</li>
-      <li>Check console (F12) on plays888.co for logs</li>
-    </ol>
-  </div>
-  
-  <script src="popup.js"></script>
+<h2>🎰 Plays888 Bot</h2>
+
+<div class="section">
+<div class="section-title">Backend Connection (for Telegram notifications)</div>
+<label>API URL</label>
+<input id="apiUrl" placeholder="https://betautopilot-1.preview.emergentagent.com">
+<button class="secondary" id="saveApi">Save API URL</button>
+<div id="apiStatus" class="connected"></div>
+</div>
+
+<div class="section">
+<div class="section-title">Place Bet</div>
+<label>LEAGUE</label>
+<select id="league">
+<option>NCAA BASKETBALL - MEN</option>
+<option>NBA</option>
+<option>NATIONAL HOCKEY LEAGUE - OT INCLUDED</option>
+<option>HOC - NHL - REGULATION TIME ONLY</option>
+<option>NFL - GAME LINES</option>
+<option>NCAA FB - GAME LINES</option>
+</select>
+<label>GAME</label>
+<input id="game" placeholder="Lakers vs Jazz">
+<label>BET TYPE (o244, u238, -5, etc)</label>
+<input id="betType" placeholder="o244">
+<label>ODDS (-110, +150)</label>
+<input type="number" id="odds" placeholder="-110">
+<label>WAGER (To Win)</label>
+<input type="number" id="wager" placeholder="100">
+<button id="placeBtn">🎯 PLACE BET</button>
+<div id="status"></div>
+</div>
+
+<script src="popup.js"></script>
 </body>
 </html>
