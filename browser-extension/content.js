@@ -3,10 +3,13 @@ console.log('Page:', window.location.href);
 
 // Check for pending bet on ANY page load
 var pendingBet = localStorage.getItem('plays888_pending_bet');
+console.log('Pending bet in localStorage:', pendingBet ? 'YES' : 'NO');
 
 // Check if Confirm button exists on this page
 setTimeout(function() {
   var confirmBtn = document.querySelector('input[value="Confirm"]');
+  console.log('Confirm button found:', confirmBtn ? 'YES' : 'NO');
+  
   if (confirmBtn && pendingBet) {
     console.log('CONFIRM BUTTON FOUND! Clicking...');
     confirmBtn.click();
@@ -16,21 +19,39 @@ setTimeout(function() {
       var pageText = document.body.textContent;
       var ticketMatch = pageText.match(/Ticket#?\s*:?\s*(\d+)/i);
       
+      console.log('Looking for ticket number in page...');
+      console.log('Ticket match:', ticketMatch);
+      
       if (ticketMatch) {
         var ticketNumber = ticketMatch[1];
         var bet = JSON.parse(pendingBet);
         
-        console.log('BET PLACED! Ticket#:', ticketNumber);
-        alert('BET PLACED! Ticket#: ' + ticketNumber);
+        console.log('=== BET PLACED ===');
+        console.log('Ticket#:', ticketNumber);
+        console.log('Bet details:', JSON.stringify(bet));
+        
+        alert('BET PLACED! Ticket#: ' + ticketNumber + '\n\nSending Telegram notification...');
         
         // Send to background script to record and send Telegram notification
+        console.log('Sending betComplete message to background...');
         chrome.runtime.sendMessage({
           action: 'betComplete',
           ticketNumber: ticketNumber,
           bet: bet
+        }, function(response) {
+          console.log('Background response:', response);
+          if (chrome.runtime.lastError) {
+            console.error('Message error:', chrome.runtime.lastError.message);
+            alert('ERROR: Could not send notification. Check extension logs.');
+          } else {
+            console.log('Message sent successfully!');
+          }
         });
         
         localStorage.removeItem('plays888_pending_bet');
+        console.log('Pending bet cleared from localStorage');
+      } else {
+        console.log('No ticket number found on page');
       }
     }, 3000);
   }
