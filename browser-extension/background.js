@@ -1,100 +1,53 @@
-// Background service worker for the extension
-
-let apiUrl = '';
-let pendingBet = null;
-
-// Initialize
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('Plays888 Automation Extension Installed');
+chrome.action.onClicked.addListener(function() {
+  chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
 });
 
-// Listen for messages from popup or content script
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'setApiUrl') {
-    apiUrl = request.url;
-    chrome.storage.local.set({ apiUrl: apiUrl });
-    sendResponse({ success: true });
-  }
-  
-  if (request.action === 'getApiUrl') {
-    chrome.storage.local.get(['apiUrl'], (result) => {
-      sendResponse({ url: result.apiUrl || '' });
-    });
-    return true; // Keep channel open for async response
-  }
-  
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'placeBet') {
-    pendingBet = request.bet;
-    // Send bet to content script on plays888.co tab
-    chrome.tabs.query({ url: 'https://www.plays888.co/*' }, (tabs) => {
-      if (tabs.length > 0) {
-        console.log('Found plays888.co tab, sending bet:', pendingBet);
-        chrome.tabs.sendMessage(tabs[0].id, {
-          action: 'executeBet',
-          bet: pendingBet
-        }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.error('Error sending to content script:', chrome.runtime.lastError);
-            notifyPopup('Content script not loaded. Refresh plays888.co page.', 'error');
-            sendResponse({ success: false, message: 'Content script not loaded. Please refresh plays888.co page.' });
-          } else {
-            sendResponse({ success: true, message: 'Bet sent to plays888.co tab' });
-          }
-        });
-      } else {
-        sendResponse({ success: false, message: 'No plays888.co tab found. Please open the site first.' });
+    chrome.tabs.query({ url: '*://*.plays888.co/*' }, function(tabs) {
+      if (tabs.length === 0) {
+        sendResponse({ success: false, message: 'Open plays888.co first!' });
+        return;
       }
+      chrome.tabs.sendMessage(tabs[0].id, request, function(response) {
+        if (chrome.runtime.lastError) {
+          sendResponse({ success: false, message: 'Refresh plays888.co page and try again' });
+        } else {
+          sendResponse(response || { success: false, message: 'No response' });
+        }
+      });
     });
     return true;
   }
   
-  if (request.action === 'betStatus') {
-    // Forward status to popup
-    notifyPopup(request.message, request.type);
-  }
-  
+  // Handle bet completion - send to backend for Telegram notification
   if (request.action === 'betComplete') {
-    // Report bet result back to backend
-    notifyPopup(`✅ Bet placed! Ticket#: ${request.result.ticket_number}`, 'success');
+    console.log('Bet complete, sending to backend:', request);
     
-    chrome.storage.local.get(['apiUrl'], async (result) => {
-      if (result.apiUrl) {
-        try {
-          const response = await fetch(`${result.apiUrl}/api/bets/record-manual`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              game: request.result.game,
-              bet_type: request.result.bet_type,
-              line: request.result.line,
-              odds: request.result.odds,
-              wager: request.result.wager,
-              bet_slip_id: request.result.ticket_number,
-              notes: `Auto-placed via extension. Ticket#: ${request.result.ticket_number}`
-            })
-          });
-          const data = await response.json();
-          console.log('Bet recorded in backend:', data);
-        } catch (error) {
-          console.error('Failed to record bet:', error);
-        }
-      }
+    // Get the API URL from storage and send to backend
+    chrome.storage.local.get(['apiUrl'], function(result) {
+      var apiUrl = result.apiUrl || 'https://betautopilot-1.preview.emergentagent.com';
+      
+      fetch(apiUrl + '/api/bets/record-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          game: request.bet.game,
+          bet_type: request.bet.bet_type,
+          line: request.bet.line || request.bet.bet_type,
+          odds: request.bet.odds,
+          wager: request.bet.wager,
+          bet_slip_id: request.ticketNumber,
+          notes: 'Placed via Chrome Extension. Ticket#: ' + request.ticketNumber
+        })
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        console.log('Backend recorded bet:', data);
+      })
+      .catch(function(err) {
+        console.error('Failed to record bet:', err);
+      });
     });
-    pendingBet = null;
-  }
-  
-  if (request.action === 'betFailed') {
-    notifyPopup(`❌ ${request.message}`, 'error');
-    pendingBet = null;
   }
 });
-
-function notifyPopup(message, type) {
-  chrome.runtime.sendMessage({
-    action: 'betStatus',
-    message: message,
-    type: type
-  }).catch(() => {
-    // Popup might be closed, that's ok
-  });
-}
