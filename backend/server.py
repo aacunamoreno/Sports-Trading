@@ -1383,7 +1383,7 @@ async def monitoring_status():
     
     return {
         "enabled": monitoring_enabled,
-        "interval": "30 minutes",
+        "interval": "15 minutes",
         "running": scheduler.running,
         "next_check": next_check
     }
