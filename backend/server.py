@@ -288,34 +288,64 @@ _Have a good night! 🌙_
             """
         else:
             total_wagered = sum(b.get('wager_amount', 0) for b in today_bets)
-            total_to_win = sum(b.get('wager_amount', 0) * (100 / abs(b.get('odds', -110))) if b.get('odds', -110) < 0 else b.get('wager_amount', 0) * (b.get('odds', 100) / 100) for b in today_bets)
             
-            # Group bets by account (based on notes or other identifier)
-            jac075_bets = [b for b in today_bets if 'jac075' in b.get('notes', '').lower() or b.get('rule_id') == 'mobile_detected']
-            jac083_bets = [b for b in today_bets if 'jac083' in b.get('notes', '').lower()]
+            # Calculate results
+            won_bets = [b for b in today_bets if b.get('result') == 'won']
+            lost_bets = [b for b in today_bets if b.get('result') == 'lost']
+            push_bets = [b for b in today_bets if b.get('result') == 'push']
+            pending_bets = [b for b in today_bets if not b.get('result') or b.get('result') == 'pending']
             
-            # Build bet list
+            total_won = sum(b.get('win_amount', 0) for b in won_bets)
+            total_lost = sum(b.get('wager_amount', 0) for b in lost_bets)
+            net_profit = total_won - total_lost
+            
+            # Build bet list with results
             bet_lines = []
-            for i, bet in enumerate(today_bets[:20], 1):  # Limit to 20 bets to avoid message too long
-                game = bet.get('game', 'Unknown')[:30]
-                bet_type = bet.get('bet_type', '')[:15]
+            for i, bet in enumerate(today_bets[:20], 1):  # Limit to 20 bets
+                game = bet.get('game', 'Unknown')[:25]
+                bet_type = bet.get('bet_type', '')[:12]
                 odds = format_american_odds(bet.get('odds', -110))
                 wager = bet.get('wager_amount', 0)
-                ticket = bet.get('bet_slip_id', 'N/A')
-                bet_lines.append(f"{i}. {game} | {bet_type} {odds} | ${wager}")
+                result = bet.get('result', '')
+                
+                # Result emoji
+                if result == 'won':
+                    result_emoji = "✅"
+                elif result == 'lost':
+                    result_emoji = "❌"
+                elif result == 'push':
+                    result_emoji = "↔️"
+                else:
+                    result_emoji = "⏳"
+                
+                bet_lines.append(f"{result_emoji} {game} | {bet_type} {odds} | ${wager}")
             
             bets_text = "\n".join(bet_lines)
             if len(today_bets) > 20:
                 bets_text += f"\n_... and {len(today_bets) - 20} more bets_"
             
+            # Profit/Loss indicator
+            if net_profit > 0:
+                profit_text = f"📈 *Net Profit:* +${net_profit:,.2f} MXN"
+            elif net_profit < 0:
+                profit_text = f"📉 *Net Loss:* -${abs(net_profit):,.2f} MXN"
+            else:
+                profit_text = f"➡️ *Net:* $0.00 MXN"
+            
             message = f"""
 📊 *DAILY BETTING SUMMARY*
 📅 {now_arizona.strftime('%B %d, %Y')}
 
-📈 *Statistics:*
+📈 *Results:*
 • Total Bets: {len(today_bets)}
+• ✅ Won: {len(won_bets)} (${total_won:,.2f})
+• ❌ Lost: {len(lost_bets)} (${total_lost:,.2f})
+• ↔️ Push: {len(push_bets)}
+• ⏳ Pending: {len(pending_bets)}
+
+💰 *Financials:*
 • Total Wagered: ${total_wagered:,.2f} MXN
-• Potential Winnings: ${total_to_win:,.2f} MXN
+{profit_text}
 
 🎯 *Today's Bets:*
 {bets_text}
