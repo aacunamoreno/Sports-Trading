@@ -264,7 +264,7 @@ export default function Dashboard() {
                         {chartData.map((entry, index) => (
                           <Cell 
                             key={`cell-${index}`}
-                            fill={entry.profit >= 0 ? 'hsl(142, 76%, 36%)' : 'hsl(0, 84%, 60%)'}
+                            fill={entry.isFuture ? 'hsl(199, 89%, 48%)' : entry.profit >= 0 ? 'hsl(142, 76%, 36%)' : 'hsl(0, 84%, 60%)'}
                             stroke={entry.isToday ? 'hsl(var(--primary))' : 'transparent'}
                             strokeWidth={entry.isToday ? 2 : 0}
                           />
@@ -287,7 +287,7 @@ export default function Dashboard() {
                         {day.day}
                       </div>
                       <div className={`text-sm font-mono font-bold ${
-                        day.profit >= 0 ? 'text-green-400' : 'text-red-400'
+                        day.isFuture ? 'text-sky-400' : day.profit >= 0 ? 'text-green-400' : 'text-red-400'
                       }`}>
                         {day.profit >= 0 ? '+' : ''}{(day.profit / 1000).toFixed(1)}k
                       </div>
