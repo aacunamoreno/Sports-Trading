@@ -238,7 +238,13 @@ def format_american_odds(odds: int) -> str:
     """Format American odds with + or - sign"""
     return f"+{odds}" if odds > 0 else str(odds)
 
-async def send_telegram_notification(bet_details: dict):
+# Account username to display name mapping
+ACCOUNT_LABELS = {
+    "jac075": "ENANO",
+    "jac083": "TIPSTER"
+}
+
+async def send_telegram_notification(bet_details: dict, account: str = None):
     """Send Telegram notification when a bet is placed"""
     if not telegram_bot or not telegram_chat_id:
         logger.info("Telegram not configured, skipping notification")
@@ -249,9 +255,13 @@ async def send_telegram_notification(bet_details: dict):
         odds_formatted = format_american_odds(bet_details['odds'])
         potential_win = bet_details.get('potential_win', bet_details['wager'])
         
+        # Get account label
+        account_label = ACCOUNT_LABELS.get(account, account or "Unknown")
+        
         message = f"""
 🎰 *BET PLACED*
 
+👤 *User:* {account_label}
 *Game:* {bet_details['game']}
 *League:* {bet_details.get('league', 'N/A')}
 *Bet:* {bet_details['bet_type']} {bet_details.get('line', '')}
