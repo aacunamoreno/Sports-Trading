@@ -1146,9 +1146,10 @@ async def monitor_and_reschedule():
     arizona_tz = ZoneInfo('America/Phoenix')
     check_time = datetime.now(arizona_tz)
     
-    # Log this check to database for activity summary
+    # Log this check to database for activity summary (only for jac083/TIPSTER)
     await db.activity_log.insert_one({
         "type": "bet_check",
+        "account": "jac083",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "timestamp_arizona": check_time.strftime('%I:%M %p'),
         "date": check_time.strftime('%Y-%m-%d')
