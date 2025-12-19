@@ -572,19 +572,27 @@ async def check_results_for_account(conn: dict):
             return
         
         # Extract settled bets from the page
-        # First, let's get debug info about ALL rows
+        # First, let's get debug info - look for rows with Ticket numbers
         debug_info = await results_service.page.evaluate('''() => {
             const rows = document.querySelectorAll('table tr');
             const debug = [];
-            // Get more rows to see the actual bet data
-            for (let i = 0; i < Math.min(rows.length, 15); i++) {
-                debug.push(rows[i].textContent.substring(0, 200));
+            // Look for rows containing ticket info
+            for (let i = 0; i < rows.length; i++) {
+                const text = rows[i].textContent;
+                // Only log rows that might have ticket info
+                if (text.includes('Ticket') || text.includes('337') || text.includes('Result')) {
+                    debug.push({
+                        idx: i,
+                        text: text.substring(0, 400),
+                        cells: rows[i].querySelectorAll('td').length
+                    });
+                }
             }
-            return {rowCount: rows.length, samples: debug};
+            return {rowCount: rows.length, ticketRows: debug};
         }''')
-        logger.info(f"History page: {debug_info['rowCount']} total rows")
-        for i, row in enumerate(debug_info['samples']):
-            logger.info(f"Row {i}: {row}")
+        logger.info(f"History page: {debug_info['rowCount']} total rows, {len(debug_info['ticketRows'])} with ticket/result info")
+        for row in debug_info['ticketRows'][:5]:
+            logger.info(f"Row {row['idx']} ({row['cells']} cells): {row['text']}")
         
         settled_bets = await results_service.page.evaluate('''() => {
             const bets = [];
