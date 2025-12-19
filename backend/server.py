@@ -749,17 +749,31 @@ async def monitor_open_bets():
                             game = gameMatch[1].trim();
                         }
                         
-                        // Extract bet type (TOTAL o/u, spread, etc.)
+                        // Determine bet type from description
                         let betType = '';
-                        // Look for TOTAL with over/under like "TOTAL o228" or "TOTAL u6"
-                        const totalMatch = description.match(/TOTAL\\s+([ou][\\d.½]+)/i);
-                        if (totalMatch) {
-                            betType = totalMatch[1];
-                        } else {
-                            // Try to get spread like "-12" or "+5.5"
-                            const spreadMatch = description.match(/\\]\\s*([A-Z\\s]+)\\s+([+-][\\d.½]+)/);
-                            if (spreadMatch) {
-                                betType = spreadMatch[2];
+                        
+                        // Check for Parlay
+                        if (description.includes('Parlay') || description.includes('PARLAY')) {
+                            betType = 'Parlay';
+                        }
+                        // Check for Teaser
+                        else if (description.includes('Teaser') || description.includes('TEASER')) {
+                            betType = 'Teaser';
+                        }
+                        // Check for TOTAL with over/under like "TOTAL o228" or "TOTAL u6"
+                        else {
+                            const totalMatch = description.match(/TOTAL\\s+([ou][\\d.½]+)/i);
+                            if (totalMatch) {
+                                betType = totalMatch[1];
+                            } else {
+                                // Try to get spread like "-12" or "+5.5"
+                                const spreadMatch = description.match(/([+-][\\d.½]+)\\s*\\(/);
+                                if (spreadMatch) {
+                                    betType = 'Spread ' + spreadMatch[1];
+                                } else {
+                                    // Default to Straight for unknown types
+                                    betType = 'Straight';
+                                }
                             }
                         }
                         
