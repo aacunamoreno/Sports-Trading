@@ -658,7 +658,24 @@ async def monitor_open_bets():
     if not monitoring_enabled:
         return
     
-    logger.info("Checking plays888.co for new bets...")
+    # Check if we're in sleep hours (11:30 PM - 5:30 AM Arizona time)
+    # Arizona is UTC-7 (no daylight saving)
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    now_arizona = datetime.now(arizona_tz)
+    current_hour = now_arizona.hour
+    current_minute = now_arizona.minute
+    current_time_minutes = current_hour * 60 + current_minute
+    
+    # Sleep window: 11:30 PM (23:30 = 1410 mins) to 5:30 AM (5:30 = 330 mins)
+    sleep_start = 23 * 60 + 30  # 11:30 PM = 1410 minutes
+    sleep_end = 5 * 60 + 30      # 5:30 AM = 330 minutes
+    
+    if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
+        logger.info(f"Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - skipping bet check")
+        return
+    
+    logger.info(f"Checking plays888.co for new bets... ({now_arizona.strftime('%I:%M %p')} Arizona)")
     
     try:
         # Get ALL active connections (multiple accounts)
