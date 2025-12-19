@@ -1284,59 +1284,83 @@ async def monitor_single_account(conn: dict):
                             }
                         }
                         
-                        // Extract game name (usually in parentheses at end like "(TEAM A vs TEAM B)" or "(TEAM A vrs TEAM B)")
-                        let game = '';
-                        const gameMatch = description.match(/\\(([^)]*(?:vs|vrs)[^)]*)\\)/i);
-                        if (gameMatch) {
-                            game = gameMatch[1].trim();
-                        }
+                        // Better parsing of the description field
+                        // Description format examples:
+                        // "STRAIGHT BET[2526] MILWAUKEE BUCKS 2H +1½-110"
+                        // "STRAIGHT BET[297497888] Dallas Mavericks..."
+                        // "PARLAY[123] Team A vs Team B..."
                         
-                        // Determine bet type from description
+                        let game = '';
                         let betType = '';
                         
-                        // Check for Parlay
-                        if (description.includes('Parlay') || description.includes('PARLAY')) {
-                            betType = 'Parlay';
+                        // First, extract game name from parentheses (TEAM A vs TEAM B)
+                        const vsMatch = description.match(/\\(([^)]*(?:vs|vrs)[^)]*)\\)/i);
+                        if (vsMatch) {
+                            game = vsMatch[1].trim();
                         }
-                        // Check for Teaser
-                        else if (description.includes('Teaser') || description.includes('TEASER')) {
-                            betType = 'Teaser';
-                        }
-                        // Check for TOTAL with over/under like "TOTAL o228" or "TOTAL u6"
-                        else {
+                        
+                        // Check bet type
+                        if (description.toUpperCase().includes('PARLAY')) {
+                            betType = 'PARLAY';
+                        } else if (description.toUpperCase().includes('TEASER')) {
+                            betType = 'TEASER';
+                        } else {
+                            // Look for TOTAL over/under
                             const totalMatch = description.match(/TOTAL\\s+([ou][\\d.½]+)/i);
                             if (totalMatch) {
-                                betType = totalMatch[1];
-                            } else {
-                                // Try to get spread/team info like "TEAM NAME +5.5" or "TEAM NAME -12"
-                                // Format: [ID] TEAM NAME +/-SPREAD
-                                const spreadTeamMatch = description.match(/\\]\\s*([A-Z][A-Z\\s]+?)\\s+([+-][\\d.½]+)/i);
-                                if (spreadTeamMatch) {
-                                    const teamName = spreadTeamMatch[1].trim();
-                                    const spread = spreadTeamMatch[2];
-                                    betType = teamName + ' ' + spread;
-                                    // Use team as game if we didn't find a vs match
+                                betType = 'TOTAL ' + totalMatch[1].toUpperCase();
+                            }
+                            
+                            // Look for spread like "+1½" or "-5.5" with team name
+                            // Format after bracket: "TEAM NAME +/-SPREAD"
+                            const afterBracket = description.match(/\\]\\s*(.+)/);
+                            if (afterBracket) {
+                                const betDetails = afterBracket[1].trim();
+                                
+                                // Extract team name and spread/line
+                                // Pattern: "TEAM NAME +/-NUMBER" or "TEAM NAME 2H +/-NUMBER"
+                                const teamSpreadMatch = betDetails.match(/^([A-Za-z][A-Za-z0-9\\s\\.]+?)\\s*(2H\\s*)?([+-][\\d½\\.]+)/);
+                                if (teamSpreadMatch) {
+                                    const teamName = teamSpreadMatch[1].trim();
+                                    const halfIndicator = teamSpreadMatch[2] ? '2H ' : '';
+                                    const spread = teamSpreadMatch[3];
+                                    
+                                    if (!betType) {
+                                        betType = teamName + ' ' + halfIndicator + spread;
+                                    }
                                     if (!game) {
                                         game = teamName;
                                     }
-                                } else {
-                                    // Default to Straight for unknown types
-                                    betType = 'Straight';
+                                }
+                                
+                                // If still no game, use the bet details directly (cleaned up)
+                                if (!game && betDetails) {
+                                    // Remove odds from end like "-110" and clean up
+                                    game = betDetails.replace(/[+-]\\d{3}$/, '').trim();
+                                    // Limit length
+                                    if (game.length > 50) {
+                                        game = game.substring(0, 47) + '...';
+                                    }
                                 }
                             }
                         }
                         
-                        // If game is still empty, try to extract more info from description
+                        // Fallback: if still no info, use cleaned description
                         if (!game) {
-                            // Try format: "[ID] TEAM NAME +/-SPREAD" - matches after the bracket
-                            const teamExtract = description.match(/\\]\\s*([A-Z][A-Z0-9\\s\\.]+?)\\s+([+-][\\d½]+)/i);
-                            if (teamExtract) {
-                                game = teamExtract[1].trim();
-                                // Also update betType if it's just "Straight"
-                                if (betType === 'Straight') {
-                                    betType = game + ' ' + teamExtract[2];
-                                }
+                            // Remove "STRAIGHT BET", IDs, etc and get the actual content
+                            let cleanDesc = description
+                                .replace(/STRAIGHT\\s*BET/gi, '')
+                                .replace(/\\[[^\\]]+\\]/g, '')  // Remove [ID]
+                                .replace(/[+-]\\d{3}$/g, '')   // Remove trailing odds
+                                .trim();
+                            if (cleanDesc.length > 50) {
+                                cleanDesc = cleanDesc.substring(0, 47) + '...';
                             }
+                            game = cleanDesc || 'Unknown';
+                        }
+                        
+                        if (!betType) {
+                            betType = 'Straight';
                         }
                         
                         bets.push({
