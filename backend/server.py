@@ -1755,6 +1755,15 @@ async def trigger_daily_summary():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.post("/bets/check-results")
+async def trigger_results_check():
+    """Manually trigger a check for settled bet results"""
+    try:
+        await check_bet_results()
+        return {"success": True, "message": "Results check completed"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/stats")
 async def get_stats():
     """Get statistics for dashboard"""
