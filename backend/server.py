@@ -1483,7 +1483,8 @@ async def monitoring_status():
     
     return {
         "enabled": monitoring_enabled,
-        "interval": "10 minutes",
+        "interval": "7-15 minutes (random)",
+        "sleep_hours": "11:30 PM - 5:30 AM Arizona",
         "running": scheduler.running,
         "next_check": next_check
     }
