@@ -236,6 +236,84 @@ _Automated via BetBot System_
         logger.error(f"Failed to send Telegram notification: {str(e)}")
 
 
+async def send_daily_summary():
+    """Send daily betting summary to Telegram at 11 PM Arizona time"""
+    if not telegram_bot or not telegram_chat_id:
+        logger.info("Telegram not configured, skipping daily summary")
+        return
+    
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        now_arizona = datetime.now(arizona_tz)
+        
+        # Get start of today in Arizona time
+        today_start = now_arizona.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start_utc = today_start.astimezone(timezone.utc)
+        
+        # Query all bets placed today
+        today_bets = await db.bet_history.find({
+            "placed_at": {"$gte": today_start_utc.isoformat()}
+        }, {"_id": 0}).to_list(1000)
+        
+        if not today_bets:
+            message = f"""
+📊 *DAILY BETTING SUMMARY*
+📅 {now_arizona.strftime('%B %d, %Y')}
+
+No bets placed today.
+
+_Have a good night! 🌙_
+            """
+        else:
+            total_wagered = sum(b.get('wager_amount', 0) for b in today_bets)
+            total_to_win = sum(b.get('wager_amount', 0) * (100 / abs(b.get('odds', -110))) if b.get('odds', -110) < 0 else b.get('wager_amount', 0) * (b.get('odds', 100) / 100) for b in today_bets)
+            
+            # Group bets by account (based on notes or other identifier)
+            jac075_bets = [b for b in today_bets if 'jac075' in b.get('notes', '').lower() or b.get('rule_id') == 'mobile_detected']
+            jac083_bets = [b for b in today_bets if 'jac083' in b.get('notes', '').lower()]
+            
+            # Build bet list
+            bet_lines = []
+            for i, bet in enumerate(today_bets[:20], 1):  # Limit to 20 bets to avoid message too long
+                game = bet.get('game', 'Unknown')[:30]
+                bet_type = bet.get('bet_type', '')[:15]
+                odds = format_american_odds(bet.get('odds', -110))
+                wager = bet.get('wager_amount', 0)
+                ticket = bet.get('bet_slip_id', 'N/A')
+                bet_lines.append(f"{i}. {game} | {bet_type} {odds} | ${wager}")
+            
+            bets_text = "\n".join(bet_lines)
+            if len(today_bets) > 20:
+                bets_text += f"\n_... and {len(today_bets) - 20} more bets_"
+            
+            message = f"""
+📊 *DAILY BETTING SUMMARY*
+📅 {now_arizona.strftime('%B %d, %Y')}
+
+📈 *Statistics:*
+• Total Bets: {len(today_bets)}
+• Total Wagered: ${total_wagered:,.2f} MXN
+• Potential Winnings: ${total_to_win:,.2f} MXN
+
+🎯 *Today's Bets:*
+{bets_text}
+
+_Summary generated at {now_arizona.strftime('%I:%M %p')} Arizona Time_
+_Have a good night! 🌙_
+            """
+        
+        await telegram_bot.send_message(
+            chat_id=telegram_chat_id,
+            text=message.strip(),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.info(f"Daily summary sent to Telegram ({len(today_bets) if today_bets else 0} bets)")
+        
+    except Exception as e:
+        logger.error(f"Failed to send daily summary: {str(e)}")
+
+
 # Playwright automation service
 class Plays888Service:
     def __init__(self):
