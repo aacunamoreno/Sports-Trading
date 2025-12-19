@@ -96,6 +96,16 @@ def schedule_daily_summary():
     # Let's use cron with timezone
     
     try:
+        # Activity summary at 10:59 PM Arizona
+        scheduler.add_job(
+            send_activity_summary,
+            trigger=CronTrigger(hour=22, minute=59, timezone='America/Phoenix'),  # 10:59 PM Arizona
+            id='activity_summary',
+            replace_existing=True
+        )
+        logger.info("Activity summary scheduled for 10:59 PM Arizona time")
+        
+        # Betting summary at 11:00 PM Arizona
         scheduler.add_job(
             send_daily_summary,
             trigger=CronTrigger(hour=23, minute=0, timezone='America/Phoenix'),  # 11 PM Arizona
@@ -104,7 +114,7 @@ def schedule_daily_summary():
         )
         logger.info("Daily summary scheduled for 11:00 PM Arizona time")
     except Exception as e:
-        logger.error(f"Error scheduling daily summary: {str(e)}")
+        logger.error(f"Error scheduling daily summaries: {str(e)}")
 
 async def auto_start_monitoring():
     """Auto-start bet monitoring if it was previously enabled"""
