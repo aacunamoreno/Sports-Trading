@@ -381,7 +381,7 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
                             }
                         }
                         
-                        // Find Win/Loss row
+                        // Find Win/Loss row and extract values using headerDayMap
                         for (const row of rows) {
                             const cells = row.querySelectorAll('td');
                             if (cells.length < 2) continue;
@@ -395,8 +395,8 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
                                     const match = cellText.match(/(-?[\\d,]+\\.\\d+)/);
                                     if (match) {
                                         const profit = parseFloat(match[1].replace(/,/g, ''));
-                                        // Get day name from detected order
-                                        let dayName = detectedDayNames[i] || ('col' + i);
+                                        // Use headerDayMap to get the day name for this column
+                                        const dayName = headerDayMap[i] || ('col' + i);
                                         result.win_loss_row.push({
                                             day: dayName,
                                             profit: profit
@@ -409,9 +409,9 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
                         
                         // Use Win/Loss row for daily profits
                         if (result.win_loss_row.length > 0) {
-                            // Filter out Total and Beginning for daily_profits
+                            // Filter out Total, Beginning, and unknown columns for daily_profits
                             result.daily_profits = result.win_loss_row.filter(d => 
-                                d.day !== 'total' && d.day !== 'beginning'
+                                d.day !== 'total' && d.day !== 'beginning' && !d.day.startsWith('col')
                             );
                             // Get week total
                             const total = result.win_loss_row.find(d => d.day === 'total');
