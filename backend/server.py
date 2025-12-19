@@ -2258,10 +2258,27 @@ async def get_accounts():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Cache for account summaries (5-minute TTL)
+account_summary_cache = {}
+CACHE_TTL_SECONDS = 300  # 5 minutes
+
 @api_router.get("/accounts/{username}/summary")
-async def get_account_summary(username: str):
-    """Get daily/weekly profit summary for a specific account"""
+async def get_account_summary(username: str, force_refresh: bool = False):
+    """Get daily/weekly profit summary for a specific account (cached for 5 min)"""
     try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        now_arizona = datetime.now(arizona_tz)
+        current_time = datetime.now(timezone.utc)
+        
+        # Check cache (unless force refresh requested)
+        if not force_refresh and username in account_summary_cache:
+            cached = account_summary_cache[username]
+            cache_age = (current_time - cached['cached_at']).total_seconds()
+            if cache_age < CACHE_TTL_SECONDS:
+                logger.info(f"Returning cached summary for {username} (age: {cache_age:.0f}s)")
+                return cached['data']
+        
         # Find the connection
         conn = await db.connections.find_one({"username": username, "is_connected": True}, {"_id": 0})
         if not conn:
@@ -2273,41 +2290,47 @@ async def get_account_summary(username: str):
         # Get the daily totals from plays888
         totals = await get_plays888_daily_totals(username, password)
         
+        day_names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        today_day = day_names[now_arizona.weekday()]
+        
         if not totals or not totals.get('daily_profits'):
-            return {
+            result = {
                 "username": username,
                 "label": label,
                 "success": False,
                 "error": "Could not retrieve data from plays888.co",
                 "daily_profits": [],
                 "week_total": 0,
-                "today_profit": 0
+                "today_profit": 0,
+                "today_day": today_day,
+                "date": now_arizona.strftime('%B %d, %Y')
+            }
+        else:
+            # Find today's profit
+            today_profit = 0
+            for day_data in totals['daily_profits']:
+                if day_data['day'].lower() == today_day:
+                    today_profit = day_data['profit']
+                    break
+            
+            result = {
+                "username": username,
+                "label": label,
+                "success": True,
+                "daily_profits": totals['daily_profits'],
+                "week_total": totals.get('week_total', 0),
+                "today_profit": today_profit,
+                "today_day": today_day,
+                "date": now_arizona.strftime('%B %d, %Y')
             }
         
-        # Get today's day
-        from zoneinfo import ZoneInfo
-        arizona_tz = ZoneInfo('America/Phoenix')
-        now_arizona = datetime.now(arizona_tz)
-        day_names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-        today_day = day_names[now_arizona.weekday()]
-        
-        # Find today's profit
-        today_profit = 0
-        for day_data in totals['daily_profits']:
-            if day_data['day'].lower() == today_day:
-                today_profit = day_data['profit']
-                break
-        
-        return {
-            "username": username,
-            "label": label,
-            "success": True,
-            "daily_profits": totals['daily_profits'],
-            "week_total": totals.get('week_total', 0),
-            "today_profit": today_profit,
-            "today_day": today_day,
-            "date": now_arizona.strftime('%B %d, %Y')
+        # Store in cache
+        account_summary_cache[username] = {
+            'data': result,
+            'cached_at': current_time
         }
+        
+        return result
     except HTTPException:
         raise
     except Exception as e:
