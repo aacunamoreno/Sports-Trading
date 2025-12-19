@@ -99,7 +99,7 @@ def schedule_daily_summary():
         # Activity summary at 10:59 PM Arizona
         scheduler.add_job(
             send_activity_summary,
-            trigger=CronTrigger(hour=22, minute=59, timezone='America/Phoenix'),  # 10:59 PM Arizona
+            trigger=CronTrigger(hour=22, minute=45, timezone='America/Phoenix'),  # 10:45 PM Arizona
             id='activity_summary',
             replace_existing=True
         )
@@ -108,7 +108,7 @@ def schedule_daily_summary():
         # Betting summary at 11:00 PM Arizona
         scheduler.add_job(
             send_daily_summary,
-            trigger=CronTrigger(hour=23, minute=0, timezone='America/Phoenix'),  # 11 PM Arizona
+            trigger=CronTrigger(hour=22, minute=45, timezone='America/Phoenix'),  # 10:45 PM Arizona
             id='daily_summary',
             replace_existing=True
         )
@@ -1197,8 +1197,8 @@ async def monitor_open_bets():
     current_minute = now_arizona.minute
     current_time_minutes = current_hour * 60 + current_minute
     
-    # Sleep window: 11:30 PM (23:30 = 1410 mins) to 5:30 AM (5:30 = 330 mins)
-    sleep_start = 23 * 60 + 30  # 11:30 PM = 1410 minutes
+    # Sleep window: 10:45 PM (22:45 = 1365 mins) to 5:30 AM (5:30 = 330 mins)
+    sleep_start = 22 * 60 + 45  # 10:45 PM = 1365 minutes
     sleep_end = 5 * 60 + 30      # 5:30 AM = 330 minutes
     
     if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
