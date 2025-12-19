@@ -2,8 +2,13 @@ chrome.action.onClicked.addListener(function() {
   chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
 });
 
-// Auto-refresh plays888.co tabs every 10 minutes to prevent session timeout
-var REFRESH_MINUTES = 10;
+// Auto-refresh plays888.co tabs with random intervals (7-15 minutes) to prevent session timeout
+var MIN_REFRESH_MINUTES = 7;
+var MAX_REFRESH_MINUTES = 15;
+
+function getRandomInterval() {
+  return Math.floor(Math.random() * (MAX_REFRESH_MINUTES - MIN_REFRESH_MINUTES + 1)) + MIN_REFRESH_MINUTES;
+}
 
 function refreshPlays888Tabs() {
   console.log('Checking plays888.co tabs for refresh...');
@@ -18,10 +23,19 @@ function refreshPlays888Tabs() {
       console.log('No plays888.co tabs open');
     }
   });
+  
+  // Schedule next refresh with a new random interval
+  scheduleNextRefresh();
 }
 
-// Use Chrome Alarms API for reliable timing (works even when service worker sleeps)
-chrome.alarms.create('refreshPlays888', { periodInMinutes: REFRESH_MINUTES });
+function scheduleNextRefresh() {
+  var nextInterval = getRandomInterval();
+  chrome.alarms.create('refreshPlays888', { delayInMinutes: nextInterval });
+  console.log('Next tab refresh scheduled in ' + nextInterval + ' minutes');
+}
+
+// Start the first scheduled refresh
+scheduleNextRefresh();
 
 chrome.alarms.onAlarm.addListener(function(alarm) {
   if (alarm.name === 'refreshPlays888') {
@@ -29,7 +43,7 @@ chrome.alarms.onAlarm.addListener(function(alarm) {
   }
 });
 
-console.log('Auto-refresh enabled: plays888.co tabs will be refreshed every ' + REFRESH_MINUTES + ' minutes');
+console.log('Auto-refresh enabled: plays888.co tabs will be refreshed every 7-15 minutes (random)');
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'placeBet') {
