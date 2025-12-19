@@ -84,6 +84,27 @@ async def init_telegram_from_db():
 async def startup_event():
     await init_telegram_from_db()
     await auto_start_monitoring()
+    schedule_daily_summary()
+
+def schedule_daily_summary():
+    """Schedule the daily summary to run at 11 PM Arizona time"""
+    global scheduler
+    
+    # Arizona is UTC-7 (no daylight saving)
+    # 11 PM Arizona = 6 AM UTC next day (23:00 - 7 = 16:00? No wait...)
+    # Actually: Arizona UTC-7, so 11 PM Arizona = 11 PM + 7 hours = 6 AM UTC next day
+    # Let's use cron with timezone
+    
+    try:
+        scheduler.add_job(
+            send_daily_summary,
+            trigger=CronTrigger(hour=23, minute=0, timezone='America/Phoenix'),  # 11 PM Arizona
+            id='daily_summary',
+            replace_existing=True
+        )
+        logger.info("Daily summary scheduled for 11:00 PM Arizona time")
+    except Exception as e:
+        logger.error(f"Error scheduling daily summary: {str(e)}")
 
 async def auto_start_monitoring():
     """Auto-start bet monitoring if it was previously enabled"""
