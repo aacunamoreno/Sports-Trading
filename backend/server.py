@@ -799,10 +799,14 @@ async def monitor_single_account(conn: dict):
                         
                         // If game is still empty, try to extract more info from description
                         if (!game) {
-                            // Try format: "STRAIGHT BET[ID] TEAM NAME SPREAD"
-                            const teamExtract = description.match(/\\]\\s*([A-Z][A-Z\\s]+?)\\s+[+-]/i);
+                            // Try format: "[ID] TEAM NAME +/-SPREAD" - matches after the bracket
+                            const teamExtract = description.match(/\\]\\s*([A-Z][A-Z0-9\\s\\.]+?)\\s+([+-][\\d½]+)/i);
                             if (teamExtract) {
                                 game = teamExtract[1].trim();
+                                // Also update betType if it's just "Straight"
+                                if (betType === 'Straight') {
+                                    betType = game + ' ' + teamExtract[2];
+                                }
                             }
                         }
                         
