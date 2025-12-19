@@ -395,7 +395,6 @@ _Have a good night! 🌙_
 🎯 *Today's Bets:*
 {bets_text}
 
-_Summary generated at {now_arizona.strftime('%I:%M %p')} Arizona Time_
 _Have a good night! 🌙_
             """
         
@@ -404,10 +403,10 @@ _Have a good night! 🌙_
             text=message.strip(),
             parse_mode=ParseMode.MARKDOWN
         )
-        logger.info(f"Daily summary sent to Telegram ({len(today_bets) if today_bets else 0} bets)")
+        logger.info(f"Daily summary sent for {label} ({len(user_bets)} bets)")
         
     except Exception as e:
-        logger.error(f"Failed to send daily summary: {str(e)}")
+        logger.error(f"Failed to send daily summary for {label}: {str(e)}")
 
 
 async def send_activity_summary():
