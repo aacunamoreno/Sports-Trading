@@ -305,12 +305,12 @@ export default function Dashboard() {
         <Card className="glass-card neon-border" data-testid="stat-total-bets">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-              Total Bets
+              {currentAccount?.label || 'Account'} Bets
             </CardTitle>
             <Activity className="w-4 h-4 text-primary" strokeWidth={1.5} />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-mono font-bold text-primary">{stats?.total_bets || 0}</div>
+            <div className="text-3xl font-mono font-bold text-primary">{accountSummary?.total_bets ?? stats?.total_bets ?? 0}</div>
           </CardContent>
         </Card>
 
