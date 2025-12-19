@@ -302,52 +302,71 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
         await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
         await service.page.wait_for_timeout(4000)
         
-        # Extract the daily summary table (shows day names and profit/loss)
+        # Extract the daily summary table
+        # Format: Beginning Of Week | lun | mar | mié | jue | vie | sáb | dom | Total
+        # Balance row shows cumulative balance for each day
+        # Profit for each day = current day balance - previous day balance
         totals = await service.page.evaluate('''() => {
             const result = {
-                today: null,
-                week: [],
-                raw: []
+                daily_profits: [],
+                week_total: null,
+                raw_balances: []
             };
             
-            // Look for the summary table with daily totals
-            // The table typically shows: Day | Win/Loss amount
+            // Find the summary table (first table with "Beginning Of Week")
             const tables = document.querySelectorAll('table');
             
             for (const table of tables) {
                 const text = table.textContent;
-                // Look for day names (Spanish: lun, mar, mié, jue, vie, sáb, dom)
-                // or English: Mon, Tue, Wed, Thu, Fri, Sat, Sun
-                if (text.match(/\\b(lun|mar|mi[eé]|jue|vie|s[aá]b|dom|mon|tue|wed|thu|fri|sat|sun)\\b/i)) {
+                if (text.includes('Beginning Of Week') || text.includes('lun') && text.includes('mar') && text.includes('jue')) {
                     const rows = table.querySelectorAll('tr');
+                    
+                    // Find the Balance row
                     for (const row of rows) {
-                        const cells = row.querySelectorAll('td');
-                        if (cells.length >= 2) {
-                            const dayText = cells[0].textContent.trim().toLowerCase();
-                            const amountText = cells[1].textContent.trim();
+                        const rowText = row.textContent;
+                        if (rowText.includes('Balance')) {
+                            const cells = row.querySelectorAll('td');
+                            // Cell order: Beginning | lun | mar | mié | jue | vie | sáb | dom | Total
+                            // Index:      0         | 1   | 2   | 3   | 4   | 5   | 6   | 7   | 8
                             
-                            // Parse amount (can be +1234.56 or -1234.56)
-                            const amountMatch = amountText.match(/([+-]?[\\d,]+\\.?\\d*)/);
-                            if (amountMatch) {
-                                const amount = parseFloat(amountMatch[1].replace(/,/g, ''));
-                                result.week.push({
-                                    day: dayText,
-                                    amount: amount,
-                                    raw: amountText
+                            const dayNames = ['Beginning', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom', 'Total'];
+                            const balances = [];
+                            
+                            for (let i = 0; i < cells.length && i < dayNames.length; i++) {
+                                const cellText = cells[i].textContent.trim();
+                                // Extract number (can be negative like -60130.74)
+                                const match = cellText.match(/(-?[\\d,]+\\.\\d+)/);
+                                if (match) {
+                                    const balance = parseFloat(match[1].replace(/,/g, ''));
+                                    balances.push({day: dayNames[i], balance: balance});
+                                }
+                            }
+                            
+                            result.raw_balances = balances;
+                            
+                            // Calculate daily profits (difference from previous day)
+                            for (let i = 1; i < balances.length - 1; i++) { // Skip "Beginning" and "Total"
+                                const prevBalance = balances[i-1].balance;
+                                const currBalance = balances[i].balance;
+                                const profit = currBalance - prevBalance;
+                                result.daily_profits.push({
+                                    day: balances[i].day,
+                                    profit: profit
                                 });
                             }
+                            
+                            // Get total (last column)
+                            if (balances.length > 0) {
+                                const lastBalance = balances[balances.length - 1];
+                                const firstBalance = balances[0];
+                                result.week_total = lastBalance.balance - firstBalance.balance;
+                            }
+                            
+                            break;
                         }
                     }
+                    break;
                 }
-            }
-            
-            // Also get total from the summary section
-            const pageText = document.body.textContent;
-            
-            // Look for "Total" row or weekly total
-            const totalMatch = pageText.match(/Total[:\\s]*([+-]?[\\d,]+\\.?\\d*)/i);
-            if (totalMatch) {
-                result.total = parseFloat(totalMatch[1].replace(/,/g, ''));
             }
             
             return result;
