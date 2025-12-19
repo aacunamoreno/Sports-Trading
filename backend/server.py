@@ -679,7 +679,11 @@ async def monitor_single_account(conn: dict):
     """Monitor a single account for new bets"""
     username = conn["username"]
     password = decrypt_password(conn["password_encrypted"])
-        
+    
+    logger.info(f"Monitoring account: {username}")
+    monitor_service = None
+    
+    try:
         # Create a new service instance for monitoring
         monitor_service = Plays888Service()
         await monitor_service.initialize()
@@ -687,7 +691,7 @@ async def monitor_single_account(conn: dict):
         # Login
         login_result = await monitor_service.login(username, password)
         if not login_result["success"]:
-            logger.error(f"Monitor login failed: {login_result['message']}")
+            logger.error(f"Monitor login failed for {username}: {login_result['message']}")
             await monitor_service.close()
             return
         
