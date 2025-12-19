@@ -7,7 +7,9 @@
     "storage",
     "activeTab",
     "scripting",
-    "notifications"
+    "notifications",
+    "alarms",
+    "tabs"
   ],
   "host_permissions": [
     "https://www.plays888.co/*",
