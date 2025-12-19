@@ -286,6 +286,87 @@ _Automated via BetBot System_
         logger.error(f"Failed to send Telegram notification: {str(e)}")
 
 
+async def get_plays888_daily_totals(username: str, password: str) -> dict:
+    """Scrape daily totals directly from plays888.co History page"""
+    service = None
+    try:
+        service = Plays888Service()
+        await service.initialize()
+        
+        login_result = await service.login(username, password)
+        if not login_result["success"]:
+            logger.error(f"Login failed for {username}: {login_result['message']}")
+            return None
+        
+        # Go to History page
+        await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
+        await service.page.wait_for_timeout(4000)
+        
+        # Extract the daily summary table (shows day names and profit/loss)
+        totals = await service.page.evaluate('''() => {
+            const result = {
+                today: null,
+                week: [],
+                raw: []
+            };
+            
+            // Look for the summary table with daily totals
+            // The table typically shows: Day | Win/Loss amount
+            const tables = document.querySelectorAll('table');
+            
+            for (const table of tables) {
+                const text = table.textContent;
+                // Look for day names (Spanish: lun, mar, mié, jue, vie, sáb, dom)
+                // or English: Mon, Tue, Wed, Thu, Fri, Sat, Sun
+                if (text.match(/\\b(lun|mar|mi[eé]|jue|vie|s[aá]b|dom|mon|tue|wed|thu|fri|sat|sun)\\b/i)) {
+                    const rows = table.querySelectorAll('tr');
+                    for (const row of rows) {
+                        const cells = row.querySelectorAll('td');
+                        if (cells.length >= 2) {
+                            const dayText = cells[0].textContent.trim().toLowerCase();
+                            const amountText = cells[1].textContent.trim();
+                            
+                            // Parse amount (can be +1234.56 or -1234.56)
+                            const amountMatch = amountText.match(/([+-]?[\\d,]+\\.?\\d*)/);
+                            if (amountMatch) {
+                                const amount = parseFloat(amountMatch[1].replace(/,/g, ''));
+                                result.week.push({
+                                    day: dayText,
+                                    amount: amount,
+                                    raw: amountText
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Also get total from the summary section
+            const pageText = document.body.textContent;
+            
+            // Look for "Total" row or weekly total
+            const totalMatch = pageText.match(/Total[:\\s]*([+-]?[\\d,]+\\.?\\d*)/i);
+            if (totalMatch) {
+                result.total = parseFloat(totalMatch[1].replace(/,/g, ''));
+            }
+            
+            return result;
+        }''')
+        
+        await service.close()
+        logger.info(f"plays888 totals for {username}: {totals}")
+        return totals
+        
+    except Exception as e:
+        logger.error(f"Error getting plays888 totals: {str(e)}")
+        if service:
+            try:
+                await service.close()
+            except:
+                pass
+        return None
+
+
 async def send_daily_summary():
     """Send daily betting summary to Telegram at 10:45 PM Arizona time"""
     if not telegram_bot or not telegram_chat_id:
@@ -297,41 +378,76 @@ async def send_daily_summary():
         arizona_tz = ZoneInfo('America/Phoenix')
         now_arizona = datetime.now(arizona_tz)
         
-        # Get start of today in Arizona time
-        today_start = now_arizona.replace(hour=0, minute=0, second=0, microsecond=0)
-        today_start_utc = today_start.astimezone(timezone.utc)
+        # Get day of week for matching plays888 data
+        day_names_es = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
+        day_names_en = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        today_dow = now_arizona.weekday()  # 0=Monday
+        today_day_es = day_names_es[today_dow]
+        today_day_en = day_names_en[today_dow]
         
-        logger.info(f"Querying bets from {today_start_utc.isoformat()}")
+        # Get accounts
+        connections = await db.connections.find({"is_connected": True}, {"_id": 0}).to_list(100)
         
-        # Query all bets placed today - compare as string since placed_at is stored as ISO string
-        all_bets = await db.bet_history.find({}, {"_id": 0}).to_list(1000)
-        
-        # Filter by date manually since placed_at is a string
-        today_date_str = now_arizona.strftime('%Y-%m-%d')
-        all_today_bets = []
-        for bet in all_bets:
-            placed_at = bet.get('placed_at', '')
-            if placed_at and today_date_str in placed_at[:10]:
-                all_today_bets.append(bet)
-        
-        logger.info(f"Found {len(all_today_bets)} bets for today ({today_date_str})")
-        
-        # Assign accounts based on notes if not set
-        for bet in all_today_bets:
-            if not bet.get('account'):
-                notes = bet.get('notes', '').lower()
-                if 'jac083' in notes:
-                    bet['account'] = 'jac083'
+        for conn in connections:
+            username = conn["username"]
+            password = decrypt_password(conn["password_encrypted"])
+            label = ACCOUNT_LABELS.get(username, username)
+            
+            # Get plays888 daily totals
+            totals = await get_plays888_daily_totals(username, password)
+            
+            if totals and totals.get('week'):
+                # Find today's total
+                today_profit = None
+                for day_data in totals['week']:
+                    day = day_data['day'].lower()
+                    if today_day_es in day or today_day_en in day:
+                        today_profit = day_data['amount']
+                        break
+                
+                # Build week summary
+                week_lines = []
+                for day_data in totals['week']:
+                    amt = day_data['amount']
+                    emoji = "📈" if amt >= 0 else "📉"
+                    week_lines.append(f"{emoji} {day_data['day'].capitalize()}: ${amt:+,.2f}")
+                
+                week_text = "\n".join(week_lines) if week_lines else "No data"
+                
+                if today_profit is not None:
+                    profit_emoji = "📈" if today_profit >= 0 else "📉"
+                    profit_text = f"{profit_emoji} *Today's Profit:* ${today_profit:+,.2f} MXN"
                 else:
-                    bet['account'] = 'jac075'
-        
-        # Send separate summary for each account
-        for account, label in ACCOUNT_LABELS.items():
-            user_bets = [b for b in all_today_bets if b.get('account') == account]
-            if user_bets:
-                await send_user_daily_summary(account, label, user_bets, now_arizona)
+                    profit_text = "⚠️ Could not get today's profit"
+                
+                message = f"""
+📊 *{label} - DAILY SUMMARY*
+📅 {now_arizona.strftime('%B %d, %Y')}
+
+{profit_text}
+
+📆 *This Week:*
+{week_text}
+
+_Data from plays888.co_
+_Have a good night! 🌙_
+                """
             else:
-                logger.info(f"No bets for {label} ({account}) today")
+                message = f"""
+📊 *{label} - DAILY SUMMARY*
+📅 {now_arizona.strftime('%B %d, %Y')}
+
+⚠️ Could not retrieve data from plays888.co
+
+_Have a good night! 🌙_
+                """
+            
+            await telegram_bot.send_message(
+                chat_id=telegram_chat_id,
+                text=message.strip(),
+                parse_mode=ParseMode.MARKDOWN
+            )
+            logger.info(f"Daily summary sent for {label}")
         
         logger.info(f"Daily summaries sent")
         
