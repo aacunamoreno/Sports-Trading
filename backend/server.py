@@ -304,27 +304,82 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
         
         # Extract the daily summary table
         # The Win/Loss row has the actual daily profits directly - much more reliable
-        # Format: Win/Loss | lun | mar | mié | jue | vie | sáb | dom | Total
+        # Supports both English (Mon, Tue, etc.) and Spanish (lun, mar, etc.) headers
         totals = await service.page.evaluate('''() => {
             const result = {
                 daily_profits: [],
                 week_total: null,
                 win_loss_row: [],
+                detected_language: null,
                 error: null
+            };
+            
+            // Standard day names (we'll normalize everything to these)
+            const standardDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            
+            // Mapping from Spanish to English
+            const spanishToEnglish = {
+                'lun': 'mon',
+                'mar': 'tue',
+                'mié': 'wed',
+                'mi\u00e9': 'wed',
+                'mie': 'wed',
+                'jue': 'thu',
+                'vie': 'fri',
+                'sáb': 'sat',
+                's\u00e1b': 'sat',
+                'sab': 'sat',
+                'dom': 'sun'
             };
             
             try {
                 const tables = document.querySelectorAll('table');
                 
                 for (const table of tables) {
-                    const text = table.textContent.trim();
+                    const text = table.textContent.trim().toLowerCase();
                     
-                    // Look for the summary table
-                    if (text.includes('Beginning Of Week') || (text.includes('lun') && text.includes('mar') && text.includes('jue'))) {
+                    // Look for summary table - check for both English and Spanish patterns
+                    const hasSpanishDays = text.includes('lun') && text.includes('mar') && text.includes('jue');
+                    const hasEnglishDays = text.includes('mon') && text.includes('tue') && text.includes('thu');
+                    const hasBeginning = text.includes('beginning');
+                    
+                    if (hasBeginning || hasSpanishDays || hasEnglishDays) {
                         const rows = table.querySelectorAll('tr');
-                        // Days in order: label, lun, mar, mié, jue, vie, sáb, dom, Total
-                        const dayNames = ['label', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom', 'Total'];
                         
+                        // Detect language from header row
+                        let detectedDayNames = [];
+                        for (const row of rows) {
+                            const headerCells = row.querySelectorAll('td, th');
+                            if (headerCells.length > 5) {
+                                const headerText = Array.from(headerCells).map(c => c.textContent.trim().toLowerCase());
+                                // Check if this looks like a header row
+                                if (headerText.some(h => h.includes('beginning') || standardDays.includes(h.substring(0,3)) || Object.keys(spanishToEnglish).includes(h.substring(0,3)))) {
+                                    // Extract day names from header, skipping first cell (label)
+                                    for (let i = 1; i < headerCells.length; i++) {
+                                        let dayText = headerCells[i].textContent.trim().toLowerCase().replace(/\\s/g, '');
+                                        // Normalize to standard English day names
+                                        if (spanishToEnglish[dayText]) {
+                                            dayText = spanishToEnglish[dayText];
+                                            result.detected_language = 'spanish';
+                                        } else if (dayText.substring(0,3) && standardDays.includes(dayText.substring(0,3))) {
+                                            dayText = dayText.substring(0,3);
+                                            result.detected_language = result.detected_language || 'english';
+                                        } else if (dayText.includes('total')) {
+                                            dayText = 'total';
+                                        }
+                                        detectedDayNames.push(dayText);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Fallback day names if header detection fails
+                        if (detectedDayNames.length === 0) {
+                            detectedDayNames = ['beginning', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'total'];
+                        }
+                        
+                        // Find Win/Loss row
                         for (const row of rows) {
                             const cells = row.querySelectorAll('td');
                             if (cells.length < 2) continue;
@@ -333,13 +388,15 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
                             
                             // Win/Loss row has the daily profits directly
                             if (firstCell.includes('win') || firstCell.includes('loss')) {
-                                for (let i = 1; i < cells.length && i < dayNames.length; i++) {
+                                for (let i = 1; i < cells.length; i++) {
                                     const cellText = cells[i].textContent.trim();
                                     const match = cellText.match(/(-?[\\d,]+\\.\\d+)/);
                                     if (match) {
                                         const profit = parseFloat(match[1].replace(/,/g, ''));
+                                        // Get day name from detected order
+                                        let dayName = detectedDayNames[i] || ('col' + i);
                                         result.win_loss_row.push({
-                                            day: dayNames[i],
+                                            day: dayName,
                                             profit: profit
                                         });
                                     }
@@ -350,10 +407,12 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
                         
                         // Use Win/Loss row for daily profits
                         if (result.win_loss_row.length > 0) {
-                            // Filter out Total for daily_profits
-                            result.daily_profits = result.win_loss_row.filter(d => d.day !== 'Total');
+                            // Filter out Total and Beginning for daily_profits
+                            result.daily_profits = result.win_loss_row.filter(d => 
+                                d.day !== 'total' && d.day !== 'beginning'
+                            );
                             // Get week total
-                            const total = result.win_loss_row.find(d => d.day === 'Total');
+                            const total = result.win_loss_row.find(d => d.day === 'total');
                             if (total) {
                                 result.week_total = total.profit;
                             } else {
