@@ -406,10 +406,11 @@ async def send_activity_summary():
         now_arizona = datetime.now(arizona_tz)
         today_date = now_arizona.strftime('%Y-%m-%d')
         
-        # Get all checks from today
+        # Get all checks from today for TIPSTER (jac083)
         today_checks = await db.activity_log.find({
             "date": today_date,
-            "type": "bet_check"
+            "type": "bet_check",
+            "account": "jac083"
         }, {"_id": 0}).sort("timestamp", 1).to_list(1000)
         
         if not today_checks:
@@ -428,10 +429,11 @@ async def send_activity_summary():
                 check_times_text += " • ".join(check_times[-10:])  # Show last 10
         
         message = f"""
-🔄 *DAILY ACTIVITY SUMMARY*
+🔄 *TIPSTER ACTIVITY SUMMARY*
 📅 {now_arizona.strftime('%B %d, %Y')}
 
-📡 *System Checks Performed:* {len(today_checks)}
+👤 *Account:* TIPSTER (jac083)
+📡 *System Checks:* {len(today_checks)}
 
 ⏰ *Check Times (Arizona):*
 {check_times_text}
@@ -439,7 +441,7 @@ async def send_activity_summary():
 ✅ *System Status:* Active
 🕐 *Sleep Hours:* 11:30 PM - 5:30 AM
 
-_Activity log for today. Betting summary follows..._
+_Betting summaries follow..._
         """
         
         await telegram_bot.send_message(
