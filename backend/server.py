@@ -339,11 +339,11 @@ async def send_daily_summary():
         logger.error(f"Failed to send daily summary: {str(e)}")
 
 
-async def send_user_daily_summary(account: str, label: str, all_bets: list, now_arizona):
+async def send_user_daily_summary(account: str, label: str, user_bets: list, now_arizona):
     """Send daily summary for a specific user"""
     try:
-        # Filter bets for this account based on account field or notes field
-        user_bets = [b for b in all_bets if b.get('account') == account or account in b.get('notes', '').lower()]
+        # Filter out garbage entries (bets with $0 wager or no ticket)
+        user_bets = [b for b in user_bets if b.get('wager_amount', 0) > 0 and b.get('bet_slip_id')]
         
         if not user_bets:
             message = f"""
