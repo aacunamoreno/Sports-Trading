@@ -661,15 +661,24 @@ async def monitor_open_bets():
     logger.info("Checking plays888.co for new bets...")
     
     try:
-        # Get connection credentials
-        conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+        # Get ALL active connections (multiple accounts)
+        connections = await db.connections.find({"is_connected": True}, {"_id": 0}).to_list(100)
         
-        if not conn or not conn.get("is_connected"):
-            logger.info("No active connection, skipping bet monitoring")
+        if not connections:
+            logger.info("No active connections, skipping bet monitoring")
             return
         
-        username = conn["username"]
-        password = decrypt_password(conn["password_encrypted"])
+        # Monitor each account
+        for conn in connections:
+            await monitor_single_account(conn)
+            
+    except Exception as e:
+        logger.error(f"Error in bet monitoring: {str(e)}")
+
+async def monitor_single_account(conn: dict):
+    """Monitor a single account for new bets"""
+    username = conn["username"]
+    password = decrypt_password(conn["password_encrypted"])
         
         # Create a new service instance for monitoring
         monitor_service = Plays888Service()
