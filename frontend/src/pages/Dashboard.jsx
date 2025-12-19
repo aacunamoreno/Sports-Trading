@@ -16,24 +16,35 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [summaryLoading, setSummaryLoading] = useState(false);
 
+  const [allSummaries, setAllSummaries] = useState({});
+
   useEffect(() => {
     loadDashboard();
   }, []);
 
   const loadDashboard = async () => {
     try {
-      const [statsRes, betsRes, accountsRes] = await Promise.all([
+      const [statsRes, betsRes, accountsRes, summariesRes] = await Promise.all([
         axios.get(`${API}/stats`),
         axios.get(`${API}/bets/history`),
         axios.get(`${API}/accounts`),
+        axios.get(`${API}/accounts/all/summaries`),
       ]);
       setStats(statsRes.data);
       setRecentBets(betsRes.data.slice(0, 5));
       setAccounts(accountsRes.data.accounts || []);
       
-      // Load first account's summary if available
+      // Store all summaries in a map for quick access
+      const summariesMap = {};
+      (summariesRes.data.summaries || []).forEach(s => {
+        summariesMap[s.username] = s;
+      });
+      setAllSummaries(summariesMap);
+      
+      // Set first account's summary
       if (accountsRes.data.accounts && accountsRes.data.accounts.length > 0) {
-        loadAccountSummary(accountsRes.data.accounts[0].username);
+        const firstUsername = accountsRes.data.accounts[0].username;
+        setAccountSummary(summariesMap[firstUsername] || null);
       }
     } catch (error) {
       console.error('Error loading dashboard:', error);
