@@ -53,24 +53,32 @@ export default function Dashboard() {
     }
   };
 
-  const loadAccountSummary = useCallback(async (username) => {
+  const loadAccountSummary = useCallback(async (username, forceRefresh = false) => {
+    // Use cached summary if available and not forcing refresh
+    if (!forceRefresh && allSummaries[username]) {
+      setAccountSummary(allSummaries[username]);
+      return;
+    }
+    
     setSummaryLoading(true);
     try {
-      const response = await axios.get(`${API}/accounts/${username}/summary`);
+      const response = await axios.get(`${API}/accounts/${username}/summary?force_refresh=${forceRefresh}`);
       setAccountSummary(response.data);
+      // Update cache
+      setAllSummaries(prev => ({...prev, [username]: response.data}));
     } catch (error) {
       console.error('Error loading account summary:', error);
       setAccountSummary(null);
     } finally {
       setSummaryLoading(false);
     }
-  }, []);
+  }, [allSummaries]);
 
   const handlePrevAccount = () => {
     const newIndex = selectedAccountIndex > 0 ? selectedAccountIndex - 1 : accounts.length - 1;
     setSelectedAccountIndex(newIndex);
     if (accounts[newIndex]) {
-      loadAccountSummary(accounts[newIndex].username);
+      loadAccountSummary(accounts[newIndex].username, false);
     }
   };
 
@@ -78,13 +86,13 @@ export default function Dashboard() {
     const newIndex = selectedAccountIndex < accounts.length - 1 ? selectedAccountIndex + 1 : 0;
     setSelectedAccountIndex(newIndex);
     if (accounts[newIndex]) {
-      loadAccountSummary(accounts[newIndex].username);
+      loadAccountSummary(accounts[newIndex].username, false);
     }
   };
 
   const handleRefresh = () => {
     if (accounts[selectedAccountIndex]) {
-      loadAccountSummary(accounts[selectedAccountIndex].username);
+      loadAccountSummary(accounts[selectedAccountIndex].username, true);
     }
   };
 
