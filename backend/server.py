@@ -572,16 +572,19 @@ async def check_results_for_account(conn: dict):
             return
         
         # Extract settled bets from the page
-        # First, let's get debug info about the page structure
+        # First, let's get debug info about ALL rows
         debug_info = await results_service.page.evaluate('''() => {
             const rows = document.querySelectorAll('table tr');
             const debug = [];
-            for (let i = 0; i < Math.min(rows.length, 5); i++) {
-                debug.push(rows[i].textContent.substring(0, 150));
+            // Get more rows to see the actual bet data
+            for (let i = 0; i < Math.min(rows.length, 15); i++) {
+                debug.push(rows[i].textContent.substring(0, 200));
             }
-            return debug;
+            return {rowCount: rows.length, samples: debug};
         }''')
-        logger.info(f"History page sample rows: {debug_info}")
+        logger.info(f"History page: {debug_info['rowCount']} total rows")
+        for i, row in enumerate(debug_info['samples']):
+            logger.info(f"Row {i}: {row}")
         
         settled_bets = await results_service.page.evaluate('''() => {
             const bets = [];
