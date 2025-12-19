@@ -2238,6 +2238,83 @@ async def get_stats():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.get("/accounts")
+async def get_accounts():
+    """Get list of connected accounts"""
+    try:
+        connections = await db.connections.find({"is_connected": True}, {"_id": 0}).to_list(100)
+        accounts = []
+        for conn in connections:
+            username = conn.get("username", "")
+            label = ACCOUNT_LABELS.get(username, username)
+            accounts.append({
+                "username": username,
+                "label": label,
+                "is_connected": conn.get("is_connected", False)
+            })
+        return {"accounts": accounts}
+    except Exception as e:
+        logger.error(f"Get accounts error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/accounts/{username}/summary")
+async def get_account_summary(username: str):
+    """Get daily/weekly profit summary for a specific account"""
+    try:
+        # Find the connection
+        conn = await db.connections.find_one({"username": username, "is_connected": True}, {"_id": 0})
+        if not conn:
+            raise HTTPException(status_code=404, detail=f"Account {username} not found or not connected")
+        
+        password = decrypt_password(conn["password_encrypted"])
+        label = ACCOUNT_LABELS.get(username, username)
+        
+        # Get the daily totals from plays888
+        totals = await get_plays888_daily_totals(username, password)
+        
+        if not totals or not totals.get('daily_profits'):
+            return {
+                "username": username,
+                "label": label,
+                "success": False,
+                "error": "Could not retrieve data from plays888.co",
+                "daily_profits": [],
+                "week_total": 0,
+                "today_profit": 0
+            }
+        
+        # Get today's day
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        now_arizona = datetime.now(arizona_tz)
+        day_names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        today_day = day_names[now_arizona.weekday()]
+        
+        # Find today's profit
+        today_profit = 0
+        for day_data in totals['daily_profits']:
+            if day_data['day'].lower() == today_day:
+                today_profit = day_data['profit']
+                break
+        
+        return {
+            "username": username,
+            "label": label,
+            "success": True,
+            "daily_profits": totals['daily_profits'],
+            "week_total": totals.get('week_total', 0),
+            "today_profit": today_profit,
+            "today_day": today_day,
+            "date": now_arizona.strftime('%B %d, %Y')
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get account summary error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/monitoring/start")
 async def start_monitoring():
     """Start the bet monitoring system"""
