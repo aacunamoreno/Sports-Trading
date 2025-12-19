@@ -2,6 +2,40 @@ chrome.action.onClicked.addListener(function() {
   chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
 });
 
+// Auto-refresh plays888.co tabs every 10 minutes to prevent session timeout
+var REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+function refreshPlays888Tabs() {
+  chrome.tabs.query({ url: '*://*.plays888.co/*' }, function(tabs) {
+    if (tabs.length > 0) {
+      tabs.forEach(function(tab) {
+        // Only refresh if the tab is not active (to avoid interrupting user)
+        chrome.tabs.get(tab.id, function(tabInfo) {
+          if (tabInfo && !tabInfo.active) {
+            console.log('Auto-refreshing inactive plays888.co tab:', tab.id);
+            chrome.tabs.reload(tab.id);
+          } else if (tabInfo && tabInfo.active) {
+            // For active tab, just ping to keep session alive without full reload
+            console.log('Keeping active plays888.co tab session alive:', tab.id);
+            chrome.tabs.sendMessage(tab.id, { action: 'keepAlive' }, function(response) {
+              if (chrome.runtime.lastError) {
+                // Tab might need a refresh if content script isn't responding
+                console.log('Content script not responding, tab may need manual refresh');
+              }
+            });
+          }
+        });
+      });
+    } else {
+      console.log('No plays888.co tabs open');
+    }
+  });
+}
+
+// Start the auto-refresh interval
+setInterval(refreshPlays888Tabs, REFRESH_INTERVAL);
+console.log('Auto-refresh enabled: plays888.co tabs will be refreshed every 10 minutes');
+
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'placeBet') {
     chrome.tabs.query({ url: '*://*.plays888.co/*' }, function(tabs) {
