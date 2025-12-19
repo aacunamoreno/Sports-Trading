@@ -3,28 +3,16 @@ chrome.action.onClicked.addListener(function() {
 });
 
 // Auto-refresh plays888.co tabs every 10 minutes to prevent session timeout
-var REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
+var REFRESH_MINUTES = 10;
 
 function refreshPlays888Tabs() {
+  console.log('Checking plays888.co tabs for refresh...');
   chrome.tabs.query({ url: '*://*.plays888.co/*' }, function(tabs) {
     if (tabs.length > 0) {
+      console.log('Found', tabs.length, 'plays888.co tab(s)');
       tabs.forEach(function(tab) {
-        // Only refresh if the tab is not active (to avoid interrupting user)
-        chrome.tabs.get(tab.id, function(tabInfo) {
-          if (tabInfo && !tabInfo.active) {
-            console.log('Auto-refreshing inactive plays888.co tab:', tab.id);
-            chrome.tabs.reload(tab.id);
-          } else if (tabInfo && tabInfo.active) {
-            // For active tab, just ping to keep session alive without full reload
-            console.log('Keeping active plays888.co tab session alive:', tab.id);
-            chrome.tabs.sendMessage(tab.id, { action: 'keepAlive' }, function(response) {
-              if (chrome.runtime.lastError) {
-                // Tab might need a refresh if content script isn't responding
-                console.log('Content script not responding, tab may need manual refresh');
-              }
-            });
-          }
-        });
+        console.log('Refreshing tab:', tab.id, tab.url);
+        chrome.tabs.reload(tab.id);
       });
     } else {
       console.log('No plays888.co tabs open');
@@ -32,9 +20,16 @@ function refreshPlays888Tabs() {
   });
 }
 
-// Start the auto-refresh interval
-setInterval(refreshPlays888Tabs, REFRESH_INTERVAL);
-console.log('Auto-refresh enabled: plays888.co tabs will be refreshed every 10 minutes');
+// Use Chrome Alarms API for reliable timing (works even when service worker sleeps)
+chrome.alarms.create('refreshPlays888', { periodInMinutes: REFRESH_MINUTES });
+
+chrome.alarms.onAlarm.addListener(function(alarm) {
+  if (alarm.name === 'refreshPlays888') {
+    refreshPlays888Tabs();
+  }
+});
+
+console.log('Auto-refresh enabled: plays888.co tabs will be refreshed every ' + REFRESH_MINUTES + ' minutes');
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'placeBet') {
