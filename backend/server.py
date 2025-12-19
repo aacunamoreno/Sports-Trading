@@ -619,7 +619,7 @@ async def check_results_for_account(conn: dict):
                 logger.info(f"Updated Ticket#{ticket_num}: {result}")
                 
                 # Send Telegram notification for result
-                await send_result_notification(existing_bet, result, win_amount)
+                await send_result_notification(existing_bet, result, win_amount, username)
         
         await results_service.close()
         logger.info(f"Results check complete for {username}: {results_updated} bets updated")
