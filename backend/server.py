@@ -1408,7 +1408,7 @@ async def monitor_single_account(conn: dict):
                     "ticket_number": ticket_num,
                     "status": "Placed",
                     "league": f"{sport} - Detected from mobile/web"
-                })
+                }, account=username)
         
         await monitor_service.close()
         logger.info(f"Bet monitoring check complete for {username}")
