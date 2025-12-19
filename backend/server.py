@@ -8,6 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
 import uuid
+import random
 from datetime import datetime, timezone
 from cryptography.fernet import Fernet
 import base64
