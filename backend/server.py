@@ -997,6 +997,9 @@ async def monitor_and_reschedule():
     """Run monitoring and reschedule with new random interval"""
     await monitor_open_bets()
     
+    # Also check for bet results (settled bets)
+    await check_bet_results()
+    
     # Reschedule with a new random interval for next check
     if monitoring_enabled:
         schedule_next_check()
