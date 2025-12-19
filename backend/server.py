@@ -335,6 +335,224 @@ _Have a good night! 🌙_
         logger.error(f"Failed to send daily summary: {str(e)}")
 
 
+async def check_bet_results():
+    """Check plays888.co for settled bet results and update database"""
+    logger.info("Checking for settled bet results...")
+    
+    try:
+        # Get all connections
+        connections = await db.connections.find({"is_connected": True}, {"_id": 0}).to_list(100)
+        
+        if not connections:
+            logger.info("No active connections, skipping results check")
+            return
+        
+        for conn in connections:
+            await check_results_for_account(conn)
+            
+    except Exception as e:
+        logger.error(f"Error checking bet results: {str(e)}")
+
+
+async def check_results_for_account(conn: dict):
+    """Check settled bets for a single account"""
+    username = conn["username"]
+    password = decrypt_password(conn["password_encrypted"])
+    
+    logger.info(f"Checking results for account: {username}")
+    results_service = None
+    
+    try:
+        results_service = Plays888Service()
+        await results_service.initialize()
+        
+        # Login
+        login_result = await results_service.login(username, password)
+        if not login_result["success"]:
+            logger.error(f"Results login failed for {username}: {login_result['message']}")
+            await results_service.close()
+            return
+        
+        # Navigate to Bet History / Graded Bets page
+        # Common URLs to try: GradedBets.aspx, BetHistory.aspx, History.aspx
+        history_urls = [
+            'https://www.plays888.co/wager/GradedBets.aspx',
+            'https://www.plays888.co/wager/BetHistory.aspx',
+            'https://www.plays888.co/wager/History.aspx',
+            'https://www.plays888.co/wager/SettledBets.aspx'
+        ]
+        
+        page_loaded = False
+        for url in history_urls:
+            try:
+                await results_service.page.goto(url, timeout=15000)
+                await results_service.page.wait_for_timeout(3000)
+                
+                # Check if page has content (not a 404 or redirect)
+                content = await results_service.page.content()
+                if 'Ticket' in content or 'ticket' in content:
+                    logger.info(f"Found history page: {url}")
+                    page_loaded = True
+                    break
+            except:
+                continue
+        
+        if not page_loaded:
+            logger.info(f"Could not find bet history page for {username}")
+            await results_service.close()
+            return
+        
+        # Extract settled bets from the page
+        settled_bets = await results_service.page.evaluate('''() => {
+            const bets = [];
+            const rows = document.querySelectorAll('table tr');
+            
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const cells = row.querySelectorAll('td');
+                const rowText = row.textContent || '';
+                
+                // Look for ticket numbers
+                const ticketMatch = rowText.match(/Ticket#?[:\\s-]*(\\d+)/i);
+                
+                if (ticketMatch && cells.length >= 3) {
+                    const ticket = ticketMatch[1];
+                    
+                    // Look for result indicators: Win, Lose, Won, Lost, Push, Cancelled
+                    let result = 'pending';
+                    const rowTextUpper = rowText.toUpperCase();
+                    
+                    if (rowTextUpper.includes('WIN') || rowTextUpper.includes('WON')) {
+                        result = 'won';
+                    } else if (rowTextUpper.includes('LOSE') || rowTextUpper.includes('LOST') || rowTextUpper.includes('LOSS')) {
+                        result = 'lost';
+                    } else if (rowTextUpper.includes('PUSH') || rowTextUpper.includes('TIE')) {
+                        result = 'push';
+                    } else if (rowTextUpper.includes('CANCEL')) {
+                        result = 'cancelled';
+                    }
+                    
+                    // Try to extract win amount if present
+                    let winAmount = 0;
+                    const amountMatch = rowText.match(/\\$?([\\d,]+\\.?\\d*)\\s*(?:won|win)/i);
+                    if (amountMatch) {
+                        winAmount = parseFloat(amountMatch[1].replace(/,/g, ''));
+                    }
+                    
+                    if (result !== 'pending') {
+                        bets.push({
+                            ticket: ticket,
+                            result: result,
+                            winAmount: winAmount,
+                            rowText: rowText.substring(0, 200)  // For debugging
+                        });
+                    }
+                }
+            }
+            return bets;
+        }''')
+        
+        logger.info(f"Found {len(settled_bets)} settled bets for {username}")
+        
+        # Update database with results
+        results_updated = 0
+        for bet in settled_bets:
+            ticket_num = bet.get('ticket')
+            result = bet.get('result')
+            win_amount = bet.get('winAmount', 0)
+            
+            # Find and update the bet in database
+            existing_bet = await db.bet_history.find_one({"bet_slip_id": ticket_num})
+            
+            if existing_bet and existing_bet.get('result') != result:
+                # Update the result
+                await db.bet_history.update_one(
+                    {"bet_slip_id": ticket_num},
+                    {"$set": {
+                        "result": result,
+                        "win_amount": win_amount,
+                        "result_updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                results_updated += 1
+                logger.info(f"Updated Ticket#{ticket_num}: {result}")
+                
+                # Send Telegram notification for result
+                await send_result_notification(existing_bet, result, win_amount)
+        
+        await results_service.close()
+        logger.info(f"Results check complete for {username}: {results_updated} bets updated")
+        
+    except Exception as e:
+        logger.error(f"Error checking results for {username}: {str(e)}")
+        if results_service:
+            try:
+                await results_service.close()
+            except:
+                pass
+
+
+async def send_result_notification(bet: dict, result: str, win_amount: float):
+    """Send Telegram notification when a bet result is determined"""
+    if not telegram_bot or not telegram_chat_id:
+        return
+    
+    try:
+        emoji = "✅" if result == "won" else "❌" if result == "lost" else "↔️" if result == "push" else "🚫"
+        result_text = result.upper()
+        
+        game = bet.get('game', 'Unknown Game')
+        bet_type = bet.get('bet_type', '')
+        wager = bet.get('wager_amount', 0)
+        ticket = bet.get('bet_slip_id', 'N/A')
+        
+        if result == "won":
+            message = f"""
+{emoji} *BET WON!*
+
+*Game:* {game}
+*Bet:* {bet_type}
+*Wagered:* ${wager:,.2f} MXN
+*Won:* ${win_amount:,.2f} MXN
+
+*Ticket#:* {ticket}
+
+_Congratulations! 🎉_
+            """
+        elif result == "lost":
+            message = f"""
+{emoji} *BET LOST*
+
+*Game:* {game}
+*Bet:* {bet_type}
+*Lost:* ${wager:,.2f} MXN
+
+*Ticket#:* {ticket}
+
+_Better luck next time!_
+            """
+        else:
+            message = f"""
+{emoji} *BET {result_text}*
+
+*Game:* {game}
+*Bet:* {bet_type}
+*Wager:* ${wager:,.2f} MXN
+
+*Ticket#:* {ticket}
+            """
+        
+        await telegram_bot.send_message(
+            chat_id=telegram_chat_id,
+            text=message.strip(),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.info(f"Result notification sent for Ticket#{ticket}: {result}")
+        
+    except Exception as e:
+        logger.error(f"Failed to send result notification: {str(e)}")
+
+
 # Playwright automation service
 class Plays888Service:
     def __init__(self):
