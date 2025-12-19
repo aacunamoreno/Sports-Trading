@@ -720,7 +720,7 @@ async def monitor_open_bets():
                         const description = cells[4] ? cells[4].textContent.trim() : '';
                         const riskWin = cells[5] ? cells[5].textContent.trim() : '';
                         
-                        // Parse risk/win amounts (format: "1100.00 / 1000.00" or "2400.00 / 2000.00")
+                        // Parse risk/win amounts (format: "1100.00 / 1000.00" or "500.00 / 9500.00")
                         let wager = 0;
                         let toWin = 0;
                         const riskMatch = riskWin.match(/([\\d,]+\\.?\\d*)\\s*\\/\\s*([\\d,]+\\.?\\d*)/);
@@ -729,11 +729,17 @@ async def monitor_open_bets():
                             toWin = parseFloat(riskMatch[2].replace(/,/g, ''));
                         }
                         
-                        // Extract odds from description (look for -110, +150, -120, etc.)
-                        let odds = -110;
-                        const oddsMatch = description.match(/([+-]\\d{3,})(?:[\\s\\)]|$)/);
-                        if (oddsMatch) {
-                            odds = parseInt(oddsMatch[1]);
+                        // Calculate American odds from Risk/Win amounts
+                        // This works for ALL bet types (Straight, Parlay, Teaser, etc.)
+                        let odds = 0;
+                        if (wager > 0 && toWin > 0) {
+                            if (toWin >= wager) {
+                                // Positive odds: (Win / Risk) * 100
+                                odds = Math.round((toWin / wager) * 100);
+                            } else {
+                                // Negative odds: -(Risk / Win) * 100
+                                odds = Math.round(-(wager / toWin) * 100);
+                            }
                         }
                         
                         // Extract game name (usually in parentheses at end like "(TEAM A vs TEAM B)" or "(TEAM A vrs TEAM B)")
