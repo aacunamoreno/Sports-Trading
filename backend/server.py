@@ -426,6 +426,21 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
                         break;
                     }
                 }
+                
+                // Count bet rows from the bet history table (rows with dates and dollar amounts)
+                result.total_bets = 0;
+                const allTables = document.querySelectorAll('table');
+                for (const table of allTables) {
+                    const rows = table.querySelectorAll('tr');
+                    for (const row of rows) {
+                        const text = row.textContent;
+                        // Bet rows have date format (MM/DD/YYYY) and dollar amounts
+                        if (text.match(/\\d{1,2}\\/\\d{1,2}\\/\\d{4}/) && text.match(/Ticket #:/i)) {
+                            result.total_bets++;
+                        }
+                    }
+                }
+                
             } catch (e) {
                 result.error = e.toString();
             }
