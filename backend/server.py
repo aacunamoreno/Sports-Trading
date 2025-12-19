@@ -2308,8 +2308,8 @@ async def get_account_summary(username: str, force_refresh: bool = False):
         day_names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
         today_day = day_names[now_arizona.weekday()]
         
-        # Get bet count for this account
-        total_bets = await db.bet_history.count_documents({"account": username})
+        # Get bet count from the scraped data (from plays888.co)
+        total_bets = totals.get('total_bets', 0) if totals else 0
         
         if not totals or not totals.get('daily_profits'):
             result = {
