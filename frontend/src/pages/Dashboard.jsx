@@ -96,25 +96,33 @@ export default function Dashboard() {
     }
   };
 
-  // Day display names
+  // Day display names and order
   const dayDisplayNames = {
     'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed',
     'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'
   };
+  const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+  // Get today's index for determining future days
+  const todayIndex = accountSummary?.today_day ? dayOrder.indexOf(accountSummary.today_day) : -1;
 
   // Prepare chart data from account summary
-  const chartData = accountSummary?.daily_profits?.map(d => ({
-    day: dayDisplayNames[d.day] || d.day,
-    profit: d.profit,
-    isToday: d.day === accountSummary?.today_day
-  })) || [
-    { day: 'Mon', profit: 0 },
-    { day: 'Tue', profit: 0 },
-    { day: 'Wed', profit: 0 },
-    { day: 'Thu', profit: 0 },
-    { day: 'Fri', profit: 0 },
-    { day: 'Sat', profit: 0 },
-    { day: 'Sun', profit: 0 },
+  const chartData = accountSummary?.daily_profits?.map((d, idx) => {
+    const dayIdx = dayOrder.indexOf(d.day);
+    return {
+      day: dayDisplayNames[d.day] || d.day,
+      profit: d.profit,
+      isToday: d.day === accountSummary?.today_day,
+      isFuture: todayIndex >= 0 && dayIdx > todayIndex
+    };
+  }) || [
+    { day: 'Mon', profit: 0, isFuture: false },
+    { day: 'Tue', profit: 0, isFuture: false },
+    { day: 'Wed', profit: 0, isFuture: false },
+    { day: 'Thu', profit: 0, isFuture: false },
+    { day: 'Fri', profit: 0, isFuture: true },
+    { day: 'Sat', profit: 0, isFuture: true },
+    { day: 'Sun', profit: 0, isFuture: true },
   ];
 
   if (loading) {
