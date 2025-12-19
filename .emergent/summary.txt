@@ -2,271 +2,80 @@
 
 PRODUCT REQUIREMENTS:
 1.  A web dashboard to manage the betting automation system.
-2.  Secure login and connection to .
-3.  Ability to create, view, and manage betting rules.
-4.  Functionality to automatically place bets based on user-defined rules and live opportunities.
-5.  Support for American odds format (e.g., -110, +150).
-6.  Telegram notifications for every bet placed on the account, regardless of the device used (web, mobile, or extension).
-7.  A mechanism to handle the complex, JavaScript-heavy navigation of .
+2.  Secure login and connection to  for two accounts:  (labeled ENANO) and  (labeled TIPSTER).
+3.  Functionality to automatically place bets via a Chrome Extension.
+4.  Server-side monitoring to detect bets placed from any device (e.g., mobile) and send notifications.
+5.  Telegram notifications for all new bets and settled bet results (Won/Lost), sent to a group chat.
+6.  A daily activity summary and separate daily betting summaries for each user sent to the Telegram group.
+7.  A sleep mode to pause monitoring and browser refreshing during specified hours to avoid detection.
+8.  A mechanism to scrape bet results from  to track profit/loss.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A full-stack application with a FastAPI backend and a React frontend featuring a Neon Terminal theme. The primary automation is handled by a fully functional Chrome extension that automates the entire betting process on . The system also includes a fixed Bet Monitoring feature to check for new bets every 30 minutes, a manual bet recording feature, and a fully integrated Telegram notification system. Backend data persistence is partially implemented, with Telegram credentials being stored in MongoDB.
+A full-stack application with a FastAPI backend and a React frontend. The core functionality is driven by two main components:
+1.  **Chrome Extension:** Automates placing bets on  and keeps the user's session active by periodically refreshing the page.
+2.  **FastAPI Backend:**
+    *   Monitors two user accounts (, ) for new bets by scraping the  website using Playwright.
+    *   Scrapes the History.aspx page to determine the results of settled bets (Won/Lost).
+    *   Sends notifications for new bets and settled results to a Telegram group chat, labeling them with the corresponding user (ENANO/TIPSTER).
+    *   Features a sleep mode that pauses both server monitoring and the Chrome extension's refresh functionality between 10:45 PM and 5:30 AM Arizona time.
+    *   Schedules and sends daily summaries (activity and betting results) to the Telegram group.
+    *   Uses MongoDB to persist connection credentials, bet history, and activity logs.
 
 **Last working item**:
--   **Last item agent was working:** Finalizing the Chrome Extension's logic to correctly identify and place bets on the right game, especially when multiple games on the page have the same odds. The agent implemented a robust search that correctly identifies the game, handles the site's reversed Over/Under logic, and completes the entire betting flow.
--   **Status:** USER VERIFICATION PENDING
--   **Agent Testing Done:** Y
--   **Which testing method agent to use?** Manual testing by user. The user should place another bet to confirm the entire loop, including the Telegram notification.
--   **User Testing Done:** Y (User confirmed the extension placed the correct bet on the correct game).
+-   **Last item agent was working:** Fixing the daily betting summary's profit calculation to be 100% accurate by scraping the summary table directly from the  History page, instead of calculating it from individual bets. The agent identified that the site shows a cumulative balance, and the daily profit is the difference between consecutive days' balances. A new scraper function () was created, and the agent was in the process of integrating it into the daily summary logic.
+-   **Status:** IN PROGRESS
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** Backend testing agent. The agent should trigger the daily summary API endpoint () and verify that the profit/loss numbers in the generated Telegram message match the numbers on the  website.
+-   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: Telegram Notification for Extension-Placed Bets (P0)**
+-   **Issue 1: Daily Summary Profit Calculation (P0)**
 
 **Issues Detail**:
--   **Issue 1:** Telegram Notification for Extension-Placed Bets
-    -   **Description:** The last successfully placed bet (Ticket# 337506791) was confirmed via a screenshot, but the user has not yet confirmed if the corresponding Telegram notification was received.
-    -   **Attempted fixes:** The  script was updated to send a request to the  endpoint upon successful bet placement, which is designed to trigger the notification.
+-   **Issue 1:** Daily Summary Profit Calculation
+    -   **Description:** The current daily betting summary calculates profit by summing individual bets from the database. This leads to discrepancies with the official daily totals on  due to timezone differences and data parsing inaccuracies.
+    -   **Attempted fixes:** The agent created a new function, , to scrape the official summary table from the History page. The agent correctly identified that the daily profit must be calculated as the difference between the cumulative balances of consecutive days. The agent was in the middle of updating the  function to use this new, more accurate data.
     -   **Next debug checklist:**
-        1.  Ask the user to place another test bet using the Chrome Extension.
-        2.  Ask the user to confirm if they receive a Telegram notification.
-        3.  If no notification is received, check the backend logs (==> /var/log/supervisor/backend.err.log <==
-    raise exc
-  File "/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-    await app(scope, receive, sender)
-  File "/root/.venv/lib/python3.11/site-packages/starlette/routing.py", line 756, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "/root/.venv/lib/python3.11/site-packages/starlette/routing.py", line 776, in app
-    await route.handle(scope, receive, send)
-  File "/root/.venv/lib/python3.11/site-packages/starlette/routing.py", line 297, in handle
-    await self.app(scope, receive, send)
-  File "/root/.venv/lib/python3.11/site-packages/starlette/routing.py", line 77, in app
-    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
-  File "/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
-    raise exc
-  File "/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-    await app(scope, receive, sender)
-  File "/root/.venv/lib/python3.11/site-packages/starlette/routing.py", line 72, in app
-    response = await func(request)
-               ^^^^^^^^^^^^^^^^^^^
-  File "/root/.venv/lib/python3.11/site-packages/fastapi/routing.py", line 278, in app
-    raw_response = await run_endpoint_function(
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/root/.venv/lib/python3.11/site-packages/fastapi/routing.py", line 191, in run_endpoint_function
-    return await dependant.call(**values)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/app/backend/server.py", line 1250, in monitoring_status
-    "next_check": scheduler.get_job('bet_monitor').next_run_time.isoformat() if monitoring_enabled and scheduler.running else None
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AttributeError: 'NoneType' object has no attribute 'next_run_time'
-WARNING:  WatchFiles detected changes in 'server.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-2025-12-17 23:05:27,435 - apscheduler.scheduler - INFO - Scheduler has been shut down
-INFO:     Application shutdown complete.
-INFO:     Finished server process [685]
-INFO:     Started server process [1058]
-INFO:     Waiting for application startup.
-2025-12-17 23:05:28,434 - server - INFO - Telegram initialized from database (Chat ID: 7986427942)
-INFO:     Application startup complete.
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [1058]
-INFO:     Stopping reloader process [683]
-INFO:     Will watch for changes in these directories: ['/app/backend']
-INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-INFO:     Started reloader process [1070] using WatchFiles
-INFO:     Started server process [1072]
-INFO:     Waiting for application startup.
-2025-12-17 23:05:36,723 - server - INFO - Telegram initialized from database (Chat ID: 7986427942)
-INFO:     Application startup complete.
-2025-12-17 23:05:41,898 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2025-12-17 23:05:41,899 - apscheduler.scheduler - INFO - Added job "monitor_open_bets" to job store "default"
-2025-12-17 23:05:41,899 - apscheduler.scheduler - INFO - Scheduler started
-2025-12-17 23:05:41,899 - server - INFO - Bet monitoring started - checking every 30 minutes
-2025-12-17 23:05:55,239 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-17 23:05:55,461 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-17 23:05:55,637 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-17 23:05:59,290 - apscheduler.scheduler - INFO - Removed job bet_monitor
-2025-12-17 23:05:59,290 - server - INFO - Bet monitoring stopped
-2025-12-17 23:06:01,310 - server - INFO - Bet monitoring started - checking every 30 minutes
-INFO:     Will watch for changes in these directories: ['/app/backend']
-INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-INFO:     Started reloader process [28] using WatchFiles
-INFO:     Started server process [59]
-INFO:     Waiting for application startup.
-2025-12-18 14:20:15,546 - server - INFO - Telegram initialized from database (Chat ID: 7986427942)
-INFO:     Application startup complete.
-2025-12-18 16:23:37,389 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-18 16:23:37,826 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-18 16:23:37,834 - server - INFO - Telegram config saved to database for @Plays888Bot
-2025-12-18 16:23:38,081 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/sendMessage "HTTP/1.1 200 OK"
-2025-12-18 16:23:38,242 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-18 16:23:55,484 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-18 16:23:55,626 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-18 16:36:05,036 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-18 16:40:48,297 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-18 16:40:48,470 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-18 16:42:17,894 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-18 16:42:18,069 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/getMe "HTTP/1.1 200 OK"
-2025-12-18 17:00:57,573 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/sendMessage "HTTP/1.1 200 OK"
-2025-12-18 17:00:57,573 - server - INFO - Telegram notification sent for Ticket#337501495
-2025-12-18 17:26:10,855 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/sendMessage "HTTP/1.1 200 OK"
-2025-12-18 17:26:10,856 - server - INFO - Telegram notification sent for Ticket#337502570
-2025-12-18 17:27:44,618 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/sendMessage "HTTP/1.1 200 OK"
-2025-12-18 17:27:44,619 - server - INFO - Telegram notification sent for Ticket#337502570
-2025-12-18 17:41:16,980 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/sendMessage "HTTP/1.1 200 OK"
-2025-12-18 17:41:16,981 - server - INFO - Telegram notification sent for Ticket#337503350
-2025-12-18 18:02:48,562 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/sendMessage "HTTP/1.1 200 OK"
-2025-12-18 18:02:48,563 - server - INFO - Telegram notification sent for Ticket#337504313
-2025-12-18 18:05:05,023 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/sendMessage "HTTP/1.1 200 OK"
-2025-12-18 18:05:05,024 - server - INFO - Telegram notification sent for Ticket#337504386
-2025-12-18 18:09:44,238 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/sendMessage "HTTP/1.1 200 OK"
-2025-12-18 18:09:44,239 - server - INFO - Telegram notification sent for Ticket#337504639
-2025-12-18 18:20:48,221 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/sendMessage "HTTP/1.1 200 OK"
-2025-12-18 18:20:48,222 - server - INFO - Telegram notification sent for Ticket#337505147
-2025-12-18 18:35:15,051 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8546689425:AAFvupveQxoY-eO8RunzOAiubeY0jSIFCto/sendMessage "HTTP/1.1 200 OK"
-2025-12-18 18:35:15,052 - server - INFO - Telegram notification sent for Ticket#337505888
-INFO:     Will watch for changes in these directories: ['/app/backend']
-INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-INFO:     Started reloader process [28] using WatchFiles
-
-==> /var/log/supervisor/backend.out.log <==
-INFO:     10.64.130.160:43272 - "GET /api/stats HTTP/1.1" 200 OK
-INFO:     10.64.130.161:33938 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.201.162:45664 - "GET /api/bets/history HTTP/1.1" 200 OK
-INFO:     10.64.130.251:52296 - "GET /api/stats HTTP/1.1" 200 OK
-INFO:     10.64.130.161:33938 - "GET /api/bets/history HTTP/1.1" 200 OK
-INFO:     10.64.130.251:52296 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.130.160:56172 - "GET /api/monitoring/status HTTP/1.1" 500 Internal Server Error
-INFO:     10.64.201.163:34196 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.130.160:56184 - "GET /api/monitoring/status HTTP/1.1" 500 Internal Server Error
-INFO:     10.64.130.161:46420 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.130.251:39698 - "GET /api/bets/history HTTP/1.1" 200 OK
-INFO:     10.64.130.251:39708 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.130.161:50286 - "GET /api/stats HTTP/1.1" 200 OK
-INFO:     10.64.130.251:39708 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.130.251:39698 - "GET /api/bets/history HTTP/1.1" 200 OK
-INFO:     10.64.130.160:60242 - "GET /api/stats HTTP/1.1" 200 OK
-INFO:     10.64.139.18:41934 - "POST /api/telegram/config HTTP/1.1" 200 OK
-INFO:     10.64.201.163:39232 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.162.86:32974 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.201.163:55390 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.130.251:55572 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.130.251:55572 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.201.162:54654 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.201.163:55380 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.162.245:59058 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.201.163:58496 - "POST /api/monitoring/start HTTP/1.1" 200 OK
-INFO:     10.64.129.23:45718 - "POST /api/monitoring/start HTTP/1.1" 200 OK
-INFO:     10.64.139.18:54488 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.162.86:37682 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.162.86:37682 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.162.86:37686 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.139.17:41452 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.201.162:49886 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.130.160:44296 - "POST /api/monitoring/stop HTTP/1.1" 200 OK
-INFO:     10.64.130.160:44296 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.130.161:59894 - "POST /api/monitoring/start HTTP/1.1" 200 OK
-INFO:     10.64.130.251:33970 - "GET /api/monitoring/status HTTP/1.1" 500 Internal Server Error
-INFO:     10.64.139.17:53330 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.130.251:46890 - "POST /api/monitoring/start HTTP/1.1" 200 OK
-INFO:     10.64.129.23:50336 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.162.245:55782 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.139.17:46346 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.139.17:46346 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.139.17:46358 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.139.17:46358 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.139.18:51738 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.139.18:51738 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.139.18:51742 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.139.17:46346 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.139.18:51738 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.162.86:42036 - "POST /api/monitoring/stop HTTP/1.1" 200 OK
-INFO:     10.64.162.86:42036 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.162.245:55796 - "POST /api/monitoring/start HTTP/1.1" 200 OK
-INFO:     10.64.162.245:55796 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.135.149:57858 - "GET /api/bets/history HTTP/1.1" 200 OK
-INFO:     10.64.135.149:57850 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.129.11:44054 - "GET /api/stats HTTP/1.1" 200 OK
-INFO:     10.64.135.138:38204 - "GET /api/bets/history HTTP/1.1" 200 OK
-INFO:     10.64.135.138:38206 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.135.138:38206 - "GET /api/stats HTTP/1.1" 200 OK
-INFO:     10.64.131.79:43556 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.140.140:49290 - "POST /api/telegram/config HTTP/1.1" 200 OK
-INFO:     10.64.140.146:47350 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.135.138:45570 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.135.138:45554 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.135.138:45554 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.129.10:34106 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.129.11:48286 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.131.103:44398 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.140.135:53876 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.131.85:46620 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.131.85:46606 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.131.85:46606 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.131.103:43496 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.131.79:56140 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.131.79:56140 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.140.140:34196 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.140.135:55736 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.140.140:34196 - "GET /api/monitoring/status HTTP/1.1" 200 OK
-INFO:     10.64.140.140:34196 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.140.135:55722 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.140.146:46898 - "GET /api/telegram/status HTTP/1.1" 200 OK
-INFO:     10.64.135.138:40994 - "OPTIONS /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.129.10:53492 - "POST /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.140.140:47976 - "OPTIONS /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.140.140:47976 - "POST /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.129.11:50504 - "POST /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.135.138:47124 - "OPTIONS /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.129.10:51448 - "POST /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.135.138:37564 - "GET /api/bets/history HTTP/1.1" 200 OK
-INFO:     10.64.129.10:50746 - "GET /api/stats HTTP/1.1" 200 OK
-INFO:     10.64.129.11:52454 - "GET /api/connection/status HTTP/1.1" 200 OK
-INFO:     10.64.129.11:39788 - "OPTIONS /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.135.138:43084 - "POST /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.129.10:57102 - "POST /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.140.146:51956 - "POST /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.135.138:38304 - "OPTIONS /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.129.11:42786 - "POST /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.131.85:58680 - "OPTIONS /api/bets/record-manual HTTP/1.1" 200 OK
-INFO:     10.64.131.85:58680 - "POST /api/bets/record-manual HTTP/1.1" 200 OK) for errors immediately after the bet is placed.
-        4.  Verify the  call in  is correct and that the  stored in the extension's local storage points to the correct backend URL.
-    -   **Why fix this issue and what will be achieved with the fix?** This will complete the core loop of automated betting and notification, fulfilling a primary user requirement.
-    -   **Status:** USER VERIFICATION PENDING
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** Backend (logging) and Integration (Telegram).
+        1.  View  to ensure the  function correctly calls  and calculates the profit for each user.
+        2.  Ensure the correct daily profit figure is inserted into the Telegram message.
+        3.  Restart the backend (backend: stopped
+backend: started).
+        4.  Trigger a manual test by calling the endpoint: .
+        5.  Ask the user to verify the profit/loss numbers in the new summary against their  account.
+    -   **Why fix this issue and what will be achieved with the fix?** This will provide the user with 100% accurate daily profit/loss figures that match the official betting site, which is a critical requirement.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Backend
     -   **Blocked on other issue:** None
 
 **In progress Task List**:
--   There are no multi-step tasks currently in progress.
+-   There are no other multi-step tasks currently in progress.
 
 **Upcoming and Future Tasks**
--   **Upcoming Tasks:**
-    1.  **Verify Bet Monitoring (P1):** Now that the  endpoint is fixed, the user needs to be guided to test the monitoring feature. This involves placing a bet from their mobile phone and confirming a Telegram notification is received within 30 minutes.
 -   **Future Tasks:**
-    1.  **Persistent Storage (P2):** Migrate all in-memory data (betting rules, bet history) from Python dictionaries in  to a persistent database like MongoDB to prevent data loss on server restart.
+    1.  **Persistent Storage for Betting Rules (P2):** The original problem statement mentioned creating and managing betting rules. This functionality has not been built, and any rules would currently be stored in-memory. This task involves creating UI and API endpoints to manage rules and storing them in MongoDB.
 
 **Completed work in this session**
--   **Bet Monitoring API Fixed:** Resolved the Not Found error for  by correcting the route registration order in .
--   **Telegram Configuration Persistence:** Modified the backend to save and load Telegram credentials from MongoDB, ensuring they persist across server restarts.
--   **Chrome Extension Full Automation:** Extensively debugged and enhanced the Chrome extension to achieve full end-to-end bet placement. This included:
-    -   Opening the popup in a new, persistent tab.
-    -   Fixing content script injection and communication issues.
-    -   Implementing state persistence across page loads using .
-    -   Adding a 60-second safety timeout for pending bets to prevent accidental placements.
-    -   Developing robust logic to correctly parse 's complex button values.
-    -   Correcting for the site's reversed Over/Under logic (OVER is a negative line, UNDER is positive).
-    -   Implementing a game-specific search to select the correct bet when multiple games have identical odds.
--   **Telegram Notification for Extension Bets:** Integrated the extension with the backend to trigger Telegram notifications upon successful bet placement.
+-   **Dual-Account Monitoring:** System now monitors two accounts ( and ) and labels all notifications (ENANO/TIPSTER).
+-   **Bet Results Scraping:** Implemented a scraper for the  page to automatically detect and record Won/Lost statuses for settled bets.
+-   **Robust Telegram Notifications:**
+    -   Fixed initial notification bug for extension-placed bets.
+    -   Notifications are now sent to a group chat for multiple users.
+    -   Notifications are sent for new bets and settled results.
+-   **Sleep Mode Implementation:** A sleep mode is active from 10:45 PM to 5:30 AM Arizona time, pausing both server monitoring and Chrome extension refreshes to appear more human-like.
+-   **Daily Summaries:**
+    -   An activity summary for the TIPSTER account is sent at 10:45 PM.
+    -   Separate, user-specific betting summaries are sent at 10:45 PM.
+-   **Data Retention Policy:** Implemented a cleanup job that runs at 9 AM, deleting activity logs from the previous day and bet history older than 7 days.
+-   **Chrome Extension Auto-Refresh:** The extension now refreshes  tabs at a random 7-15 minute interval (outside of sleep hours) to prevent session timeouts.
+-   **Code & Data Cleanup:** Refined scraping logic multiple times and cleaned invalid bet entries from the database.
 
 **Earlier issues found/mentioned but not fixed**
 -   **Issue 1: Server-Side Playwright Fails to Render JavaScript**
-    -   **Description:** The server-side automation fails to render the JavaScript-heavy  site.
-    -   **Status:** BYPASSED, NOT FIXED. This fundamental issue was worked around by building the client-side Chrome extension.
+    -   **Description:** The initial server-side automation approach failed to render the JavaScript-heavy  site.
+    -   **Status:** BYPASSED. This issue was worked around by building the client-side Chrome extension for placing bets. However, the backend still uses Playwright for monitoring, which has been made to work but could still be a point of failure.
 
 **Known issue recurrence from previous fork**
 -   None.
@@ -275,84 +84,84 @@ INFO:     10.64.131.85:58680 - "POST /api/bets/record-manual HTTP/1.1" 200 OK) f
 
 
 **Key Technical Concepts**
--   **Backend:** FastAPI, APScheduler for background jobs.
+-   **Backend:** FastAPI, APScheduler for cron jobs (monitoring, summaries, cleanup), Playwright for web scraping.
 -   **Frontend:** React, Tailwind CSS.
--   **Database:** MongoDB is now used to persist Telegram bot credentials.
--   **Automation:** The architecture is fully committed to a client-side **Chrome Browser Extension**.  uses  to maintain state across page loads during the multi-step betting process. The logic is highly specific to the DOM structure and button value format of .
+-   **Database:** MongoDB for storing , , , , and .
+-   **Automation:** A hybrid model using a client-side Chrome Extension for bet placement and session management, and server-side Playwright for monitoring and results scraping.
+-   **Timezones:** Logic is heavily dependent on converting between UTC and 'America/Phoenix' (Arizona time) for sleep mode and daily summaries.
 
 **key DB schema**
--   **telegram_config (collection):**
-    -   : (string, encrypted)
-    -   : (string, encrypted)
-    -   : (string)
+-   **connections (collection):** Stores  and  for  accounts.
+-   **telegram_config (collection):** Stores  and .
+-   **bet_history (collection):** Stores details of each bet, including , , , ,  (Pending, Won, Lost), , etc.
+-   **activity_log (collection):** Logs timestamps of each monitoring check.
+-   **monitoring_config (collection):** Stores the state of the monitoring service (enabled/disabled).
 
 **changes in tech stack**
--   Introduced MongoDB for persisting Telegram configuration. Other application data (rules, history) remains in-memory.
+-   No changes to the core stack, but significant expansion of MongoDB usage for application state management.
 
 **All files of reference**
--   : This entire directory is critical. The user has a local copy and must be provided with updated code to replace their local files.
-    -   : Contains the core, complex automation logic for .
-    -   : Handles communication between the popup, content script, and the backend API for notifications.
-    -   : Defines the extension's permissions and structure.
-    -    & : The UI for the extension, which now opens in a new tab.
--   : Contains API endpoints, the fixed monitoring routes, and the MongoDB logic for Telegram configuration.
+-   : The single most important file containing all backend logic. It has grown very large.
+-   : Contains the logic for the Chrome extension's auto-refresh and sleep mode.
+-   : Contains logic to prevent the extension from auto-clicking on manually placed bets.
 
 **Areas that need refactoring**:
--   The application state (betting rules, bet history) is still stored in-memory in  and is lost on restart. This data should be migrated to MongoDB for persistence.
+-    is over 2000 lines long and handles APIs, database models, scraping services, and scheduling. It should be broken down into a more modular structure (e.g., , , ).
+-   The scraping logic within  is complex and tightly coupled with the API routes. It would benefit from being moved to its own service class.
 
 **key api endpoints**
--    (POST): Called by the Chrome extension to record a placed bet and trigger a Telegram notification.
--    (POST): Starts the bet monitoring background job.
--    (POST): Saves Telegram credentials to MongoDB.
--    (GET): Retrieves Telegram configuration from MongoDB.
+-   : Manually triggers a check for new bets and results.
+-   : Manually triggers the daily betting summaries.
+-   : Manually triggers the daily activity summary.
+-    / : Controls the monitoring service.
+-   : Returns the current status of the monitoring service.
+-   : Endpoint called by the Chrome extension to record a bet.
 
 **Critical Info for New Agent**
--   **The Chrome Extension is the ONLY betting mechanism.** Do not attempt any server-side automation with Playwright.
--   **The user updates the extension files manually.** The agent must provide the full, correct code for all 5 extension files (, , , , ) whenever a change is made.
--   **The extension's logic is highly specific to 's DOM.** It relies on parsing button  attributes (e.g., ) and has a reversed logic for Over/Under bets (Over = negative line number, Under = positive line number).
--   **Data Persistence is Partial:** Only Telegram credentials are saved in MongoDB. All other data (rules, bet history) is lost on backend restart.
--   **Clear pending bets from local storage** ( in the console) before testing to avoid accidental bets.
+-   **Profit Calculation is the Priority:** The immediate task is to fix the daily summary's profit calculation by correctly implementing the logic to scrape the official totals from .
+-   **Two User System:** The system monitors two accounts (/ENANO, /TIPSTER) and must handle them separately for summaries but together for notifications.
+-   **Sleep Mode is Critical:** Both the backend monitoring and the Chrome extension have a coordinated sleep schedule (10:45 PM - 5:30 AM Arizona). Do not break this logic.
+-   **Timezones Matter:** The application relies heavily on correct timezone handling ('America/Phoenix') for scheduling. All server-side datetimes should be timezone-aware (UTC).
+-   **User Updates Extension Manually:** The user needs to be provided with the complete, updated code for any changed Chrome extension files (, , etc.) to apply the changes locally.
 
-**documents created in this job**
--   
+**documents and test_reports created in this job**
+-   None.
 
-**Last 10 User Messages and any pending user messages**
-1.  **User:** Reports the bot is auto-placing bets on any game clicked due to a leftover pending bet.
-2.  **Agent:** Implements a 60-second timestamp on pending bets to prevent this.
-3.  **User:** Asks how to run the  command.
-4.  **Agent:** Provides instructions on how to run the command in the browser console.
-5.  **User:** Tries to place a bet on , but it fails because the site uses a  symbol.
-6.  **Agent:** Fixes the script to handle fractional symbols.
-7.  **User:** Tries to place a bet on MINNESOTA WILD , but it places a bet on another game with the same odds.
-8.  **Agent:** Implements logic to find the game row before searching for the bet button.
-9.  **User:** Reports the bot still chose the wrong bet (OVER instead of UNDER).
-10. **Agent:** Corrects the reversed OVER/UNDER logic in .
-11. **User:** Confirms the bot now correctly places the correct bet on the correct game (Ticket# 337506791).
-12. **Pending User Confirmation:** The user has not confirmed if they received the Telegram notification for the last successful bet.
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **User:** Notes the summary is still wrong and confirms to proceed with Option 1 (scrape daily totals directly).
+2.  **Agent:** Starts implementing the direct scraping of the daily summary table.
+3.  **Agent:** Discovers the table shows cumulative balance and that profit is the difference between consecutive days.
+4.  **Agent:** Updates the scraper and the summary function.
+5.  **User:** Reports the summary is still incorrect, showing a large discrepancy and No bets placed today for TIPSTER.
+6.  **Agent:** Investigates and finds garbage data and issues with account assignment for legacy bets.
+7.  **Agent:** Cleans the database and adjusts the summary logic to handle legacy bets.
+8.  **Agent:** Acknowledges the profit calculation is still off due to date boundary issues and incorrect  capture.
+9.  **Agent:** Suggests adding a disclaimer to the summary as a temporary fix.
+10. **User:** Rejects the temporary fix and insists on Option 1 (direct scraping) because the numbers are still wrong.
 
 **Project Health Check:**
 -   **Broken:**
-    -   None.
+    -   The daily summary profit/loss calculation is inaccurate and does not match the official site, which is the current highest-priority issue.
 -   **Mocked:**
-    -   Server-side bet placement automation (permanently bypassed by the Chrome extension).
+    -   None.
 
 **3rd Party Integrations**
--   **Telegram:** Integrated via  on the backend. Requires a user-provided Bot Token and Chat ID, which are now persisted in MongoDB.
--   **Playwright:** Used only for the backend bet monitoring feature.
+-   **Telegram:** Integrated via  on the backend for sending notifications and summaries to a group chat.
+-   **Playwright:** Used by the backend to perform all web scraping on  for monitoring and results checking.
 
 **Testing status**
 -   Testing agent used after significant changes: NO
 -   Troubleshoot agent used after agent stuck in loop: NO
 -   Test files created: None
--   Known regressions: None
+-   Known regressions: None.
 
 **Credentials to test flow:**
 -   **Website:** 
-    -   Username: 
-    -   Password: 
+    -   **Account 1:** , Password:  (Label: ENANO)
+    -   **Account 2:** , Password:  (Label: TIPSTER)
 -   **Telegram:**
     -   Bot Token: 
-    -   Chat ID: 
+    -   Group Chat ID: 
 
 **What agent forgot to execute**
--   The agent did not explicitly ask the user to confirm receipt of the Telegram notification for the last successful bet (Ticket# 337506791). This is the last unverified piece of the automation loop.</analysis>
+-   The agent was in the final steps of implementing the correct profit calculation by scraping the daily totals table. The logic to parse the cumulative balance and calculate the difference was identified but not fully implemented and tested before the session ended. The  function needs to be completed and verified.</analysis>
