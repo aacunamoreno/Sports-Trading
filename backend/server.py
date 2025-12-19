@@ -1867,7 +1867,7 @@ async def test_telegram():
             "potential_win": 90.91,
             "ticket_number": "TEST123",
             "status": "Test"
-        })
+        }, account="jac075")  # Test with ENANO label
         return {"success": True, "message": "Test notification sent"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
