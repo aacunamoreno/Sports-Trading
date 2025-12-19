@@ -572,6 +572,17 @@ async def check_results_for_account(conn: dict):
             return
         
         # Extract settled bets from the page
+        # First, let's get debug info about the page structure
+        debug_info = await results_service.page.evaluate('''() => {
+            const rows = document.querySelectorAll('table tr');
+            const debug = [];
+            for (let i = 0; i < Math.min(rows.length, 5); i++) {
+                debug.push(rows[i].textContent.substring(0, 150));
+            }
+            return debug;
+        }''')
+        logger.info(f"History page sample rows: {debug_info}")
+        
         settled_bets = await results_service.page.evaluate('''() => {
             const bets = [];
             const rows = document.querySelectorAll('table tr');
@@ -587,18 +598,40 @@ async def check_results_for_account(conn: dict):
                 if (ticketMatch && cells.length >= 3) {
                     const ticket = ticketMatch[1];
                     
-                    // Look for result indicators: Win, Lose, Won, Lost, Push, Cancelled
+                    // Look for result indicators - common variations
+                    // Also check for Winner/Loser, W/L, Graded status
                     let result = 'pending';
                     const rowTextUpper = rowText.toUpperCase();
                     
-                    if (rowTextUpper.includes('WIN') || rowTextUpper.includes('WON')) {
+                    // Check for positive results
+                    if (rowTextUpper.includes('WIN') || rowTextUpper.includes('WON') || 
+                        rowTextUpper.includes('WINNER') || rowTextUpper.match(/\\bW\\b/)) {
                         result = 'won';
-                    } else if (rowTextUpper.includes('LOSE') || rowTextUpper.includes('LOST') || rowTextUpper.includes('LOSS')) {
+                    } 
+                    // Check for negative results
+                    else if (rowTextUpper.includes('LOSE') || rowTextUpper.includes('LOST') || 
+                             rowTextUpper.includes('LOSS') || rowTextUpper.includes('LOSER') ||
+                             rowTextUpper.match(/\\bL\\b/)) {
                         result = 'lost';
-                    } else if (rowTextUpper.includes('PUSH') || rowTextUpper.includes('TIE')) {
+                    } 
+                    // Check for push/tie
+                    else if (rowTextUpper.includes('PUSH') || rowTextUpper.includes('TIE')) {
                         result = 'push';
-                    } else if (rowTextUpper.includes('CANCEL')) {
+                    } 
+                    // Check for cancelled
+                    else if (rowTextUpper.includes('CANCEL') || rowTextUpper.includes('VOID')) {
                         result = 'cancelled';
+                    }
+                    // Check last column for result status (common pattern)
+                    else if (cells.length > 0) {
+                        const lastCell = cells[cells.length - 1].textContent.toUpperCase().trim();
+                        if (lastCell === 'W' || lastCell === 'WIN' || lastCell === 'WON') {
+                            result = 'won';
+                        } else if (lastCell === 'L' || lastCell === 'LOSE' || lastCell === 'LOST') {
+                            result = 'lost';
+                        } else if (lastCell === 'P' || lastCell === 'PUSH') {
+                            result = 'push';
+                        }
                     }
                     
                     // Try to extract win amount if present
@@ -606,6 +639,12 @@ async def check_results_for_account(conn: dict):
                     const amountMatch = rowText.match(/\\$?([\\d,]+\\.?\\d*)\\s*(?:won|win)/i);
                     if (amountMatch) {
                         winAmount = parseFloat(amountMatch[1].replace(/,/g, ''));
+                    }
+                    
+                    // Also check for amounts in format "Risk/Win" and if there's a positive amount indicator
+                    const riskWinMatch = rowText.match(/([\\d,]+\\.\\d+)\\s*\\/\\s*([\\d,]+\\.\\d+)/);
+                    if (riskWinMatch && result === 'won') {
+                        winAmount = parseFloat(riskWinMatch[2].replace(/,/g, ''));
                     }
                     
                     if (result !== 'pending') {
