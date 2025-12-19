@@ -3,15 +3,53 @@ chrome.action.onClicked.addListener(function() {
 });
 
 // Auto-refresh plays888.co tabs with random intervals (7-15 minutes) to prevent session timeout
+// SLEEP HOURS: 11:30 PM - 5:30 AM Arizona time (no refresh during this period)
 var MIN_REFRESH_MINUTES = 7;
 var MAX_REFRESH_MINUTES = 15;
+
+// Arizona is UTC-7 (no daylight saving)
+var ARIZONA_OFFSET = -7;
+
+function getArizonaTime() {
+  var now = new Date();
+  var utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  var arizona = new Date(utc + (3600000 * ARIZONA_OFFSET));
+  return arizona;
+}
+
+function isSleepHours() {
+  var arizona = getArizonaTime();
+  var hour = arizona.getHours();
+  var minute = arizona.getMinutes();
+  var timeInMinutes = hour * 60 + minute;
+  
+  // Sleep window: 11:30 PM (23:30 = 1410 mins) to 5:30 AM (5:30 = 330 mins)
+  var sleepStart = 23 * 60 + 30;  // 11:30 PM = 1410 minutes
+  var sleepEnd = 5 * 60 + 30;      // 5:30 AM = 330 minutes
+  
+  // Check if current time is in sleep window
+  if (timeInMinutes >= sleepStart || timeInMinutes < sleepEnd) {
+    return true;
+  }
+  return false;
+}
 
 function getRandomInterval() {
   return Math.floor(Math.random() * (MAX_REFRESH_MINUTES - MIN_REFRESH_MINUTES + 1)) + MIN_REFRESH_MINUTES;
 }
 
 function refreshPlays888Tabs() {
-  console.log('Checking plays888.co tabs for refresh...');
+  var arizona = getArizonaTime();
+  var timeStr = arizona.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  
+  // Check if we're in sleep hours
+  if (isSleepHours()) {
+    console.log('Sleep hours (' + timeStr + ' Arizona) - skipping refresh');
+    scheduleNextRefresh();
+    return;
+  }
+  
+  console.log('Checking plays888.co tabs for refresh... (' + timeStr + ' Arizona)');
   chrome.tabs.query({ url: '*://*.plays888.co/*' }, function(tabs) {
     if (tabs.length > 0) {
       console.log('Found', tabs.length, 'plays888.co tab(s)');
@@ -43,7 +81,7 @@ chrome.alarms.onAlarm.addListener(function(alarm) {
   }
 });
 
-console.log('Auto-refresh enabled: plays888.co tabs will be refreshed every 7-15 minutes (random)');
+console.log('Auto-refresh enabled: 7-15 min random intervals, paused 11:30 PM - 5:30 AM Arizona');
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'placeBet') {
