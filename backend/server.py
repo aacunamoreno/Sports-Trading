@@ -1492,6 +1492,18 @@ async def test_telegram():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.post("/telegram/daily-summary")
+async def trigger_daily_summary():
+    """Manually trigger the daily betting summary"""
+    if not telegram_bot or not telegram_chat_id:
+        raise HTTPException(status_code=400, detail="Telegram not configured")
+    
+    try:
+        await send_daily_summary()
+        return {"success": True, "message": "Daily summary sent"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/stats")
 async def get_stats():
     """Get statistics for dashboard"""
