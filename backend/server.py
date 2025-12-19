@@ -868,14 +868,15 @@ async def monitor_single_account(conn: dict):
                 })
         
         await monitor_service.close()
-        logger.info("Bet monitoring check complete")
+        logger.info(f"Bet monitoring check complete for {username}")
         
     except Exception as e:
-        logger.error(f"Error in bet monitoring: {str(e)}")
-        try:
-            await monitor_service.close()
-        except:
-            pass
+        logger.error(f"Error monitoring account {username}: {str(e)}")
+        if monitor_service:
+            try:
+                await monitor_service.close()
+            except:
+                pass
 
 
 # API Routes
