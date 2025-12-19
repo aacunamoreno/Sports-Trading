@@ -113,8 +113,17 @@ def schedule_daily_summary():
             replace_existing=True
         )
         logger.info("Daily summary scheduled for 11:00 PM Arizona time")
+        
+        # Daily cleanup at 9:00 AM Arizona
+        scheduler.add_job(
+            daily_cleanup,
+            trigger=CronTrigger(hour=9, minute=0, timezone='America/Phoenix'),  # 9 AM Arizona
+            id='daily_cleanup',
+            replace_existing=True
+        )
+        logger.info("Daily cleanup scheduled for 9:00 AM Arizona time")
     except Exception as e:
-        logger.error(f"Error scheduling daily summaries: {str(e)}")
+        logger.error(f"Error scheduling daily tasks: {str(e)}")
 
 async def auto_start_monitoring():
     """Auto-start bet monitoring if it was previously enabled"""
