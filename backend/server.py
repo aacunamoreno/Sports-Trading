@@ -2293,6 +2293,9 @@ async def get_account_summary(username: str, force_refresh: bool = False):
         day_names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
         today_day = day_names[now_arizona.weekday()]
         
+        # Get bet count for this account
+        total_bets = await db.bet_history.count_documents({"account": username})
+        
         if not totals or not totals.get('daily_profits'):
             result = {
                 "username": username,
@@ -2303,7 +2306,8 @@ async def get_account_summary(username: str, force_refresh: bool = False):
                 "week_total": 0,
                 "today_profit": 0,
                 "today_day": today_day,
-                "date": now_arizona.strftime('%B %d, %Y')
+                "date": now_arizona.strftime('%B %d, %Y'),
+                "total_bets": total_bets
             }
         else:
             # Find today's profit
@@ -2321,7 +2325,8 @@ async def get_account_summary(username: str, force_refresh: bool = False):
                 "week_total": totals.get('week_total', 0),
                 "today_profit": today_profit,
                 "today_day": today_day,
-                "date": now_arizona.strftime('%B %d, %Y')
+                "date": now_arizona.strftime('%B %d, %Y'),
+                "total_bets": total_bets
             }
         
         # Store in cache
