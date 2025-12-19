@@ -430,12 +430,31 @@ _Activity log for today. Betting summary follows..._
         )
         logger.info(f"Activity summary sent to Telegram ({len(today_checks)} checks)")
         
-        # Clean up old activity logs (keep only last 7 days)
-        seven_days_ago = (now_arizona - timedelta(days=7)).strftime('%Y-%m-%d')
-        await db.activity_log.delete_many({"date": {"$lt": seven_days_ago}})
-        
     except Exception as e:
         logger.error(f"Failed to send activity summary: {str(e)}")
+
+
+async def daily_cleanup():
+    """Clean up old data at 9 AM Arizona time"""
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        now_arizona = datetime.now(arizona_tz)
+        
+        # Clean up yesterday's activity logs (activity logs only kept for 1 day)
+        yesterday = (now_arizona - timedelta(days=1)).strftime('%Y-%m-%d')
+        activity_deleted = await db.activity_log.delete_many({"date": {"$lte": yesterday}})
+        logger.info(f"Cleaned up {activity_deleted.deleted_count} old activity logs")
+        
+        # Clean up bet history older than 7 days
+        seven_days_ago = (now_arizona - timedelta(days=7))
+        old_bets_deleted = await db.bet_history.delete_many({
+            "placed_at": {"$lt": seven_days_ago.isoformat()}
+        })
+        logger.info(f"Cleaned up {old_bets_deleted.deleted_count} old bet records (>7 days)")
+        
+    except Exception as e:
+        logger.error(f"Failed to run daily cleanup: {str(e)}")
 
 
 async def check_bet_results():
