@@ -603,8 +603,8 @@ async def check_results_for_account(conn: dict):
                 const cells = row.querySelectorAll('td');
                 const rowText = row.textContent || '';
                 
-                // Look for ticket numbers
-                const ticketMatch = rowText.match(/Ticket#?[:\\s-]*(\\d+)/i);
+                // Look for ticket numbers - handle "Ticket #: 337..." or "Ticket#: 337..."
+                const ticketMatch = rowText.match(/Ticket\\s*#?\\s*:?\\s*(\\d{9})/i);
                 
                 if (ticketMatch && cells.length >= 3) {
                     const ticket = ticketMatch[1];
