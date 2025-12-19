@@ -1399,22 +1399,19 @@ async def start_monitoring():
         "enabled_at": datetime.now(timezone.utc).isoformat()
     })
     
-    # Schedule the job to run every 10 minutes
+    # Schedule the job with random intervals (7-15 minutes)
+    # Uses a wrapper that reschedules with random delay after each run
+    schedule_next_check()
+    
     if not scheduler.running:
-        scheduler.add_job(
-            monitor_open_bets,
-            trigger=IntervalTrigger(minutes=10),
-            id='bet_monitor',
-            replace_existing=True
-        )
         scheduler.start()
     
-    logger.info("Bet monitoring started - checking every 10 minutes")
+    logger.info("Bet monitoring started - checking every 7-15 minutes randomly (paused 11:30 PM - 5:30 AM Arizona)")
     
     return {
         "success": True,
-        "message": "Bet monitoring started. Will check plays888.co every 10 minutes for new bets.",
-        "interval": "10 minutes"
+        "message": "Bet monitoring started. Will check plays888.co every 7-15 minutes randomly (paused during sleep hours 11:30 PM - 5:30 AM Arizona).",
+        "interval": "7-15 minutes (random)"
     }
 
 @api_router.post("/monitoring/stop")
