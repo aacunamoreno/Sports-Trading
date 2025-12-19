@@ -311,6 +311,7 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
                 week_total: null,
                 win_loss_row: [],
                 detected_language: null,
+                debug_header: [],
                 error: null
             };
             
@@ -346,37 +347,38 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
                     if (hasBeginning || hasSpanishDays || hasEnglishDays) {
                         const rows = table.querySelectorAll('tr');
                         
-                        // Detect language from header row
-                        let detectedDayNames = [];
-                        for (const row of rows) {
-                            const headerCells = row.querySelectorAll('td, th');
-                            if (headerCells.length > 5) {
-                                const headerText = Array.from(headerCells).map(c => c.textContent.trim().toLowerCase());
-                                // Check if this looks like a header row
-                                if (headerText.some(h => h.includes('beginning') || standardDays.includes(h.substring(0,3)) || Object.keys(spanishToEnglish).includes(h.substring(0,3)))) {
-                                    // Extract day names from header, skipping first cell (label)
-                                    for (let i = 1; i < headerCells.length; i++) {
-                                        let dayText = headerCells[i].textContent.trim().toLowerCase().replace(/\\s/g, '');
-                                        // Normalize to standard English day names
-                                        if (spanishToEnglish[dayText]) {
-                                            dayText = spanishToEnglish[dayText];
-                                            result.detected_language = 'spanish';
-                                        } else if (dayText.substring(0,3) && standardDays.includes(dayText.substring(0,3))) {
-                                            dayText = dayText.substring(0,3);
-                                            result.detected_language = result.detected_language || 'english';
-                                        } else if (dayText.includes('total')) {
-                                            dayText = 'total';
-                                        }
-                                        detectedDayNames.push(dayText);
-                                    }
-                                    break;
+                        // Build header-to-day mapping from FIRST row
+                        // Header: [empty, Beginning, Mon/lun, Tue/mar, Wed/mié, Thu/jue, Fri/vie, Sat/sáb, Sun/dom, Total]
+                        // Index:   0      1          2        3        4        5        6        7        8        9
+                        let headerDayMap = {}; // Maps cell index to normalized day name
+                        
+                        const firstRow = rows[0];
+                        if (firstRow) {
+                            const headerCells = firstRow.querySelectorAll('td, th');
+                            result.debug_header = Array.from(headerCells).map(c => c.textContent.trim());
+                            
+                            for (let i = 0; i < headerCells.length; i++) {
+                                let dayText = headerCells[i].textContent.trim().toLowerCase().replace(/\\xa0/g, ' ').replace(/\\s+/g, '');
+                                
+                                // Check Spanish days first
+                                if (spanishToEnglish[dayText]) {
+                                    headerDayMap[i] = spanishToEnglish[dayText];
+                                    result.detected_language = 'spanish';
+                                }
+                                // Check English days
+                                else if (standardDays.includes(dayText.substring(0, 3))) {
+                                    headerDayMap[i] = dayText.substring(0, 3);
+                                    result.detected_language = result.detected_language || 'english';
+                                }
+                                // Check for 'total'
+                                else if (dayText.includes('total')) {
+                                    headerDayMap[i] = 'total';
+                                }
+                                // Check for 'beginning'
+                                else if (dayText.includes('beginning')) {
+                                    headerDayMap[i] = 'beginning';
                                 }
                             }
-                        }
-                        
-                        // Fallback day names if header detection fails
-                        if (detectedDayNames.length === 0) {
-                            detectedDayNames = ['beginning', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'total'];
                         }
                         
                         // Find Win/Loss row
