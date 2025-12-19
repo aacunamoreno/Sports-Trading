@@ -2338,6 +2338,34 @@ async def get_account_summary(username: str, force_refresh: bool = False):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.get("/accounts/all/summaries")
+async def get_all_account_summaries():
+    """Get summaries for all connected accounts (uses cache)"""
+    try:
+        connections = await db.connections.find({"is_connected": True}, {"_id": 0}).to_list(100)
+        summaries = []
+        
+        for conn in connections:
+            username = conn.get("username", "")
+            try:
+                # Use the cached endpoint logic
+                summary = await get_account_summary(username, force_refresh=False)
+                summaries.append(summary)
+            except Exception as e:
+                logger.error(f"Error getting summary for {username}: {e}")
+                summaries.append({
+                    "username": username,
+                    "label": ACCOUNT_LABELS.get(username, username),
+                    "success": False,
+                    "error": str(e)
+                })
+        
+        return {"summaries": summaries}
+    except Exception as e:
+        logger.error(f"Get all summaries error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/monitoring/start")
 async def start_monitoring():
     """Start the bet monitoring system"""
