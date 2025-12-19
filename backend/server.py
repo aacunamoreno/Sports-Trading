@@ -365,6 +365,69 @@ _Have a good night! 🌙_
         logger.error(f"Failed to send daily summary: {str(e)}")
 
 
+async def send_activity_summary():
+    """Send daily activity summary showing all check times - runs at 10:59 PM Arizona"""
+    if not telegram_bot or not telegram_chat_id:
+        logger.info("Telegram not configured, skipping activity summary")
+        return
+    
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        now_arizona = datetime.now(arizona_tz)
+        today_date = now_arizona.strftime('%Y-%m-%d')
+        
+        # Get all checks from today
+        today_checks = await db.activity_log.find({
+            "date": today_date,
+            "type": "bet_check"
+        }, {"_id": 0}).sort("timestamp", 1).to_list(1000)
+        
+        if not today_checks:
+            check_times_text = "No checks performed today."
+        else:
+            # Group checks by hour for cleaner display
+            check_times = [c.get('timestamp_arizona', 'Unknown') for c in today_checks]
+            
+            # Format as a list
+            if len(check_times) <= 30:
+                check_times_text = " • ".join(check_times)
+            else:
+                # If many checks, show summary
+                check_times_text = f"{len(check_times)} checks performed\n"
+                check_times_text += f"First: {check_times[0]} | Last: {check_times[-1]}\n"
+                check_times_text += " • ".join(check_times[-10:])  # Show last 10
+        
+        message = f"""
+🔄 *DAILY ACTIVITY SUMMARY*
+📅 {now_arizona.strftime('%B %d, %Y')}
+
+📡 *System Checks Performed:* {len(today_checks)}
+
+⏰ *Check Times (Arizona):*
+{check_times_text}
+
+✅ *System Status:* Active
+🕐 *Sleep Hours:* 11:30 PM - 5:30 AM
+
+_Activity log for today. Betting summary follows..._
+        """
+        
+        await telegram_bot.send_message(
+            chat_id=telegram_chat_id,
+            text=message.strip(),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.info(f"Activity summary sent to Telegram ({len(today_checks)} checks)")
+        
+        # Clean up old activity logs (keep only last 7 days)
+        seven_days_ago = (now_arizona - timedelta(days=7)).strftime('%Y-%m-%d')
+        await db.activity_log.delete_many({"date": {"$lt": seven_days_ago}})
+        
+    except Exception as e:
+        logger.error(f"Failed to send activity summary: {str(e)}")
+
+
 async def check_bet_results():
     """Check plays888.co for settled bet results and update database"""
     logger.info("Checking for settled bet results...")
