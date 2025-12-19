@@ -633,7 +633,7 @@ async def check_results_for_account(conn: dict):
                 pass
 
 
-async def send_result_notification(bet: dict, result: str, win_amount: float):
+async def send_result_notification(bet: dict, result: str, win_amount: float, account: str = None):
     """Send Telegram notification when a bet result is determined"""
     if not telegram_bot or not telegram_chat_id:
         return
@@ -647,10 +647,14 @@ async def send_result_notification(bet: dict, result: str, win_amount: float):
         wager = bet.get('wager_amount', 0)
         ticket = bet.get('bet_slip_id', 'N/A')
         
+        # Get account label
+        account_label = ACCOUNT_LABELS.get(account, account or "Unknown")
+        
         if result == "won":
             message = f"""
 {emoji} *BET WON!*
 
+👤 *User:* {account_label}
 *Game:* {game}
 *Bet:* {bet_type}
 *Wagered:* ${wager:,.2f} MXN
@@ -664,6 +668,7 @@ _Congratulations! 🎉_
             message = f"""
 {emoji} *BET LOST*
 
+👤 *User:* {account_label}
 *Game:* {game}
 *Bet:* {bet_type}
 *Lost:* ${wager:,.2f} MXN
@@ -676,6 +681,7 @@ _Better luck next time!_
             message = f"""
 {emoji} *BET {result_text}*
 
+👤 *User:* {account_label}
 *Game:* {game}
 *Bet:* {bet_type}
 *Wager:* ${wager:,.2f} MXN
