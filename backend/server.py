@@ -95,15 +95,11 @@ async def auto_start_monitoring():
             monitor_config = await db.monitor_config.find_one({}, {"_id": 0})
             if monitor_config and monitor_config.get("auto_start", True):
                 monitoring_enabled = True
+                # Use random interval scheduling
+                schedule_next_check()
                 if not scheduler.running:
-                    scheduler.add_job(
-                        monitor_open_bets,
-                        trigger=IntervalTrigger(minutes=10),  # 10 minute interval
-                        id='bet_monitor',
-                        replace_existing=True
-                    )
                     scheduler.start()
-                logger.info("Bet monitoring auto-started on server startup (checking every 10 minutes)")
+                logger.info("Bet monitoring auto-started on server startup (7-15 min random intervals, paused 11:30 PM - 5:30 AM Arizona)")
             else:
                 logger.info("Bet monitoring not auto-started (disabled in config)")
         else:
