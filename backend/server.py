@@ -97,12 +97,12 @@ async def auto_start_monitoring():
                 if not scheduler.running:
                     scheduler.add_job(
                         monitor_open_bets,
-                        trigger=IntervalTrigger(minutes=15),  # Production interval
+                        trigger=IntervalTrigger(minutes=10),  # 10 minute interval
                         id='bet_monitor',
                         replace_existing=True
                     )
                     scheduler.start()
-                logger.info("Bet monitoring auto-started on server startup (checking every 15 minutes)")
+                logger.info("Bet monitoring auto-started on server startup (checking every 10 minutes)")
             else:
                 logger.info("Bet monitoring not auto-started (disabled in config)")
         else:
@@ -1347,22 +1347,22 @@ async def start_monitoring():
         "enabled_at": datetime.now(timezone.utc).isoformat()
     })
     
-    # Schedule the job to run every 15 minutes
+    # Schedule the job to run every 10 minutes
     if not scheduler.running:
         scheduler.add_job(
             monitor_open_bets,
-            trigger=IntervalTrigger(minutes=15),
+            trigger=IntervalTrigger(minutes=10),
             id='bet_monitor',
             replace_existing=True
         )
         scheduler.start()
     
-    logger.info("Bet monitoring started - checking every 15 minutes")
+    logger.info("Bet monitoring started - checking every 10 minutes")
     
     return {
         "success": True,
-        "message": "Bet monitoring started. Will check plays888.co every 15 minutes for new bets.",
-        "interval": "15 minutes"
+        "message": "Bet monitoring started. Will check plays888.co every 10 minutes for new bets.",
+        "interval": "10 minutes"
     }
 
 @api_router.post("/monitoring/stop")
@@ -1403,7 +1403,7 @@ async def monitoring_status():
     
     return {
         "enabled": monitoring_enabled,
-        "interval": "15 minutes",
+        "interval": "10 minutes",
         "running": scheduler.running,
         "next_check": next_check
     }
