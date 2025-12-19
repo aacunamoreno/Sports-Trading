@@ -415,23 +415,27 @@ async def send_daily_summary():
             # Get plays888 daily totals
             totals = await get_plays888_daily_totals(username, password)
             
-            if totals and totals.get('week'):
-                # Find today's total
+            if totals and totals.get('daily_profits'):
+                # Find today's profit
                 today_profit = None
-                for day_data in totals['week']:
+                for day_data in totals['daily_profits']:
                     day = day_data['day'].lower()
                     if today_day_es in day or today_day_en in day:
-                        today_profit = day_data['amount']
+                        today_profit = day_data['profit']
                         break
                 
                 # Build week summary
                 week_lines = []
-                for day_data in totals['week']:
-                    amt = day_data['amount']
+                for day_data in totals['daily_profits']:
+                    amt = day_data['profit']
                     emoji = "📈" if amt >= 0 else "📉"
                     week_lines.append(f"{emoji} {day_data['day'].capitalize()}: ${amt:+,.2f}")
                 
                 week_text = "\n".join(week_lines) if week_lines else "No data"
+                
+                # Week total
+                week_total = totals.get('week_total', 0)
+                week_emoji = "📈" if week_total >= 0 else "📉"
                 
                 if today_profit is not None:
                     profit_emoji = "📈" if today_profit >= 0 else "📉"
@@ -447,6 +451,8 @@ async def send_daily_summary():
 
 📆 *This Week:*
 {week_text}
+
+{week_emoji} *Week Total:* ${week_total:+,.2f} MXN
 
 _Data from plays888.co_
 _Have a good night! 🌙_
