@@ -287,7 +287,7 @@ _Automated via BetBot System_
 
 
 async def get_plays888_daily_totals(username: str, password: str) -> dict:
-    """Scrape daily totals directly from plays888.co History page"""
+    """Scrape daily totals directly from plays888.co History page using Win/Loss row"""
     service = None
     try:
         service = Plays888Service()
@@ -303,70 +303,70 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
         await service.page.wait_for_timeout(4000)
         
         # Extract the daily summary table
-        # Format: Beginning Of Week | lun | mar | mié | jue | vie | sáb | dom | Total
-        # Balance row shows cumulative balance for each day
-        # Profit for each day = current day balance - previous day balance
+        # The Win/Loss row has the actual daily profits directly - much more reliable
+        # Format: Win/Loss | lun | mar | mié | jue | vie | sáb | dom | Total
         totals = await service.page.evaluate('''() => {
             const result = {
                 daily_profits: [],
                 week_total: null,
-                raw_balances: []
+                win_loss_row: [],
+                error: null
             };
             
-            // Find the summary table (first table with "Beginning Of Week")
-            const tables = document.querySelectorAll('table');
-            
-            for (const table of tables) {
-                const text = table.textContent;
-                if (text.includes('Beginning Of Week') || text.includes('lun') && text.includes('mar') && text.includes('jue')) {
-                    const rows = table.querySelectorAll('tr');
+            try {
+                const tables = document.querySelectorAll('table');
+                
+                for (const table of tables) {
+                    const text = table.textContent.trim();
                     
-                    // Find the Balance row
-                    for (const row of rows) {
-                        const rowText = row.textContent;
-                        if (rowText.includes('Balance')) {
+                    // Look for the summary table
+                    if (text.includes('Beginning Of Week') || (text.includes('lun') && text.includes('mar') && text.includes('jue'))) {
+                        const rows = table.querySelectorAll('tr');
+                        // Days in order: label, lun, mar, mié, jue, vie, sáb, dom, Total
+                        const dayNames = ['label', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom', 'Total'];
+                        
+                        for (const row of rows) {
                             const cells = row.querySelectorAll('td');
-                            // Cell order: Beginning | lun | mar | mié | jue | vie | sáb | dom | Total
-                            // Index:      0         | 1   | 2   | 3   | 4   | 5   | 6   | 7   | 8
+                            if (cells.length < 2) continue;
                             
-                            const dayNames = ['Beginning', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom', 'Total'];
-                            const balances = [];
+                            const firstCell = cells[0].textContent.trim().toLowerCase();
                             
-                            for (let i = 0; i < cells.length && i < dayNames.length; i++) {
-                                const cellText = cells[i].textContent.trim();
-                                // Extract number (can be negative like -60130.74)
-                                const match = cellText.match(/(-?[\\d,]+\\.\\d+)/);
-                                if (match) {
-                                    const balance = parseFloat(match[1].replace(/,/g, ''));
-                                    balances.push({day: dayNames[i], balance: balance});
+                            // Win/Loss row has the daily profits directly
+                            if (firstCell.includes('win') || firstCell.includes('loss')) {
+                                for (let i = 1; i < cells.length && i < dayNames.length; i++) {
+                                    const cellText = cells[i].textContent.trim();
+                                    const match = cellText.match(/(-?[\\d,]+\\.\\d+)/);
+                                    if (match) {
+                                        const profit = parseFloat(match[1].replace(/,/g, ''));
+                                        result.win_loss_row.push({
+                                            day: dayNames[i],
+                                            profit: profit
+                                        });
+                                    }
                                 }
+                                break;
                             }
-                            
-                            result.raw_balances = balances;
-                            
-                            // Calculate daily profits (difference from previous day)
-                            for (let i = 1; i < balances.length - 1; i++) { // Skip "Beginning" and "Total"
-                                const prevBalance = balances[i-1].balance;
-                                const currBalance = balances[i].balance;
-                                const profit = currBalance - prevBalance;
-                                result.daily_profits.push({
-                                    day: balances[i].day,
-                                    profit: profit
-                                });
-                            }
-                            
-                            // Get total (last column)
-                            if (balances.length > 0) {
-                                const lastBalance = balances[balances.length - 1];
-                                const firstBalance = balances[0];
-                                result.week_total = lastBalance.balance - firstBalance.balance;
-                            }
-                            
-                            break;
                         }
+                        
+                        // Use Win/Loss row for daily profits
+                        if (result.win_loss_row.length > 0) {
+                            // Filter out Total for daily_profits
+                            result.daily_profits = result.win_loss_row.filter(d => d.day !== 'Total');
+                            // Get week total
+                            const total = result.win_loss_row.find(d => d.day === 'Total');
+                            if (total) {
+                                result.week_total = total.profit;
+                            } else {
+                                // Sum up all days if Total not found
+                                result.week_total = result.daily_profits.reduce((sum, d) => sum + d.profit, 0);
+                            }
+                        }
+                        
+                        break;
                     }
-                    break;
                 }
+            } catch (e) {
+                result.error = e.toString();
             }
             
             return result;
