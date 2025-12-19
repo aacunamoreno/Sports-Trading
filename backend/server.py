@@ -428,14 +428,18 @@ async def get_plays888_daily_totals(username: str, password: str) -> dict:
                 }
                 
                 // Count bet rows from the bet history table (rows with dates and dollar amounts)
+                // Exclude ACCRUAL ADJUSTMENT rows which aren't actual bets
                 result.total_bets = 0;
                 const allTables = document.querySelectorAll('table');
                 for (const table of allTables) {
                     const rows = table.querySelectorAll('tr');
                     for (const row of rows) {
                         const text = row.textContent;
-                        // Bet rows have date format (MM/DD/YYYY) and dollar amounts
-                        if (text.match(/\\d{1,2}\\/\\d{1,2}\\/\\d{4}/) && text.match(/Ticket #:/i)) {
+                        // Bet rows have date format (MM/DD/YYYY) and Ticket #
+                        // Exclude ACCRUAL ADJUSTMENT rows
+                        if (text.match(/\\d{1,2}\\/\\d{1,2}\\/\\d{4}/) && 
+                            text.match(/Ticket #:/i) && 
+                            !text.toUpperCase().includes('ACCRUAL')) {
                             result.total_bets++;
                         }
                     }
