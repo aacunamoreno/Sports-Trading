@@ -287,7 +287,7 @@ _Automated via BetBot System_
 
 
 async def send_daily_summary():
-    """Send daily betting summary to Telegram at 11 PM Arizona time - separate for each user"""
+    """Send daily betting summary to Telegram at 10:45 PM Arizona time"""
     if not telegram_bot or not telegram_chat_id:
         logger.info("Telegram not configured, skipping daily summary")
         return
@@ -301,27 +301,39 @@ async def send_daily_summary():
         today_start = now_arizona.replace(hour=0, minute=0, second=0, microsecond=0)
         today_start_utc = today_start.astimezone(timezone.utc)
         
-        # Query all bets placed today
-        all_today_bets = await db.bet_history.find({
-            "placed_at": {"$gte": today_start_utc.isoformat()}
-        }, {"_id": 0}).to_list(1000)
+        logger.info(f"Querying bets from {today_start_utc.isoformat()}")
         
-        # Separate bets by account
-        # Legacy bets (no account field) - assign to jac075/ENANO by default
+        # Query all bets placed today - compare as string since placed_at is stored as ISO string
+        all_bets = await db.bet_history.find({}, {"_id": 0}).to_list(1000)
+        
+        # Filter by date manually since placed_at is a string
+        today_date_str = now_arizona.strftime('%Y-%m-%d')
+        all_today_bets = []
+        for bet in all_bets:
+            placed_at = bet.get('placed_at', '')
+            if placed_at and today_date_str in placed_at[:10]:
+                all_today_bets.append(bet)
+        
+        logger.info(f"Found {len(all_today_bets)} bets for today ({today_date_str})")
+        
+        # Assign accounts based on notes if not set
         for bet in all_today_bets:
             if not bet.get('account'):
-                # Check notes for account hints, default to jac075
                 notes = bet.get('notes', '').lower()
                 if 'jac083' in notes:
                     bet['account'] = 'jac083'
                 else:
-                    bet['account'] = 'jac075'  # Default legacy bets to ENANO
+                    bet['account'] = 'jac075'
         
         # Send separate summary for each account
         for account, label in ACCOUNT_LABELS.items():
-            await send_user_daily_summary(account, label, all_today_bets, now_arizona)
+            user_bets = [b for b in all_today_bets if b.get('account') == account]
+            if user_bets:
+                await send_user_daily_summary(account, label, user_bets, now_arizona)
+            else:
+                logger.info(f"No bets for {label} ({account}) today")
         
-        logger.info(f"Daily summaries sent for all users")
+        logger.info(f"Daily summaries sent")
         
     except Exception as e:
         logger.error(f"Failed to send daily summary: {str(e)}")
