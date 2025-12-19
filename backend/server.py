@@ -306,6 +306,17 @@ async def send_daily_summary():
             "placed_at": {"$gte": today_start_utc.isoformat()}
         }, {"_id": 0}).to_list(1000)
         
+        # Separate bets by account
+        # Legacy bets (no account field) - assign to jac075/ENANO by default
+        for bet in all_today_bets:
+            if not bet.get('account'):
+                # Check notes for account hints, default to jac075
+                notes = bet.get('notes', '').lower()
+                if 'jac083' in notes:
+                    bet['account'] = 'jac083'
+                else:
+                    bet['account'] = 'jac075'  # Default legacy bets to ENANO
+        
         # Send separate summary for each account
         for account, label in ACCOUNT_LABELS.items():
             await send_user_daily_summary(account, label, all_today_bets, now_arizona)
