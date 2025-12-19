@@ -652,6 +652,41 @@ plays888_service = Plays888Service()
 scheduler = AsyncIOScheduler()
 monitoring_enabled = False
 
+# Random interval settings (in minutes)
+MIN_INTERVAL = 7
+MAX_INTERVAL = 15
+
+def schedule_next_check():
+    """Schedule the next bet check with a random interval"""
+    global scheduler
+    
+    # Generate random interval between 7-15 minutes
+    next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
+    
+    # Remove existing job if present
+    try:
+        scheduler.remove_job('bet_monitor')
+    except:
+        pass
+    
+    # Schedule new job with random interval
+    scheduler.add_job(
+        monitor_and_reschedule,
+        trigger=IntervalTrigger(minutes=next_interval),
+        id='bet_monitor',
+        replace_existing=True
+    )
+    
+    logger.info(f"Next bet check scheduled in {next_interval} minutes")
+
+async def monitor_and_reschedule():
+    """Run monitoring and reschedule with new random interval"""
+    await monitor_open_bets()
+    
+    # Reschedule with a new random interval for next check
+    if monitoring_enabled:
+        schedule_next_check()
+
 async def monitor_open_bets():
     """Background job to monitor plays888.co for new bets"""
     global monitoring_enabled
