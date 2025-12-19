@@ -475,11 +475,17 @@ async def send_daily_summary():
             totals = await get_plays888_daily_totals(username, password)
             
             if totals and totals.get('daily_profits'):
-                # Find today's profit
+                # Day names are now normalized to English lowercase (mon, tue, wed, thu, fri, sat, sun)
+                day_display_names = {
+                    'mon': 'Monday', 'tue': 'Tuesday', 'wed': 'Wednesday',
+                    'thu': 'Thursday', 'fri': 'Friday', 'sat': 'Saturday', 'sun': 'Sunday'
+                }
+                
+                # Find today's profit using normalized day name
                 today_profit = None
                 for day_data in totals['daily_profits']:
                     day = day_data['day'].lower()
-                    if today_day_es in day or today_day_en in day:
+                    if day == today_day_en or day.startswith(today_day_en):
                         today_profit = day_data['profit']
                         break
                 
@@ -488,7 +494,8 @@ async def send_daily_summary():
                 for day_data in totals['daily_profits']:
                     amt = day_data['profit']
                     emoji = "📈" if amt >= 0 else "📉"
-                    week_lines.append(f"{emoji} {day_data['day'].capitalize()}: ${amt:+,.2f}")
+                    day_name = day_display_names.get(day_data['day'], day_data['day'].capitalize())
+                    week_lines.append(f"{emoji} {day_name}: ${amt:+,.2f}")
                 
                 week_text = "\n".join(week_lines) if week_lines else "No data"
                 
