@@ -609,40 +609,23 @@ async def check_results_for_account(conn: dict):
                 if (ticketMatch && cells.length >= 3) {
                     const ticket = ticketMatch[1];
                     
-                    // Look for result indicators - common variations
-                    // Also check for Winner/Loser, W/L, Graded status
+                    // Look for result indicators
+                    // plays888 shows "WINWIN" or "LOSELOSE" at the end of each row
                     let result = 'pending';
                     const rowTextUpper = rowText.toUpperCase();
                     
-                    // Check for positive results
-                    if (rowTextUpper.includes('WIN') || rowTextUpper.includes('WON') || 
-                        rowTextUpper.includes('WINNER') || rowTextUpper.match(/\\bW\\b/)) {
+                    // Check for specific patterns in plays888 format
+                    if (rowTextUpper.includes('WINWIN') || rowTextUpper.endsWith('WIN')) {
                         result = 'won';
                     } 
-                    // Check for negative results
-                    else if (rowTextUpper.includes('LOSE') || rowTextUpper.includes('LOST') || 
-                             rowTextUpper.includes('LOSS') || rowTextUpper.includes('LOSER') ||
-                             rowTextUpper.match(/\\bL\\b/)) {
+                    else if (rowTextUpper.includes('LOSELOSE') || rowTextUpper.endsWith('LOSE') || rowTextUpper.endsWith('LOSS')) {
                         result = 'lost';
                     } 
-                    // Check for push/tie
-                    else if (rowTextUpper.includes('PUSH') || rowTextUpper.includes('TIE')) {
+                    else if (rowTextUpper.includes('PUSHPUSH') || rowTextUpper.includes('PUSH')) {
                         result = 'push';
                     } 
-                    // Check for cancelled
                     else if (rowTextUpper.includes('CANCEL') || rowTextUpper.includes('VOID')) {
                         result = 'cancelled';
-                    }
-                    // Check last column for result status (common pattern)
-                    else if (cells.length > 0) {
-                        const lastCell = cells[cells.length - 1].textContent.toUpperCase().trim();
-                        if (lastCell === 'W' || lastCell === 'WIN' || lastCell === 'WON') {
-                            result = 'won';
-                        } else if (lastCell === 'L' || lastCell === 'LOSE' || lastCell === 'LOST') {
-                            result = 'lost';
-                        } else if (lastCell === 'P' || lastCell === 'PUSH') {
-                            result = 'push';
-                        }
                     }
                     
                     // Try to extract win amount if present
