@@ -628,17 +628,23 @@ async def check_results_for_account(conn: dict):
                         result = 'cancelled';
                     }
                     
-                    // Try to extract win amount if present
+                    // Extract win amount - format is "2000.00WINWIN" or "-2200.00LOSELOSE"
                     let winAmount = 0;
-                    const amountMatch = rowText.match(/\\$?([\\d,]+\\.?\\d*)\\s*(?:won|win)/i);
-                    if (amountMatch) {
-                        winAmount = parseFloat(amountMatch[1].replace(/,/g, ''));
+                    
+                    // Look for amount right before WIN or LOSE
+                    const amountBeforeResult = rowText.match(/([\\d,]+\\.\\d+)(?:WINWIN|WIN)/i);
+                    if (amountBeforeResult && result === 'won') {
+                        winAmount = parseFloat(amountBeforeResult[1].replace(/,/g, ''));
                     }
                     
-                    // Also check for amounts in format "Risk/Win" and if there's a positive amount indicator
+                    // Also get the wager amount from Risk/Win format "2200.00 / 2000.00"
                     const riskWinMatch = rowText.match(/([\\d,]+\\.\\d+)\\s*\\/\\s*([\\d,]+\\.\\d+)/);
-                    if (riskWinMatch && result === 'won') {
-                        winAmount = parseFloat(riskWinMatch[2].replace(/,/g, ''));
+                    let wagerAmount = 0;
+                    if (riskWinMatch) {
+                        wagerAmount = parseFloat(riskWinMatch[1].replace(/,/g, ''));
+                        if (result === 'won' && winAmount === 0) {
+                            winAmount = parseFloat(riskWinMatch[2].replace(/,/g, ''));
+                        }
                     }
                     
                     if (result !== 'pending') {
