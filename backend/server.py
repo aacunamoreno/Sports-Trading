@@ -779,14 +779,30 @@ async def monitor_single_account(conn: dict):
                             if (totalMatch) {
                                 betType = totalMatch[1];
                             } else {
-                                // Try to get spread like "-12" or "+5.5"
-                                const spreadMatch = description.match(/([+-][\\d.½]+)\\s*\\(/);
-                                if (spreadMatch) {
-                                    betType = 'Spread ' + spreadMatch[1];
+                                // Try to get spread/team info like "TEAM NAME +5.5" or "TEAM NAME -12"
+                                // Format: [ID] TEAM NAME +/-SPREAD
+                                const spreadTeamMatch = description.match(/\\]\\s*([A-Z][A-Z\\s]+?)\\s+([+-][\\d.½]+)/i);
+                                if (spreadTeamMatch) {
+                                    const teamName = spreadTeamMatch[1].trim();
+                                    const spread = spreadTeamMatch[2];
+                                    betType = teamName + ' ' + spread;
+                                    // Use team as game if we didn't find a vs match
+                                    if (!game) {
+                                        game = teamName;
+                                    }
                                 } else {
                                     // Default to Straight for unknown types
                                     betType = 'Straight';
                                 }
+                            }
+                        }
+                        
+                        // If game is still empty, try to extract more info from description
+                        if (!game) {
+                            // Try format: "STRAIGHT BET[ID] TEAM NAME SPREAD"
+                            const teamExtract = description.match(/\\]\\s*([A-Z][A-Z\\s]+?)\\s+[+-]/i);
+                            if (teamExtract) {
+                                game = teamExtract[1].trim();
                             }
                         }
                         
