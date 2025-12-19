@@ -287,7 +287,7 @@ _Automated via BetBot System_
 
 
 async def send_daily_summary():
-    """Send daily betting summary to Telegram at 11 PM Arizona time"""
+    """Send daily betting summary to Telegram at 11 PM Arizona time - separate for each user"""
     if not telegram_bot or not telegram_chat_id:
         logger.info("Telegram not configured, skipping daily summary")
         return
@@ -302,13 +302,29 @@ async def send_daily_summary():
         today_start_utc = today_start.astimezone(timezone.utc)
         
         # Query all bets placed today
-        today_bets = await db.bet_history.find({
+        all_today_bets = await db.bet_history.find({
             "placed_at": {"$gte": today_start_utc.isoformat()}
         }, {"_id": 0}).to_list(1000)
         
-        if not today_bets:
+        # Send separate summary for each account
+        for account, label in ACCOUNT_LABELS.items():
+            await send_user_daily_summary(account, label, all_today_bets, now_arizona)
+        
+        logger.info(f"Daily summaries sent for all users")
+        
+    except Exception as e:
+        logger.error(f"Failed to send daily summary: {str(e)}")
+
+
+async def send_user_daily_summary(account: str, label: str, all_bets: list, now_arizona):
+    """Send daily summary for a specific user"""
+    try:
+        # Filter bets for this account based on notes field
+        user_bets = [b for b in all_bets if account in b.get('notes', '').lower()]
+        
+        if not user_bets:
             message = f"""
-📊 *DAILY BETTING SUMMARY*
+📊 *{label} - DAILY SUMMARY*
 📅 {now_arizona.strftime('%B %d, %Y')}
 
 No bets placed today.
@@ -316,13 +332,13 @@ No bets placed today.
 _Have a good night! 🌙_
             """
         else:
-            total_wagered = sum(b.get('wager_amount', 0) for b in today_bets)
+            total_wagered = sum(b.get('wager_amount', 0) for b in user_bets)
             
             # Calculate results
-            won_bets = [b for b in today_bets if b.get('result') == 'won']
-            lost_bets = [b for b in today_bets if b.get('result') == 'lost']
-            push_bets = [b for b in today_bets if b.get('result') == 'push']
-            pending_bets = [b for b in today_bets if not b.get('result') or b.get('result') == 'pending']
+            won_bets = [b for b in user_bets if b.get('result') == 'won']
+            lost_bets = [b for b in user_bets if b.get('result') == 'lost']
+            push_bets = [b for b in user_bets if b.get('result') == 'push']
+            pending_bets = [b for b in user_bets if not b.get('result') or b.get('result') == 'pending']
             
             total_won = sum(b.get('win_amount', 0) for b in won_bets)
             total_lost = sum(b.get('wager_amount', 0) for b in lost_bets)
@@ -330,7 +346,7 @@ _Have a good night! 🌙_
             
             # Build bet list with results
             bet_lines = []
-            for i, bet in enumerate(today_bets[:20], 1):  # Limit to 20 bets
+            for i, bet in enumerate(user_bets[:15], 1):  # Limit to 15 bets per user
                 game = bet.get('game', 'Unknown')[:25]
                 bet_type = bet.get('bet_type', '')[:12]
                 odds = format_american_odds(bet.get('odds', -110))
@@ -350,8 +366,8 @@ _Have a good night! 🌙_
                 bet_lines.append(f"{result_emoji} {game} | {bet_type} {odds} | ${wager}")
             
             bets_text = "\n".join(bet_lines)
-            if len(today_bets) > 20:
-                bets_text += f"\n_... and {len(today_bets) - 20} more bets_"
+            if len(user_bets) > 15:
+                bets_text += f"\n_... and {len(user_bets) - 15} more bets_"
             
             # Profit/Loss indicator
             if net_profit > 0:
@@ -362,11 +378,11 @@ _Have a good night! 🌙_
                 profit_text = f"➡️ *Net:* $0.00 MXN"
             
             message = f"""
-📊 *DAILY BETTING SUMMARY*
+📊 *{label} - DAILY SUMMARY*
 📅 {now_arizona.strftime('%B %d, %Y')}
 
 📈 *Results:*
-• Total Bets: {len(today_bets)}
+• Total Bets: {len(user_bets)}
 • ✅ Won: {len(won_bets)} (${total_won:,.2f})
 • ❌ Lost: {len(lost_bets)} (${total_lost:,.2f})
 • ↔️ Push: {len(push_bets)}
