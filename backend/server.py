@@ -103,7 +103,7 @@ def schedule_daily_summary():
             id='activity_summary',
             replace_existing=True
         )
-        logger.info("Activity summary scheduled for 10:59 PM Arizona time")
+        logger.info("Activity summary scheduled for 10:45 PM Arizona time")
         
         # Betting summary at 11:00 PM Arizona
         scheduler.add_job(
@@ -112,7 +112,7 @@ def schedule_daily_summary():
             id='daily_summary',
             replace_existing=True
         )
-        logger.info("Daily summary scheduled for 11:00 PM Arizona time")
+        logger.info("Daily summary scheduled for 10:45 PM Arizona time")
         
         # Daily cleanup at 9:00 AM Arizona
         scheduler.add_job(
