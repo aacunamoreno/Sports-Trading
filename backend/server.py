@@ -1427,7 +1427,7 @@ async def monitor_single_account(conn: dict):
                     # Try to extract game from description
                     game = description[:50] + '...' if len(description) > 50 else description
                 
-                # Store in database
+                # Store in database with account info for filtering
                 bet_doc = {
                     "id": str(uuid.uuid4()),
                     "opportunity_id": "mobile_detected",
@@ -1441,7 +1441,8 @@ async def monitor_single_account(conn: dict):
                     "bet_type": bet_type,
                     "line": bet_type,
                     "bet_slip_id": ticket_num,
-                    "notes": f"Auto-detected from plays888.co. Sport: {sport}"
+                    "account": username,
+                    "notes": f"Account: {username}. Auto-detected from plays888.co. Sport: {sport}"
                 }
                 await db.bet_history.insert_one(bet_doc)
                 
