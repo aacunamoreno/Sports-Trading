@@ -418,6 +418,7 @@ _Have a good night! 🌙_
 🎯 *Today's Bets:*
 {bets_text}
 
+_⚠️ Numbers may differ slightly from plays888 due to timing_
 _Have a good night! 🌙_
             """
         
