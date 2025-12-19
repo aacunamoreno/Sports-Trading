@@ -1025,6 +1025,18 @@ def schedule_next_check():
 
 async def monitor_and_reschedule():
     """Run monitoring and reschedule with new random interval"""
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    check_time = datetime.now(arizona_tz)
+    
+    # Log this check to database for activity summary
+    await db.activity_log.insert_one({
+        "type": "bet_check",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp_arizona": check_time.strftime('%I:%M %p'),
+        "date": check_time.strftime('%Y-%m-%d')
+    })
+    
     await monitor_open_bets()
     
     # Also check for bet results (settled bets)
