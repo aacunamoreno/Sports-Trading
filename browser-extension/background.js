@@ -3,7 +3,7 @@ chrome.action.onClicked.addListener(function() {
 });
 
 // Auto-refresh plays888.co tabs with random intervals (7-15 minutes) to prevent session timeout
-// SLEEP HOURS: 11:30 PM - 5:30 AM Arizona time (no refresh during this period)
+// SLEEP HOURS: 10:45 PM - 5:30 AM Arizona time (no refresh during this period)
 var MIN_REFRESH_MINUTES = 7;
 var MAX_REFRESH_MINUTES = 15;
 
@@ -23,8 +23,8 @@ function isSleepHours() {
   var minute = arizona.getMinutes();
   var timeInMinutes = hour * 60 + minute;
   
-  // Sleep window: 11:30 PM (23:30 = 1410 mins) to 5:30 AM (5:30 = 330 mins)
-  var sleepStart = 23 * 60 + 30;  // 11:30 PM = 1410 minutes
+  // Sleep window: 10:45 PM (22:45 = 1365 mins) to 5:30 AM (5:30 = 330 mins)
+  var sleepStart = 22 * 60 + 45;  // 10:45 PM = 1365 minutes
   var sleepEnd = 5 * 60 + 30;      // 5:30 AM = 330 minutes
   
   // Check if current time is in sleep window
@@ -81,7 +81,7 @@ chrome.alarms.onAlarm.addListener(function(alarm) {
   }
 });
 
-console.log('Auto-refresh enabled: 7-15 min random intervals, paused 11:30 PM - 5:30 AM Arizona');
+console.log('Auto-refresh enabled: 7-15 min random intervals, paused 10:45 PM - 5:30 AM Arizona');
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'placeBet') {
