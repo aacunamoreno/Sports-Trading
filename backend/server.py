@@ -1510,10 +1510,14 @@ def schedule_next_check():
 
 async def monitor_and_reschedule():
     """Run monitoring and reschedule with new random interval"""
+    global last_check_time
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
         check_time = datetime.now(arizona_tz)
+        
+        # Update watchdog timestamp
+        last_check_time = datetime.now(timezone.utc)
         
         # Log this check to database for activity summary (only for jac083/TIPSTER)
         await db.activity_log.insert_one({
@@ -1535,6 +1539,45 @@ async def monitor_and_reschedule():
         # Always reschedule with a new random interval for next check
         if monitoring_enabled:
             schedule_next_check()
+
+
+async def watchdog_check():
+    """Watchdog to ensure monitoring is running - runs every 5 minutes"""
+    global last_check_time, monitoring_enabled
+    
+    if not monitoring_enabled:
+        return
+    
+    # Check if we're in sleep hours
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    now_arizona = datetime.now(arizona_tz)
+    current_hour = now_arizona.hour
+    current_minute = now_arizona.minute
+    current_time_minutes = current_hour * 60 + current_minute
+    
+    sleep_start = 22 * 60 + 45  # 10:45 PM
+    sleep_end = 5 * 60 + 30     # 5:30 AM
+    
+    if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
+        return  # Don't check during sleep hours
+    
+    # Check if last check was more than 20 minutes ago
+    if last_check_time:
+        minutes_since_last = (datetime.now(timezone.utc) - last_check_time).total_seconds() / 60
+        
+        if minutes_since_last > 20:
+            logger.warning(f"Watchdog: No check for {minutes_since_last:.0f} minutes! Triggering immediate check...")
+            
+            # Re-schedule monitoring
+            schedule_next_check()
+            
+            # Trigger immediate check
+            asyncio.create_task(monitor_and_reschedule())
+    else:
+        # First watchdog run, initialize last_check_time
+        last_check_time = datetime.now(timezone.utc)
+
 
 async def monitor_open_bets():
     """Background job to monitor plays888.co for new bets"""
