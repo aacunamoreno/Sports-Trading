@@ -163,6 +163,10 @@ async def startup_recovery():
         if last_activity:
             last_check = last_activity.get("timestamp")
             if last_check:
+                # Handle both datetime objects and ISO strings
+                if isinstance(last_check, str):
+                    last_check = datetime.fromisoformat(last_check.replace('Z', '+00:00'))
+                
                 # If last_check is naive, assume UTC
                 if last_check.tzinfo is None:
                     last_check = last_check.replace(tzinfo=timezone.utc)
@@ -188,7 +192,7 @@ async def startup_recovery():
                     
                     # Trigger immediate bet check
                     logger.info("Triggering immediate catch-up bet check...")
-                    asyncio.create_task(check_for_new_bets())
+                    asyncio.create_task(monitor_open_bets())
                 else:
                     logger.info(f"Startup recovery: Last check was {hours_since_last:.1f} hours ago, no recovery needed")
         else:
