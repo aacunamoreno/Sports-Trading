@@ -203,6 +203,7 @@ async def run_monitoring_cycle():
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
     check_time = datetime.now(arizona_tz)
+    new_bets_found = {"jac075": 0, "jac083": 0}  # Default value
     
     try:
         # Log to database
@@ -216,16 +217,28 @@ async def run_monitoring_cycle():
         
         # Run monitoring
         logger.info(f"Running monitoring cycle at {check_time.strftime('%I:%M %p')} Arizona")
-        new_bets_found = await monitor_open_bets()
+        
+        try:
+            result = await monitor_open_bets()
+            if result is not None:
+                new_bets_found = result
+        except Exception as e:
+            logger.error(f"Error in monitor_open_bets: {str(e)}", exc_info=True)
         
         # Check for settled bets
-        await check_bet_results()
+        try:
+            await check_bet_results()
+        except Exception as e:
+            logger.error(f"Error in check_bet_results: {str(e)}", exc_info=True)
         
-        # Send check notification
-        await send_check_notification(check_time, new_bets_found)
+        # Send check notification (always try to send)
+        try:
+            await send_check_notification(check_time, new_bets_found)
+        except Exception as e:
+            logger.error(f"Error sending check notification: {str(e)}", exc_info=True)
         
     except Exception as e:
-        logger.error(f"Monitoring cycle error: {str(e)}")
+        logger.error(f"Monitoring cycle error: {str(e)}", exc_info=True)
 
 
 async def startup_recovery():
