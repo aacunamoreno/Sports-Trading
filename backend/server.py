@@ -149,6 +149,54 @@ async def auto_start_monitoring():
         logger.error(f"Error auto-starting monitoring: {str(e)}")
 
 
+async def startup_recovery():
+    """Check if we missed overnight period and send catch-up notifications"""
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        now_arizona = datetime.now(arizona_tz)
+        
+        # Check when the last monitoring check happened
+        last_activity = await db.activity_log.find_one({}, sort=[("timestamp", -1)])
+        
+        if last_activity:
+            last_check = last_activity.get("timestamp")
+            if last_check:
+                # If last_check is naive, assume UTC
+                if last_check.tzinfo is None:
+                    last_check = last_check.replace(tzinfo=timezone.utc)
+                
+                hours_since_last = (datetime.now(timezone.utc) - last_check).total_seconds() / 3600
+                
+                if hours_since_last > 1:  # More than 1 hour gap
+                    logger.warning(f"Startup recovery: {hours_since_last:.1f} hours since last check. Sending catch-up notification...")
+                    
+                    # Send notification about the gap
+                    telegram_config = await db.telegram_config.find_one({}, {"_id": 0})
+                    if telegram_config and telegram_config.get("bot_token") and telegram_config.get("chat_id"):
+                        try:
+                            bot = Bot(token=telegram_config["bot_token"])
+                            await bot.send_message(
+                                chat_id=telegram_config["chat_id"],
+                                text=f"⚠️ *SYSTEM ALERT*\n\nServer was offline for {hours_since_last:.1f} hours.\nMonitoring has resumed.\n\nTime: {now_arizona.strftime('%I:%M %p')} Arizona",
+                                parse_mode=ParseMode.MARKDOWN
+                            )
+                            logger.info("Startup recovery notification sent")
+                        except Exception as e:
+                            logger.error(f"Failed to send startup notification: {e}")
+                    
+                    # Trigger immediate bet check
+                    logger.info("Triggering immediate catch-up bet check...")
+                    asyncio.create_task(check_for_new_bets())
+                else:
+                    logger.info(f"Startup recovery: Last check was {hours_since_last:.1f} hours ago, no recovery needed")
+        else:
+            logger.info("Startup recovery: No previous activity found, skipping recovery")
+            
+    except Exception as e:
+        logger.error(f"Startup recovery error: {str(e)}")
+
+
 # Models
 class ConnectionConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
