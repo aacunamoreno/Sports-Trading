@@ -183,7 +183,23 @@ async def startup_recovery():
                 
                 hours_since_last = (datetime.now(timezone.utc) - last_check).total_seconds() / 3600
                 
-                if hours_since_last > 1:  # More than 1 hour gap
+                # Also check if a scheduled check was missed
+                next_check = await get_next_check_time()
+                check_was_missed = False
+                if next_check:
+                    if isinstance(next_check, str):
+                        next_check = datetime.fromisoformat(next_check.replace('Z', '+00:00'))
+                    if next_check.tzinfo is None:
+                        next_check = next_check.replace(tzinfo=timezone.utc)
+                    
+                    # If next_check time has passed, we missed a check
+                    if next_check < datetime.now(timezone.utc):
+                        minutes_overdue = (datetime.now(timezone.utc) - next_check).total_seconds() / 60
+                        if minutes_overdue > 2:  # More than 2 minutes overdue
+                            check_was_missed = True
+                            logger.warning(f"Startup recovery: Scheduled check was {minutes_overdue:.0f} minutes overdue!")
+                
+                if hours_since_last > 1 or check_was_missed:  # More than 1 hour gap OR missed scheduled check
                     logger.warning(f"Startup recovery: {hours_since_last:.1f} hours since last check. Sending catch-up notification...")
                     
                     # Send notification about the gap
@@ -191,9 +207,14 @@ async def startup_recovery():
                     if telegram_config and telegram_config.get("bot_token") and telegram_config.get("chat_id"):
                         try:
                             bot = Bot(token=telegram_config["bot_token"])
+                            msg = f"⚠️ *SYSTEM RESTART*\n\nServer restarted"
+                            if hours_since_last > 1:
+                                msg += f" after {hours_since_last:.1f} hours offline"
+                            msg += f".\nRunning immediate check.\n\nTime: {now_arizona.strftime('%I:%M %p')} Arizona"
+                            
                             await bot.send_message(
                                 chat_id=telegram_config["chat_id"],
-                                text=f"⚠️ *SYSTEM ALERT*\n\nServer was offline for {hours_since_last:.1f} hours.\nMonitoring has resumed.\n\nTime: {now_arizona.strftime('%I:%M %p')} Arizona",
+                                text=msg,
                                 parse_mode=ParseMode.MARKDOWN
                             )
                             logger.info("Startup recovery notification sent")
