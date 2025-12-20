@@ -1491,6 +1491,27 @@ MAX_INTERVAL = 15
 # Track last check time for watchdog
 last_check_time = None
 
+async def save_next_check_time(next_time):
+    """Save next scheduled check time to database for persistence across restarts"""
+    try:
+        await db.monitor_state.update_one(
+            {"type": "next_check"},
+            {"$set": {"next_check_time": next_time, "updated_at": datetime.now(timezone.utc)}},
+            upsert=True
+        )
+    except Exception as e:
+        logger.error(f"Failed to save next check time: {e}")
+
+async def get_next_check_time():
+    """Get next scheduled check time from database"""
+    try:
+        state = await db.monitor_state.find_one({"type": "next_check"}, {"_id": 0})
+        if state:
+            return state.get("next_check_time")
+    except Exception as e:
+        logger.error(f"Failed to get next check time: {e}")
+    return None
+
 def schedule_next_check():
     """Schedule the next bet check with a random interval"""
     global scheduler, last_check_time
@@ -1500,6 +1521,9 @@ def schedule_next_check():
     
     # Calculate the exact time for the next run
     run_time = datetime.now(timezone.utc) + timedelta(minutes=next_interval)
+    
+    # Save to database for persistence
+    asyncio.create_task(save_next_check_time(run_time))
     
     # Remove existing job if present
     try:
