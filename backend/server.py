@@ -85,6 +85,7 @@ async def startup_event():
     await init_telegram_from_db()
     await auto_start_monitoring()
     schedule_daily_summary()
+    await startup_recovery()  # Check if we missed anything overnight
 
 def schedule_daily_summary():
     """Schedule the daily summary to run at 11 PM Arizona time"""
