@@ -1607,42 +1607,8 @@ def schedule_next_check():
     pass
 
 async def monitor_and_reschedule():
-    """Run monitoring and reschedule with new random interval"""
-    global last_check_time
-    new_bets_found = {"jac075": 0, "jac083": 0}
-    
-    try:
-        from zoneinfo import ZoneInfo
-        arizona_tz = ZoneInfo('America/Phoenix')
-        check_time = datetime.now(arizona_tz)
-        
-        # Update watchdog timestamp
-        last_check_time = datetime.now(timezone.utc)
-        
-        # Log this check to database for activity summary (only for jac083/TIPSTER)
-        await db.activity_log.insert_one({
-            "type": "bet_check",
-            "account": "jac083",
-            "timestamp": datetime.now(timezone.utc),
-            "timestamp_arizona": check_time.strftime('%I:%M %p'),
-            "date": check_time.strftime('%Y-%m-%d')
-        })
-        
-        # Run the monitoring and capture new bets count
-        new_bets_found = await monitor_open_bets()
-        
-        # Also check for bet results (settled bets)
-        await check_bet_results()
-        
-        # Send check notification to Telegram
-        await send_check_notification(check_time, new_bets_found)
-        
-    except Exception as e:
-        logger.error(f"Monitor and reschedule error: {str(e)}")
-    finally:
-        # Always reschedule with a new random interval for next check
-        if monitoring_enabled:
-            schedule_next_check()
+    """Run monitoring - called by manual check API"""
+    await run_monitoring_cycle()
 
 
 async def send_check_notification(check_time, new_bets_found):
