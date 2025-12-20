@@ -200,9 +200,9 @@ async def startup_recovery():
                         except Exception as e:
                             logger.error(f"Failed to send startup notification: {e}")
                     
-                    # Trigger immediate bet check
+                    # Trigger immediate bet check (use the full cycle with notification)
                     logger.info("Triggering immediate catch-up bet check...")
-                    asyncio.create_task(monitor_open_bets())
+                    asyncio.create_task(monitor_and_reschedule())
                 else:
                     logger.info(f"Startup recovery: Last check was {hours_since_last:.1f} hours ago, no recovery needed")
         else:
