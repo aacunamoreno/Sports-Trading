@@ -1637,8 +1637,10 @@ async def monitor_open_bets():
     """Background job to monitor plays888.co for new bets"""
     global monitoring_enabled
     
+    new_bets_count = {"jac075": 0, "jac083": 0}
+    
     if not monitoring_enabled:
-        return
+        return new_bets_count
     
     # Check if we're in sleep hours (11:30 PM - 5:30 AM Arizona time)
     # Arizona is UTC-7 (no daylight saving)
@@ -1655,7 +1657,7 @@ async def monitor_open_bets():
     
     if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
         logger.info(f"Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - skipping bet check")
-        return
+        return new_bets_count
     
     logger.info(f"Checking plays888.co for new bets... ({now_arizona.strftime('%I:%M %p')} Arizona)")
     
@@ -1665,14 +1667,18 @@ async def monitor_open_bets():
         
         if not connections:
             logger.info("No active connections, skipping bet monitoring")
-            return
+            return new_bets_count
         
         # Monitor each account
         for conn in connections:
-            await monitor_single_account(conn)
+            new_count = await monitor_single_account(conn)
+            username = conn.get("username", "")
+            new_bets_count[username] = new_count
             
     except Exception as e:
         logger.error(f"Error in bet monitoring: {str(e)}")
+    
+    return new_bets_count
 
 async def monitor_single_account(conn: dict):
     """Monitor a single account for new bets"""
