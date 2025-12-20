@@ -150,6 +150,80 @@ async def auto_start_monitoring():
         logger.error(f"Error auto-starting monitoring: {str(e)}")
 
 
+async def monitoring_loop():
+    """Background loop for bet monitoring - more reliable than scheduler"""
+    global monitoring_enabled
+    
+    logger.info("Monitoring loop started")
+    
+    while True:
+        try:
+            if monitoring_enabled:
+                # Check if we're in sleep hours
+                from zoneinfo import ZoneInfo
+                arizona_tz = ZoneInfo('America/Phoenix')
+                now_arizona = datetime.now(arizona_tz)
+                current_hour = now_arizona.hour
+                current_minute = now_arizona.minute
+                current_time_minutes = current_hour * 60 + current_minute
+                
+                sleep_start = 22 * 60 + 45  # 10:45 PM
+                sleep_end = 5 * 60 + 30      # 5:30 AM
+                
+                if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
+                    logger.info(f"Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - waiting...")
+                    await asyncio.sleep(300)  # Check again in 5 minutes during sleep
+                    continue
+                
+                # Run monitoring check
+                await run_monitoring_cycle()
+                
+                # Random sleep between 7-15 minutes
+                next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
+                logger.info(f"Next check in {next_interval} minutes")
+                await asyncio.sleep(next_interval * 60)
+            else:
+                # Monitoring disabled, check again in 1 minute
+                await asyncio.sleep(60)
+                
+        except asyncio.CancelledError:
+            logger.info("Monitoring loop cancelled")
+            break
+        except Exception as e:
+            logger.error(f"Monitoring loop error: {str(e)}")
+            await asyncio.sleep(60)  # Wait 1 minute before retrying
+
+
+async def run_monitoring_cycle():
+    """Run a single monitoring cycle with notifications"""
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    check_time = datetime.now(arizona_tz)
+    
+    try:
+        # Log to database
+        await db.activity_log.insert_one({
+            "type": "bet_check",
+            "account": "jac083",
+            "timestamp": datetime.now(timezone.utc),
+            "timestamp_arizona": check_time.strftime('%I:%M %p'),
+            "date": check_time.strftime('%Y-%m-%d')
+        })
+        
+        # Run monitoring
+        logger.info(f"Running monitoring cycle at {check_time.strftime('%I:%M %p')} Arizona")
+        new_bets_found = await monitor_open_bets()
+        
+        # Check for settled bets
+        await check_bet_results()
+        
+        # Send check notification
+        await send_check_notification(check_time, new_bets_found)
+        
+    except Exception as e:
+        logger.error(f"Monitoring cycle error: {str(e)}")
+
+
 async def startup_recovery():
     """Check if we missed overnight period and send catch-up notifications"""
     try:
