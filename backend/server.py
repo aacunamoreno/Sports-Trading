@@ -1753,7 +1753,7 @@ async def monitor_single_account(conn: dict):
         if not login_result["success"]:
             logger.error(f"Monitor login failed for {username}: {login_result['message']}")
             await monitor_service.close()
-            return
+            return new_bets_count  # Return 0, not None
         
         # Navigate to Open Bets page
         await monitor_service.page.goto('https://www.plays888.co/wager/OpenBets.aspx', timeout=30000)
