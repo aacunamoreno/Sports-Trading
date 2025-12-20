@@ -1624,9 +1624,11 @@ async def send_check_notification(check_time, new_bets_found):
         # Generate random next interval for display
         next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
         
-        # Build message
-        enano_new = new_bets_found.get("jac075", 0)
-        tipster_new = new_bets_found.get("jac083", 0)
+        # Build message - handle None safely
+        if new_bets_found is None:
+            new_bets_found = {}
+        enano_new = new_bets_found.get("jac075", 0) or 0
+        tipster_new = new_bets_found.get("jac083", 0) or 0
         
         if enano_new > 0 or tipster_new > 0:
             status = f"🆕 New bets: ENANO={enano_new}, TIPSTER={tipster_new}"
