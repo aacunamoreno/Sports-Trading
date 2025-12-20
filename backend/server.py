@@ -139,6 +139,16 @@ async def auto_start_monitoring():
                 monitoring_enabled = True
                 # Use random interval scheduling
                 schedule_next_check()
+                
+                # Also add watchdog job that runs every 5 minutes
+                scheduler.add_job(
+                    watchdog_check,
+                    trigger=IntervalTrigger(minutes=5),
+                    id='watchdog',
+                    replace_existing=True
+                )
+                logger.info("Watchdog scheduled to run every 5 minutes")
+                
                 if not scheduler.running:
                     scheduler.start()
                 logger.info("Bet monitoring auto-started on server startup (7-15 min random intervals, paused 10:45 PM - 5:30 AM Arizona)")
