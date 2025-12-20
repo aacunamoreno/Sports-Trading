@@ -1681,9 +1681,10 @@ async def monitor_open_bets():
     return new_bets_count
 
 async def monitor_single_account(conn: dict):
-    """Monitor a single account for new bets"""
+    """Monitor a single account for new bets - returns count of new bets found"""
     username = conn["username"]
     password = decrypt_password(conn["password_encrypted"])
+    new_bets_count = 0
     
     logger.info(f"Monitoring account: {username}")
     monitor_service = None
