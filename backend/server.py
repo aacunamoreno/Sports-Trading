@@ -1478,12 +1478,18 @@ monitoring_enabled = False
 MIN_INTERVAL = 7
 MAX_INTERVAL = 15
 
+# Track last check time for watchdog
+last_check_time = None
+
 def schedule_next_check():
     """Schedule the next bet check with a random interval"""
-    global scheduler
+    global scheduler, last_check_time
     
     # Generate random interval between 7-15 minutes
     next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
+    
+    # Calculate the exact time for the next run
+    run_time = datetime.now(timezone.utc) + timedelta(minutes=next_interval)
     
     # Remove existing job if present
     try:
@@ -1491,10 +1497,11 @@ def schedule_next_check():
     except:
         pass
     
-    # Schedule new job with random interval
+    # Schedule new job at specific time
     scheduler.add_job(
         monitor_and_reschedule,
-        trigger=IntervalTrigger(minutes=next_interval),
+        trigger='date',
+        run_date=run_time,
         id='bet_monitor',
         replace_existing=True
     )
