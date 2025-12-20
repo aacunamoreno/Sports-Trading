@@ -1602,34 +1602,9 @@ async def get_next_check_time():
     return None
 
 def schedule_next_check():
-    """Schedule the next bet check with a random interval"""
-    global scheduler, last_check_time
-    
-    # Generate random interval between 7-15 minutes
-    next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
-    
-    # Calculate the exact time for the next run
-    run_time = datetime.now(timezone.utc) + timedelta(minutes=next_interval)
-    
-    # Save to database for persistence
-    asyncio.create_task(save_next_check_time(run_time))
-    
-    # Remove existing job if present
-    try:
-        scheduler.remove_job('bet_monitor')
-    except:
-        pass
-    
-    # Schedule new job at specific time
-    scheduler.add_job(
-        monitor_and_reschedule,
-        trigger='date',
-        run_date=run_time,
-        id='bet_monitor',
-        replace_existing=True
-    )
-    
-    logger.info(f"Next bet check scheduled in {next_interval} minutes")
+    """DEPRECATED - Now using monitoring_loop() instead"""
+    # Do nothing - monitoring is handled by the background loop
+    pass
 
 async def monitor_and_reschedule():
     """Run monitoring and reschedule with new random interval"""
