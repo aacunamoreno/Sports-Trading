@@ -2646,8 +2646,8 @@ async def check_now():
     if not monitoring_enabled:
         raise HTTPException(status_code=400, detail="Monitoring is not enabled. Please start monitoring first.")
     
-    # Run the check immediately in background
-    asyncio.create_task(monitor_open_bets())
+    # Run the full check cycle (which includes the notification) in background
+    asyncio.create_task(monitor_and_reschedule())
     
     return {
         "success": True,
