@@ -1917,9 +1917,11 @@ async def monitor_single_account(conn: dict):
                     "status": "Placed",
                     "league": f"{sport} - Detected from mobile/web"
                 }, account=username)
+                new_bets_count += 1
         
         await monitor_service.close()
         logger.info(f"Bet monitoring check complete for {username}")
+        return new_bets_count
         
     except Exception as e:
         logger.error(f"Error monitoring account {username}: {str(e)}")
@@ -1928,6 +1930,7 @@ async def monitor_single_account(conn: dict):
                 await monitor_service.close()
             except:
                 pass
+        return new_bets_count
 
 
 # API Routes
