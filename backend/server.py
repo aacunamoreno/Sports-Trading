@@ -1521,6 +1521,8 @@ def schedule_next_check():
 async def monitor_and_reschedule():
     """Run monitoring and reschedule with new random interval"""
     global last_check_time
+    new_bets_found = {"jac075": 0, "jac083": 0}
+    
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
@@ -1538,10 +1540,14 @@ async def monitor_and_reschedule():
             "date": check_time.strftime('%Y-%m-%d')
         })
         
-        await monitor_open_bets()
+        # Run the monitoring and capture new bets count
+        new_bets_found = await monitor_open_bets()
         
         # Also check for bet results (settled bets)
         await check_bet_results()
+        
+        # Send check notification to Telegram
+        await send_check_notification(check_time, new_bets_found)
         
     except Exception as e:
         logger.error(f"Monitor and reschedule error: {str(e)}")
@@ -1549,6 +1555,44 @@ async def monitor_and_reschedule():
         # Always reschedule with a new random interval for next check
         if monitoring_enabled:
             schedule_next_check()
+
+
+async def send_check_notification(check_time, new_bets_found):
+    """Send a notification to Telegram that a check was performed"""
+    try:
+        telegram_config = await db.telegram_config.find_one({}, {"_id": 0})
+        if not telegram_config or not telegram_config.get("bot_token"):
+            return
+        
+        bot = Bot(token=telegram_config["bot_token"])
+        chat_id = telegram_config["chat_id"]
+        
+        # Generate random next interval for display
+        next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
+        
+        # Build message
+        enano_new = new_bets_found.get("jac075", 0)
+        tipster_new = new_bets_found.get("jac083", 0)
+        
+        if enano_new > 0 or tipster_new > 0:
+            status = f"🆕 New bets: ENANO={enano_new}, TIPSTER={tipster_new}"
+        else:
+            status = "✅ No new bets"
+        
+        message = f"""🔄 *CHECK COMPLETE*
+⏰ {check_time.strftime('%I:%M %p')} Arizona
+{status}
+⏭️ Next check in ~{next_interval} min"""
+        
+        await bot.send_message(
+            chat_id=chat_id,
+            text=message,
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.info(f"Check notification sent to Telegram")
+        
+    except Exception as e:
+        logger.error(f"Failed to send check notification: {str(e)}")
 
 
 async def watchdog_check():
