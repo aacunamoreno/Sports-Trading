@@ -151,12 +151,17 @@ async def auto_start_monitoring():
 
 
 async def monitoring_loop():
-    """Background loop for bet monitoring - more reliable than scheduler"""
+    """Background loop for bet monitoring - designed to be resilient to all errors"""
     global monitoring_enabled
     
-    logger.info("Monitoring loop started")
+    logger.info("=" * 60)
+    logger.info("MONITORING LOOP STARTED - This loop should NEVER stop")
+    logger.info("=" * 60)
+    
+    loop_iteration = 0
     
     while True:
+        loop_iteration += 1
         try:
             if monitoring_enabled:
                 # Check if we're in sleep hours
@@ -171,31 +176,37 @@ async def monitoring_loop():
                 sleep_end = 5 * 60 + 30      # 5:30 AM
                 
                 if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
-                    logger.info(f"Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - waiting 5 min...")
+                    logger.info(f"[Loop #{loop_iteration}] Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - waiting 5 min...")
                     await asyncio.sleep(300)  # Check again in 5 minutes during sleep
                     continue
                 
-                # Run monitoring check (catch errors to keep loop running)
+                # Run monitoring check - wrapped in its own try/except
+                logger.info(f"[Loop #{loop_iteration}] Starting monitoring cycle...")
                 try:
                     await run_monitoring_cycle()
+                    logger.info(f"[Loop #{loop_iteration}] Monitoring cycle completed successfully")
                 except Exception as e:
-                    logger.error(f"Monitoring cycle error (will retry): {str(e)}")
+                    logger.error(f"[Loop #{loop_iteration}] Monitoring cycle error (loop continues): {str(e)}", exc_info=True)
                 
                 # Random sleep between 7-15 minutes
                 next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
-                logger.info(f"Monitoring loop sleeping for {next_interval} minutes...")
+                next_check_time = now_arizona + timedelta(minutes=next_interval)
+                logger.info(f"[Loop #{loop_iteration}] Sleeping for {next_interval} minutes. Next check at ~{next_check_time.strftime('%I:%M %p')} Arizona")
                 await asyncio.sleep(next_interval * 60)
                 
             else:
-                # Monitoring disabled, check again in 1 minute
+                # Monitoring disabled, check status again in 1 minute
+                logger.info(f"[Loop #{loop_iteration}] Monitoring disabled, checking status in 60s...")
                 await asyncio.sleep(60)
                 
         except asyncio.CancelledError:
-            logger.info("Monitoring loop cancelled")
+            logger.warning("Monitoring loop received CancelledError - this should only happen on shutdown")
             break
         except Exception as e:
-            logger.error(f"Monitoring loop error (will retry in 60s): {str(e)}")
+            # This catch-all ensures the loop NEVER dies
+            logger.error(f"[Loop #{loop_iteration}] UNEXPECTED ERROR in monitoring loop (will retry in 60s): {str(e)}", exc_info=True)
             await asyncio.sleep(60)  # Wait 1 minute before retrying
+            continue  # Explicitly continue the loop
 
 
 async def run_monitoring_cycle():
