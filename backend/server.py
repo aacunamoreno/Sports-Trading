@@ -137,21 +137,11 @@ async def auto_start_monitoring():
             monitor_config = await db.monitor_config.find_one({}, {"_id": 0})
             if monitor_config and monitor_config.get("auto_start", True):
                 monitoring_enabled = True
-                # Use random interval scheduling
-                schedule_next_check()
                 
-                # Also add watchdog job that runs every 5 minutes
-                scheduler.add_job(
-                    watchdog_check,
-                    trigger=IntervalTrigger(minutes=5),
-                    id='watchdog',
-                    replace_existing=True
-                )
-                logger.info("Watchdog scheduled to run every 5 minutes")
+                # Start background monitoring loop (more reliable than scheduler)
+                asyncio.create_task(monitoring_loop())
                 
-                if not scheduler.running:
-                    scheduler.start()
-                logger.info("Bet monitoring auto-started on server startup (7-15 min random intervals, paused 10:45 PM - 5:30 AM Arizona)")
+                logger.info("Bet monitoring auto-started with background loop (7-15 min random intervals, paused 10:45 PM - 5:30 AM Arizona)")
             else:
                 logger.info("Bet monitoring not auto-started (disabled in config)")
         else:
