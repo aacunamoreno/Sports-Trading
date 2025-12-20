@@ -171,17 +171,21 @@ async def monitoring_loop():
                 sleep_end = 5 * 60 + 30      # 5:30 AM
                 
                 if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
-                    logger.info(f"Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - waiting...")
+                    logger.info(f"Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - waiting 5 min...")
                     await asyncio.sleep(300)  # Check again in 5 minutes during sleep
                     continue
                 
-                # Run monitoring check
-                await run_monitoring_cycle()
+                # Run monitoring check (catch errors to keep loop running)
+                try:
+                    await run_monitoring_cycle()
+                except Exception as e:
+                    logger.error(f"Monitoring cycle error (will retry): {str(e)}")
                 
                 # Random sleep between 7-15 minutes
                 next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
-                logger.info(f"Next check in {next_interval} minutes")
+                logger.info(f"Monitoring loop sleeping for {next_interval} minutes...")
                 await asyncio.sleep(next_interval * 60)
+                
             else:
                 # Monitoring disabled, check again in 1 minute
                 await asyncio.sleep(60)
@@ -190,7 +194,7 @@ async def monitoring_loop():
             logger.info("Monitoring loop cancelled")
             break
         except Exception as e:
-            logger.error(f"Monitoring loop error: {str(e)}")
+            logger.error(f"Monitoring loop error (will retry in 60s): {str(e)}")
             await asyncio.sleep(60)  # Wait 1 minute before retrying
 
 
