@@ -1903,13 +1903,22 @@ def schedule_next_check():
     # Do nothing - monitoring is handled by the background loop
     pass
 
+async def delete_message_later(bot, chat_id, message_id, delay_minutes=30):
+    """Delete a message after a delay"""
+    try:
+        await asyncio.sleep(delay_minutes * 60)
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+        logger.info(f"Auto-deleted status message {message_id} after {delay_minutes} min")
+    except Exception as e:
+        logger.debug(f"Could not auto-delete message {message_id}: {e}")
+
 async def monitor_and_reschedule():
     """Run monitoring - called by manual check API"""
     await run_monitoring_cycle()
 
 
 async def send_check_notification(check_time, new_bets_found):
-    """Send a notification to Telegram that a check was performed"""
+    """Send a notification to Telegram that a check was performed - auto-deletes after 30 min"""
     try:
         telegram_config = await db.telegram_config.find_one({}, {"_id": 0})
         if not telegram_config or not telegram_config.get("bot_token"):
@@ -1937,12 +1946,15 @@ async def send_check_notification(check_time, new_bets_found):
 {status}
 ⏭️ Next check in ~{next_interval} min"""
         
-        await bot.send_message(
+        sent_msg = await bot.send_message(
             chat_id=chat_id,
             text=message,
             parse_mode=ParseMode.MARKDOWN
         )
         logger.info(f"Check notification sent to Telegram")
+        
+        # Schedule auto-deletion after 30 minutes
+        asyncio.create_task(delete_message_later(bot, chat_id, sent_msg.message_id, 30))
         
     except Exception as e:
         logger.error(f"Failed to send check notification: {str(e)}")
