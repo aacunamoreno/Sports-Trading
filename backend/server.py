@@ -489,43 +489,299 @@ ACCOUNT_LABELS = {
     "jac083": "TIPSTER"
 }
 
+def format_amount_short(amount: float) -> str:
+    """Format amount as short string like $2.2K"""
+    if amount >= 1000:
+        return f"${amount/1000:.1f}K".replace('.0K', 'K')
+    return f"${amount:.0f}"
+
+def extract_short_game_name(game: str, description: str = "") -> str:
+    """Extract short team names like FALCONS/CARDINALS from game description"""
+    import re
+    
+    # Common patterns to extract team names
+    text = game or description or ""
+    
+    # Try to find team matchup patterns like "Team1 vs Team2" or "Team1/Team2"
+    # or "TEAM1 @ TEAM2"
+    patterns = [
+        r'([A-Z]{2,})\s*(?:vs\.?|@|\/)\s*([A-Z]{2,})',  # TEAM vs TEAM
+        r'([A-Za-z]+)\s*(?:vs\.?|@|\/)\s*([A-Za-z]+)',   # Team vs Team
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            team1 = match.group(1).upper()[:8]  # Max 8 chars
+            team2 = match.group(2).upper()[:8]
+            return f"{team1}/{team2}"
+    
+    # If no pattern found, just truncate
+    if len(text) > 20:
+        return text[:20].upper()
+    return text.upper() if text else "GAME"
+
+def extract_bet_type_short(bet_type: str) -> str:
+    """Extract short bet type like 'u48' or 'o47' from bet description"""
+    import re
+    
+    if not bet_type:
+        return ""
+    
+    # Look for over/under patterns
+    over_match = re.search(r'(?:over|o)\s*(\d+(?:\.\d+)?)', bet_type, re.IGNORECASE)
+    if over_match:
+        return f"o{over_match.group(1)}"
+    
+    under_match = re.search(r'(?:under|u)\s*(\d+(?:\.\d+)?)', bet_type, re.IGNORECASE)
+    if under_match:
+        return f"u{under_match.group(1)}"
+    
+    # Look for spread patterns
+    spread_match = re.search(r'([+-]?\d+(?:\.\d+)?)', bet_type)
+    if spread_match:
+        return spread_match.group(1)
+    
+    # Return truncated original
+    return bet_type[:15] if len(bet_type) > 15 else bet_type
+
+async def get_or_create_daily_compilation(account: str) -> dict:
+    """Get or create the daily bet compilation for an account"""
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    
+    compilation = await db.daily_compilations.find_one({
+        "account": account,
+        "date": today
+    })
+    
+    if not compilation:
+        compilation = {
+            "account": account,
+            "date": today,
+            "message_id": None,
+            "bets": [],
+            "total_result": 0,
+            "created_at": datetime.now(timezone.utc)
+        }
+        await db.daily_compilations.insert_one(compilation)
+    
+    return compilation
+
+async def build_compilation_message(account: str) -> str:
+    """Build the compilation message for an account"""
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    
+    compilation = await db.daily_compilations.find_one({
+        "account": account,
+        "date": today
+    })
+    
+    if not compilation or not compilation.get('bets'):
+        return None
+    
+    account_label = ACCOUNT_LABELS.get(account, account)
+    bets = compilation['bets']
+    total_result = compilation.get('total_result', 0)
+    
+    lines = [f"👤 *{account_label}*", ""]
+    
+    for i, bet in enumerate(bets, 1):
+        game_short = bet.get('game_short', 'GAME')
+        bet_type_short = bet.get('bet_type_short', '')
+        wager_short = bet.get('wager_short', '$0')
+        to_win_short = bet.get('to_win_short', '$0')
+        result = bet.get('result')  # None, 'won', 'lost', 'push'
+        
+        # Build line
+        bet_line = f"Game {i}: {game_short}"
+        if bet_type_short:
+            bet_line += f" {bet_type_short}"
+        bet_line += f" ({wager_short}/{to_win_short})"
+        
+        # Add result emoji
+        if result == 'won':
+            bet_line += "🟢"
+        elif result == 'lost':
+            bet_line += "🔴"
+        elif result == 'push':
+            bet_line += "🟡"
+        
+        lines.append(bet_line)
+    
+    # Add result total if any bets are settled
+    settled_bets = [b for b in bets if b.get('result') in ['won', 'lost', 'push']]
+    if settled_bets:
+        lines.append("")
+        result_sign = "+" if total_result >= 0 else ""
+        lines.append(f"*Result: {result_sign}{format_amount_short(total_result)}*")
+    
+    return "\n".join(lines)
+
+async def update_compilation_message(account: str):
+    """Update or create the Telegram message for the daily compilation"""
+    if not telegram_bot or not telegram_chat_id:
+        logger.info("Telegram not configured, skipping compilation update")
+        return
+    
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        compilation = await db.daily_compilations.find_one({
+            "account": account,
+            "date": today
+        })
+        
+        if not compilation or not compilation.get('bets'):
+            return
+        
+        message_text = await build_compilation_message(account)
+        if not message_text:
+            return
+        
+        message_id = compilation.get('message_id')
+        
+        if message_id:
+            # Edit existing message
+            try:
+                await telegram_bot.edit_message_text(
+                    chat_id=telegram_chat_id,
+                    message_id=message_id,
+                    text=message_text,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.info(f"Updated compilation message for {account}")
+            except Exception as e:
+                # If edit fails (message too old, deleted, etc.), send new one
+                logger.warning(f"Could not edit message, sending new one: {e}")
+                message_id = None
+        
+        if not message_id:
+            # Send new message
+            sent_message = await telegram_bot.send_message(
+                chat_id=telegram_chat_id,
+                text=message_text,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            # Store the message ID
+            await db.daily_compilations.update_one(
+                {"account": account, "date": today},
+                {"$set": {"message_id": sent_message.message_id}}
+            )
+            logger.info(f"Sent new compilation message for {account}, message_id: {sent_message.message_id}")
+    
+    except Exception as e:
+        logger.error(f"Failed to update compilation message: {str(e)}")
+
+async def add_bet_to_compilation(account: str, bet_details: dict):
+    """Add a new bet to the daily compilation and update Telegram"""
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    
+    # Prepare bet entry
+    game = bet_details.get('game', '')
+    description = bet_details.get('description', '')
+    bet_type = bet_details.get('bet_type', '')
+    wager = bet_details.get('wager', 0)
+    to_win = bet_details.get('potential_win', wager)
+    ticket = bet_details.get('ticket_number', '')
+    
+    bet_entry = {
+        "ticket": ticket,
+        "game": game,
+        "game_short": extract_short_game_name(game, description),
+        "bet_type": bet_type,
+        "bet_type_short": extract_bet_type_short(bet_type),
+        "wager": wager,
+        "wager_short": format_amount_short(wager),
+        "to_win": to_win,
+        "to_win_short": format_amount_short(to_win),
+        "result": None,
+        "added_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Ensure compilation exists
+    compilation = await db.daily_compilations.find_one({
+        "account": account,
+        "date": today
+    })
+    
+    if not compilation:
+        compilation = {
+            "account": account,
+            "date": today,
+            "message_id": None,
+            "bets": [],
+            "total_result": 0,
+            "created_at": datetime.now(timezone.utc)
+        }
+        await db.daily_compilations.insert_one(compilation)
+    
+    # Add bet to compilation
+    await db.daily_compilations.update_one(
+        {"account": account, "date": today},
+        {"$push": {"bets": bet_entry}}
+    )
+    
+    # Update Telegram message
+    await update_compilation_message(account)
+    logger.info(f"Added bet to compilation for {account}: {bet_entry['game_short']}")
+
+async def update_bet_result_in_compilation(account: str, ticket: str, result: str, win_amount: float = 0):
+    """Update a bet's result in the compilation and update Telegram"""
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    
+    compilation = await db.daily_compilations.find_one({
+        "account": account,
+        "date": today
+    })
+    
+    if not compilation:
+        logger.warning(f"No compilation found for {account} on {today}")
+        return
+    
+    bets = compilation.get('bets', [])
+    total_result = compilation.get('total_result', 0)
+    
+    # Find and update the bet
+    for bet in bets:
+        if bet.get('ticket') == ticket and bet.get('result') is None:
+            bet['result'] = result
+            if result == 'won':
+                total_result += win_amount
+            elif result == 'lost':
+                total_result -= bet.get('wager', 0)
+            # push doesn't change total
+            break
+    
+    # Update in database
+    await db.daily_compilations.update_one(
+        {"account": account, "date": today},
+        {"$set": {"bets": bets, "total_result": total_result}}
+    )
+    
+    # Update Telegram message
+    await update_compilation_message(account)
+    logger.info(f"Updated result for ticket {ticket} in {account}'s compilation: {result}")
+
 async def send_telegram_notification(bet_details: dict, account: str = None):
-    """Send Telegram notification when a bet is placed"""
+    """Send Telegram notification when a bet is placed - now uses compilation system"""
     if not telegram_bot or not telegram_chat_id:
         logger.info("Telegram not configured, skipping notification")
         return
     
     try:
-        # Format the message with bet details
-        odds_formatted = format_american_odds(bet_details['odds'])
-        potential_win = bet_details.get('potential_win', bet_details['wager'])
-        
-        # Get account label
-        account_label = ACCOUNT_LABELS.get(account, account or "Unknown")
-        
-        message = f"""
-🎰 *BET PLACED*
-
-👤 *User:* {account_label}
-*Game:* {bet_details['game']}
-*League:* {bet_details.get('league', 'N/A')}
-*Bet:* {bet_details['bet_type']} {bet_details.get('line', '')}
-*Odds:* {odds_formatted}
-*Wager:* ${bet_details['wager']} MXN
-*To Win:* ${potential_win:.2f} MXN
-
-*Ticket#:* {bet_details.get('ticket_number', 'Pending')}
-*Status:* {bet_details.get('status', 'Placed')}
-
-_Automated via BetBot System_
-        """
-        
-        await telegram_bot.send_message(
-            chat_id=telegram_chat_id,
-            text=message.strip(),
-            parse_mode=ParseMode.MARKDOWN
-        )
-        logger.info(f"Telegram notification sent for Ticket#{bet_details.get('ticket_number')}")
+        # Add to daily compilation instead of sending individual message
+        await add_bet_to_compilation(account, bet_details)
+        logger.info(f"Telegram compilation updated for Ticket#{bet_details.get('ticket_number')}")
         
     except Exception as e:
         logger.error(f"Failed to send Telegram notification: {str(e)}")
