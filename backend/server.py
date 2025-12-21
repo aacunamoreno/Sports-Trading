@@ -1916,15 +1916,6 @@ def schedule_next_check():
     # Do nothing - monitoring is handled by the background loop
     pass
 
-async def delete_message_later(bot, chat_id, message_id, delay_minutes=30):
-    """Delete a message after a delay"""
-    try:
-        await asyncio.sleep(delay_minutes * 60)
-        await bot.delete_message(chat_id=chat_id, message_id=message_id)
-        logger.info(f"Auto-deleted status message {message_id} after {delay_minutes} min")
-    except Exception as e:
-        logger.debug(f"Could not auto-delete message {message_id}: {e}")
-
 async def monitor_and_reschedule():
     """Run monitoring - called by manual check API"""
     await run_monitoring_cycle()
