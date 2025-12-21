@@ -225,7 +225,7 @@ async def monitoring_loop():
                 current_time_minutes = current_hour * 60 + current_minute
                 
                 sleep_start = 22 * 60 + 45  # 10:45 PM
-                sleep_end = 5 * 60 + 30      # 5:30 AM
+                sleep_end = 6 * 60 + 0       # 6:00 AM
                 
                 if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
                     logger.info(f"[Loop #{loop_iteration}] Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - waiting 5 min...")
@@ -1802,7 +1802,7 @@ async def monitor_open_bets():
     
     # Sleep window: 10:45 PM (22:45 = 1365 mins) to 5:30 AM (5:30 = 330 mins)
     sleep_start = 22 * 60 + 45  # 10:45 PM = 1365 minutes
-    sleep_end = 5 * 60 + 30      # 5:30 AM = 330 minutes
+    sleep_end = 6 * 60 + 0       # 6:00 AM = 330 minutes
     
     if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
         logger.info(f"Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - skipping bet check")
