@@ -2711,23 +2711,67 @@ async def telegram_status():
 
 @api_router.post("/telegram/test")
 async def test_telegram():
-    """Send a test notification"""
+    """Send a test notification using the new compilation system"""
     if not telegram_bot or not telegram_chat_id:
         raise HTTPException(status_code=400, detail="Telegram not configured")
     
     try:
+        # Test the new compilation-based notification
         await send_telegram_notification({
-            "game": "Test Game",
-            "league": "TEST LEAGUE",
-            "bet_type": "Test Bet",
-            "line": "Test",
+            "game": "FALCONS vs CARDINALS",
+            "description": "Atlanta Falcons @ Arizona Cardinals",
+            "bet_type": "TOTAL UNDER 48",
+            "line": "u48",
             "odds": -110,
-            "wager": 100,
-            "potential_win": 90.91,
-            "ticket_number": "TEST123",
-            "status": "Test"
+            "wager": 2200,
+            "potential_win": 2000,
+            "ticket_number": f"TEST{datetime.now().strftime('%H%M%S')}",
+            "status": "Placed"
         }, account="jac075")  # Test with ENANO label
-        return {"success": True, "message": "Test notification sent"}
+        return {"success": True, "message": "Test bet added to compilation"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/telegram/test-compilation")
+async def test_compilation():
+    """Test the full compilation workflow with multiple bets"""
+    if not telegram_bot or not telegram_chat_id:
+        raise HTTPException(status_code=400, detail="Telegram not configured")
+    
+    try:
+        import time
+        timestamp = int(time.time())
+        
+        # Add first bet
+        await send_telegram_notification({
+            "game": "FALCONS vs CARDINALS",
+            "description": "Atlanta Falcons @ Arizona Cardinals",
+            "bet_type": "TOTAL UNDER 48",
+            "odds": -110,
+            "wager": 2200,
+            "potential_win": 2000,
+            "ticket_number": f"DEMO{timestamp}A"
+        }, account="jac075")
+        
+        await asyncio.sleep(2)
+        
+        # Add second bet
+        await send_telegram_notification({
+            "game": "JAGUARS vs BRONCOS",
+            "description": "Jacksonville Jaguars @ Denver Broncos",
+            "bet_type": "TOTAL OVER 47",
+            "odds": -110,
+            "wager": 2200,
+            "potential_win": 2000,
+            "ticket_number": f"DEMO{timestamp}B"
+        }, account="jac075")
+        
+        await asyncio.sleep(2)
+        
+        # Mark first bet as won
+        await update_bet_result_in_compilation("jac075", f"DEMO{timestamp}A", "won", 2000)
+        
+        return {"success": True, "message": "Test compilation workflow completed - check Telegram!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
