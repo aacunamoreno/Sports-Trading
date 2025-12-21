@@ -602,13 +602,15 @@ async def build_compilation_message(account: str) -> str:
             bet_line += f" {bet_type_short}"
         bet_line += f" ({wager_short}/{to_win_short})"
         
-        # Add result emoji
+        # Add result emoji - 🟡 for pending, 🟢 won, 🔴 lost, 🔵 push
         if result == 'won':
             bet_line += "🟢"
         elif result == 'lost':
             bet_line += "🔴"
         elif result == 'push':
-            bet_line += "🟡"
+            bet_line += "🔵"
+        else:
+            bet_line += "🟡"  # Pending
         
         lines.append(bet_line)
     
