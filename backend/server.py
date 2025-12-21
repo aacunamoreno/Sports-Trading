@@ -87,6 +87,15 @@ async def startup_event():
     schedule_daily_summary()
     await startup_recovery()  # Check if we missed anything overnight
 
+async def delete_message_later(bot, chat_id, message_id, delay_minutes=30):
+    """Delete a Telegram message after a delay - used for status notifications"""
+    try:
+        await asyncio.sleep(delay_minutes * 60)
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+        logger.info(f"Auto-deleted status message {message_id} after {delay_minutes} min")
+    except Exception as e:
+        logger.debug(f"Could not auto-delete message {message_id}: {e}")
+
 def schedule_daily_summary():
     """Schedule the daily summary to run at 11 PM Arizona time"""
     global scheduler
