@@ -174,7 +174,7 @@ async def auto_start_monitoring():
                 # Start background monitoring loop
                 asyncio.create_task(monitoring_loop())
                 
-                logger.info("Bet monitoring auto-started with background loop (7-15 min random intervals, paused 10:45 PM - 5:30 AM Arizona)")
+                logger.info("Bet monitoring auto-started with background loop (7-15 min random intervals, paused 10:45 PM - 6:00 AM Arizona)")
             else:
                 logger.info("Bet monitoring not auto-started (disabled in config)")
         else:
@@ -951,7 +951,7 @@ async def send_activity_summary():
 {check_times_text}
 
 ✅ *System Status:* Active
-🕐 *Sleep Hours:* 10:45 PM - 5:30 AM
+🕐 *Sleep Hours:* 10:45 PM - 6:00 AM
 
 _Betting summaries follow..._
         """
@@ -2737,11 +2737,11 @@ async def start_monitoring():
     if not scheduler.running:
         scheduler.start()
     
-    logger.info("Bet monitoring started - checking every 7-15 minutes randomly (paused 10:45 PM - 5:30 AM Arizona)")
+    logger.info("Bet monitoring started - checking every 7-15 minutes randomly (paused 10:45 PM - 6:00 AM Arizona)")
     
     return {
         "success": True,
-        "message": "Bet monitoring started. Will check plays888.co every 7-15 minutes randomly (paused during sleep hours 10:45 PM - 5:30 AM Arizona).",
+        "message": "Bet monitoring started. Will check plays888.co every 7-15 minutes randomly (paused during sleep hours 10:45 PM - 6:00 AM Arizona).",
         "interval": "7-15 minutes (random)"
     }
 
@@ -2784,7 +2784,7 @@ async def monitoring_status():
     return {
         "enabled": monitoring_enabled,
         "interval": "7-15 minutes (random)",
-        "sleep_hours": "10:45 PM - 5:30 AM Arizona",
+        "sleep_hours": "10:45 PM - 6:00 AM Arizona",
         "running": scheduler.running,
         "next_check": next_check
     }
