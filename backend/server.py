@@ -1760,7 +1760,7 @@ async def watchdog_check():
     current_time_minutes = current_hour * 60 + current_minute
     
     sleep_start = 22 * 60 + 45  # 10:45 PM
-    sleep_end = 5 * 60 + 30     # 5:30 AM
+    sleep_end = 6 * 60 + 0      # 6:00 AM
     
     if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
         return  # Don't check during sleep hours
