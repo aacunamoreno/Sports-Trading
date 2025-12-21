@@ -624,7 +624,7 @@ async def build_compilation_message(account: str) -> str:
     return "\n".join(lines)
 
 async def update_compilation_message(account: str):
-    """Update or create the Telegram message for the daily compilation"""
+    """Update the Telegram message for the daily compilation - deletes old and sends new to keep at bottom of chat"""
     if not telegram_bot or not telegram_chat_id:
         logger.info("Telegram not configured, skipping compilation update")
         return
@@ -646,36 +646,33 @@ async def update_compilation_message(account: str):
         if not message_text:
             return
         
-        message_id = compilation.get('message_id')
+        old_message_id = compilation.get('message_id')
         
-        if message_id:
-            # Edit existing message
+        # Delete the old message if it exists (to keep chat clean)
+        if old_message_id:
             try:
-                await telegram_bot.edit_message_text(
+                await telegram_bot.delete_message(
                     chat_id=telegram_chat_id,
-                    message_id=message_id,
-                    text=message_text,
-                    parse_mode=ParseMode.MARKDOWN
+                    message_id=old_message_id
                 )
-                logger.info(f"Updated compilation message for {account}")
+                logger.info(f"Deleted old compilation message {old_message_id} for {account}")
             except Exception as e:
-                # If edit fails (message too old, deleted, etc.), send new one
-                logger.warning(f"Could not edit message, sending new one: {e}")
-                message_id = None
+                # Message might already be deleted or too old
+                logger.warning(f"Could not delete old message {old_message_id}: {e}")
         
-        if not message_id:
-            # Send new message
-            sent_message = await telegram_bot.send_message(
-                chat_id=telegram_chat_id,
-                text=message_text,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            # Store the message ID
-            await db.daily_compilations.update_one(
-                {"account": account, "date": today},
-                {"$set": {"message_id": sent_message.message_id}}
-            )
-            logger.info(f"Sent new compilation message for {account}, message_id: {sent_message.message_id}")
+        # Send new message (always at bottom of chat)
+        sent_message = await telegram_bot.send_message(
+            chat_id=telegram_chat_id,
+            text=message_text,
+            parse_mode=ParseMode.MARKDOWN
+        )
+        
+        # Store the new message ID
+        await db.daily_compilations.update_one(
+            {"account": account, "date": today},
+            {"$set": {"message_id": sent_message.message_id}}
+        )
+        logger.info(f"Sent new compilation message for {account}, message_id: {sent_message.message_id}")
     
     except Exception as e:
         logger.error(f"Failed to update compilation message: {str(e)}")
