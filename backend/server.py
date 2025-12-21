@@ -1443,70 +1443,19 @@ async def check_results_for_account(conn: dict):
 
 
 async def send_result_notification(bet: dict, result: str, win_amount: float, account: str = None):
-    """Send Telegram notification when a bet result is determined"""
+    """Update the compilation when a bet result is determined"""
     if not telegram_bot or not telegram_chat_id:
         return
     
     try:
-        emoji = "✅" if result == "won" else "❌" if result == "lost" else "↔️" if result == "push" else "🚫"
-        result_text = result.upper()
-        
-        game = bet.get('game', 'Unknown Game')
-        bet_type = bet.get('bet_type', '')
-        wager = bet.get('wager_amount', 0)
         ticket = bet.get('bet_slip_id', 'N/A')
         
-        # Get account label
-        account_label = ACCOUNT_LABELS.get(account, account or "Unknown")
-        
-        if result == "won":
-            message = f"""
-{emoji} *BET WON!*
-
-👤 *User:* {account_label}
-*Game:* {game}
-*Bet:* {bet_type}
-*Wagered:* ${wager:,.2f} MXN
-*Won:* ${win_amount:,.2f} MXN
-
-*Ticket#:* {ticket}
-
-_Congratulations! 🎉_
-            """
-        elif result == "lost":
-            message = f"""
-{emoji} *BET LOST*
-
-👤 *User:* {account_label}
-*Game:* {game}
-*Bet:* {bet_type}
-*Lost:* ${wager:,.2f} MXN
-
-*Ticket#:* {ticket}
-
-_Better luck next time!_
-            """
-        else:
-            message = f"""
-{emoji} *BET {result_text}*
-
-👤 *User:* {account_label}
-*Game:* {game}
-*Bet:* {bet_type}
-*Wager:* ${wager:,.2f} MXN
-
-*Ticket#:* {ticket}
-            """
-        
-        await telegram_bot.send_message(
-            chat_id=telegram_chat_id,
-            text=message.strip(),
-            parse_mode=ParseMode.MARKDOWN
-        )
-        logger.info(f"Result notification sent for Ticket#{ticket}: {result}")
+        # Update the compilation with the result
+        await update_bet_result_in_compilation(account, ticket, result, win_amount)
+        logger.info(f"Compilation updated for Ticket#{ticket}: {result}")
         
     except Exception as e:
-        logger.error(f"Failed to send result notification: {str(e)}")
+        logger.error(f"Failed to update result in compilation: {str(e)}")
 
 
 # Playwright automation service
