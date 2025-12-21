@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Activity, Settings, TrendingUp, List, Target } from 'lucide-react';
+import { Activity, Settings, TrendingUp, List, Target, Menu, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
@@ -9,10 +9,16 @@ const API = `${BACKEND_URL}/api`;
 export default function Layout() {
   const location = useLocation();
   const [connectionStatus, setConnectionStatus] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     checkConnection();
   }, []);
+
+  // Close sidebar when route changes (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   const checkConnection = async () => {
     try {
@@ -33,10 +39,38 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-background">
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b border-border p-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-6 h-6 text-primary" strokeWidth={1.5} />
+          <h1 className="text-xl font-heading font-bold tracking-tight">BetBot</h1>
+        </div>
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-2 rounded-md hover:bg-muted transition-colors"
+        >
+          {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+      </div>
+
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 border-r border-border glass-card">
-        <div className="p-6">
-          <div className="flex items-center gap-2 mb-8">
+      <aside className={`
+        fixed lg:static inset-y-0 left-0 z-50
+        w-64 border-r border-border glass-card
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        lg:transform-none
+      `}>
+        <div className="p-6 pt-20 lg:pt-6">
+          <div className="hidden lg:flex items-center gap-2 mb-8">
             <TrendingUp className="w-8 h-8 text-primary" strokeWidth={1.5} />
             <h1 className="text-2xl font-heading font-bold tracking-tight">BetBot</h1>
           </div>
@@ -96,8 +130,8 @@ export default function Layout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-[1600px] mx-auto p-6">
+      <main className="flex-1 overflow-y-auto pt-16 lg:pt-0">
+        <div className="max-w-[1600px] mx-auto p-4 lg:p-6">
           <Outlet />
         </div>
       </main>
