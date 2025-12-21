@@ -2786,6 +2786,31 @@ async def trigger_daily_summary():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.post("/telegram/send-compilations")
+async def send_all_compilations():
+    """Send/update compilation messages for all accounts with bets today"""
+    if not telegram_bot or not telegram_chat_id:
+        raise HTTPException(status_code=400, detail="Telegram not configured")
+    
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        # Find all compilations for today
+        compilations = await db.daily_compilations.find({"date": today}).to_list(10)
+        
+        sent_count = 0
+        for comp in compilations:
+            account = comp.get('account')
+            if account:
+                await update_compilation_message(account)
+                sent_count += 1
+        
+        return {"success": True, "message": f"Sent {sent_count} compilation messages"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.post("/telegram/activity-summary")
 async def trigger_activity_summary():
     """Manually trigger the activity summary"""
