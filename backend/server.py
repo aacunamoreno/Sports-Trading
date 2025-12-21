@@ -151,8 +151,10 @@ async def auto_start_monitoring():
 
 
 async def monitoring_loop():
-    """Background loop for bet monitoring - designed to be resilient to all errors"""
+    """Background loop for bet monitoring - designed to be resilient to all errors and server restarts"""
     global monitoring_enabled
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
     
     logger.info("=" * 60)
     logger.info("MONITORING LOOP STARTED - This loop should NEVER stop")
@@ -160,13 +162,30 @@ async def monitoring_loop():
     
     loop_iteration = 0
     
+    # On startup, check if we missed a scheduled check due to server restart
+    try:
+        state = await db.monitor_state.find_one({"_id": "main"})
+        if state and state.get("next_check_utc"):
+            next_check_utc = state["next_check_utc"]
+            if isinstance(next_check_utc, str):
+                next_check_utc = datetime.fromisoformat(next_check_utc.replace('Z', '+00:00'))
+            if next_check_utc.tzinfo is None:
+                next_check_utc = next_check_utc.replace(tzinfo=timezone.utc)
+            
+            now_utc = datetime.now(timezone.utc)
+            if next_check_utc < now_utc:
+                # We missed a check! Calculate how overdue
+                minutes_overdue = (now_utc - next_check_utc).total_seconds() / 60
+                logger.warning(f"MISSED CHECK DETECTED! Was scheduled for {next_check_utc.isoformat()}, now {minutes_overdue:.1f} min overdue. Running immediately!")
+                # Run immediately by not sleeping on first iteration
+    except Exception as e:
+        logger.error(f"Error checking for missed checks: {e}")
+    
     while True:
         loop_iteration += 1
         try:
             if monitoring_enabled:
                 # Check if we're in sleep hours
-                from zoneinfo import ZoneInfo
-                arizona_tz = ZoneInfo('America/Phoenix')
                 now_arizona = datetime.now(arizona_tz)
                 current_hour = now_arizona.hour
                 current_minute = now_arizona.minute
@@ -191,6 +210,23 @@ async def monitoring_loop():
                 # Random sleep between 7-15 minutes
                 next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
                 next_check_time = now_arizona + timedelta(minutes=next_interval)
+                next_check_utc = datetime.now(timezone.utc) + timedelta(minutes=next_interval)
+                
+                # CRITICAL: Store next check time in database so we can detect missed checks after restart
+                try:
+                    await db.monitor_state.update_one(
+                        {"_id": "main"},
+                        {"$set": {
+                            "next_check_utc": next_check_utc.isoformat(),
+                            "next_check_arizona": next_check_time.strftime('%I:%M %p'),
+                            "last_check_utc": datetime.now(timezone.utc).isoformat(),
+                            "loop_iteration": loop_iteration
+                        }},
+                        upsert=True
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to save monitor state: {e}")
+                
                 logger.info(f"[Loop #{loop_iteration}] Sleeping for {next_interval} minutes. Next check at ~{next_check_time.strftime('%I:%M %p')} Arizona")
                 await asyncio.sleep(next_interval * 60)
                 
