@@ -1791,7 +1791,7 @@ async def monitor_open_bets():
     if not monitoring_enabled:
         return new_bets_count
     
-    # Check if we're in sleep hours (11:30 PM - 5:30 AM Arizona time)
+    # Check if we're in sleep hours (10:45 PM - 6:00 AM Arizona time)
     # Arizona is UTC-7 (no daylight saving)
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
