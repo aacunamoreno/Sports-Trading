@@ -157,17 +157,19 @@ async def auto_start_monitoring():
                             now_arizona = datetime.now(arizona_tz)
                             logger.warning(f"SERVER RESTART DETECTED! Missed check was {minutes_overdue:.0f} min overdue.")
                             
-                            # Send alert to Telegram about the restart
+                            # Send alert to Telegram about the restart - auto-delete after 30 min
                             try:
                                 telegram_config = await db.telegram_config.find_one({}, {"_id": 0})
                                 if telegram_config and telegram_config.get("bot_token"):
                                     bot = Bot(token=telegram_config["bot_token"])
                                     msg = f"⚠️ *SERVER RESTART*\n\nMonitoring was interrupted.\nMissed check by ~{minutes_overdue:.0f} min.\nRunning immediate catch-up check.\n\nTime: {now_arizona.strftime('%I:%M %p')} Arizona"
-                                    await bot.send_message(
+                                    sent_msg = await bot.send_message(
                                         chat_id=telegram_config["chat_id"],
                                         text=msg,
                                         parse_mode=ParseMode.MARKDOWN
                                     )
+                                    # Schedule auto-deletion after 30 minutes
+                                    asyncio.create_task(delete_message_later(bot, telegram_config["chat_id"], sent_msg.message_id, 30))
                             except Exception as e:
                                 logger.error(f"Failed to send restart alert: {e}")
                 
