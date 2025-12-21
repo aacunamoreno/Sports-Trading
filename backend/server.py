@@ -1800,7 +1800,7 @@ async def monitor_open_bets():
     current_minute = now_arizona.minute
     current_time_minutes = current_hour * 60 + current_minute
     
-    # Sleep window: 10:45 PM (22:45 = 1365 mins) to 5:30 AM (5:30 = 330 mins)
+    # Sleep window: 10:45 PM (22:45 = 1365 mins) to 6:00 AM (6:00 = 360 mins)
     sleep_start = 22 * 60 + 45  # 10:45 PM = 1365 minutes
     sleep_end = 6 * 60 + 0       # 6:00 AM = 330 minutes
     
