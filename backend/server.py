@@ -365,7 +365,7 @@ async def startup_recovery():
                 if hours_since_last > 1 or check_was_missed:  # More than 1 hour gap OR missed scheduled check
                     logger.warning(f"Startup recovery: {hours_since_last:.1f} hours since last check. Sending catch-up notification...")
                     
-                    # Send notification about the gap
+                    # Send notification about the gap - auto-delete after 30 min
                     telegram_config = await db.telegram_config.find_one({}, {"_id": 0})
                     if telegram_config and telegram_config.get("bot_token") and telegram_config.get("chat_id"):
                         try:
@@ -375,12 +375,14 @@ async def startup_recovery():
                                 msg += f" after {hours_since_last:.1f} hours offline"
                             msg += f".\nRunning immediate check.\n\nTime: {now_arizona.strftime('%I:%M %p')} Arizona"
                             
-                            await bot.send_message(
+                            sent_msg = await bot.send_message(
                                 chat_id=telegram_config["chat_id"],
                                 text=msg,
                                 parse_mode=ParseMode.MARKDOWN
                             )
                             logger.info("Startup recovery notification sent")
+                            # Schedule auto-deletion after 30 minutes
+                            asyncio.create_task(delete_message_later(bot, telegram_config["chat_id"], sent_msg.message_id, 30))
                         except Exception as e:
                             logger.error(f"Failed to send startup notification: {e}")
                     
