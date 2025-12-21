@@ -596,8 +596,8 @@ async def build_compilation_message(account: str) -> str:
         to_win_short = bet.get('to_win_short', '$0')
         result = bet.get('result')  # None, 'won', 'lost', 'push'
         
-        # Build line
-        bet_line = f"Game {i}: {game_short}"
+        # Build compact line: #1 TEAM/TEAM o47 ($2.2K/$2K)🟡
+        bet_line = f"#{i} {game_short}"
         if bet_type_short:
             bet_line += f" {bet_type_short}"
         bet_line += f" ({wager_short}/{to_win_short})"
