@@ -129,6 +129,9 @@ def schedule_daily_summary():
 async def auto_start_monitoring():
     """Auto-start bet monitoring if it was previously enabled"""
     global monitoring_enabled
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    
     try:
         # Check if there's an active connection
         conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
@@ -138,7 +141,37 @@ async def auto_start_monitoring():
             if monitor_config and monitor_config.get("auto_start", True):
                 monitoring_enabled = True
                 
-                # Start background monitoring loop (more reliable than scheduler)
+                # Check if we missed a scheduled check (server restart detection)
+                state = await db.monitor_state.find_one({"_id": "main"})
+                if state and state.get("next_check_utc"):
+                    next_check_utc = state["next_check_utc"]
+                    if isinstance(next_check_utc, str):
+                        next_check_utc = datetime.fromisoformat(next_check_utc.replace('Z', '+00:00'))
+                    if next_check_utc.tzinfo is None:
+                        next_check_utc = next_check_utc.replace(tzinfo=timezone.utc)
+                    
+                    now_utc = datetime.now(timezone.utc)
+                    if next_check_utc < now_utc:
+                        minutes_overdue = (now_utc - next_check_utc).total_seconds() / 60
+                        if minutes_overdue > 2:  # More than 2 minutes overdue
+                            now_arizona = datetime.now(arizona_tz)
+                            logger.warning(f"SERVER RESTART DETECTED! Missed check was {minutes_overdue:.0f} min overdue.")
+                            
+                            # Send alert to Telegram about the restart
+                            try:
+                                telegram_config = await db.telegram_config.find_one({}, {"_id": 0})
+                                if telegram_config and telegram_config.get("bot_token"):
+                                    bot = Bot(token=telegram_config["bot_token"])
+                                    msg = f"⚠️ *SERVER RESTART*\n\nMonitoring was interrupted.\nMissed check by ~{minutes_overdue:.0f} min.\nRunning immediate catch-up check.\n\nTime: {now_arizona.strftime('%I:%M %p')} Arizona"
+                                    await bot.send_message(
+                                        chat_id=telegram_config["chat_id"],
+                                        text=msg,
+                                        parse_mode=ParseMode.MARKDOWN
+                                    )
+                            except Exception as e:
+                                logger.error(f"Failed to send restart alert: {e}")
+                
+                # Start background monitoring loop
                 asyncio.create_task(monitoring_loop())
                 
                 logger.info("Bet monitoring auto-started with background loop (7-15 min random intervals, paused 10:45 PM - 5:30 AM Arizona)")
