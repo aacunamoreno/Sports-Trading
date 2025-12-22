@@ -726,8 +726,11 @@ async def update_compilation_message(account: str):
         if not compilation or not compilation.get('bets'):
             return
         
-        message_text = await build_compilation_message(account)
-        if not message_text:
+        # Generate both short and detailed messages
+        short_message = await build_compilation_message(account, detailed=False)
+        detailed_message = await build_compilation_message(account, detailed=True)
+        
+        if not short_message or not detailed_message:
             return
         
         # Delete ALL old messages for this account (today and previous days)
@@ -750,19 +753,26 @@ async def update_compilation_message(account: str):
                     {"$set": {"message_id": None}}
                 )
         
-        # Send new message (always at bottom of chat)
-        sent_message = await telegram_bot.send_message(
+        # Send short message first (always at bottom of chat)
+        short_sent_message = await telegram_bot.send_message(
             chat_id=telegram_chat_id,
-            text=message_text,
+            text=short_message,
             parse_mode=ParseMode.MARKDOWN
         )
         
-        # Store the new message ID for today's compilation
+        # Send detailed message second (will be at bottom after short)
+        detailed_sent_message = await telegram_bot.send_message(
+            chat_id=telegram_chat_id,
+            text=detailed_message,
+            parse_mode=ParseMode.MARKDOWN
+        )
+        
+        # Store the detailed message ID for today's compilation (keep the last one for cleanup)
         await db.daily_compilations.update_one(
             {"account": account, "date": today},
-            {"$set": {"message_id": sent_message.message_id}}
+            {"$set": {"message_id": detailed_sent_message.message_id}}
         )
-        logger.info(f"Sent new compilation message for {account}, message_id: {sent_message.message_id}")
+        logger.info(f"Sent compilation messages for {account}: short={short_sent_message.message_id}, detailed={detailed_sent_message.message_id}")
         
         # Clean up old compilations from database (keep only last 7 days)
         seven_days_ago = (datetime.now(arizona_tz) - timedelta(days=7)).strftime('%Y-%m-%d')
