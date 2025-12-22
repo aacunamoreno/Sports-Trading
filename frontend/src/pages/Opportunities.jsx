@@ -130,7 +130,12 @@ export default function Opportunities() {
                       <div className={`text-xl font-bold ${getTextStyle(play.color)}`}>
                         {play.recommendation === 'OVER' ? '⬆️' : '⬇️'} {play.recommendation}
                       </div>
-                      <div className="text-sm text-muted-foreground">Game Avg: {play.game_avg}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Edge: <span className={play.edge >= 0 ? 'text-green-400 font-bold' : 'text-yellow-400 font-bold'}>
+                          {play.edge >= 0 ? '+' : ''}{play.edge}
+                        </span>
+                        {play.edge < 0 && <span className="text-xs ml-1">(wait for line drop)</span>}
+                      </div>
                     </div>
                   </div>
                 </div>
