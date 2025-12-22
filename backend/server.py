@@ -509,30 +509,85 @@ def format_amount_short(amount: float) -> str:
     return f"${amount:.0f}"
 
 def extract_short_game_name(game: str, description: str = "") -> str:
-    """Extract short team names like FALCONS/CARDINALS from game description"""
+    """Extract VERY short team names - max 3-4 chars per team"""
     import re
     
-    # Common patterns to extract team names
-    text = game or description or ""
+    text = (game or description or "").upper()
     
-    # Try to find team matchup patterns like "Team1 vs Team2" or "Team1/Team2"
-    # or "TEAM1 @ TEAM2"
-    patterns = [
-        r'([A-Z]{2,})\s*(?:vs\.?|@|\/)\s*([A-Z]{2,})',  # TEAM vs TEAM
-        r'([A-Za-z]+)\s*(?:vs\.?|@|\/)\s*([A-Za-z]+)',   # Team vs Team
-    ]
+    # Common team abbreviations dictionary
+    TEAM_ABBREVS = {
+        # NFL
+        'JACKSONVILLE': 'JAX', 'JAGUARS': 'JAX', 'DENVER': 'DEN', 'BRONCOS': 'DEN',
+        'ATLANTA': 'ATL', 'FALCONS': 'ATL', 'ARIZONA': 'ARI', 'CARDINALS': 'ARI',
+        'PITTSBURGH': 'PIT', 'STEELERS': 'PIT', 'PENGUINS': 'PIT',
+        'DETROIT': 'DET', 'LIONS': 'DET', 'PATRIOTS': 'NE', 'NEW ENGLAND': 'NE',
+        'BALTIMORE': 'BAL', 'RAVENS': 'BAL', 'LAS VEGAS': 'LV', 'RAIDERS': 'LV',
+        'HOUSTON': 'HOU', 'TEXANS': 'HOU',
+        # NHL
+        'WINNIPEG': 'WPG', 'JETS': 'WPG', 'UTAH': 'UTA', 'MAMMOTH': 'UTA',
+        'COLORADO': 'COL', 'AVALANCHE': 'COL', 'MINNESOTA': 'MIN', 'WILD': 'MIN',
+        'MONTREAL': 'MTL', 'CANADIENS': 'MTL', 'NEW YORK': 'NY', 'RANGERS': 'NYR',
+        'NASHVILLE': 'NSH', 'PREDATORS': 'NSH',
+        # College Basketball common
+        'SACRAMENTO': 'SAC', 'STATE': '', 'BETHUNE': 'BETH', 'COOKMAN': 'COOK',
+        'CENTRAL': 'CEN', 'MICHIGAN': 'MICH', 'FAIRLEIGH': 'FDU', 'DICKINSON': 'FDU',
+        'INDIANAPOLIS': 'INDY', 'IRVINE': 'UCI', 'NORFOLK': 'NORF',
+        'CREIGHTON': 'CRE', 'EDWARDSVILLE': 'SIU', 'TECH': 'TCH',
+        'ALABAMA': 'ALA', 'KENTUCKY': 'KEN', 'DUKE': 'DUKE', 'CAROLINA': 'CAR',
+        'GONZAGA': 'GONZ', 'VILLANOVA': 'NOVA', 'KANSAS': 'KAN', 'TEXAS': 'TEX',
+        'FLORIDA': 'FLA', 'OHIO': 'OHIO', 'OREGON': 'ORE', 'UCLA': 'UCLA',
+        'MEMPHIS': 'MEM', 'TENNESSEE': 'TENN', 'VIRGINIA': 'UVA', 'LOUISVILLE': 'LOU',
+        'XAVIER': 'XAV', 'PURDUE': 'PUR', 'ILLINOIS': 'ILL', 'IOWA': 'IOWA',
+        'WISCONSIN': 'WISC', 'MARYLAND': 'MD', 'INDIANA': 'IND', 'PENN': 'PENN',
+        'SYRACUSE': 'SYR', 'CLEMSON': 'CLEM', 'MIAMI': 'MIA', 'AUBURN': 'AUB',
+        'ARKANSAS': 'ARK', 'MISSISSIPPI': 'MISS', 'MISSOURI': 'MIZZ', 'BAYLOR': 'BAY',
+        'STANFORD': 'STAN', 'WASHINGTON': 'WASH', 'ARIZONA STATE': 'ASU',
+        'BOSTON': 'BOS', 'COLLEGE': 'BC', 'CONNECTICUT': 'UCON', 'TEMPLE': 'TEM',
+        'CINCINNATI': 'CIN', 'HOUSTON': 'HOU', 'SMU': 'SMU', 'TULANE': 'TUL',
+        'RICE': 'RICE', 'PEPPERDINE': 'PEP', 'NEW MEXICO': 'NM', 'MEXICO': 'NM',
+        # Soccer
+        'ABHA': 'ABHA', 'CLUB': '',
+        # Generic
+        'UNIVERSITY': '', 'OF': '', 'THE': '', 'VRS': '', 'VS': '', 'REG.TIME': '', 'REG': '',
+    }
     
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            team1 = match.group(1).upper()[:8]  # Max 8 chars
-            team2 = match.group(2).upper()[:8]
-            return f"{team1}/{team2}"
+    def get_abbrev(team_name):
+        """Get abbreviation for a team name"""
+        team_name = team_name.strip().upper()
+        
+        # Direct lookup
+        if team_name in TEAM_ABBREVS:
+            return TEAM_ABBREVS[team_name]
+        
+        # Try each word
+        words = team_name.split()
+        abbrev_parts = []
+        for word in words:
+            if word in TEAM_ABBREVS:
+                if TEAM_ABBREVS[word]:  # Skip empty abbreviations
+                    abbrev_parts.append(TEAM_ABBREVS[word])
+            elif len(word) >= 3:
+                abbrev_parts.append(word[:3])
+        
+        if abbrev_parts:
+            return abbrev_parts[0]  # Return first significant part
+        
+        # Fallback: first 4 chars
+        return team_name[:4] if team_name else "TM"
     
-    # If no pattern found, just truncate
-    if len(text) > 20:
-        return text[:20].upper()
-    return text.upper() if text else "GAME"
+    # Remove common noise
+    text = re.sub(r'REG\.?TIME|OT INCLUDED|\[.*?\]|\d{1,3}\s*', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    # Try to find matchup pattern
+    match = re.search(r'(.+?)\s*(?:VRS|VS\.?|@|\/)\s*(.+)', text, re.IGNORECASE)
+    if match:
+        team1 = get_abbrev(match.group(1).strip())
+        team2 = get_abbrev(match.group(2).strip())
+        return f"{team1}/{team2}"
+    
+    # Single team (like spreads)
+    return get_abbrev(text)
 
 def extract_bet_type_short(bet_type: str) -> str:
     """Extract short bet type like 'u48' or 'o47' from bet description"""
