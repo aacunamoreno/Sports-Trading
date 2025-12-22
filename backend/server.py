@@ -3402,11 +3402,13 @@ async def refresh_nba_opportunities_scheduled():
             
             game_avg = (away_avg + home_avg) / 2
             
-            # Determine recommendation
-            if game_avg <= 10:
+            # Determine recommendation (midpoint is 15, +/- 2.5)
+            # OVER: 1-12.5 (2.5 below midpoint)
+            # UNDER: 17.5-30 (2.5 above midpoint)
+            if game_avg <= 12.5:
                 recommendation = "OVER"
                 color = "green"
-            elif game_avg >= 21:
+            elif game_avg >= 17.5:
                 recommendation = "UNDER"
                 color = "red"
             else:
@@ -3543,11 +3545,13 @@ async def refresh_opportunities():
             
             game_avg = (away_avg + home_avg) / 2
             
-            # Determine recommendation
-            if game_avg <= 10:
+            # Determine recommendation (midpoint is 15, +/- 2.5)
+            # OVER: 1-12.5 (2.5 below midpoint)
+            # UNDER: 17.5-30 (2.5 above midpoint)
+            if game_avg <= 12.5:
                 recommendation = "OVER"
                 color = "green"
-            elif game_avg >= 21:
+            elif game_avg >= 17.5:
                 recommendation = "UNDER"
                 color = "red"
             else:
