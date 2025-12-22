@@ -1,30 +1,26 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Target, TrendingUp } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Target } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 export default function Opportunities() {
-  const [opportunities, setOpportunities] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [data, setData] = useState({ games: [], plays: [], date: '', last_updated: '' });
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadOpportunities();
   }, []);
 
   const loadOpportunities = async () => {
-    setLoading(true);
     try {
       const response = await axios.get(`${API}/opportunities`);
-      setOpportunities(response.data.opportunities || []);
-      if (response.data.message) {
-        setMessage(response.data.message);
-      }
+      setData(response.data);
     } catch (error) {
       console.error('Error loading opportunities:', error);
       toast.error('Failed to load opportunities');
@@ -33,115 +29,203 @@ export default function Opportunities() {
     }
   };
 
-  const handlePlaceBet = async (opportunity) => {
+  const handleRefresh = async () => {
+    setRefreshing(true);
     try {
-      await axios.post(`${API}/bets/place`, {
-        opportunity_id: opportunity.id,
-        wager_amount: opportunity.wager_amount,
-      });
-      toast.success(`Bet placed: $${opportunity.wager_amount} on ${opportunity.event_name}`);
-      loadOpportunities();
+      const response = await axios.post(`${API}/opportunities/refresh`);
+      setData(response.data);
+      toast.success('Opportunities refreshed!');
     } catch (error) {
-      console.error('Error placing bet:', error);
-      toast.error('Failed to place bet');
+      console.error('Error refreshing:', error);
+      toast.error('Failed to refresh');
+    } finally {
+      setRefreshing(false);
     }
   };
 
+  const getRowStyle = (color) => {
+    if (color === 'green') return 'bg-green-500/20 border-green-500/50';
+    if (color === 'red') return 'bg-red-500/20 border-red-500/50';
+    return '';
+  };
+
+  const getTextStyle = (color) => {
+    if (color === 'green') return 'text-green-400 font-bold';
+    if (color === 'red') return 'text-red-400 font-bold';
+    return 'text-muted-foreground';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Loading opportunities...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-heading font-bold tracking-tight mb-2" data-testid="opportunities-title">
-            Live Opportunities
+          <h1 className="text-2xl lg:text-4xl font-heading font-bold tracking-tight flex items-center gap-2">
+            <Target className="w-8 h-8 text-primary" />
+            Opportunities
           </h1>
-          <p className="text-muted-foreground">Betting opportunities matching your rules</p>
+          <p className="text-sm lg:text-base text-muted-foreground mt-1">
+            NBA Over/Under analysis based on PPG rankings
+          </p>
         </div>
-        <Button
-          onClick={loadOpportunities}
-          disabled={loading}
-          data-testid="refresh-opportunities-button"
-          className="bg-primary text-primary-foreground hover:bg-primary/90 neon-glow"
+        <Button 
+          onClick={handleRefresh} 
+          disabled={refreshing}
+          className="flex items-center gap-2"
         >
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-          Refresh
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh Data
         </Button>
       </div>
 
-      {message && (
-        <Card className="glass-card border-primary/30" data-testid="info-message">
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">{message}</p>
+      {/* Info Card */}
+      <Card className="glass-card border-primary/30">
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div><span className="text-muted-foreground">Date:</span> <span className="font-mono">{data.date || 'N/A'}</span></div>
+            <div><span className="text-muted-foreground">Last Updated:</span> <span className="font-mono">{data.last_updated || 'N/A'}</span></div>
+            <div><span className="text-muted-foreground">Games:</span> <span className="font-mono">{data.games?.length || 0}</span></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Today's Plays */}
+      {data.plays && data.plays.length > 0 && (
+        <Card className="glass-card neon-border">
+          <CardHeader className="border-b border-border pb-4">
+            <CardTitle className="text-lg flex items-center gap-2">
+              🎯 TODAY'S PLAYS
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid gap-3">
+              {data.plays.map((play, idx) => (
+                <div 
+                  key={idx}
+                  className={`p-4 rounded-lg border ${getRowStyle(play.color)}`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      {play.recommendation === 'OVER' ? (
+                        <TrendingUp className="w-6 h-6 text-green-400" />
+                      ) : (
+                        <TrendingDown className="w-6 h-6 text-red-400" />
+                      )}
+                      <div>
+                        <div className="font-bold">{play.game}</div>
+                        <div className="text-sm text-muted-foreground">Total: {play.total}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-xl font-bold ${getTextStyle(play.color)}`}>
+                        {play.recommendation === 'OVER' ? '⬆️' : '⬇️'} {play.recommendation}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Game Avg: {play.game_avg}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {opportunities.length === 0 && !message ? (
-          <Card className="glass-card neon-border col-span-full">
-            <CardContent className="pt-6 text-center text-muted-foreground">
-              <Target className="w-12 h-12 mx-auto mb-4 opacity-50" strokeWidth={1.5} />
-              <p>No opportunities found matching your rules.</p>
-              <p className="text-sm mt-2">Try adjusting your betting rules or check back later.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          opportunities.map((opp) => (
-            <Card key={opp.id} className="glass-card neon-border" data-testid={`opportunity-card-${opp.id}`}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="font-heading text-lg">{opp.event_name}</CardTitle>
-                    <CardDescription className="text-xs font-mono text-muted-foreground mt-1">
-                      {opp.sport} • {opp.bet_type}
-                    </CardDescription>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-mono font-bold text-primary">
-                      {opp.odds > 0 ? `+${opp.odds}` : opp.odds}
-                    </div>
-                    <div className="text-xs text-muted-foreground uppercase tracking-wider">ODDS</div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Matched Rule:</span>
-                    <span className="font-mono text-foreground">{opp.matched_rule_name}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Wager Amount:</span>
-                    <span className="font-mono text-primary">${opp.wager_amount}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Potential Win:</span>
-                    <span className="font-mono text-green-400">
-                      ${opp.potential_win ? opp.potential_win.toFixed(2) : '0.00'}
-                    </span>
-                  </div>
-                </div>
+      {/* Games Table */}
+      <Card className="glass-card neon-border">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-lg">NBA Games Analysis</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4 overflow-x-auto">
+          {data.games && data.games.length > 0 ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-2">#</th>
+                  <th className="text-left py-3 px-2">Time</th>
+                  <th className="text-left py-3 px-2">Away</th>
+                  <th className="text-center py-3 px-2">PPG</th>
+                  <th className="text-center py-3 px-2">L3</th>
+                  <th className="text-left py-3 px-2">Home</th>
+                  <th className="text-center py-3 px-2">PPG</th>
+                  <th className="text-center py-3 px-2">L3</th>
+                  <th className="text-center py-3 px-2">Total</th>
+                  <th className="text-center py-3 px-2">Avg</th>
+                  <th className="text-center py-3 px-2">Bet</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.games.map((game) => (
+                  <tr 
+                    key={game.game_num}
+                    className={`border-b border-border/50 ${getRowStyle(game.color)}`}
+                  >
+                    <td className="py-3 px-2 font-mono">{game.game_num}</td>
+                    <td className="py-3 px-2 text-muted-foreground">{game.time}</td>
+                    <td className={`py-3 px-2 font-medium ${getTextStyle(game.color)}`}>{game.away_team}</td>
+                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.away_ppg_rank}</td>
+                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.away_last3_rank}</td>
+                    <td className={`py-3 px-2 font-medium ${getTextStyle(game.color)}`}>{game.home_team}</td>
+                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.home_ppg_rank}</td>
+                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.home_last3_rank}</td>
+                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.total}</td>
+                    <td className={`py-3 px-2 text-center font-bold ${getTextStyle(game.color)}`}>{game.game_avg}</td>
+                    <td className="py-3 px-2 text-center">
+                      {game.recommendation ? (
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${
+                          game.recommendation === 'OVER' 
+                            ? 'bg-green-500/30 text-green-400' 
+                            : 'bg-red-500/30 text-red-400'
+                        }`}>
+                          {game.recommendation === 'OVER' ? '⬆️' : '⬇️'} {game.recommendation}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No opportunities data available.</p>
+              <p className="text-sm mt-2">Click "Refresh Data" to load today's games.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-                <div className="pt-3 border-t border-border">
-                  {opp.auto_place ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
-                      <TrendingUp className="w-3 h-3" strokeWidth={1.5} />
-                      <span>Will be placed automatically</span>
-                    </div>
-                  ) : (
-                    <Button
-                      onClick={() => handlePlaceBet(opp)}
-                      data-testid={`place-bet-${opp.id}`}
-                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200"
-                    >
-                      Place Bet
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+      {/* Legend */}
+      <Card className="glass-card">
+        <CardContent className="pt-4">
+          <div className="text-sm">
+            <div className="font-bold mb-2">Betting Rule:</div>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-green-500/30 border border-green-500/50"></span>
+                <span>Game Avg 1-10 → <span className="text-green-400 font-bold">OVER</span></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-muted border border-border"></span>
+                <span>Game Avg 11-20 → No edge</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-red-500/30 border border-red-500/50"></span>
+                <span>Game Avg 21-30 → <span className="text-red-400 font-bold">UNDER</span></span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
