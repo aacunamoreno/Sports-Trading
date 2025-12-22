@@ -101,3 +101,111 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Build a betting automation system dashboard for plays888.co with bet monitoring, 
+  Telegram notifications, and an "Opportunities" section for NBA game analysis based on PPG rankings.
+
+backend:
+  - task: "NBA Opportunities API - GET /api/opportunities"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Fixed duplicate endpoint conflict. Renamed old Rules-based opportunities to /api/rules/opportunities. NBA endpoint now returns games with PPG rankings and recommendations."
+
+  - task: "NBA Opportunities API - POST /api/opportunities/refresh"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Manual refresh endpoint working. Calculates game averages and recommendations (OVER/UNDER) based on PPG rankings."
+
+  - task: "Scheduled NBA Opportunities Refresh"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added scheduled job to refresh NBA opportunities at 10:30 PM Arizona time (before 10:45 PM sleep mode). Cannot test time-based scheduling directly."
+
+frontend:
+  - task: "Opportunities Page UI"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/Opportunities.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Full page implemented with TODAY'S PLAYS section, NBA Games Analysis table with all columns (Time, Away/Home teams, PPG ranks, L3 ranks, Total, Game Avg, Bet recommendation), color highlighting (green=OVER, red=UNDER), and betting rule legend."
+
+  - task: "Opportunities Navigation"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/Layout.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Navigation link to Opportunities page already exists in sidebar."
+
+  - task: "Opportunities Route"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Route /opportunities already configured in App.js"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "NBA Opportunities API - GET /api/opportunities"
+    - "NBA Opportunities API - POST /api/opportunities/refresh"
+    - "Opportunities Page UI"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Completed Opportunities page implementation:
+      1. Fixed duplicate /api/opportunities endpoint conflict (renamed old one to /api/rules/opportunities)
+      2. NBA opportunities API returns 7 games with PPG rankings, last 3 games rankings, game averages, and OVER/UNDER recommendations
+      3. Frontend displays TODAY'S PLAYS at top, full table with all columns, green/red highlighting
+      4. Added scheduled job at 10:30 PM Arizona to auto-refresh data before sleep mode
+      
+      Please test:
+      - GET /api/opportunities returns games data
+      - POST /api/opportunities/refresh triggers data refresh
+      - Frontend /opportunities page displays table correctly
+      - Color coding: green rows for OVER, red rows for UNDER recommendations
