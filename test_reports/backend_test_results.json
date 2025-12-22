@@ -1,0 +1,44 @@
+{
+  "timestamp": "2025-12-22T21:46:22.519587",
+  "total_tests": 6,
+  "passed_tests": 5,
+  "success_rate": 83.33333333333334,
+  "results": [
+    {
+      "test": "GET /api/opportunities - Game Structure",
+      "success": true,
+      "details": "Game has all required fields",
+      "timestamp": "2025-12-22T21:46:22.401495"
+    },
+    {
+      "test": "GET /api/opportunities - Play Structure",
+      "success": true,
+      "details": "Play has all required fields",
+      "timestamp": "2025-12-22T21:46:22.401524"
+    },
+    {
+      "test": "GET /api/opportunities",
+      "success": true,
+      "details": "Returned 7 games, 2 plays",
+      "timestamp": "2025-12-22T21:46:22.401530"
+    },
+    {
+      "test": "POST /api/opportunities/refresh - Structure",
+      "success": false,
+      "details": "Missing fields: ['last_updated']",
+      "timestamp": "2025-12-22T21:46:22.437843"
+    },
+    {
+      "test": "Betting Logic Test",
+      "success": true,
+      "details": "OVER: 1, UNDER: 1, No bet: 5",
+      "timestamp": "2025-12-22T21:46:22.473148"
+    },
+    {
+      "test": "Color Coding Test",
+      "success": true,
+      "details": "All color coding is correct",
+      "timestamp": "2025-12-22T21:46:22.518693"
+    }
+  ]
+}
