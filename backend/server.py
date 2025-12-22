@@ -3597,6 +3597,7 @@ async def refresh_opportunities():
             "success": True,
             "message": "Opportunities refreshed",
             "date": today,
+            "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
             "games": games,
             "plays": plays
         }
