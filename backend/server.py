@@ -2907,7 +2907,7 @@ async def trigger_daily_summary():
 
 @api_router.post("/telegram/send-compilations")
 async def send_all_compilations():
-    """Send/update compilation messages for all accounts with bets today"""
+    """Send/update compilation messages for all accounts - shorts first, then details"""
     if not telegram_bot or not telegram_chat_id:
         raise HTTPException(status_code=400, detail="Telegram not configured")
     
@@ -2919,14 +2919,61 @@ async def send_all_compilations():
         # Find all compilations for today
         compilations = await db.daily_compilations.find({"date": today}).to_list(10)
         
-        sent_count = 0
-        for comp in compilations:
-            account = comp.get('account')
-            if account:
-                await update_compilation_message(account)
-                sent_count += 1
+        if not compilations:
+            return {"success": True, "message": "No compilations to send"}
         
-        return {"success": True, "message": f"Sent {sent_count} compilation messages"}
+        # Delete ALL old messages first
+        for comp in compilations:
+            for field in ['message_id_short', 'message_id_detailed', 'message_id']:
+                old_id = comp.get(field)
+                if old_id:
+                    try:
+                        await telegram_bot.delete_message(chat_id=telegram_chat_id, message_id=old_id)
+                    except Exception:
+                        pass
+        
+        # Build all messages
+        accounts = [comp.get('account') for comp in compilations if comp.get('account')]
+        
+        # Sort accounts so ENANO (jac075) comes before TIPSTER (jac083)
+        accounts.sort()
+        
+        message_ids = {}
+        
+        # 1. Send ALL short versions first
+        for account in accounts:
+            short_msg = await build_compilation_message(account, detailed=False)
+            if short_msg:
+                sent = await telegram_bot.send_message(
+                    chat_id=telegram_chat_id,
+                    text=short_msg,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                message_ids[f"{account}_short"] = sent.message_id
+        
+        # 2. Send ALL detailed versions second
+        for account in accounts:
+            detailed_msg = await build_compilation_message(account, detailed=True)
+            if detailed_msg:
+                sent = await telegram_bot.send_message(
+                    chat_id=telegram_chat_id,
+                    text=detailed_msg,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                message_ids[f"{account}_detailed"] = sent.message_id
+        
+        # 3. Update database with new message IDs
+        for account in accounts:
+            await db.daily_compilations.update_one(
+                {"account": account, "date": today},
+                {"$set": {
+                    "message_id_short": message_ids.get(f"{account}_short"),
+                    "message_id_detailed": message_ids.get(f"{account}_detailed"),
+                    "message_id": None
+                }}
+            )
+        
+        return {"success": True, "message": f"Sent {len(accounts) * 2} compilation messages"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
