@@ -2514,9 +2514,9 @@ async def delete_rule(rule_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@api_router.get("/opportunities")
-async def get_opportunities():
-    """Get current betting opportunities that match rules"""
+@api_router.get("/rules/opportunities")
+async def get_rules_opportunities():
+    """Get current betting opportunities that match rules (from plays888)"""
     try:
         # Get connection
         conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
