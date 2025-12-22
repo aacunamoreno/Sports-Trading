@@ -637,8 +637,13 @@ async def get_or_create_daily_compilation(account: str) -> dict:
     
     return compilation
 
-async def build_compilation_message(account: str) -> str:
-    """Build the compilation message for an account"""
+async def build_compilation_message(account: str, detailed: bool = False) -> str:
+    """Build the compilation message for an account
+    
+    Args:
+        account: The account username
+        detailed: If True, use full team names. If False, use short abbreviations.
+    """
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
     today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
@@ -655,22 +660,33 @@ async def build_compilation_message(account: str) -> str:
     bets = compilation['bets']
     total_result = compilation.get('total_result', 0)
     
-    lines = [f"👤 *{account_label}*", ""]
+    # Header differs for short vs detailed
+    if detailed:
+        lines = [f"📋 *{account_label}* (Detail)", ""]
+    else:
+        lines = [f"👤 *{account_label}*", ""]
     
     for i, bet in enumerate(bets, 1):
-        game_short = bet.get('game_short', 'GAME')
+        # Use full game name for detailed, short for compact
+        if detailed:
+            game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
+            # Clean up the game name
+            game_name = game_name.replace('REG.TIME', '').strip()
+        else:
+            game_name = bet.get('game_short', 'GAME')
+        
         bet_type_short = bet.get('bet_type_short', '')
         wager_short = bet.get('wager_short', '$0')
         to_win_short = bet.get('to_win_short', '$0')
-        result = bet.get('result')  # None, 'won', 'lost', 'push'
+        result = bet.get('result')
         
-        # Build compact line: #1 TEAM/TEAM o47 ($2.2K/$2K)🟡
-        bet_line = f"#{i} {game_short}"
+        # Build line
+        bet_line = f"#{i} {game_name}"
         if bet_type_short:
             bet_line += f" {bet_type_short}"
         bet_line += f" ({wager_short}/{to_win_short})"
         
-        # Add result emoji - 🟡 for pending, 🟢 won, 🔴 lost, 🔵 push
+        # Add result emoji
         if result == 'won':
             bet_line += "🟢"
         elif result == 'lost':
@@ -678,7 +694,7 @@ async def build_compilation_message(account: str) -> str:
         elif result == 'push':
             bet_line += "🔵"
         else:
-            bet_line += "🟡"  # Pending
+            bet_line += "🟡"
         
         lines.append(bet_line)
     
