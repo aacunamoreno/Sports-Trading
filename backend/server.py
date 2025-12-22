@@ -2907,7 +2907,7 @@ async def trigger_daily_summary():
 
 @api_router.post("/telegram/send-compilations")
 async def send_all_compilations():
-    """Send/update compilation messages for all accounts - shorts first, then details"""
+    """Send compilation messages: ENANO short, TIPSTER short, TIPSTER detail"""
     if not telegram_bot or not telegram_chat_id:
         raise HTTPException(status_code=400, detail="Telegram not configured")
     
@@ -2932,48 +2932,61 @@ async def send_all_compilations():
                     except Exception:
                         pass
         
-        # Build all messages
-        accounts = [comp.get('account') for comp in compilations if comp.get('account')]
-        
-        # Sort accounts so ENANO (jac075) comes before TIPSTER (jac083)
-        accounts.sort()
-        
         message_ids = {}
+        sent_count = 0
         
-        # 1. Send ALL short versions first
-        for account in accounts:
-            short_msg = await build_compilation_message(account, detailed=False)
-            if short_msg:
-                sent = await telegram_bot.send_message(
-                    chat_id=telegram_chat_id,
-                    text=short_msg,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                message_ids[f"{account}_short"] = sent.message_id
-        
-        # 2. Send ALL detailed versions second
-        for account in accounts:
-            detailed_msg = await build_compilation_message(account, detailed=True)
-            if detailed_msg:
-                sent = await telegram_bot.send_message(
-                    chat_id=telegram_chat_id,
-                    text=detailed_msg,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                message_ids[f"{account}_detailed"] = sent.message_id
-        
-        # 3. Update database with new message IDs
-        for account in accounts:
-            await db.daily_compilations.update_one(
-                {"account": account, "date": today},
-                {"$set": {
-                    "message_id_short": message_ids.get(f"{account}_short"),
-                    "message_id_detailed": message_ids.get(f"{account}_detailed"),
-                    "message_id": None
-                }}
+        # 1. ENANO short (jac075)
+        enano_short = await build_compilation_message("jac075", detailed=False)
+        if enano_short:
+            sent = await telegram_bot.send_message(
+                chat_id=telegram_chat_id,
+                text=enano_short,
+                parse_mode=ParseMode.MARKDOWN
             )
+            message_ids["jac075_short"] = sent.message_id
+            sent_count += 1
         
-        return {"success": True, "message": f"Sent {len(accounts) * 2} compilation messages"}
+        # 2. TIPSTER short (jac083)
+        tipster_short = await build_compilation_message("jac083", detailed=False)
+        if tipster_short:
+            sent = await telegram_bot.send_message(
+                chat_id=telegram_chat_id,
+                text=tipster_short,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            message_ids["jac083_short"] = sent.message_id
+            sent_count += 1
+        
+        # 3. TIPSTER detail (jac083) - NO detail for ENANO
+        tipster_detail = await build_compilation_message("jac083", detailed=True)
+        if tipster_detail:
+            sent = await telegram_bot.send_message(
+                chat_id=telegram_chat_id,
+                text=tipster_detail,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            message_ids["jac083_detailed"] = sent.message_id
+            sent_count += 1
+        
+        # Update database with new message IDs
+        await db.daily_compilations.update_one(
+            {"account": "jac075", "date": today},
+            {"$set": {
+                "message_id_short": message_ids.get("jac075_short"),
+                "message_id_detailed": None,
+                "message_id": None
+            }}
+        )
+        await db.daily_compilations.update_one(
+            {"account": "jac083", "date": today},
+            {"$set": {
+                "message_id_short": message_ids.get("jac083_short"),
+                "message_id_detailed": message_ids.get("jac083_detailed"),
+                "message_id": None
+            }}
+        )
+        
+        return {"success": True, "message": f"Sent {sent_count} compilation messages"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
