@@ -87,14 +87,61 @@ async def startup_event():
     schedule_daily_summary()
     await startup_recovery()  # Check if we missed anything overnight
 
-async def delete_message_later(bot, chat_id, message_id, delay_minutes=30):
-    """Delete a Telegram message after a delay - used for status notifications"""
+async def schedule_message_deletion(chat_id: int, message_id: int, delay_minutes: int = 15):
+    """Schedule a message for deletion by storing in database (survives server restarts)"""
     try:
-        await asyncio.sleep(delay_minutes * 60)
-        await bot.delete_message(chat_id=chat_id, message_id=message_id)
-        logger.info(f"Auto-deleted status message {message_id} after {delay_minutes} min")
+        from zoneinfo import ZoneInfo
+        delete_at = datetime.now(timezone.utc) + timedelta(minutes=delay_minutes)
+        await db.scheduled_deletions.insert_one({
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "delete_at": delete_at,
+            "created_at": datetime.now(timezone.utc)
+        })
+        logger.debug(f"Scheduled message {message_id} for deletion at {delete_at}")
     except Exception as e:
-        logger.debug(f"Could not auto-delete message {message_id}: {e}")
+        logger.error(f"Error scheduling message deletion: {e}")
+
+async def process_pending_deletions():
+    """Process any messages that are past their deletion time"""
+    try:
+        now = datetime.now(timezone.utc)
+        pending = await db.scheduled_deletions.find({"delete_at": {"$lte": now}}).to_list(100)
+        
+        if not pending:
+            return
+        
+        logger.info(f"Processing {len(pending)} pending message deletions...")
+        
+        telegram_config = await db.telegram_config.find_one({}, {"_id": 0})
+        if not telegram_config or not telegram_config.get("bot_token"):
+            logger.warning("No Telegram config found for deletion processing")
+            return
+        
+        bot = Bot(token=telegram_config["bot_token"])
+        
+        deleted_count = 0
+        for item in pending:
+            try:
+                await bot.delete_message(chat_id=item["chat_id"], message_id=item["message_id"])
+                deleted_count += 1
+            except Exception as e:
+                # Message may already be deleted or too old
+                logger.debug(f"Could not delete message {item['message_id']}: {e}")
+            
+            # Remove from scheduled deletions regardless of success
+            await db.scheduled_deletions.delete_one({"_id": item["_id"]})
+        
+        if deleted_count > 0:
+            logger.info(f"Auto-deleted {deleted_count} status messages")
+            
+    except Exception as e:
+        logger.error(f"Error processing pending deletions: {e}")
+
+async def delete_message_later(bot, chat_id, message_id, delay_minutes=15):
+    """Schedule a Telegram message for deletion - now uses database for reliability"""
+    # Use database-backed scheduling instead of asyncio task
+    await schedule_message_deletion(chat_id, message_id, delay_minutes)
 
 def schedule_daily_summary():
     """Schedule the daily summary to run at 11 PM Arizona time"""
