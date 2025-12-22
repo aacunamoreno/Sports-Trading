@@ -708,7 +708,7 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
     return "\n".join(lines)
 
 async def update_compilation_message(account: str):
-    """Update the Telegram message for the daily compilation - sends BOTH short and detailed versions"""
+    """Update the Telegram message - ENANO gets short only, TIPSTER gets short + detail"""
     if not telegram_bot or not telegram_chat_id:
         logger.info("Telegram not configured, skipping compilation update")
         return
@@ -726,62 +726,55 @@ async def update_compilation_message(account: str):
         if not compilation or not compilation.get('bets'):
             return
         
-        # Generate both short and detailed messages
+        # Generate short message (for all accounts)
         short_message = await build_compilation_message(account, detailed=False)
-        detailed_message = await build_compilation_message(account, detailed=True)
+        
+        # Generate detailed message ONLY for TIPSTER (jac083)
+        detailed_message = None
+        if account == "jac083":
+            detailed_message = await build_compilation_message(account, detailed=True)
         
         if not short_message:
             return
         
-        # Delete ALL old messages for this account (today and previous days)
+        # Delete ALL old messages for this account
         all_compilations = await db.daily_compilations.find({"account": account}).to_list(100)
         for old_comp in all_compilations:
-            # Delete short message
-            old_short_id = old_comp.get('message_id_short')
-            if old_short_id:
-                try:
-                    await telegram_bot.delete_message(chat_id=telegram_chat_id, message_id=old_short_id)
-                except Exception:
-                    pass
-            # Delete detailed message
-            old_detailed_id = old_comp.get('message_id_detailed')
-            if old_detailed_id:
-                try:
-                    await telegram_bot.delete_message(chat_id=telegram_chat_id, message_id=old_detailed_id)
-                except Exception:
-                    pass
-            # Also try old single message_id
-            old_message_id = old_comp.get('message_id')
-            if old_message_id:
-                try:
-                    await telegram_bot.delete_message(chat_id=telegram_chat_id, message_id=old_message_id)
-                except Exception:
-                    pass
+            for field in ['message_id_short', 'message_id_detailed', 'message_id']:
+                old_id = old_comp.get(field)
+                if old_id:
+                    try:
+                        await telegram_bot.delete_message(chat_id=telegram_chat_id, message_id=old_id)
+                    except Exception:
+                        pass
         
-        # Send SHORT message first
+        # Send SHORT message
         short_sent = await telegram_bot.send_message(
             chat_id=telegram_chat_id,
             text=short_message,
             parse_mode=ParseMode.MARKDOWN
         )
         
-        # Send DETAILED message second
-        detailed_sent = await telegram_bot.send_message(
-            chat_id=telegram_chat_id,
-            text=detailed_message,
-            parse_mode=ParseMode.MARKDOWN
-        )
+        # Send DETAILED message only for TIPSTER
+        detailed_sent_id = None
+        if detailed_message:
+            detailed_sent = await telegram_bot.send_message(
+                chat_id=telegram_chat_id,
+                text=detailed_message,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            detailed_sent_id = detailed_sent.message_id
         
-        # Store both message IDs
+        # Store message IDs
         await db.daily_compilations.update_one(
             {"account": account, "date": today},
             {"$set": {
                 "message_id_short": short_sent.message_id,
-                "message_id_detailed": detailed_sent.message_id,
-                "message_id": None  # Clear old field
+                "message_id_detailed": detailed_sent_id,
+                "message_id": None
             }}
         )
-        logger.info(f"Sent compilation messages for {account}: short={short_sent.message_id}, detailed={detailed_sent.message_id}")
+        logger.info(f"Sent compilation for {account}: short={short_sent.message_id}, detailed={detailed_sent_id}")
         
         # Clean up old compilations from database (keep only last 7 days)
         seven_days_ago = (datetime.now(arizona_tz) - timedelta(days=7)).strftime('%Y-%m-%d')
