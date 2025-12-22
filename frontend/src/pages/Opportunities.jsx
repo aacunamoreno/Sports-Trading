@@ -121,7 +121,9 @@ export default function Opportunities() {
                       )}
                       <div>
                         <div className="font-bold">{play.game}</div>
-                        <div className="text-sm text-muted-foreground">Total: {play.total}</div>
+                        <div className="text-sm text-muted-foreground">
+                          Line: {play.total} | PPG Avg: {play.combined_ppg || 'N/A'}
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">
