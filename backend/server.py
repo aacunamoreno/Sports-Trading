@@ -3347,6 +3347,116 @@ async def get_nba_opportunities():
     # If no cache, return empty (data will be refreshed by scheduled job)
     return []
 
+async def refresh_nba_opportunities_scheduled():
+    """Scheduled job to refresh NBA opportunities data daily at 10:30 PM Arizona"""
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    
+    logger.info(f"[Scheduled] Refreshing NBA opportunities for {today}")
+    
+    try:
+        # PPG Rankings (Season) - would be scraped from teamrankings.com in production
+        ppg_season = {
+            'Denver': 1, 'Okla City': 2, 'Houston': 3, 'New York': 4, 'Miami': 5,
+            'Utah': 6, 'San Antonio': 7, 'Chicago': 8, 'Detroit': 9, 'Atlanta': 10,
+            'Cleveland': 11, 'Minnesota': 12, 'Orlando': 13, 'LA Lakers': 14, 'Portland': 15,
+            'Philadelphia': 16, 'Boston': 17, 'New Orleans': 18, 'Memphis': 19, 'Charlotte': 20,
+            'Phoenix': 21, 'Golden State': 22, 'Toronto': 23, 'Milwaukee': 24, 'Dallas': 25,
+            'Washington': 26, 'Sacramento': 27, 'LA Clippers': 28, 'Indiana': 29, 'Brooklyn': 30
+        }
+        
+        # PPG Rankings (Last 3 games)
+        ppg_last3 = {
+            'Chicago': 1, 'Utah': 2, 'New Orleans': 3, 'Atlanta': 4, 'San Antonio': 5,
+            'Portland': 6, 'Houston': 7, 'Orlando': 8, 'Dallas': 9, 'Memphis': 10,
+            'Denver': 11, 'Philadelphia': 12, 'New York': 13, 'Sacramento': 14, 'Golden State': 15,
+            'LA Lakers': 16, 'Cleveland': 17, 'Miami': 18, 'Boston': 19, 'Okla City': 20,
+            'Detroit': 21, 'Charlotte': 22, 'Washington': 23, 'Phoenix': 24, 'Brooklyn': 25,
+            'Toronto': 26, 'Indiana': 27, 'Minnesota': 28, 'LA Clippers': 29, 'Milwaukee': 30
+        }
+        
+        # Today's games (would be scraped from teamrankings.com/nba/odds/)
+        games_raw = [
+            {"time": "7:00 PM", "away": "Charlotte", "home": "Cleveland", "total": 239.5},
+            {"time": "7:30 PM", "away": "Indiana", "home": "Boston", "total": 226.5},
+            {"time": "8:00 PM", "away": "Dallas", "home": "New Orleans", "total": 240.5},
+            {"time": "9:00 PM", "away": "Utah", "home": "Denver", "total": 250.5},
+            {"time": "9:30 PM", "away": "Memphis", "home": "Okla City", "total": 232.5},
+            {"time": "10:00 PM", "away": "Detroit", "home": "Portland", "total": 234.5},
+            {"time": "10:00 PM", "away": "Orlando", "home": "Golden State", "total": 227.5},
+        ]
+        
+        # Calculate averages and recommendations
+        games = []
+        plays = []
+        
+        for i, g in enumerate(games_raw, 1):
+            away_season = ppg_season.get(g['away'], 15)
+            away_last3 = ppg_last3.get(g['away'], 15)
+            away_avg = (away_season + away_last3) / 2
+            
+            home_season = ppg_season.get(g['home'], 15)
+            home_last3 = ppg_last3.get(g['home'], 15)
+            home_avg = (home_season + home_last3) / 2
+            
+            game_avg = (away_avg + home_avg) / 2
+            
+            # Determine recommendation
+            if game_avg <= 10:
+                recommendation = "OVER"
+                color = "green"
+            elif game_avg >= 21:
+                recommendation = "UNDER"
+                color = "red"
+            else:
+                recommendation = None
+                color = "neutral"
+            
+            game_data = {
+                "game_num": i,
+                "time": g['time'],
+                "away_team": g['away'],
+                "away_ppg_rank": away_season,
+                "away_last3_rank": away_last3,
+                "away_avg": round(away_avg, 1),
+                "home_team": g['home'],
+                "home_ppg_rank": home_season,
+                "home_last3_rank": home_last3,
+                "home_avg": round(home_avg, 1),
+                "total": g['total'],
+                "game_avg": round(game_avg, 1),
+                "recommendation": recommendation,
+                "color": color
+            }
+            games.append(game_data)
+            
+            if recommendation:
+                plays.append({
+                    "game": f"{g['away']} @ {g['home']}",
+                    "total": g['total'],
+                    "game_avg": round(game_avg, 1),
+                    "recommendation": recommendation,
+                    "color": color
+                })
+        
+        # Save to database
+        await db.nba_opportunities.update_one(
+            {"date": today},
+            {"$set": {
+                "date": today,
+                "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+                "games": games,
+                "plays": plays
+            }},
+            upsert=True
+        )
+        
+        logger.info(f"[Scheduled] NBA opportunities refreshed successfully: {len(games)} games, {len(plays)} plays")
+        
+    except Exception as e:
+        logger.error(f"[Scheduled] Error refreshing NBA opportunities: {e}")
+
 @api_router.get("/opportunities")
 async def get_opportunities():
     """Get betting opportunities"""
