@@ -714,19 +714,25 @@ async def update_compilation_message(account: str):
         if not message_text:
             return
         
-        old_message_id = compilation.get('message_id')
-        
-        # Delete the old message if it exists (to keep chat clean)
-        if old_message_id:
-            try:
-                await telegram_bot.delete_message(
-                    chat_id=telegram_chat_id,
-                    message_id=old_message_id
+        # Delete ALL old messages for this account (today and previous days)
+        all_compilations = await db.daily_compilations.find({"account": account}).to_list(100)
+        for old_comp in all_compilations:
+            old_message_id = old_comp.get('message_id')
+            if old_message_id:
+                try:
+                    await telegram_bot.delete_message(
+                        chat_id=telegram_chat_id,
+                        message_id=old_message_id
+                    )
+                    logger.info(f"Deleted old compilation message {old_message_id} for {account}")
+                except Exception as e:
+                    logger.debug(f"Could not delete old message {old_message_id}: {e}")
+                
+                # Clear the message_id in database
+                await db.daily_compilations.update_one(
+                    {"_id": old_comp["_id"]},
+                    {"$set": {"message_id": None}}
                 )
-                logger.info(f"Deleted old compilation message {old_message_id} for {account}")
-            except Exception as e:
-                # Message might already be deleted or too old
-                logger.warning(f"Could not delete old message {old_message_id}: {e}")
         
         # Send new message (always at bottom of chat)
         sent_message = await telegram_bot.send_message(
@@ -735,12 +741,19 @@ async def update_compilation_message(account: str):
             parse_mode=ParseMode.MARKDOWN
         )
         
-        # Store the new message ID
+        # Store the new message ID for today's compilation
         await db.daily_compilations.update_one(
             {"account": account, "date": today},
             {"$set": {"message_id": sent_message.message_id}}
         )
         logger.info(f"Sent new compilation message for {account}, message_id: {sent_message.message_id}")
+        
+        # Clean up old compilations from database (keep only last 7 days)
+        seven_days_ago = (datetime.now(arizona_tz) - timedelta(days=7)).strftime('%Y-%m-%d')
+        await db.daily_compilations.delete_many({
+            "account": account,
+            "date": {"$lt": seven_days_ago}
+        })
     
     except Exception as e:
         logger.error(f"Failed to update compilation message: {str(e)}")
