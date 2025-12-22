@@ -178,7 +178,7 @@ async def auto_start_monitoring():
                                         parse_mode=ParseMode.MARKDOWN
                                     )
                                     # Schedule auto-deletion after 30 minutes
-                                    asyncio.create_task(delete_message_later(bot, telegram_config["chat_id"], sent_msg.message_id, 30))
+                                    asyncio.create_task(delete_message_later(bot, telegram_config["chat_id"], sent_msg.message_id, 15))
                             except Exception as e:
                                 logger.error(f"Failed to send restart alert: {e}")
                 
@@ -391,7 +391,7 @@ async def startup_recovery():
                             )
                             logger.info("Startup recovery notification sent")
                             # Schedule auto-deletion after 30 minutes
-                            asyncio.create_task(delete_message_later(bot, telegram_config["chat_id"], sent_msg.message_id, 30))
+                            asyncio.create_task(delete_message_later(bot, telegram_config["chat_id"], sent_msg.message_id, 15))
                         except Exception as e:
                             logger.error(f"Failed to send startup notification: {e}")
                     
@@ -2061,7 +2061,7 @@ async def send_check_notification(check_time, new_bets_found):
         logger.info(f"Check notification sent to Telegram")
         
         # Schedule auto-deletion after 30 minutes
-        asyncio.create_task(delete_message_later(bot, chat_id, sent_msg.message_id, 30))
+        asyncio.create_task(delete_message_later(bot, chat_id, sent_msg.message_id, 15))
         
     except Exception as e:
         logger.error(f"Failed to send check notification: {str(e)}")
