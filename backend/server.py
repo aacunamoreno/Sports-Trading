@@ -3601,6 +3601,7 @@ async def refresh_opportunities():
                 "home_last3_rank": home_last3,
                 "home_avg": round(home_avg, 1),
                 "total": g['total'],
+                "combined_ppg": round(combined_ppg, 1),
                 "game_avg": round(game_avg, 1),
                 "recommendation": recommendation,
                 "color": color
@@ -3611,6 +3612,7 @@ async def refresh_opportunities():
                 plays.append({
                     "game": f"{g['away']} @ {g['home']}",
                     "total": g['total'],
+                    "combined_ppg": round(combined_ppg, 1),
                     "game_avg": round(game_avg, 1),
                     "recommendation": recommendation,
                     "color": color
