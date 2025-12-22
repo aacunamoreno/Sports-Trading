@@ -132,6 +132,15 @@ def schedule_daily_summary():
             replace_existing=True
         )
         logger.info("Daily cleanup scheduled for 9:00 AM Arizona time")
+        
+        # NBA Opportunities refresh at 10:30 PM Arizona (before sleep mode at 10:45 PM)
+        scheduler.add_job(
+            refresh_nba_opportunities_scheduled,
+            trigger=CronTrigger(hour=22, minute=30, timezone='America/Phoenix'),  # 10:30 PM Arizona
+            id='nba_opportunities_refresh',
+            replace_existing=True
+        )
+        logger.info("NBA opportunities refresh scheduled for 10:30 PM Arizona time")
     except Exception as e:
         logger.error(f"Error scheduling daily tasks: {str(e)}")
 
