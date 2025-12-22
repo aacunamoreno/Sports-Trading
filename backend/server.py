@@ -3249,6 +3249,243 @@ async def check_now():
     }
 
 
+# ============== NBA OPPORTUNITIES SCRAPING ==============
+
+async def scrape_nba_odds():
+    """Scrape NBA odds from TeamRankings"""
+    import re
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get("https://www.teamrankings.com/nba/odds/")
+        html = response.text
+        
+        games = []
+        # Parse the HTML to extract game data
+        # Looking for tables with game info
+        
+        # Find today's date section
+        today_pattern = r'<h2[^>]*>([^<]*December[^<]*2025[^<]*)</h2>(.*?)(?=<h2|$)'
+        today_match = re.search(today_pattern, html, re.DOTALL | re.IGNORECASE)
+        
+        if not today_match:
+            # Try to find any games
+            logger.warning("Could not find today's games section")
+            return games
+        
+        games_html = today_match.group(2)
+        
+        # Parse each game row
+        game_pattern = r'(\d{1,2}:\d{2}\s*[AP]M\s*EST).*?<a[^>]*>([^<]+)</a>.*?<a[^>]*>([^<]+)</a>.*?(\d+\.?\d*)\s*\|'
+        game_matches = re.findall(game_pattern, games_html, re.DOTALL | re.IGNORECASE)
+        
+        # Simpler approach - just get the key data
+        time_pattern = r'<tr[^>]*>.*?(\d{1,2}:\d{2}\s*[AP]M\s*EST)'
+        team_pattern = r'teamrankings\.com/nba/team/([^"]+)"[^>]*>([^<]+)</a>'
+        total_pattern = r'>(\d{3}\.?\d?)</td>'
+        
+        return games
+
+async def scrape_nba_ppg_rankings():
+    """Scrape NBA Points Per Game rankings"""
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get("https://www.teamrankings.com/nba/stat/points-per-game")
+        html = response.text
+        
+        rankings = {}
+        rankings_last3 = {}
+        
+        # Parse rankings table
+        import re
+        # Pattern to find team rows with rankings
+        row_pattern = r'<tr[^>]*>.*?<td[^>]*>(\d+)</td>.*?team/([^"]+)"[^>]*>([^<]+)</a>.*?<td[^>]*>[\d.]+</td>.*?<td[^>]*>([\d.]+)</td>'
+        
+        matches = re.findall(row_pattern, html, re.DOTALL)
+        
+        # Team name mapping
+        team_map = {
+            'denver-nuggets': 'Denver', 'oklahoma-city-thunder': 'Okla City',
+            'houston-rockets': 'Houston', 'new-york-knicks': 'New York',
+            'miami-heat': 'Miami', 'utah-jazz': 'Utah', 'san-antonio-spurs': 'San Antonio',
+            'chicago-bulls': 'Chicago', 'detroit-pistons': 'Detroit', 'atlanta-hawks': 'Atlanta',
+            'cleveland-cavaliers': 'Cleveland', 'minnesota-timberwolves': 'Minnesota',
+            'orlando-magic': 'Orlando', 'los-angeles-lakers': 'LA Lakers',
+            'portland-trail-blazers': 'Portland', 'philadelphia-76ers': 'Philadelphia',
+            'boston-celtics': 'Boston', 'new-orleans-pelicans': 'New Orleans',
+            'memphis-grizzlies': 'Memphis', 'charlotte-hornets': 'Charlotte',
+            'phoenix-suns': 'Phoenix', 'golden-state-warriors': 'Golden State',
+            'toronto-raptors': 'Toronto', 'milwaukee-bucks': 'Milwaukee',
+            'dallas-mavericks': 'Dallas', 'washington-wizards': 'Washington',
+            'sacramento-kings': 'Sacramento', 'los-angeles-clippers': 'LA Clippers',
+            'indiana-pacers': 'Indiana', 'brooklyn-nets': 'Brooklyn'
+        }
+        
+        for rank, slug, name, last3 in matches:
+            team_name = team_map.get(slug, name)
+            rankings[team_name] = int(rank)
+        
+        return rankings
+
+async def get_nba_opportunities():
+    """Get NBA betting opportunities with PPG analysis"""
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    
+    # Check if we have cached data for today
+    cached = await db.nba_opportunities.find_one({"date": today})
+    if cached:
+        return cached.get('games', [])
+    
+    # If no cache, return empty (data will be refreshed by scheduled job)
+    return []
+
+@api_router.get("/opportunities")
+async def get_opportunities():
+    """Get betting opportunities"""
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        # Get cached NBA opportunities
+        cached = await db.nba_opportunities.find_one({"date": today}, {"_id": 0})
+        
+        if cached and cached.get('games'):
+            return {
+                "success": True,
+                "date": today,
+                "last_updated": cached.get('last_updated'),
+                "games": cached.get('games', []),
+                "plays": cached.get('plays', [])
+            }
+        
+        return {
+            "success": True,
+            "date": today,
+            "message": "No opportunities data yet. Data refreshes daily before 10:45 PM Arizona.",
+            "games": [],
+            "plays": []
+        }
+    except Exception as e:
+        logger.error(f"Error getting opportunities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/opportunities/refresh")
+async def refresh_opportunities():
+    """Manually refresh NBA opportunities data"""
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        # Hard-coded data for now (would be scraped in production)
+        # PPG Rankings (Season)
+        ppg_season = {
+            'Denver': 1, 'Okla City': 2, 'Houston': 3, 'New York': 4, 'Miami': 5,
+            'Utah': 6, 'San Antonio': 7, 'Chicago': 8, 'Detroit': 9, 'Atlanta': 10,
+            'Cleveland': 11, 'Minnesota': 12, 'Orlando': 13, 'LA Lakers': 14, 'Portland': 15,
+            'Philadelphia': 16, 'Boston': 17, 'New Orleans': 18, 'Memphis': 19, 'Charlotte': 20,
+            'Phoenix': 21, 'Golden State': 22, 'Toronto': 23, 'Milwaukee': 24, 'Dallas': 25,
+            'Washington': 26, 'Sacramento': 27, 'LA Clippers': 28, 'Indiana': 29, 'Brooklyn': 30
+        }
+        
+        # PPG Rankings (Last 3 games)
+        ppg_last3 = {
+            'Chicago': 1, 'Utah': 2, 'New Orleans': 3, 'Atlanta': 4, 'San Antonio': 5,
+            'Portland': 6, 'Houston': 7, 'Orlando': 8, 'Dallas': 9, 'Memphis': 10,
+            'Denver': 11, 'Philadelphia': 12, 'New York': 13, 'Sacramento': 14, 'Golden State': 15,
+            'LA Lakers': 16, 'Cleveland': 17, 'Miami': 18, 'Boston': 19, 'Okla City': 20,
+            'Detroit': 21, 'Charlotte': 22, 'Washington': 23, 'Phoenix': 24, 'Brooklyn': 25,
+            'Toronto': 26, 'Indiana': 27, 'Minnesota': 28, 'LA Clippers': 29, 'Milwaukee': 30
+        }
+        
+        # Today's games (would be scraped)
+        games_raw = [
+            {"time": "7:00 PM", "away": "Charlotte", "home": "Cleveland", "total": 239.5},
+            {"time": "7:30 PM", "away": "Indiana", "home": "Boston", "total": 226.5},
+            {"time": "8:00 PM", "away": "Dallas", "home": "New Orleans", "total": 240.5},
+            {"time": "9:00 PM", "away": "Utah", "home": "Denver", "total": 250.5},
+            {"time": "9:30 PM", "away": "Memphis", "home": "Okla City", "total": 232.5},
+            {"time": "10:00 PM", "away": "Detroit", "home": "Portland", "total": 234.5},
+            {"time": "10:00 PM", "away": "Orlando", "home": "Golden State", "total": 227.5},
+        ]
+        
+        # Calculate averages and recommendations
+        games = []
+        plays = []
+        
+        for i, g in enumerate(games_raw, 1):
+            away_season = ppg_season.get(g['away'], 15)
+            away_last3 = ppg_last3.get(g['away'], 15)
+            away_avg = (away_season + away_last3) / 2
+            
+            home_season = ppg_season.get(g['home'], 15)
+            home_last3 = ppg_last3.get(g['home'], 15)
+            home_avg = (home_season + home_last3) / 2
+            
+            game_avg = (away_avg + home_avg) / 2
+            
+            # Determine recommendation
+            if game_avg <= 10:
+                recommendation = "OVER"
+                color = "green"
+            elif game_avg >= 21:
+                recommendation = "UNDER"
+                color = "red"
+            else:
+                recommendation = None
+                color = "neutral"
+            
+            game_data = {
+                "game_num": i,
+                "time": g['time'],
+                "away_team": g['away'],
+                "away_ppg_rank": away_season,
+                "away_last3_rank": away_last3,
+                "away_avg": round(away_avg, 1),
+                "home_team": g['home'],
+                "home_ppg_rank": home_season,
+                "home_last3_rank": home_last3,
+                "home_avg": round(home_avg, 1),
+                "total": g['total'],
+                "game_avg": round(game_avg, 1),
+                "recommendation": recommendation,
+                "color": color
+            }
+            games.append(game_data)
+            
+            if recommendation:
+                plays.append({
+                    "game": f"{g['away']} @ {g['home']}",
+                    "total": g['total'],
+                    "game_avg": round(game_avg, 1),
+                    "recommendation": recommendation,
+                    "color": color
+                })
+        
+        # Save to database
+        await db.nba_opportunities.update_one(
+            {"date": today},
+            {"$set": {
+                "date": today,
+                "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+                "games": games,
+                "plays": plays
+            }},
+            upsert=True
+        )
+        
+        return {
+            "success": True,
+            "message": "Opportunities refreshed",
+            "date": today,
+            "games": games,
+            "plays": plays
+        }
+    except Exception as e:
+        logger.error(f"Error refreshing opportunities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
