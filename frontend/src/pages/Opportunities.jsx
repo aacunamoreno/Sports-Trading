@@ -212,15 +212,15 @@ export default function Opportunities() {
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded bg-green-500/30 border border-green-500/50"></span>
-                <span>Game Avg 1-10 → <span className="text-green-400 font-bold">OVER</span></span>
+                <span>Game Avg 1-12.5 → <span className="text-green-400 font-bold">OVER</span></span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded bg-muted border border-border"></span>
-                <span>Game Avg 11-20 → No edge</span>
+                <span>Game Avg 13-17 → No edge</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded bg-red-500/30 border border-red-500/50"></span>
-                <span>Game Avg 21-30 → <span className="text-red-400 font-bold">UNDER</span></span>
+                <span>Game Avg 17.5-30 → <span className="text-red-400 font-bold">UNDER</span></span>
               </div>
             </div>
           </div>
