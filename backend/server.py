@@ -708,7 +708,7 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
     return "\n".join(lines)
 
 async def update_compilation_message(account: str):
-    """Update the Telegram message for the daily compilation - deletes old and sends new to keep at bottom of chat"""
+    """Update the Telegram message for the daily compilation - sends BOTH short and detailed versions"""
     if not telegram_bot or not telegram_chat_id:
         logger.info("Telegram not configured, skipping compilation update")
         return
@@ -730,49 +730,58 @@ async def update_compilation_message(account: str):
         short_message = await build_compilation_message(account, detailed=False)
         detailed_message = await build_compilation_message(account, detailed=True)
         
-        if not short_message or not detailed_message:
+        if not short_message:
             return
         
         # Delete ALL old messages for this account (today and previous days)
         all_compilations = await db.daily_compilations.find({"account": account}).to_list(100)
         for old_comp in all_compilations:
+            # Delete short message
+            old_short_id = old_comp.get('message_id_short')
+            if old_short_id:
+                try:
+                    await telegram_bot.delete_message(chat_id=telegram_chat_id, message_id=old_short_id)
+                except Exception:
+                    pass
+            # Delete detailed message
+            old_detailed_id = old_comp.get('message_id_detailed')
+            if old_detailed_id:
+                try:
+                    await telegram_bot.delete_message(chat_id=telegram_chat_id, message_id=old_detailed_id)
+                except Exception:
+                    pass
+            # Also try old single message_id
             old_message_id = old_comp.get('message_id')
             if old_message_id:
                 try:
-                    await telegram_bot.delete_message(
-                        chat_id=telegram_chat_id,
-                        message_id=old_message_id
-                    )
-                    logger.info(f"Deleted old compilation message {old_message_id} for {account}")
-                except Exception as e:
-                    logger.debug(f"Could not delete old message {old_message_id}: {e}")
-                
-                # Clear the message_id in database
-                await db.daily_compilations.update_one(
-                    {"_id": old_comp["_id"]},
-                    {"$set": {"message_id": None}}
-                )
+                    await telegram_bot.delete_message(chat_id=telegram_chat_id, message_id=old_message_id)
+                except Exception:
+                    pass
         
-        # Send short message first (always at bottom of chat)
-        short_sent_message = await telegram_bot.send_message(
+        # Send SHORT message first
+        short_sent = await telegram_bot.send_message(
             chat_id=telegram_chat_id,
             text=short_message,
             parse_mode=ParseMode.MARKDOWN
         )
         
-        # Send detailed message second (will be at bottom after short)
-        detailed_sent_message = await telegram_bot.send_message(
+        # Send DETAILED message second
+        detailed_sent = await telegram_bot.send_message(
             chat_id=telegram_chat_id,
             text=detailed_message,
             parse_mode=ParseMode.MARKDOWN
         )
         
-        # Store the detailed message ID for today's compilation (keep the last one for cleanup)
+        # Store both message IDs
         await db.daily_compilations.update_one(
             {"account": account, "date": today},
-            {"$set": {"message_id": detailed_sent_message.message_id}}
+            {"$set": {
+                "message_id_short": short_sent.message_id,
+                "message_id_detailed": detailed_sent.message_id,
+                "message_id": None  # Clear old field
+            }}
         )
-        logger.info(f"Sent compilation messages for {account}: short={short_sent_message.message_id}, detailed={detailed_sent_message.message_id}")
+        logger.info(f"Sent compilation messages for {account}: short={short_sent.message_id}, detailed={detailed_sent.message_id}")
         
         # Clean up old compilations from database (keep only last 7 days)
         seven_days_ago = (datetime.now(arizona_tz) - timedelta(days=7)).strftime('%Y-%m-%d')
