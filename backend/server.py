@@ -3532,7 +3532,7 @@ async def get_opportunities(day: str = "today"):
         
         return {
             "success": True,
-            "date": today,
+            "date": target_date,
             "message": "No opportunities data yet. Data refreshes daily before 10:45 PM Arizona.",
             "games": [],
             "plays": []
