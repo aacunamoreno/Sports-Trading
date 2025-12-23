@@ -328,21 +328,39 @@ export default function Opportunities() {
                   const edgeThreshold = league === 'NBA' ? 5 : 0.6;
                   const isNoBet = game.edge === null || game.edge === undefined || Math.abs(game.edge) < edgeThreshold;
                   
-                  // For yesterday, use result_hit to determine row color, but only if edge met threshold
-                  const rowStyle = day === 'yesterday' && game.recommendation
-                    ? isNoBet
-                      ? 'bg-gray-500/10 border-gray-500/30' // No Bet - muted style
-                      : game.result_hit === true 
-                        ? 'bg-green-500/20 border-green-500/50' 
-                        : game.result_hit === false 
-                          ? 'bg-red-500/20 border-red-500/50'
-                          : getRowStyle(game.recommendation)
-                    : getRowStyle(game.recommendation);
+                  // Row styling - no color for "No Bet" games
+                  let rowStyle = '';
+                  if (day === 'yesterday') {
+                    if (isNoBet) {
+                      rowStyle = 'bg-gray-500/10 border-gray-500/30'; // No Bet - muted style
+                    } else if (game.result_hit === true) {
+                      rowStyle = 'bg-green-500/20 border-green-500/50';
+                    } else if (game.result_hit === false) {
+                      rowStyle = 'bg-red-500/20 border-red-500/50';
+                    } else {
+                      rowStyle = getRowStyle(game.recommendation);
+                    }
+                  } else {
+                    // For today/tomorrow - no color for No Bet games
+                    rowStyle = isNoBet ? '' : getRowStyle(game.recommendation);
+                  }
                   
-                  const textStyle = day === 'yesterday' && game.recommendation
-                    ? isNoBet
-                      ? 'text-gray-400' // No Bet - muted text
-                      : game.result_hit === true
+                  // Text styling - muted for No Bet games
+                  let textStyle = '';
+                  if (day === 'yesterday') {
+                    if (isNoBet) {
+                      textStyle = 'text-gray-400';
+                    } else if (game.result_hit === true) {
+                      textStyle = 'text-green-400 font-bold';
+                    } else if (game.result_hit === false) {
+                      textStyle = 'text-red-400 font-bold';
+                    } else {
+                      textStyle = getTextStyle(game.recommendation);
+                    }
+                  } else {
+                    // For today/tomorrow - muted text for No Bet games
+                    textStyle = isNoBet ? 'text-muted-foreground' : getTextStyle(game.recommendation);
+                  }
                         ? 'text-green-400 font-bold'
                         : game.result_hit === false
                           ? 'text-red-400 font-bold'
