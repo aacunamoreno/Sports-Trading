@@ -4467,6 +4467,8 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 game_data["bet_type"] = game_bets[0].get('bet_type')
                 game_data["bet_risk"] = sum(b.get('total_risk', b.get('risk', 0)) for b in game_bets)
                 game_data["bet_count"] = sum(b.get('bet_count', 1) for b in game_bets)
+                # Store the line at which the bet was placed
+                game_data["bet_line"] = game_bets[0].get('total_line')
             elif is_hedged:
                 # Game is hedged (OVER + UNDER = push/cancelled)
                 game_data["has_bet"] = False
@@ -4474,6 +4476,7 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 game_data["bet_type"] = "HEDGED"
                 game_data["bet_risk"] = 0
                 game_data["bet_count"] = 0
+                game_data["bet_line"] = None
             
             # Add result data for yesterday
             if day == "yesterday" and 'final_score' in g:
@@ -4821,6 +4824,8 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 game_data["bet_type"] = game_bets[0].get('bet_type')
                 game_data["bet_risk"] = sum(b.get('total_risk', b.get('risk', 0)) for b in game_bets)
                 game_data["bet_count"] = sum(b.get('bet_count', 1) for b in game_bets)
+                # Store the line at which the bet was placed
+                game_data["bet_line"] = game_bets[0].get('total_line')
             elif is_hedged:
                 # Game is hedged (OVER + UNDER = push/cancelled)
                 game_data["has_bet"] = False
@@ -4828,6 +4833,7 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 game_data["bet_type"] = "HEDGED"
                 game_data["bet_risk"] = 0
                 game_data["bet_count"] = 0
+                game_data["bet_line"] = None
             
             # Add result data for yesterday
             if day == "yesterday" and 'final_score' in g:
