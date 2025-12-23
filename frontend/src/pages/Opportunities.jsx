@@ -52,16 +52,24 @@ export default function Opportunities() {
     }
   };
 
-  const getRowStyle = (color) => {
-    if (color === 'green') return 'bg-green-500/20 border-green-500/50';
-    if (color === 'red') return 'bg-red-500/20 border-red-500/50';
+  // Row styles: Orange for UNDER, Blue for OVER
+  const getRowStyle = (recommendation) => {
+    if (recommendation === 'OVER') return 'bg-blue-500/20 border-blue-500/50';
+    if (recommendation === 'UNDER') return 'bg-orange-500/20 border-orange-500/50';
     return '';
   };
 
-  const getTextStyle = (color) => {
-    if (color === 'green') return 'text-green-400 font-bold';
-    if (color === 'red') return 'text-red-400 font-bold';
+  // Text styles based on recommendation
+  const getTextStyle = (recommendation) => {
+    if (recommendation === 'OVER') return 'text-blue-400 font-bold';
+    if (recommendation === 'UNDER') return 'text-orange-400 font-bold';
     return 'text-muted-foreground';
+  };
+
+  // Edge color: Green if >= 0.7, Red if < 0.7
+  const getEdgeStyle = (edge) => {
+    if (edge >= 0.7) return 'text-green-400 font-bold';
+    return 'text-red-400 font-bold';
   };
 
   // League-specific config
@@ -179,14 +187,14 @@ export default function Opportunities() {
               {data.plays.map((play, idx) => (
                 <div 
                   key={idx}
-                  className={`p-4 rounded-lg border ${getRowStyle(play.color)}`}
+                  className={`p-4 rounded-lg border ${getRowStyle(play.recommendation)}`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center gap-3">
                       {play.recommendation === 'OVER' ? (
-                        <TrendingUp className="w-6 h-6 text-green-400" />
+                        <TrendingUp className="w-6 h-6 text-blue-400" />
                       ) : (
-                        <TrendingDown className="w-6 h-6 text-red-400" />
+                        <TrendingDown className="w-6 h-6 text-orange-400" />
                       )}
                       <div>
                         <div className="font-bold">{play.game}</div>
@@ -196,14 +204,13 @@ export default function Opportunities() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`text-xl font-bold ${getTextStyle(play.color)}`}>
+                      <div className={`text-xl font-bold ${getTextStyle(play.recommendation)}`}>
                         {play.recommendation === 'OVER' ? '⬆️' : '⬇️'} {play.recommendation}
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        Edge: <span className={play.edge >= 0 ? 'text-green-400 font-bold' : 'text-yellow-400 font-bold'}>
+                      <div className="text-sm">
+                        Edge: <span className={getEdgeStyle(play.edge)}>
                           {play.edge >= 0 ? '+' : ''}{play.edge}
                         </span>
-                        {play.edge < 0 && <span className="text-xs ml-1">(wait for line drop)</span>}
                       </div>
                     </div>
                   </div>
@@ -227,11 +234,7 @@ export default function Opportunities() {
                   <th className="text-left py-3 px-2">#</th>
                   <th className="text-left py-3 px-2">Time</th>
                   <th className="text-left py-3 px-2">Away</th>
-                  <th className="text-center py-3 px-2">{config.statLabel}</th>
-                  <th className="text-center py-3 px-2">L3</th>
                   <th className="text-left py-3 px-2">Home</th>
-                  <th className="text-center py-3 px-2">{config.statLabel}</th>
-                  <th className="text-center py-3 px-2">L3</th>
                   <th className="text-center py-3 px-2">Total</th>
                   <th className="text-center py-3 px-2">Avg</th>
                   <th className="text-center py-3 px-2">Bet</th>
@@ -241,28 +244,36 @@ export default function Opportunities() {
                 {data.games.map((game) => (
                   <tr 
                     key={game.game_num}
-                    className={`border-b border-border/50 ${getRowStyle(game.color)}`}
+                    className={`border-b border-border/50 ${getRowStyle(game.recommendation)}`}
                   >
                     <td className="py-3 px-2 font-mono">{game.game_num}</td>
                     <td className="py-3 px-2 text-muted-foreground">{game.time}</td>
-                    <td className={`py-3 px-2 font-medium ${getTextStyle(game.color)}`}>{game.away_team}</td>
-                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>
-                      {game.away_ppg_rank || game.away_gpg_rank}
+                    {/* Away Team with Rankings */}
+                    <td className={`py-3 px-2 ${getTextStyle(game.recommendation)}`}>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-blue-400/70 font-mono">
+                          {game.away_ppg_rank || game.away_gpg_rank}/{game.away_last3_rank}
+                        </span>
+                        <span className="font-medium">{game.away_team}</span>
+                      </div>
                     </td>
-                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.away_last3_rank}</td>
-                    <td className={`py-3 px-2 font-medium ${getTextStyle(game.color)}`}>{game.home_team}</td>
-                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>
-                      {game.home_ppg_rank || game.home_gpg_rank}
+                    {/* Home Team with Rankings */}
+                    <td className={`py-3 px-2 ${getTextStyle(game.recommendation)}`}>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-orange-400/70 font-mono">
+                          {game.home_ppg_rank || game.home_gpg_rank}/{game.home_last3_rank}
+                        </span>
+                        <span className="font-medium">{game.home_team}</span>
+                      </div>
                     </td>
-                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.home_last3_rank}</td>
-                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.total}</td>
-                    <td className={`py-3 px-2 text-center font-bold ${getTextStyle(game.color)}`}>{game.game_avg}</td>
+                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.recommendation)}`}>{game.total}</td>
+                    <td className={`py-3 px-2 text-center font-bold ${getTextStyle(game.recommendation)}`}>{game.game_avg}</td>
                     <td className="py-3 px-2 text-center">
                       {game.recommendation ? (
                         <span className={`px-2 py-1 rounded text-xs font-bold ${
                           game.recommendation === 'OVER' 
-                            ? 'bg-green-500/30 text-green-400' 
-                            : 'bg-red-500/30 text-red-400'
+                            ? 'bg-blue-500/30 text-blue-400' 
+                            : 'bg-orange-500/30 text-orange-400'
                         }`}>
                           {game.recommendation === 'OVER' ? '⬆️' : '⬇️'} {game.recommendation}
                         </span>
@@ -291,16 +302,26 @@ export default function Opportunities() {
             <div className="font-bold mb-2">{league} Betting Rule ({config.totalTeams} teams):</div>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded bg-green-500/30 border border-green-500/50"></span>
-                <span>Game Avg {config.overRange} → <span className="text-green-400 font-bold">OVER</span></span>
+                <span className="w-4 h-4 rounded bg-blue-500/30 border border-blue-500/50"></span>
+                <span>Game Avg {config.overRange} → <span className="text-blue-400 font-bold">OVER</span></span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded bg-muted border border-border"></span>
                 <span>Game Avg {config.noEdgeRange} → No edge</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded bg-red-500/30 border border-red-500/50"></span>
-                <span>Game Avg {config.underRange} → <span className="text-red-400 font-bold">UNDER</span></span>
+                <span className="w-4 h-4 rounded bg-orange-500/30 border border-orange-500/50"></span>
+                <span>Game Avg {config.underRange} → <span className="text-orange-400 font-bold">UNDER</span></span>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-green-400 font-bold">Edge ≥ 0.7</span>
+                <span className="text-muted-foreground">= Strong play</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-red-400 font-bold">Edge &lt; 0.7</span>
+                <span className="text-muted-foreground">= Wait for better line</span>
               </div>
             </div>
           </div>
