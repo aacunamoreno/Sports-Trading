@@ -360,6 +360,15 @@ export default function Opportunities() {
                       )}
                       <td className={`py-3 px-2 text-center font-bold ${textStyle}`}>{game.combined_ppg || game.combined_gpg || game.game_avg}</td>
                       <td className="py-3 px-2 text-center">
+                        {game.edge !== null && game.edge !== undefined ? (
+                          <span className={getEdgeStyle(game.edge)}>
+                            {game.edge >= 0 ? '+' : ''}{game.edge}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-2 text-center">
                         {game.recommendation ? (
                           day === 'yesterday' ? (
                             <span className={`px-2 py-1 rounded text-xs font-bold ${
