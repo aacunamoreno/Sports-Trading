@@ -4459,7 +4459,8 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     "color": color,
                     "has_bet": game_data.get("has_bet", False),
                     "bet_type": game_data.get("bet_type"),
-                    "bet_risk": game_data.get("bet_risk", 0)
+                    "bet_risk": game_data.get("bet_risk", 0),
+                    "bet_count": game_data.get("bet_count", 0)
                 })
         
         # Save to database
