@@ -69,10 +69,18 @@ export default function Opportunities() {
     return 'text-muted-foreground';
   };
 
-  // Edge color: Green if >= 0.9, Red if < 0.9
-  const getEdgeStyle = (edge) => {
-    if (edge >= 0.9) return 'text-green-400 font-bold';
-    return 'text-red-400 font-bold';
+  // Edge color based on league
+  // NBA: Red < 5, Green >= 5
+  // NHL: Red <= 0.5, Green >= 0.6
+  const getEdgeStyle = (edge, currentLeague = league) => {
+    if (currentLeague === 'NBA') {
+      if (edge >= 5) return 'text-green-400 font-bold';
+      return 'text-red-400 font-bold';
+    } else {
+      // NHL
+      if (edge >= 0.6) return 'text-green-400 font-bold';
+      return 'text-red-400 font-bold';
+    }
   };
 
   // League-specific config
