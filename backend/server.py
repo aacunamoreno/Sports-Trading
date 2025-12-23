@@ -4785,7 +4785,7 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                             "home": home_short,
                             "total": bet_line
                         })
-                        existing_matchups.add(matchup_key)
+                        added_from_bets.add(matchup_key)
                         logger.info(f"Added missing bet game: {away_short} @ {home_short} (line: {bet_line})")
         
         # Calculate averages and recommendations
