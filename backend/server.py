@@ -3874,13 +3874,15 @@ async def refresh_opportunities(day: str = "today"):
 
 @api_router.get("/opportunities/nhl")
 async def get_nhl_opportunities(day: str = "today"):
-    """Get NHL betting opportunities. day parameter: 'today' or 'tomorrow'"""
+    """Get NHL betting opportunities. day parameter: 'yesterday', 'today' or 'tomorrow'"""
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
         
         if day == "tomorrow":
             target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+        elif day == "yesterday":
+            target_date = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
         else:
             target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
         
@@ -3909,13 +3911,15 @@ async def get_nhl_opportunities(day: str = "today"):
 
 @api_router.post("/opportunities/nhl/refresh")
 async def refresh_nhl_opportunities(day: str = "today"):
-    """Manually refresh NHL opportunities data. day parameter: 'today' or 'tomorrow'"""
+    """Manually refresh NHL opportunities data. day parameter: 'yesterday', 'today' or 'tomorrow'"""
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
         
         if day == "tomorrow":
             target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+        elif day == "yesterday":
+            target_date = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
         else:
             target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
         
