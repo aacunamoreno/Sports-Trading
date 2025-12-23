@@ -382,11 +382,10 @@ async def run_monitoring_cycle():
         except Exception as e:
             logger.error(f"Error in check_bet_results: {str(e)}", exc_info=True)
         
-        # Send check notification (always try to send)
-        try:
-            await send_check_notification(check_time, new_bets_found)
-        except Exception as e:
-            logger.error(f"Error sending check notification: {str(e)}", exc_info=True)
+        # DISABLED: Status notifications to keep chat clean
+        # User only wants compilation messages (daily bet summaries)
+        # await send_check_notification(check_time, new_bets_found)
+        logger.info(f"Check complete - ENANO: {new_bets_found.get('jac075', 0)}, TIPSTER: {new_bets_found.get('jac083', 0)} new bets")
         
     except Exception as e:
         logger.error(f"Monitoring cycle error: {str(e)}", exc_info=True)
