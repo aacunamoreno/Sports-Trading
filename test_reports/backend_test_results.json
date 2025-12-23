@@ -1,44 +1,74 @@
 {
-  "timestamp": "2025-12-22T21:46:54.632307",
-  "total_tests": 6,
-  "passed_tests": 6,
-  "success_rate": 100.0,
+  "timestamp": "2025-12-23T17:46:16.490982",
+  "total_tests": 11,
+  "passed_tests": 8,
+  "success_rate": 72.72727272727273,
   "results": [
     {
       "test": "GET /api/opportunities - Game Structure",
       "success": true,
       "details": "Game has all required fields",
-      "timestamp": "2025-12-22T21:46:54.382633"
+      "timestamp": "2025-12-23T17:45:06.478585"
     },
     {
       "test": "GET /api/opportunities - Play Structure",
       "success": true,
       "details": "Play has all required fields",
-      "timestamp": "2025-12-22T21:46:54.382660"
+      "timestamp": "2025-12-23T17:45:06.478611"
     },
     {
       "test": "GET /api/opportunities",
       "success": true,
-      "details": "Returned 7 games, 2 plays",
-      "timestamp": "2025-12-22T21:46:54.382667"
+      "details": "Returned 14 games, 12 plays",
+      "timestamp": "2025-12-23T17:45:06.478617"
+    },
+    {
+      "test": "GET /api/opportunities - data_source field",
+      "success": true,
+      "details": "data_source field present with value: plays888.co",
+      "timestamp": "2025-12-23T17:45:06.520382"
     },
     {
       "test": "POST /api/opportunities/refresh",
       "success": true,
-      "details": "Refreshed: 7 games, 2 plays",
-      "timestamp": "2025-12-22T21:46:54.495344"
+      "details": "Refreshed: 7 games, 3 plays",
+      "timestamp": "2025-12-23T17:45:06.560958"
     },
     {
-      "test": "Betting Logic Test",
-      "success": true,
-      "details": "OVER: 1, UNDER: 1, No bet: 5",
-      "timestamp": "2025-12-22T21:46:54.587499"
+      "test": "Betting Logic - No Bet Rule",
+      "success": false,
+      "details": "Game avg 17.5 should have no recommendation but got UNDER",
+      "timestamp": "2025-12-23T17:45:06.596637"
     },
     {
       "test": "Color Coding Test",
       "success": true,
       "details": "All color coding is correct",
-      "timestamp": "2025-12-22T21:46:54.631365"
+      "timestamp": "2025-12-23T17:45:06.638429"
+    },
+    {
+      "test": "POST /api/scrape/totals/NBA - Game Structure",
+      "success": false,
+      "details": "Missing game fields: ['team1', 'team2']",
+      "timestamp": "2025-12-23T17:45:24.099884"
+    },
+    {
+      "test": "POST /api/scrape/totals/NHL - Game Structure",
+      "success": false,
+      "details": "Missing game fields: ['team1', 'team2']",
+      "timestamp": "2025-12-23T17:45:41.764603"
+    },
+    {
+      "test": "POST /api/opportunities/refresh?use_live_lines=true",
+      "success": true,
+      "details": "NBA refresh with live lines: 14 games, 12 plays, source: plays888.co",
+      "timestamp": "2025-12-23T17:45:59.376771"
+    },
+    {
+      "test": "POST /api/opportunities/nhl/refresh?use_live_lines=true",
+      "success": true,
+      "details": "NHL refresh with live lines: 13 games, 12 plays, source: plays888.co",
+      "timestamp": "2025-12-23T17:46:16.490086"
     }
   ]
 }
