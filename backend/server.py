@@ -4196,6 +4196,7 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         
         games_raw = []
         data_source = "hardcoded"
+        open_bets = []
         
         # Try to fetch live lines from plays888.co if requested and for today's games
         if use_live_lines and day == "today":
@@ -4210,6 +4211,13 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     scraper = Plays888Service()
                     await scraper.login(username, password)
                     live_games = await scraper.scrape_totals("NBA")
+                    
+                    # Also fetch open bets for ENANO account
+                    # Re-login as ENANO to get open bets
+                    await scraper.close()
+                    scraper = Plays888Service()
+                    await scraper.login("jac075", decrypt_password((await db.connections.find_one({"username": "jac075"}, {"_id": 0}))["password_encrypted"]))
+                    open_bets = await scraper.scrape_open_bets()
                     await scraper.close()
                     
                     if live_games:
