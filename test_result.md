@@ -215,7 +215,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "NBA Opportunities API - GET /api/opportunities"
+    - "plays888.co O/U Line Scraper API"
+    - "Live Lines Integration with Opportunities"
     - "NBA Opportunities API - POST /api/opportunities/refresh"
     - "Opportunities Page UI"
   stuck_tasks: []
@@ -225,14 +226,15 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: |
-      Completed Opportunities page implementation:
-      1. Fixed duplicate /api/opportunities endpoint conflict (renamed old one to /api/rules/opportunities)
-      2. NBA opportunities API returns 7 games with PPG rankings, last 3 games rankings, game averages, and OVER/UNDER recommendations
-      3. Frontend displays TODAY'S PLAYS at top, full table with all columns, green/red highlighting
-      4. Added scheduled job at 10:30 PM Arizona to auto-refresh data before sleep mode
+      Completed plays888.co O/U Line Scraper implementation:
+      1. POST /api/scrape/totals/NBA - Scrapes live O/U lines from plays888.co (returns 14 games)
+      2. POST /api/scrape/totals/NHL - Scrapes live O/U lines for NHL (returns 13 games)
+      3. POST /api/opportunities/refresh?use_live_lines=true - Uses live lines instead of hardcoded
+      4. Frontend has "Live Lines" toggle button to enable/disable live data fetching
+      5. Data source indicator shows "plays888.co (Live)" when using live data
       
       Please test:
-      - GET /api/opportunities returns games data
-      - POST /api/opportunities/refresh triggers data refresh
-      - Frontend /opportunities page displays table correctly
-      - Color coding: green rows for OVER, red rows for UNDER recommendations
+      - POST /api/scrape/totals/NBA returns games with team names and totals
+      - POST /api/scrape/totals/NHL returns NHL games
+      - POST /api/opportunities/refresh?use_live_lines=true fetches live data
+      - Frontend shows "Live Lines" toggle and "Source: plays888.co (Live)" when enabled
