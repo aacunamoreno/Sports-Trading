@@ -655,6 +655,81 @@ def extract_bet_type_short(bet_type: str) -> str:
     # Return truncated original
     return bet_type[:15] if len(bet_type) > 15 else bet_type
 
+
+# Team name mapping from plays888 full names to short names for opportunities
+PLAYS888_TO_SHORT_TEAM_NAME = {
+    # NBA Teams
+    'ATLANTA HAWKS': 'Atlanta',
+    'BOSTON CELTICS': 'Boston',
+    'BROOKLYN NETS': 'Brooklyn',
+    'CHARLOTTE HORNETS': 'Charlotte',
+    'CHICAGO BULLS': 'Chicago',
+    'CLEVELAND CAVALIERS': 'Cleveland',
+    'DALLAS MAVERICKS': 'Dallas',
+    'DENVER NUGGETS': 'Denver',
+    'DETROIT PISTONS': 'Detroit',
+    'GOLDEN STATE WARRIORS': 'Golden State',
+    'HOUSTON ROCKETS': 'Houston',
+    'INDIANA PACERS': 'Indiana',
+    'LOS ANGELES CLIPPERS': 'LA Clippers',
+    'LOS ANGELES LAKERS': 'LA Lakers',
+    'MEMPHIS GRIZZLIES': 'Memphis',
+    'MIAMI HEAT': 'Miami',
+    'MILWAUKEE BUCKS': 'Milwaukee',
+    'MINNESOTA TIMBERWOLVES': 'Minnesota',
+    'NEW ORLEANS PELICANS': 'New Orleans',
+    'NEW YORK KNICKS': 'New York',
+    'OKLAHOMA CITY THUNDER': 'Okla City',
+    'ORLANDO MAGIC': 'Orlando',
+    'PHILADELPHIA 76ERS': 'Philadelphia',
+    'PHOENIX SUNS': 'Phoenix',
+    'PORTLAND TRAIL BLAZERS': 'Portland',
+    'SACRAMENTO KINGS': 'Sacramento',
+    'SAN ANTONIO SPURS': 'San Antonio',
+    'TORONTO RAPTORS': 'Toronto',
+    'UTAH JAZZ': 'Utah',
+    'WASHINGTON WIZARDS': 'Washington',
+    # NHL Teams
+    'ANAHEIM DUCKS': 'Anaheim',
+    'ARIZONA COYOTES': 'Arizona',
+    'BOSTON BRUINS': 'Boston',
+    'BUFFALO SABRES': 'Buffalo',
+    'CALGARY FLAMES': 'Calgary',
+    'CAROLINA HURRICANES': 'Carolina',
+    'CHICAGO BLACKHAWKS': 'Chicago',
+    'COLORADO AVALANCHE': 'Colorado',
+    'COLUMBUS BLUE JACKETS': 'Columbus',
+    'DALLAS STARS': 'Dallas',
+    'DETROIT RED WINGS': 'Detroit',
+    'EDMONTON OILERS': 'Edmonton',
+    'FLORIDA PANTHERS': 'Florida',
+    'LOS ANGELES KINGS': 'Los Angeles',
+    'MINNESOTA WILD': 'Minnesota',
+    'MONTREAL CANADIENS': 'Montreal',
+    'NASHVILLE PREDATORS': 'Nashville',
+    'NEW JERSEY DEVILS': 'New Jersey',
+    'NEW YORK ISLANDERS': 'NY Islanders',
+    'NEW YORK RANGERS': 'NY Rangers',
+    'OTTAWA SENATORS': 'Ottawa',
+    'PHILADELPHIA FLYERS': 'Philadelphia',
+    'PITTSBURGH PENGUINS': 'Pittsburgh',
+    'SAN JOSE SHARKS': 'San Jose',
+    'SEATTLE KRAKEN': 'Seattle',
+    'ST. LOUIS BLUES': 'St. Louis',
+    'TAMPA BAY LIGHTNING': 'Tampa Bay',
+    'TORONTO MAPLE LEAFS': 'Toronto',
+    'UTAH MAMMOTH': 'Utah',  # New team (formerly Arizona Coyotes)
+    'VANCOUVER CANUCKS': 'Vancouver',
+    'VEGAS GOLDEN KNIGHTS': 'Vegas',
+    'WASHINGTON CAPITALS': 'Washington',
+    'WINNIPEG JETS': 'Winnipeg',
+}
+
+def convert_plays888_team_name(full_name: str) -> str:
+    """Convert plays888 full team name to short name for opportunities"""
+    return PLAYS888_TO_SHORT_TEAM_NAME.get(full_name.upper(), full_name)
+
+
 async def get_or_create_daily_compilation(account: str) -> dict:
     """Get or create the daily bet compilation for an account"""
     from zoneinfo import ZoneInfo
