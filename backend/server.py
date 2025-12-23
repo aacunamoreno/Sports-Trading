@@ -4782,28 +4782,25 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             
             games.append(game_data)
             
-            if recommendation and has_line:
-                # Calculate edge (always absolute difference)
-                edge = abs(combined_gpg - g['total']) if has_line else 0
-                
-                # Only add to plays if this game has an active bet
-                if game_data.get("has_bet", False):
-                    plays.append({
-                        "game": f"{g['away']} @ {g['home']}",
-                        "total": g['total'],
-                        "combined_gpg": round(combined_gpg, 1),
-                        "edge": round(edge, 1),
-                        "game_avg": round(game_avg, 1),
-                        "recommendation": recommendation,
-                        "color": color,
-                        "has_bet": True,
-                        "bet_type": game_data.get("bet_type"),
-                        "bet_risk": game_data.get("bet_risk", 0),
-                        "bet_count": game_data.get("bet_count", 0)
-                    })
-            
-            # Add edge to game_data for the table
+            # Calculate edge for ALL games (for the table)
+            edge = abs(combined_gpg - g['total']) if has_line else 0
             game_data["edge"] = round(edge, 1) if has_line else None
+            
+            # Only add to plays if this game has an active bet
+            if game_data.get("has_bet", False) and has_line:
+                plays.append({
+                    "game": f"{g['away']} @ {g['home']}",
+                    "total": g['total'],
+                    "combined_gpg": round(combined_gpg, 1),
+                    "edge": round(edge, 1),
+                    "game_avg": round(game_avg, 1),
+                    "recommendation": recommendation,
+                    "color": color,
+                    "has_bet": True,
+                    "bet_type": game_data.get("bet_type"),
+                    "bet_risk": game_data.get("bet_risk", 0),
+                    "bet_count": game_data.get("bet_count", 0)
+                })
         
         # Save to database
         await db.nhl_opportunities.update_one(
