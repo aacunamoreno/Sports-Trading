@@ -3729,20 +3729,24 @@ async def refresh_opportunities(day: str = "today"):
 # ============== NHL OPPORTUNITIES ==============
 
 @api_router.get("/opportunities/nhl")
-async def get_nhl_opportunities():
-    """Get NHL betting opportunities"""
+async def get_nhl_opportunities(day: str = "today"):
+    """Get NHL betting opportunities. day parameter: 'today' or 'tomorrow'"""
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
-        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        if day == "tomorrow":
+            target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
         
         # Get cached NHL opportunities
-        cached = await db.nhl_opportunities.find_one({"date": today}, {"_id": 0})
+        cached = await db.nhl_opportunities.find_one({"date": target_date}, {"_id": 0})
         
         if cached and cached.get('games'):
             return {
                 "success": True,
-                "date": today,
+                "date": target_date,
                 "last_updated": cached.get('last_updated'),
                 "games": cached.get('games', []),
                 "plays": cached.get('plays', [])
@@ -3750,8 +3754,8 @@ async def get_nhl_opportunities():
         
         return {
             "success": True,
-            "date": today,
-            "message": "No NHL opportunities data yet. Click refresh to load today's games.",
+            "date": target_date,
+            "message": "No NHL opportunities data yet. Click refresh to load games.",
             "games": [],
             "plays": []
         }
@@ -3760,12 +3764,16 @@ async def get_nhl_opportunities():
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/opportunities/nhl/refresh")
-async def refresh_nhl_opportunities():
-    """Manually refresh NHL opportunities data"""
+async def refresh_nhl_opportunities(day: str = "today"):
+    """Manually refresh NHL opportunities data. day parameter: 'today' or 'tomorrow'"""
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
-        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        if day == "tomorrow":
+            target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
         
         # NHL GPG Rankings (Season) - from ESPN data
         gpg_season = {
