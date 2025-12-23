@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, TrendingUp, TrendingDown, Target } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Target, Wifi } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -14,6 +14,7 @@ export default function Opportunities() {
   const [data, setData] = useState({ games: [], plays: [], date: '', last_updated: '' });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [useLiveLines, setUseLiveLines] = useState(true); // Default to using live lines
 
   useEffect(() => {
     loadOpportunities();
@@ -38,12 +39,14 @@ export default function Opportunities() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
+      const liveParam = day === 'today' && useLiveLines ? '&use_live_lines=true' : '';
       const endpoint = league === 'NBA' 
-        ? `/opportunities/refresh?day=${day}` 
-        : `/opportunities/nhl/refresh?day=${day}`;
+        ? `/opportunities/refresh?day=${day}${liveParam}` 
+        : `/opportunities/nhl/refresh?day=${day}${liveParam}`;
       const response = await axios.post(`${API}${endpoint}`);
       setData(response.data);
-      toast.success(`${league} ${day === 'tomorrow' ? 'tomorrow\'s' : 'today\'s'} opportunities refreshed!`);
+      const source = response.data.data_source === 'plays888.co' ? '(from plays888.co)' : '';
+      toast.success(`${league} ${day === 'tomorrow' ? 'tomorrow\'s' : 'today\'s'} opportunities refreshed! ${source}`);
     } catch (error) {
       console.error('Error refreshing:', error);
       toast.error('Failed to refresh');
