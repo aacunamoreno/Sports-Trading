@@ -325,7 +325,7 @@ export default function Opportunities() {
                       <td className="py-3 px-2 font-mono">
                         {game.has_bet && (
                           <span className="mr-1" title={`Active bet: ${game.bet_type}${game.bet_count > 1 ? ` (x${game.bet_count})` : ''}`}>
-                            💰{game.bet_count > 1 && <sup className="text-xs text-yellow-400 font-bold">x{game.bet_count}</sup>}
+                            💰{game.bet_count > 1 && <span className="text-xs text-yellow-400 font-bold">x{game.bet_count}</span>}
                           </span>
                         )}
                         {game.game_num}
