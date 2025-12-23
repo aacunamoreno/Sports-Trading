@@ -230,7 +230,9 @@ export default function Opportunities() {
       {/* Games Table */}
       <Card className="glass-card neon-border">
         <CardHeader className="border-b border-border pb-4">
-          <CardTitle className="text-lg">{league} Games Analysis - {day === 'tomorrow' ? 'Tomorrow' : 'Today'}</CardTitle>
+          <CardTitle className="text-lg">
+            {league} Games Analysis - {day === 'yesterday' ? 'Yesterday (Results)' : day === 'tomorrow' ? 'Tomorrow' : 'Today'}
+          </CardTitle>
         </CardHeader>
         <CardContent className="pt-4 overflow-x-auto">
           {data.games && data.games.length > 0 ? (
@@ -242,42 +244,86 @@ export default function Opportunities() {
                   <th className="text-left py-3 px-2">Away</th>
                   <th className="text-left py-3 px-2">Home</th>
                   <th className="text-center py-3 px-2">Total</th>
+                  {day === 'yesterday' && <th className="text-center py-3 px-2">Final</th>}
                   <th className="text-center py-3 px-2">Avg</th>
-                  <th className="text-center py-3 px-2">Bet</th>
+                  <th className="text-center py-3 px-2">{day === 'yesterday' ? 'Result' : 'Bet'}</th>
                 </tr>
               </thead>
               <tbody>
-                {data.games.map((game) => (
-                  <tr 
-                    key={game.game_num}
-                    className={`border-b border-border/50 ${getRowStyle(game.recommendation)}`}
-                  >
-                    <td className="py-3 px-2 font-mono">{game.game_num}</td>
-                    <td className="py-3 px-2 text-muted-foreground">{game.time}</td>
-                    {/* Away Team with Rankings */}
-                    <td className={`py-3 px-2 ${getTextStyle(game.recommendation)}`}>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-blue-400/70 font-mono">
-                          {game.away_ppg_rank || game.away_gpg_rank}/{game.away_last3_rank}
-                        </span>
-                        <span className="font-medium">{game.away_team}</span>
-                      </div>
-                    </td>
-                    {/* Home Team with Rankings */}
-                    <td className={`py-3 px-2 ${getTextStyle(game.recommendation)}`}>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-orange-400/70 font-mono">
-                          {game.home_ppg_rank || game.home_gpg_rank}/{game.home_last3_rank}
-                        </span>
-                        <span className="font-medium">{game.home_team}</span>
-                      </div>
-                    </td>
-                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.recommendation)}`}>{game.total}</td>
-                    <td className={`py-3 px-2 text-center font-bold ${getTextStyle(game.recommendation)}`}>{game.game_avg}</td>
-                    <td className="py-3 px-2 text-center">
-                      {game.recommendation ? (
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${
-                          game.recommendation === 'OVER' 
+                {data.games.map((game) => {
+                  // For yesterday, use result_hit to determine row color
+                  const rowStyle = day === 'yesterday' && game.recommendation
+                    ? game.result_hit === true 
+                      ? 'bg-green-500/20 border-green-500/50' 
+                      : game.result_hit === false 
+                        ? 'bg-red-500/20 border-red-500/50'
+                        : getRowStyle(game.recommendation)
+                    : getRowStyle(game.recommendation);
+                  
+                  const textStyle = day === 'yesterday' && game.recommendation
+                    ? game.result_hit === true
+                      ? 'text-green-400 font-bold'
+                      : game.result_hit === false
+                        ? 'text-red-400 font-bold'
+                        : getTextStyle(game.recommendation)
+                    : getTextStyle(game.recommendation);
+
+                  return (
+                    <tr 
+                      key={game.game_num}
+                      className={`border-b border-border/50 ${rowStyle}`}
+                    >
+                      <td className="py-3 px-2 font-mono">{game.game_num}</td>
+                      <td className="py-3 px-2 text-muted-foreground">{game.time}</td>
+                      {/* Away Team with Rankings */}
+                      <td className={`py-3 px-2 ${textStyle}`}>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-blue-400/70 font-mono">
+                            {game.away_ppg_rank || game.away_gpg_rank}/{game.away_last3_rank}
+                          </span>
+                          <span className="font-medium">{game.away_team}</span>
+                        </div>
+                      </td>
+                      {/* Home Team with Rankings */}
+                      <td className={`py-3 px-2 ${textStyle}`}>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-orange-400/70 font-mono">
+                            {game.home_ppg_rank || game.home_gpg_rank}/{game.home_last3_rank}
+                          </span>
+                          <span className="font-medium">{game.home_team}</span>
+                        </div>
+                      </td>
+                      <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>{game.total}</td>
+                      {day === 'yesterday' && (
+                        <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
+                          {game.final_score || '-'}
+                        </td>
+                      )}
+                      <td className={`py-3 px-2 text-center font-bold ${textStyle}`}>{game.game_avg}</td>
+                      <td className="py-3 px-2 text-center">
+                        {game.recommendation ? (
+                          day === 'yesterday' ? (
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${
+                              game.result_hit === true
+                                ? 'bg-green-500/30 text-green-400'
+                                : game.result_hit === false
+                                  ? 'bg-red-500/30 text-red-400'
+                                  : 'bg-gray-500/30 text-gray-400'
+                            }`}>
+                              {game.result_hit === true ? '✅ HIT' : game.result_hit === false ? '❌ MISS' : '⏳ PENDING'}
+                            </span>
+                          ) : (
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${
+                              game.recommendation === 'OVER' 
+                                ? 'bg-blue-500/30 text-blue-400' 
+                                : 'bg-orange-500/30 text-orange-400'
+                            }`}>
+                              {game.recommendation === 'OVER' ? '⬆️' : '⬇️'} {game.recommendation}
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )} 
                             ? 'bg-blue-500/30 text-blue-400' 
                             : 'bg-orange-500/30 text-orange-400'
                         }`}>
