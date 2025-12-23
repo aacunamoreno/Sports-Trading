@@ -334,13 +334,15 @@ export default function Opportunities() {
                           <span className="font-medium">{game.home_team}</span>
                         </div>
                       </td>
-                      <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>{game.total}</td>
+                      <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
+                        {game.total ? game.total : <span className="text-gray-500 text-xs">NO LINE</span>}
+                      </td>
                       {day === 'yesterday' && (
                         <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
                           {game.final_score || '-'}
                         </td>
                       )}
-                      <td className={`py-3 px-2 text-center font-bold ${textStyle}`}>{game.game_avg}</td>
+                      <td className={`py-3 px-2 text-center font-bold ${textStyle}`}>{game.combined_ppg || game.combined_gpg || game.game_avg}</td>
                       <td className="py-3 px-2 text-center">
                         {game.recommendation ? (
                           day === 'yesterday' ? (
