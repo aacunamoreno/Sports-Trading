@@ -3542,12 +3542,16 @@ async def get_opportunities(day: str = "today"):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/opportunities/refresh")
-async def refresh_opportunities():
-    """Manually refresh NBA opportunities data"""
+async def refresh_opportunities(day: str = "today"):
+    """Manually refresh NBA opportunities data. day parameter: 'today' or 'tomorrow'"""
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
-        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        if day == "tomorrow":
+            target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
         
         # Hard-coded data for now (would be scraped in production)
         # PPG Rankings (Season)
@@ -3590,14 +3594,34 @@ async def refresh_opportunities():
             'Toronto': 96.0, 'Indiana': 103.7, 'Minnesota': 108.3, 'LA Clippers': 102.3, 'Milwaukee': 95.7
         }
         
-        # Today's games (Arizona time - would be scraped)
-        games_raw = [
-            {"time": "5:00 PM", "away": "Charlotte", "home": "Cleveland", "total": 239.5},
-            {"time": "5:30 PM", "away": "Indiana", "home": "Boston", "total": 226.5},
-            {"time": "6:00 PM", "away": "Dallas", "home": "New Orleans", "total": 240.5},
-            {"time": "7:00 PM", "away": "Utah", "home": "Denver", "total": 250.5},
-            {"time": "7:30 PM", "away": "Memphis", "home": "Okla City", "total": 232.5},
-            {"time": "8:00 PM", "away": "Detroit", "home": "Portland", "total": 234.5},
+        # Games data based on day
+        if day == "tomorrow":
+            # Tomorrow's NBA games (Dec 23 - Arizona time)
+            games_raw = [
+                {"time": "5:00 PM", "away": "Washington", "home": "Charlotte", "total": 225.0},
+                {"time": "5:00 PM", "away": "Brooklyn", "home": "Philadelphia", "total": 219.5},
+                {"time": "5:30 PM", "away": "Chicago", "home": "Atlanta", "total": 254.5},
+                {"time": "5:30 PM", "away": "New Orleans", "home": "Cleveland", "total": 230.0},
+                {"time": "5:30 PM", "away": "Milwaukee", "home": "Indiana", "total": 223.5},
+                {"time": "5:30 PM", "away": "Toronto", "home": "Miami", "total": 228.5},
+                {"time": "6:00 PM", "away": "Denver", "home": "Dallas", "total": 235.0},
+                {"time": "6:00 PM", "away": "New York", "home": "Minnesota", "total": 224.5},
+                {"time": "6:30 PM", "away": "Okla City", "home": "San Antonio", "total": 234.5},
+                {"time": "7:00 PM", "away": "LA Lakers", "home": "Phoenix", "total": 224.5},
+                {"time": "7:00 PM", "away": "Memphis", "home": "Utah", "total": 232.0},
+                {"time": "8:00 PM", "away": "Orlando", "home": "Portland", "total": 224.0},
+                {"time": "8:00 PM", "away": "Detroit", "home": "Sacramento", "total": 228.0},
+                {"time": "8:30 PM", "away": "Houston", "home": "LA Clippers", "total": 221.5},
+            ]
+        else:
+            # Today's games (Arizona time - would be scraped)
+            games_raw = [
+                {"time": "5:00 PM", "away": "Charlotte", "home": "Cleveland", "total": 239.5},
+                {"time": "5:30 PM", "away": "Indiana", "home": "Boston", "total": 226.5},
+                {"time": "6:00 PM", "away": "Dallas", "home": "New Orleans", "total": 240.5},
+                {"time": "7:00 PM", "away": "Utah", "home": "Denver", "total": 250.5},
+                {"time": "7:30 PM", "away": "Memphis", "home": "Okla City", "total": 232.5},
+                {"time": "8:00 PM", "away": "Detroit", "home": "Portland", "total": 234.5},
             {"time": "8:00 PM", "away": "Orlando", "home": "Golden State", "total": 227.5},
         ]
         
