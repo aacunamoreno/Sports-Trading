@@ -4468,7 +4468,7 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             # Check if we have a valid line from plays888.co
             has_line = g.get('total') and g['total'] > 0
             
-            # NEW LOGIC: Determine recommendation based on GPG vs Line comparison
+            # SIMPLIFIED LOGIC: Determine recommendation based on GPG vs Line comparison
             # If GPG average > Line → OVER (we expect more goals than the line)
             # If GPG average < Line → UNDER (we expect fewer goals than the line)
             recommendation = None
@@ -4477,12 +4477,12 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             if has_line:
                 edge_value = combined_gpg - g['total']  # Positive = OVER, Negative = UNDER
                 
-                # Only recommend if there's a meaningful edge (at least 0.3 goals for NHL)
-                # AND the team ranking average supports the direction
-                if edge_value >= 0.3 and game_avg <= 16:  # GPG higher than line + good ranking
+                # Recommend based on which side has the edge
+                # Edge must be at least 0.3 goals to make a recommendation (NHL)
+                if edge_value >= 0.3:  # GPG is significantly higher than line
                     recommendation = "OVER"
                     color = "green"
-                elif edge_value <= -0.3 and game_avg >= 16:  # GPG lower than line + poor ranking
+                elif edge_value <= -0.3:  # GPG is significantly lower than line
                     recommendation = "UNDER"
                     color = "red"
             
