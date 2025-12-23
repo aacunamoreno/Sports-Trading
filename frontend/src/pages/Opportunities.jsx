@@ -10,18 +10,21 @@ const API = `${BACKEND_URL}/api`;
 
 export default function Opportunities() {
   const [league, setLeague] = useState('NBA');
+  const [day, setDay] = useState('today');
   const [data, setData] = useState({ games: [], plays: [], date: '', last_updated: '' });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadOpportunities();
-  }, [league]);
+  }, [league, day]);
 
   const loadOpportunities = async () => {
     setLoading(true);
     try {
-      const endpoint = league === 'NBA' ? '/opportunities' : '/opportunities/nhl';
+      const endpoint = league === 'NBA' 
+        ? `/opportunities?day=${day}` 
+        : `/opportunities/nhl?day=${day}`;
       const response = await axios.get(`${API}${endpoint}`);
       setData(response.data);
     } catch (error) {
@@ -35,10 +38,12 @@ export default function Opportunities() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const endpoint = league === 'NBA' ? '/opportunities/refresh' : '/opportunities/nhl/refresh';
+      const endpoint = league === 'NBA' 
+        ? `/opportunities/refresh?day=${day}` 
+        : `/opportunities/nhl/refresh?day=${day}`;
       const response = await axios.post(`${API}${endpoint}`);
       setData(response.data);
-      toast.success(`${league} opportunities refreshed!`);
+      toast.success(`${league} ${day === 'tomorrow' ? 'tomorrow\'s' : 'today\'s'} opportunities refreshed!`);
     } catch (error) {
       console.error('Error refreshing:', error);
       toast.error('Failed to refresh');
@@ -113,20 +118,41 @@ export default function Opportunities() {
       </div>
 
       {/* League Tabs */}
-      <div className="flex gap-2">
-        {['NBA', 'NHL'].map((l) => (
-          <button
-            key={l}
-            onClick={() => setLeague(l)}
-            className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
-              league === l
-                ? 'bg-primary text-primary-foreground shadow-lg'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            {l === 'NBA' ? '🏀' : '🏒'} {l}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex gap-2">
+          {['NBA', 'NHL'].map((l) => (
+            <button
+              key={l}
+              onClick={() => setLeague(l)}
+              className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
+                league === l
+                  ? 'bg-primary text-primary-foreground shadow-lg'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {l === 'NBA' ? '🏀' : '🏒'} {l}
+            </button>
+          ))}
+        </div>
+        
+        <div className="h-6 w-px bg-border hidden sm:block" />
+        
+        {/* Day Tabs */}
+        <div className="flex gap-2">
+          {['today', 'tomorrow'].map((d) => (
+            <button
+              key={d}
+              onClick={() => setDay(d)}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                day === d
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {d === 'today' ? '📅 Today' : '📆 Tomorrow'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Info Card */}
@@ -145,7 +171,7 @@ export default function Opportunities() {
         <Card className="glass-card neon-border">
           <CardHeader className="border-b border-border pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
-              🎯 TODAY'S PLAYS
+              🎯 {day === 'tomorrow' ? "TOMORROW'S" : "TODAY'S"} PLAYS
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
@@ -191,7 +217,7 @@ export default function Opportunities() {
       {/* Games Table */}
       <Card className="glass-card neon-border">
         <CardHeader className="border-b border-border pb-4">
-          <CardTitle className="text-lg">{league} Games Analysis</CardTitle>
+          <CardTitle className="text-lg">{league} Games Analysis - {day === 'tomorrow' ? 'Tomorrow' : 'Today'}</CardTitle>
         </CardHeader>
         <CardContent className="pt-4 overflow-x-auto">
           {data.games && data.games.length > 0 ? (
@@ -251,8 +277,8 @@ export default function Opportunities() {
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No {league} opportunities data available.</p>
-              <p className="text-sm mt-2">Click "Refresh Data" to load today's games.</p>
+              <p>No {league} opportunities data available for {day}.</p>
+              <p className="text-sm mt-2">Click "Refresh Data" to load games.</p>
             </div>
           )}
         </CardContent>
