@@ -3661,13 +3661,15 @@ async def get_opportunities(day: str = "today"):
 
 @api_router.post("/opportunities/refresh")
 async def refresh_opportunities(day: str = "today"):
-    """Manually refresh NBA opportunities data. day parameter: 'today' or 'tomorrow'"""
+    """Manually refresh NBA opportunities data. day parameter: 'yesterday', 'today' or 'tomorrow'"""
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
         
         if day == "tomorrow":
             target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+        elif day == "yesterday":
+            target_date = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
         else:
             target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
         
