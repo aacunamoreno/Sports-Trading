@@ -4003,8 +4003,11 @@ async def get_opportunities(day: str = "today"):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/opportunities/refresh")
-async def refresh_opportunities(day: str = "today"):
-    """Manually refresh NBA opportunities data. day parameter: 'yesterday', 'today' or 'tomorrow'"""
+async def refresh_opportunities(day: str = "today", use_live_lines: bool = False):
+    """Manually refresh NBA opportunities data. 
+    day parameter: 'yesterday', 'today' or 'tomorrow'
+    use_live_lines: if True, fetch O/U lines from plays888.co instead of hardcoded values
+    """
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
@@ -4016,7 +4019,6 @@ async def refresh_opportunities(day: str = "today"):
         else:
             target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
         
-        # Hard-coded data for now (would be scraped in production)
         # PPG Rankings (Season)
         ppg_season = {
             'Denver': 1, 'Okla City': 2, 'Houston': 3, 'New York': 4, 'Miami': 5,
@@ -4037,7 +4039,7 @@ async def refresh_opportunities(day: str = "today"):
             'Toronto': 26, 'Indiana': 27, 'Minnesota': 28, 'LA Clippers': 29, 'Milwaukee': 30
         }
         
-        # Actual PPG values (Season 2025) - would be scraped from teamrankings.com
+        # Actual PPG values (Season 2025)
         ppg_season_values = {
             'Denver': 124.7, 'Okla City': 122.5, 'Houston': 121.0, 'New York': 120.8, 'Miami': 120.2,
             'Utah': 119.9, 'San Antonio': 119.8, 'Chicago': 119.5, 'Detroit': 118.9, 'Atlanta': 118.7,
@@ -4047,7 +4049,7 @@ async def refresh_opportunities(day: str = "today"):
             'Washington': 112.7, 'Sacramento': 111.5, 'LA Clippers': 110.6, 'Indiana': 110.2, 'Brooklyn': 109.1
         }
         
-        # Actual PPG values (Last 3 games) - would be scraped from teamrankings.com
+        # Actual PPG values (Last 3 games)
         ppg_last3_values = {
             'Chicago': 138.3, 'Utah': 134.0, 'New Orleans': 125.0, 'Atlanta': 124.7, 'San Antonio': 123.0,
             'Portland': 122.7, 'Houston': 122.3, 'Orlando': 121.0, 'Dallas': 121.0, 'Memphis': 119.7,
@@ -4057,26 +4059,61 @@ async def refresh_opportunities(day: str = "today"):
             'Toronto': 96.0, 'Indiana': 103.7, 'Minnesota': 108.3, 'LA Clippers': 102.3, 'Milwaukee': 95.7
         }
         
-        # Games data based on day
-        if day == "tomorrow":
-            # Tomorrow's NBA games (Dec 23 - Arizona time)
-            games_raw = [
-                {"time": "5:00 PM", "away": "Washington", "home": "Charlotte", "total": 225.0},
-                {"time": "5:00 PM", "away": "Brooklyn", "home": "Philadelphia", "total": 219.5},
-                {"time": "5:30 PM", "away": "Chicago", "home": "Atlanta", "total": 254.5},
-                {"time": "5:30 PM", "away": "New Orleans", "home": "Cleveland", "total": 230.0},
-                {"time": "5:30 PM", "away": "Milwaukee", "home": "Indiana", "total": 223.5},
-                {"time": "5:30 PM", "away": "Toronto", "home": "Miami", "total": 228.5},
-                {"time": "6:00 PM", "away": "Denver", "home": "Dallas", "total": 235.0},
-                {"time": "6:00 PM", "away": "New York", "home": "Minnesota", "total": 224.5},
-                {"time": "6:30 PM", "away": "Okla City", "home": "San Antonio", "total": 234.5},
-                {"time": "7:00 PM", "away": "LA Lakers", "home": "Phoenix", "total": 224.5},
-                {"time": "7:00 PM", "away": "Memphis", "home": "Utah", "total": 232.0},
-                {"time": "8:00 PM", "away": "Orlando", "home": "Portland", "total": 224.0},
-                {"time": "8:00 PM", "away": "Detroit", "home": "Sacramento", "total": 228.0},
-                {"time": "8:30 PM", "away": "Houston", "home": "LA Clippers", "total": 221.5},
-            ]
-        elif day == "yesterday":
+        games_raw = []
+        data_source = "hardcoded"
+        
+        # Try to fetch live lines from plays888.co if requested and for today's games
+        if use_live_lines and day == "today":
+            try:
+                # Get connection credentials
+                conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+                if conn and conn.get("is_connected"):
+                    username = conn["username"]
+                    password = decrypt_password(conn["password_encrypted"])
+                    
+                    # Create new scraper instance
+                    scraper = Plays888Service()
+                    await scraper.login(username, password)
+                    live_games = await scraper.scrape_totals("NBA")
+                    await scraper.close()
+                    
+                    if live_games:
+                        # Convert plays888 data to our format
+                        for game in live_games:
+                            away_short = convert_plays888_team_name(game.get('away', ''))
+                            home_short = convert_plays888_team_name(game.get('home', ''))
+                            games_raw.append({
+                                "time": game.get('time', ''),
+                                "away": away_short,
+                                "home": home_short,
+                                "total": game.get('total', 220.0)
+                            })
+                        data_source = "plays888.co"
+                        logger.info(f"Fetched {len(games_raw)} NBA games from plays888.co")
+            except Exception as e:
+                logger.error(f"Error fetching live lines: {e}")
+                # Fall back to hardcoded data
+        
+        # Use hardcoded data if live fetch failed or wasn't requested
+        if not games_raw:
+            if day == "tomorrow":
+                games_raw = [
+                    {"time": "5:00 PM", "away": "Washington", "home": "Charlotte", "total": 225.0},
+                    {"time": "5:00 PM", "away": "Brooklyn", "home": "Philadelphia", "total": 219.5},
+                    {"time": "5:30 PM", "away": "Chicago", "home": "Atlanta", "total": 254.5},
+                    {"time": "5:30 PM", "away": "New Orleans", "home": "Cleveland", "total": 230.0},
+                    {"time": "5:30 PM", "away": "Milwaukee", "home": "Indiana", "total": 223.5},
+                    {"time": "5:30 PM", "away": "Toronto", "home": "Miami", "total": 228.5},
+                    {"time": "6:00 PM", "away": "Denver", "home": "Dallas", "total": 235.0},
+                    {"time": "6:00 PM", "away": "New York", "home": "Minnesota", "total": 224.5},
+                    {"time": "6:30 PM", "away": "Okla City", "home": "San Antonio", "total": 234.5},
+                    {"time": "7:00 PM", "away": "LA Lakers", "home": "Phoenix", "total": 224.5},
+                    {"time": "7:00 PM", "away": "Memphis", "home": "Utah", "total": 232.0},
+                    {"time": "8:00 PM", "away": "Orlando", "home": "Portland", "total": 224.0},
+                    {"time": "8:00 PM", "away": "Detroit", "home": "Sacramento", "total": 228.0},
+                    {"time": "8:30 PM", "away": "Houston", "home": "LA Clippers", "total": 221.5},
+                ]
+            elif day == "yesterday":
             # Yesterday's NBA games with results (Dec 22 - from NBA.com)
             games_raw = [
                 {"time": "5:00 PM", "away": "Charlotte", "home": "Cleveland", "total": 239.5, "final_score": 271},
