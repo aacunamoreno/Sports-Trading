@@ -276,9 +276,18 @@ export default function Opportunities() {
                       <div className={`text-xl font-bold ${getTextStyle(play.recommendation)}`}>
                         {play.recommendation === 'OVER' ? '⬆️' : '⬇️'} {play.recommendation}
                       </div>
-                      <div className="text-sm">
-                        Edge: <span className={getEdgeStyle(play.edge)}>
-                          {play.edge >= 0 ? '+' : ''}{play.edge}
+                      <div className="text-sm flex items-center justify-end gap-3">
+                        {play.live_edge !== undefined && play.edge !== play.live_edge && (
+                          <span className="text-muted-foreground">
+                            Diff vs Live: <span className={play.edge > play.live_edge ? 'text-green-400' : 'text-red-400'}>
+                              {play.edge > play.live_edge ? '+' : ''}{(play.edge - play.live_edge).toFixed(1)}
+                            </span>
+                          </span>
+                        )}
+                        <span>
+                          Edge: <span className={getEdgeStyle(play.edge)}>
+                            {play.edge >= 0 ? '+' : ''}{play.edge}
+                          </span>
                         </span>
                       </div>
                     </div>
