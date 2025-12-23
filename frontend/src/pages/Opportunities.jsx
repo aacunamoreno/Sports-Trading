@@ -147,17 +147,17 @@ export default function Opportunities() {
         
         {/* Day Tabs */}
         <div className="flex gap-2">
-          {['today', 'tomorrow'].map((d) => (
+          {['yesterday', 'today', 'tomorrow'].map((d) => (
             <button
               key={d}
               onClick={() => setDay(d)}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                 day === d
-                  ? 'bg-blue-600 text-white shadow-lg'
+                  ? d === 'yesterday' ? 'bg-purple-600 text-white shadow-lg' : 'bg-blue-600 text-white shadow-lg'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
             >
-              {d === 'today' ? '📅 Today' : '📆 Tomorrow'}
+              {d === 'yesterday' ? '📊 Yesterday' : d === 'today' ? '📅 Today' : '📆 Tomorrow'}
             </button>
           ))}
         </div>
@@ -170,6 +170,12 @@ export default function Opportunities() {
             <div><span className="text-muted-foreground">Date:</span> <span className="font-mono">{data.date || 'N/A'}</span></div>
             <div><span className="text-muted-foreground">Last Updated:</span> <span className="font-mono">{data.last_updated || 'N/A'}</span></div>
             <div><span className="text-muted-foreground">Games:</span> <span className="font-mono">{data.games?.length || 0}</span></div>
+            {day === 'yesterday' && data.games?.length > 0 && (
+              <>
+                <div><span className="text-muted-foreground">Hits:</span> <span className="font-mono text-green-400">{data.games.filter(g => g.result_hit === true).length}</span></div>
+                <div><span className="text-muted-foreground">Misses:</span> <span className="font-mono text-red-400">{data.games.filter(g => g.result_hit === false).length}</span></div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
