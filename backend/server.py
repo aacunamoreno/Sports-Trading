@@ -2925,14 +2925,13 @@ async def scrape_plays888_totals(league: str):
             "count": len(games),
             "screenshot": f"/tmp/plays888_{league.lower()}_totals.png"
         }
-    finally:
-        await scrape_service.close()
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Scrape totals error: {str(e)}")
-        await plays888_service.close()
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await scrape_service.close()
 
 
 @api_router.post("/bets/place")
