@@ -4168,22 +4168,21 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             # If total is None or 0, it means "NO LINE" - game not active in plays888
             has_line = g.get('total') and g['total'] > 0
             
-            # NEW LOGIC: Determine recommendation based on PPG vs Line comparison
+            # SIMPLIFIED LOGIC: Determine recommendation based on PPG vs Line comparison
             # If PPG average > Line → OVER (we expect more points than the line)
             # If PPG average < Line → UNDER (we expect fewer points than the line)
-            # Only recommend if edge is significant (> 0.5 points)
             recommendation = None
             color = "neutral"
             
             if has_line:
                 edge_value = combined_ppg - g['total']  # Positive = OVER, Negative = UNDER
                 
-                # Only recommend if there's a meaningful edge (at least 0.5 points)
-                # AND the team ranking average supports the direction
-                if edge_value >= 0.5 and game_avg <= 15:  # PPG higher than line + good ranking
+                # Recommend based on which side has the edge
+                # Edge must be at least 0.5 points to make a recommendation
+                if edge_value >= 0.5:  # PPG is significantly higher than line
                     recommendation = "OVER"
                     color = "green"
-                elif edge_value <= -0.5 and game_avg >= 15:  # PPG lower than line + poor ranking
+                elif edge_value <= -0.5:  # PPG is significantly lower than line
                     recommendation = "UNDER"
                     color = "red"
             
