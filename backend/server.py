@@ -3819,11 +3819,30 @@ async def refresh_nhl_opportunities(day: str = "today"):
             'Winnipeg': 2.00, 'Los Angeles': 2.00
         }
         
-        # Today's NHL games with O/U lines (Arizona time - would be scraped in production)
-        games_raw = [
-            {"time": "8:00 PM", "away": "Seattle", "home": "Anaheim", "total": 6.5},
-            {"time": "8:00 PM", "away": "Columbus", "home": "Los Angeles", "total": 5.5},
-        ]
+        # NHL games based on day (Arizona time - would be scraped in production)
+        if day == "tomorrow":
+            # Tomorrow's NHL games (Dec 23 - Arizona time)
+            games_raw = [
+                {"time": "2:00 PM", "away": "Pittsburgh", "home": "Toronto", "total": 6.5},
+                {"time": "4:30 PM", "away": "Dallas", "home": "Detroit", "total": 5.5},
+                {"time": "5:00 PM", "away": "NY Rangers", "home": "Washington", "total": 5.5},
+                {"time": "5:00 PM", "away": "Montreal", "home": "Boston", "total": 5.5},
+                {"time": "5:00 PM", "away": "Buffalo", "home": "Ottawa", "total": 6.5},
+                {"time": "5:00 PM", "away": "New Jersey", "home": "NY Islanders", "total": 5.5},
+                {"time": "5:00 PM", "away": "Florida", "home": "Carolina", "total": 5.5},
+                {"time": "6:00 PM", "away": "Nashville", "home": "Minnesota", "total": 5.5},
+                {"time": "7:00 PM", "away": "Philadelphia", "home": "Chicago", "total": 5.5},
+                {"time": "7:00 PM", "away": "Utah", "home": "Colorado", "total": 6.5},
+                {"time": "7:00 PM", "away": "Calgary", "home": "Edmonton", "total": 6.5},
+                {"time": "8:00 PM", "away": "San Jose", "home": "Vegas", "total": 6.5},
+                {"time": "8:00 PM", "away": "Winnipeg", "home": "Vancouver", "total": 5.5},
+            ]
+        else:
+            # Today's NHL games (Arizona time)
+            games_raw = [
+                {"time": "8:00 PM", "away": "Seattle", "home": "Anaheim", "total": 6.5},
+                {"time": "8:00 PM", "away": "Columbus", "home": "Los Angeles", "total": 5.5},
+            ]
         
         # Calculate averages and recommendations
         games = []
