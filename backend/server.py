@@ -4536,6 +4536,7 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
         
         games_raw = []
         data_source = "hardcoded"
+        open_bets = []
         
         # Try to fetch live lines from plays888.co if requested and for today's games
         if use_live_lines and day == "today":
