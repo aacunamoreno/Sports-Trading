@@ -3921,9 +3921,9 @@ async def refresh_nhl_opportunities(day: str = "today"):
         
         # Save to database
         await db.nhl_opportunities.update_one(
-            {"date": today},
+            {"date": target_date},
             {"$set": {
-                "date": today,
+                "date": target_date,
                 "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
                 "games": games,
                 "plays": plays
