@@ -4440,6 +4440,8 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             }
             
             # Check if this game has an active bet
+            # Also detect "hedged" bets (both OVER and UNDER on same game = cancelled out)
+            game_bets = []
             for bet in open_bets:
                 if bet.get('sport') == 'NBA':
                     # Match team names (case-insensitive partial match)
@@ -4453,11 +4455,25 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     home_match = any(part in bet_home for part in game_home.split()) or any(part in game_home for part in bet_home.split())
                     
                     if away_match and home_match:
-                        game_data["has_bet"] = True
-                        game_data["bet_type"] = bet.get('bet_type')
-                        game_data["bet_risk"] = bet.get('total_risk', bet.get('risk', 0))
-                        game_data["bet_count"] = bet.get('bet_count', 1)
-                        break
+                        game_bets.append(bet)
+            
+            # Check if game is hedged (has both OVER and UNDER bets)
+            bet_types = [b.get('bet_type', '').upper() for b in game_bets]
+            is_hedged = 'OVER' in bet_types and 'UNDER' in bet_types
+            
+            if game_bets and not is_hedged:
+                # Game has active bet(s) that are not hedged
+                game_data["has_bet"] = True
+                game_data["bet_type"] = game_bets[0].get('bet_type')
+                game_data["bet_risk"] = sum(b.get('total_risk', b.get('risk', 0)) for b in game_bets)
+                game_data["bet_count"] = sum(b.get('bet_count', 1) for b in game_bets)
+            elif is_hedged:
+                # Game is hedged (OVER + UNDER = push/cancelled)
+                game_data["has_bet"] = False
+                game_data["is_hedged"] = True
+                game_data["bet_type"] = "HEDGED"
+                game_data["bet_risk"] = 0
+                game_data["bet_count"] = 0
             
             # Add result data for yesterday
             if day == "yesterday" and 'final_score' in g:
