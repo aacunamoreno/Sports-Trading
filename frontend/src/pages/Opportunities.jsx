@@ -387,19 +387,23 @@ export default function Opportunities() {
       <Card className="glass-card">
         <CardContent className="pt-4">
           <div className="text-sm">
-            <div className="font-bold mb-2">{league} Betting Rule ({config.totalTeams} teams):</div>
+            <div className="font-bold mb-2">{league} Betting Rule:</div>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded bg-blue-500/30 border border-blue-500/50"></span>
-                <span>Game Avg {config.overRange} → <span className="text-blue-400 font-bold">OVER</span></span>
+                <span>PPG Avg &gt; Line → <span className="text-blue-400 font-bold">OVER</span></span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded bg-muted border border-border"></span>
-                <span>Game Avg {config.noEdgeRange} → No edge</span>
+                <span>PPG ≈ Line → No edge</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded bg-orange-500/30 border border-orange-500/50"></span>
-                <span>Game Avg {config.underRange} → <span className="text-orange-400 font-bold">UNDER</span></span>
+                <span>PPG Avg &lt; Line → <span className="text-orange-400 font-bold">UNDER</span></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-gray-500/20 border border-gray-500/30"></span>
+                <span className="text-gray-500">NO LINE = Not available in plays888</span>
               </div>
             </div>
             <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-4">
