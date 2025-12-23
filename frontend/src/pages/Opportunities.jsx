@@ -130,14 +130,31 @@ export default function Opportunities() {
               <span className="text-red-400">{compoundRecord.misses}</span>
             </div>
           </div>
-          <Button 
-            onClick={handleRefresh} 
-            disabled={refreshing}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh Data
-          </Button>
+          <div className="flex items-center gap-3">
+            {/* Live Lines Toggle */}
+            {day === 'today' && (
+              <button
+                onClick={() => setUseLiveLines(!useLiveLines)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  useLiveLines 
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/50' 
+                    : 'bg-muted text-muted-foreground border border-muted'
+                }`}
+                title={useLiveLines ? 'Using live lines from plays888.co' : 'Using cached data'}
+              >
+                <Wifi className={`w-4 h-4 ${useLiveLines ? 'text-green-400' : 'text-muted-foreground'}`} />
+                Live Lines
+              </button>
+            )}
+            <Button 
+              onClick={handleRefresh} 
+              disabled={refreshing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh Data
+            </Button>
+          </div>
         </div>
       </div>
 
