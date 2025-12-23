@@ -102,9 +102,11 @@ export default function Opportunities() {
     );
   }
 
+  const compoundRecord = data.compound_record || { hits: 0, misses: 0 };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Compound Record */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-4xl font-heading font-bold tracking-tight flex items-center gap-2">
@@ -115,14 +117,25 @@ export default function Opportunities() {
             {league} Over/Under analysis based on {config.statLabel} rankings
           </p>
         </div>
-        <Button 
-          onClick={handleRefresh} 
-          disabled={refreshing}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh Data
-        </Button>
+        <div className="flex items-center gap-4">
+          {/* Compound Record Badge */}
+          <div className="bg-gradient-to-r from-green-600/20 to-red-600/20 border border-primary/30 rounded-lg px-4 py-2">
+            <div className="text-xs text-muted-foreground text-center">Season Record</div>
+            <div className="text-xl font-bold text-center">
+              <span className="text-green-400">{compoundRecord.hits}</span>
+              <span className="text-muted-foreground mx-1">-</span>
+              <span className="text-red-400">{compoundRecord.misses}</span>
+            </div>
+          </div>
+          <Button 
+            onClick={handleRefresh} 
+            disabled={refreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh Data
+          </Button>
+        </div>
       </div>
 
       {/* League Tabs */}
