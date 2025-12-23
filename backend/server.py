@@ -746,6 +746,11 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
         lines.append("")
         result_sign = "+" if total_result >= 0 else ""
         lines.append(f"*Result: {result_sign}{format_amount_short(total_result)}*")
+        
+        # Add record (wins-losses)
+        wins = len([b for b in bets if b.get('result') == 'won'])
+        losses = len([b for b in bets if b.get('result') == 'lost'])
+        lines.append(f"*Record: {wins}-{losses}*")
     
     return "\n".join(lines)
 
