@@ -2574,6 +2574,49 @@ async def delete_rule(rule_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============== TELEGRAM CLEANUP ==============
+
+@api_router.post("/telegram/cleanup-now")
+async def cleanup_telegram_messages():
+    """Manually trigger cleanup of scheduled message deletions"""
+    try:
+        await process_pending_deletions()
+        
+        # Count remaining scheduled deletions
+        remaining = await db.scheduled_deletions.count_documents({})
+        
+        return {
+            "success": True,
+            "message": "Cleanup completed",
+            "remaining_scheduled": remaining
+        }
+    except Exception as e:
+        logger.error(f"Cleanup error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/telegram/scheduled-deletions")
+async def get_scheduled_deletions():
+    """View all scheduled message deletions"""
+    try:
+        deletions = await db.scheduled_deletions.find({}, {"_id": 0}).to_list(100)
+        now = datetime.now(timezone.utc)
+        
+        for d in deletions:
+            if d.get('delete_at'):
+                d['delete_at'] = d['delete_at'].isoformat()
+                d['time_remaining'] = str(d.get('delete_at', now) - now) if isinstance(d.get('delete_at'), datetime) else 'N/A'
+            if d.get('created_at'):
+                d['created_at'] = d['created_at'].isoformat()
+        
+        return {
+            "count": len(deletions),
+            "deletions": deletions
+        }
+    except Exception as e:
+        logger.error(f"Get scheduled deletions error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.get("/rules/opportunities")
 async def get_rules_opportunities():
     """Get current betting opportunities that match rules (from plays888)"""
