@@ -2155,7 +2155,8 @@ class Plays888Service:
                 return []
             
             # Parse games from the page text
-            # Format: "541 BROOKLYN NETS\n+10-110\no219-110\n..." followed by "542 PHILADELPHIA 76ERS\n-10-110\nu219-110\n..."
+            # NBA format: "541 BROOKLYN NETS" (3 digit game number)
+            # NHL format: "53 PITTSBURGH PENGUINS" (2 digit game number)
             games = []
             lines = page_text.split('\n')
             
@@ -2166,8 +2167,8 @@ class Plays888Service:
             while i < len(lines):
                 line = lines[i].strip()
                 
-                # Look for game number + team name pattern (e.g., "541 BROOKLYN NETS")
-                team_match = re.match(r'^\d{3}\s+(.+)$', line)
+                # Look for game number + team name pattern (2-3 digit game number)
+                team_match = re.match(r'^\d{2,3}\s+(.+)$', line)
                 if team_match:
                     team_name = team_match.group(1).strip()
                     
