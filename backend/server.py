@@ -4442,13 +4442,14 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 else:
                     game_data["result_hit"] = None
             
+            # Calculate edge for all games
+            edge = abs(combined_ppg - g['total']) if has_line else 0
+            game_data["edge"] = round(edge, 1) if has_line else None
+            
             games.append(game_data)
             
-            if recommendation and has_line:
-                # Edge is always absolute difference (positive value)
-                # Shows how many points of edge we have
-                edge = abs(combined_ppg - g['total'])
-                
+            # Only add to plays if this game has an active bet
+            if game_data.get("has_bet", False):
                 plays.append({
                     "game": f"{g['away']} @ {g['home']}",
                     "total": g['total'],
@@ -4457,7 +4458,7 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     "game_avg": round(game_avg, 1),
                     "recommendation": recommendation,
                     "color": color,
-                    "has_bet": game_data.get("has_bet", False),
+                    "has_bet": True,
                     "bet_type": game_data.get("bet_type"),
                     "bet_risk": game_data.get("bet_risk", 0),
                     "bet_count": game_data.get("bet_count", 0)
