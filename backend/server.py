@@ -3491,9 +3491,9 @@ async def refresh_nba_opportunities_scheduled():
         
         # Save to database
         await db.nba_opportunities.update_one(
-            {"date": target_date},
+            {"date": today},
             {"$set": {
-                "date": target_date,
+                "date": today,
                 "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
                 "games": games,
                 "plays": plays
