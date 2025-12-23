@@ -86,6 +86,7 @@ async def startup_event():
     await auto_start_monitoring()
     schedule_daily_summary()
     await startup_recovery()  # Check if we missed anything overnight
+    await process_pending_deletions()  # Clean up any scheduled deletions from before restart
 
 async def schedule_message_deletion(chat_id: int, message_id: int, delay_minutes: int = 15):
     """Schedule a message for deletion by storing in database (survives server restarts)"""
