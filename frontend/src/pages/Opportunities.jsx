@@ -323,18 +323,11 @@ export default function Opportunities() {
                           )
                         ) : (
                           <span className="text-muted-foreground">-</span>
-                        )} 
-                            ? 'bg-blue-500/30 text-blue-400' 
-                            : 'bg-orange-500/30 text-orange-400'
-                        }`}>
-                          {game.recommendation === 'OVER' ? '⬆️' : '⬇️'} {game.recommendation}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           ) : (
