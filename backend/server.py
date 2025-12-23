@@ -4746,11 +4746,11 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 edge_value = combined_gpg - g['total']  # Positive = OVER, Negative = UNDER
                 
                 # Recommend based on which side has the edge
-                # Edge must be at least 0.3 goals to make a recommendation (NHL)
-                if edge_value >= 0.3:  # GPG is significantly higher than line
+                # Edge must be at least 0.6 goals to make a recommendation (NHL)
+                if edge_value >= 0.6:  # GPG is significantly higher than line
                     recommendation = "OVER"
                     color = "green"
-                elif edge_value <= -0.3:  # GPG is significantly lower than line
+                elif edge_value <= -0.6:  # GPG is significantly lower than line
                     recommendation = "UNDER"
                     color = "red"
             
