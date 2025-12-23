@@ -3812,6 +3812,19 @@ async def refresh_opportunities(day: str = "today"):
                 "recommendation": recommendation,
                 "color": color
             }
+            
+            # Add result data for yesterday
+            if day == "yesterday" and 'final_score' in g:
+                game_data["final_score"] = g['final_score']
+                # Calculate if recommendation hit
+                if recommendation:
+                    if recommendation == "OVER":
+                        game_data["result_hit"] = g['final_score'] > g['total']
+                    else:  # UNDER
+                        game_data["result_hit"] = g['final_score'] < g['total']
+                else:
+                    game_data["result_hit"] = None
+            
             games.append(game_data)
             
             if recommendation:
