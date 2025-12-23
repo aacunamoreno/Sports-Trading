@@ -3783,10 +3783,10 @@ async def refresh_nhl_opportunities():
             'Winnipeg': 2.00, 'Los Angeles': 2.00
         }
         
-        # Today's NHL games with O/U lines (would be scraped in production)
+        # Today's NHL games with O/U lines (Arizona time - would be scraped in production)
         games_raw = [
-            {"time": "10:00 PM", "away": "Seattle", "home": "Anaheim", "total": 6.5},
-            {"time": "10:00 PM", "away": "Columbus", "home": "Los Angeles", "total": 5.5},
+            {"time": "8:00 PM", "away": "Seattle", "home": "Anaheim", "total": 6.5},
+            {"time": "8:00 PM", "away": "Columbus", "home": "Los Angeles", "total": 5.5},
         ]
         
         # Calculate averages and recommendations
