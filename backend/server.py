@@ -2288,6 +2288,97 @@ class Plays888Service:
             traceback.print_exc()
             return []
 
+    async def scrape_open_bets(self) -> List[Dict[str, Any]]:
+        """
+        Scrape open/pending bets from plays888.co
+        Returns list of open bets with game info and bet type (over/under)
+        """
+        import re
+        
+        try:
+            if not self.page:
+                logger.error("Browser not initialized")
+                return []
+            
+            logger.info("Scraping open bets from plays888.co")
+            
+            # Navigate to Open Bets page
+            await self.page.goto('https://www.plays888.co/wager/OpenBets.aspx', timeout=30000)
+            await self.page.wait_for_load_state('networkidle')
+            await self.page.wait_for_timeout(2000)
+            
+            # Get page content
+            page_text = await self.page.inner_text('body')
+            
+            # Parse open bets
+            open_bets = []
+            
+            # Pattern to match NHL totals: [number] TOTAL o6-110 or u6-110
+            # Format: (TEAM1 vrs TEAM2) or (TEAM1 REG.TIME vrs TEAM2 REG.TIME)
+            lines = page_text.split('\n')
+            
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+                
+                # Look for TOTAL lines with o/u
+                total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)[½]?[-+]\d+', line, re.IGNORECASE)
+                if total_match:
+                    bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
+                    total_line = float(total_match.group(2).replace('½', '.5'))
+                    
+                    # Look for team names in nearby lines
+                    teams_text = ""
+                    for j in range(max(0, i-2), min(len(lines), i+3)):
+                        if 'vrs' in lines[j].lower():
+                            teams_text = lines[j]
+                            break
+                    
+                    # Extract team names from "(TEAM1 vrs TEAM2)" or "(TEAM1 REG.TIME vrs TEAM2 REG.TIME)"
+                    teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
+                    if teams_match:
+                        away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
+                        home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                        
+                        # Determine sport from context
+                        sport = 'NHL'  # Default to NHL for now
+                        for j in range(max(0, i-5), i):
+                            if 'NBA' in lines[j] or 'BASKETBALL' in lines[j].upper():
+                                sport = 'NBA'
+                                break
+                            elif 'NHL' in lines[j] or 'HOCKEY' in lines[j].upper():
+                                sport = 'NHL'
+                                break
+                        
+                        # Look for risk amount
+                        risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
+                        risk_amount = 0
+                        win_amount = 0
+                        if risk_match:
+                            risk_amount = float(risk_match.group(1).replace(',', ''))
+                            win_amount = float(risk_match.group(2).replace(',', ''))
+                        
+                        open_bets.append({
+                            "sport": sport,
+                            "away_team": away_team,
+                            "home_team": home_team,
+                            "bet_type": bet_type,
+                            "total_line": total_line,
+                            "risk": risk_amount,
+                            "to_win": win_amount
+                        })
+                
+                i += 1
+            
+            logger.info(f"Found {len(open_bets)} open bets")
+            return open_bets
+            
+        except Exception as e:
+            logger.error(f"Error scraping open bets: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return []
+
 
 plays888_service = Plays888Service()
 
