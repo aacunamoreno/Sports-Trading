@@ -3968,13 +3968,21 @@ async def get_nhl_opportunities(day: str = "today"):
         # Get cached NHL opportunities
         cached = await db.nhl_opportunities.find_one({"date": target_date}, {"_id": 0})
         
+        # Get compound record
+        record = await db.compound_records.find_one({"league": "NHL"}, {"_id": 0})
+        compound_record = {
+            "hits": record.get('hits', 0) if record else 0,
+            "misses": record.get('misses', 0) if record else 0
+        }
+        
         if cached and cached.get('games'):
             return {
                 "success": True,
                 "date": target_date,
                 "last_updated": cached.get('last_updated'),
                 "games": cached.get('games', []),
-                "plays": cached.get('plays', [])
+                "plays": cached.get('plays', []),
+                "compound_record": compound_record
             }
         
         return {
@@ -3982,7 +3990,8 @@ async def get_nhl_opportunities(day: str = "today"):
             "date": target_date,
             "message": "No NHL opportunities data yet. Click refresh to load games.",
             "games": [],
-            "plays": []
+            "plays": [],
+            "compound_record": compound_record
         }
     except Exception as e:
         logger.error(f"Error getting NHL opportunities: {e}")
