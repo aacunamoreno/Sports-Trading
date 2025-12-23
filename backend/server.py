@@ -3507,20 +3507,24 @@ async def refresh_nba_opportunities_scheduled():
         logger.error(f"[Scheduled] Error refreshing NBA opportunities: {e}")
 
 @api_router.get("/opportunities")
-async def get_opportunities():
-    """Get betting opportunities"""
+async def get_opportunities(day: str = "today"):
+    """Get NBA betting opportunities. day parameter: 'today' or 'tomorrow'"""
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
-        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        if day == "tomorrow":
+            target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
         
         # Get cached NBA opportunities
-        cached = await db.nba_opportunities.find_one({"date": today}, {"_id": 0})
+        cached = await db.nba_opportunities.find_one({"date": target_date}, {"_id": 0})
         
         if cached and cached.get('games'):
             return {
                 "success": True,
-                "date": today,
+                "date": target_date,
                 "last_updated": cached.get('last_updated'),
                 "games": cached.get('games', []),
                 "plays": cached.get('plays', [])
