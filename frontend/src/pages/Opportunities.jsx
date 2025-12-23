@@ -9,17 +9,20 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 export default function Opportunities() {
+  const [league, setLeague] = useState('NBA');
   const [data, setData] = useState({ games: [], plays: [], date: '', last_updated: '' });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadOpportunities();
-  }, []);
+  }, [league]);
 
   const loadOpportunities = async () => {
+    setLoading(true);
     try {
-      const response = await axios.get(`${API}/opportunities`);
+      const endpoint = league === 'NBA' ? '/opportunities' : '/opportunities/nhl';
+      const response = await axios.get(`${API}${endpoint}`);
       setData(response.data);
     } catch (error) {
       console.error('Error loading opportunities:', error);
@@ -32,9 +35,10 @@ export default function Opportunities() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const response = await axios.post(`${API}/opportunities/refresh`);
+      const endpoint = league === 'NBA' ? '/opportunities/refresh' : '/opportunities/nhl/refresh';
+      const response = await axios.post(`${API}${endpoint}`);
       setData(response.data);
-      toast.success('Opportunities refreshed!');
+      toast.success(`${league} opportunities refreshed!`);
     } catch (error) {
       console.error('Error refreshing:', error);
       toast.error('Failed to refresh');
@@ -55,10 +59,32 @@ export default function Opportunities() {
     return 'text-muted-foreground';
   };
 
+  // League-specific config
+  const leagueConfig = {
+    NBA: {
+      statLabel: 'PPG',
+      combinedLabel: 'PPG Avg',
+      overRange: '1-12.5',
+      noEdgeRange: '13-17',
+      underRange: '17.5-30',
+      totalTeams: 30
+    },
+    NHL: {
+      statLabel: 'GPG',
+      combinedLabel: 'GPG Avg',
+      overRange: '1-13.5',
+      noEdgeRange: '14-18',
+      underRange: '18.5-32',
+      totalTeams: 32
+    }
+  };
+
+  const config = leagueConfig[league];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Loading opportunities...</div>
+        <div className="text-muted-foreground">Loading {league} opportunities...</div>
       </div>
     );
   }
@@ -73,7 +99,7 @@ export default function Opportunities() {
             Opportunities
           </h1>
           <p className="text-sm lg:text-base text-muted-foreground mt-1">
-            NBA Over/Under analysis based on PPG rankings
+            {league} Over/Under analysis based on {config.statLabel} rankings
           </p>
         </div>
         <Button 
@@ -84,6 +110,23 @@ export default function Opportunities() {
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           Refresh Data
         </Button>
+      </div>
+
+      {/* League Tabs */}
+      <div className="flex gap-2">
+        {['NBA', 'NHL'].map((l) => (
+          <button
+            key={l}
+            onClick={() => setLeague(l)}
+            className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
+              league === l
+                ? 'bg-primary text-primary-foreground shadow-lg'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            {l === 'NBA' ? '🏀' : '🏒'} {l}
+          </button>
+        ))}
       </div>
 
       {/* Info Card */}
@@ -122,7 +165,7 @@ export default function Opportunities() {
                       <div>
                         <div className="font-bold">{play.game}</div>
                         <div className="text-sm text-muted-foreground">
-                          Line: {play.total} | PPG Avg: {play.combined_ppg || 'N/A'}
+                          Line: {play.total} | {config.combinedLabel}: {play.combined_ppg || play.combined_gpg || 'N/A'}
                         </div>
                       </div>
                     </div>
@@ -148,7 +191,7 @@ export default function Opportunities() {
       {/* Games Table */}
       <Card className="glass-card neon-border">
         <CardHeader className="border-b border-border pb-4">
-          <CardTitle className="text-lg">NBA Games Analysis</CardTitle>
+          <CardTitle className="text-lg">{league} Games Analysis</CardTitle>
         </CardHeader>
         <CardContent className="pt-4 overflow-x-auto">
           {data.games && data.games.length > 0 ? (
@@ -158,10 +201,10 @@ export default function Opportunities() {
                   <th className="text-left py-3 px-2">#</th>
                   <th className="text-left py-3 px-2">Time</th>
                   <th className="text-left py-3 px-2">Away</th>
-                  <th className="text-center py-3 px-2">PPG</th>
+                  <th className="text-center py-3 px-2">{config.statLabel}</th>
                   <th className="text-center py-3 px-2">L3</th>
                   <th className="text-left py-3 px-2">Home</th>
-                  <th className="text-center py-3 px-2">PPG</th>
+                  <th className="text-center py-3 px-2">{config.statLabel}</th>
                   <th className="text-center py-3 px-2">L3</th>
                   <th className="text-center py-3 px-2">Total</th>
                   <th className="text-center py-3 px-2">Avg</th>
@@ -177,10 +220,14 @@ export default function Opportunities() {
                     <td className="py-3 px-2 font-mono">{game.game_num}</td>
                     <td className="py-3 px-2 text-muted-foreground">{game.time}</td>
                     <td className={`py-3 px-2 font-medium ${getTextStyle(game.color)}`}>{game.away_team}</td>
-                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.away_ppg_rank}</td>
+                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>
+                      {game.away_ppg_rank || game.away_gpg_rank}
+                    </td>
                     <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.away_last3_rank}</td>
                     <td className={`py-3 px-2 font-medium ${getTextStyle(game.color)}`}>{game.home_team}</td>
-                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.home_ppg_rank}</td>
+                    <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>
+                      {game.home_ppg_rank || game.home_gpg_rank}
+                    </td>
                     <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.home_last3_rank}</td>
                     <td className={`py-3 px-2 text-center font-mono ${getTextStyle(game.color)}`}>{game.total}</td>
                     <td className={`py-3 px-2 text-center font-bold ${getTextStyle(game.color)}`}>{game.game_avg}</td>
@@ -204,7 +251,7 @@ export default function Opportunities() {
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No opportunities data available.</p>
+              <p>No {league} opportunities data available.</p>
               <p className="text-sm mt-2">Click "Refresh Data" to load today's games.</p>
             </div>
           )}
@@ -215,19 +262,19 @@ export default function Opportunities() {
       <Card className="glass-card">
         <CardContent className="pt-4">
           <div className="text-sm">
-            <div className="font-bold mb-2">Betting Rule:</div>
+            <div className="font-bold mb-2">{league} Betting Rule ({config.totalTeams} teams):</div>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded bg-green-500/30 border border-green-500/50"></span>
-                <span>Game Avg 1-12.5 → <span className="text-green-400 font-bold">OVER</span></span>
+                <span>Game Avg {config.overRange} → <span className="text-green-400 font-bold">OVER</span></span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded bg-muted border border-border"></span>
-                <span>Game Avg 13-17 → No edge</span>
+                <span>Game Avg {config.noEdgeRange} → No edge</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded bg-red-500/30 border border-red-500/50"></span>
-                <span>Game Avg 17.5-30 → <span className="text-red-400 font-bold">UNDER</span></span>
+                <span>Game Avg {config.underRange} → <span className="text-red-400 font-bold">UNDER</span></span>
               </div>
             </div>
           </div>
