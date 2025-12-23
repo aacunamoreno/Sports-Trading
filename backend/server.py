@@ -3734,15 +3734,15 @@ async def refresh_opportunities(day: str = "today"):
                 {"time": "8:30 PM", "away": "Houston", "home": "LA Clippers", "total": 221.5},
             ]
         elif day == "yesterday":
-            # Yesterday's NBA games with results (Dec 21 - sample data)
+            # Yesterday's NBA games with results (Dec 22 - from NBA.com)
             games_raw = [
-                {"time": "5:00 PM", "away": "Charlotte", "home": "Cleveland", "total": 239.5, "final_score": 234, "result_hit": None},
-                {"time": "5:30 PM", "away": "Indiana", "home": "Boston", "total": 226.5, "final_score": 218, "result_hit": True},
-                {"time": "6:00 PM", "away": "Dallas", "home": "New Orleans", "total": 240.5, "final_score": 245, "result_hit": None},
-                {"time": "7:00 PM", "away": "Utah", "home": "Denver", "total": 250.5, "final_score": 258, "result_hit": True},
-                {"time": "7:30 PM", "away": "Memphis", "home": "Okla City", "total": 232.5, "final_score": 229, "result_hit": None},
-                {"time": "8:00 PM", "away": "Detroit", "home": "Portland", "total": 234.5, "final_score": 241, "result_hit": None},
-                {"time": "8:00 PM", "away": "Orlando", "home": "Golden State", "total": 227.5, "final_score": 222, "result_hit": None},
+                {"time": "5:00 PM", "away": "Charlotte", "home": "Cleveland", "total": 239.5, "final_score": 271},
+                {"time": "5:30 PM", "away": "Indiana", "home": "Boston", "total": 226.5, "final_score": 198},
+                {"time": "6:00 PM", "away": "Dallas", "home": "New Orleans", "total": 240.5, "final_score": 232},
+                {"time": "7:00 PM", "away": "Utah", "home": "Denver", "total": 250.5, "final_score": 247},
+                {"time": "7:30 PM", "away": "Memphis", "home": "Okla City", "total": 232.5, "final_score": 222},
+                {"time": "8:00 PM", "away": "Detroit", "home": "Portland", "total": 234.5, "final_score": 212},
+                {"time": "8:00 PM", "away": "Orlando", "home": "Golden State", "total": 227.5, "final_score": 217},
             ]
         else:
             # Today's games (Arizona time - would be scraped)
