@@ -2599,6 +2599,47 @@ async def get_scheduled_deletions():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/telegram/bulk-cleanup")
+async def bulk_cleanup_telegram(start_msg_id: int, end_msg_id: int):
+    """Delete a range of messages from Telegram chat to clean up clutter"""
+    try:
+        telegram_config = await db.telegram_config.find_one({}, {"_id": 0})
+        if not telegram_config or not telegram_config.get("bot_token") or not telegram_config.get("chat_id"):
+            raise HTTPException(status_code=400, detail="Telegram not configured")
+        
+        bot = Bot(token=telegram_config["bot_token"])
+        chat_id = telegram_config["chat_id"]
+        
+        deleted_count = 0
+        failed_count = 0
+        
+        for msg_id in range(start_msg_id, end_msg_id + 1):
+            try:
+                await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                deleted_count += 1
+            except Exception as e:
+                failed_count += 1
+                # Message may already be deleted or doesn't exist
+                pass
+        
+        # Also clear scheduled deletions for these messages
+        await db.scheduled_deletions.delete_many({
+            "message_id": {"$gte": start_msg_id, "$lte": end_msg_id}
+        })
+        
+        return {
+            "success": True,
+            "deleted": deleted_count,
+            "failed": failed_count,
+            "range": f"{start_msg_id} to {end_msg_id}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Bulk cleanup error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.get("/rules/opportunities")
 async def get_rules_opportunities():
     """Get current betting opportunities that match rules (from plays888)"""
