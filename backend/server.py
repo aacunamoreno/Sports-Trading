@@ -4743,7 +4743,8 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 "color": color,
                 "has_bet": False,
                 "bet_type": None,
-                "bet_risk": 0
+                "bet_risk": 0,
+                "bet_count": 0
             }
             
             # Check if this game has an active bet
@@ -4762,7 +4763,8 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                     if away_match and home_match:
                         game_data["has_bet"] = True
                         game_data["bet_type"] = bet.get('bet_type')
-                        game_data["bet_risk"] = bet.get('risk', 0)
+                        game_data["bet_risk"] = bet.get('total_risk', bet.get('risk', 0))
+                        game_data["bet_count"] = bet.get('bet_count', 1)
                         break
             
             # Add result data for yesterday
@@ -4793,7 +4795,8 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                     "color": color,
                     "has_bet": game_data.get("has_bet", False),
                     "bet_type": game_data.get("bet_type"),
-                    "bet_risk": game_data.get("bet_risk", 0)
+                    "bet_risk": game_data.get("bet_risk", 0),
+                    "bet_count": game_data.get("bet_count", 0)
                 })
         
         # Save to database
