@@ -2888,6 +2888,39 @@ async def get_rules_opportunities():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/scrape/totals/{league}")
+async def scrape_plays888_totals(league: str):
+    """Scrape over/under totals from plays888.co for NBA or NHL"""
+    try:
+        # Get connection credentials
+        conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+        
+        if not conn:
+            raise HTTPException(status_code=400, detail="No plays888 connection configured")
+        
+        username = conn["username"]
+        password = decrypt_password(conn["password_encrypted"])
+        
+        # Login and scrape
+        await plays888_service.login(username, password)
+        games = await plays888_service.scrape_totals(league.upper())
+        await plays888_service.close()
+        
+        return {
+            "success": True,
+            "league": league.upper(),
+            "games": games,
+            "count": len(games),
+            "screenshot": f"/tmp/plays888_{league.lower()}_totals.png"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Scrape totals error: {str(e)}")
+        await plays888_service.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/bets/place")
 async def place_bet(bet_request: PlaceBetRequest):
     """Place a bet manually"""
