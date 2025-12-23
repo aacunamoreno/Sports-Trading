@@ -2295,6 +2295,39 @@ class Plays888Service:
         """
         import re
         
+        # List of official NHL teams to filter out non-NHL hockey leagues
+        NHL_TEAMS = [
+            'ANAHEIM DUCKS', 'ARIZONA COYOTES', 'BOSTON BRUINS', 'BUFFALO SABRES',
+            'CALGARY FLAMES', 'CAROLINA HURRICANES', 'CHICAGO BLACKHAWKS', 'COLORADO AVALANCHE',
+            'COLUMBUS BLUE JACKETS', 'DALLAS STARS', 'DETROIT RED WINGS', 'EDMONTON OILERS',
+            'FLORIDA PANTHERS', 'LOS ANGELES KINGS', 'MINNESOTA WILD', 'MONTREAL CANADIENS',
+            'NASHVILLE PREDATORS', 'NEW JERSEY DEVILS', 'NEW YORK ISLANDERS', 'NEW YORK RANGERS',
+            'OTTAWA SENATORS', 'PHILADELPHIA FLYERS', 'PITTSBURGH PENGUINS', 'SAN JOSE SHARKS',
+            'SEATTLE KRAKEN', 'ST. LOUIS BLUES', 'TAMPA BAY LIGHTNING', 'TORONTO MAPLE LEAFS',
+            'UTAH MAMMOTH', 'VANCOUVER CANUCKS', 'VEGAS GOLDEN KNIGHTS', 'WASHINGTON CAPITALS',
+            'WINNIPEG JETS'
+        ]
+        
+        # NBA teams for filtering
+        NBA_TEAMS = [
+            'ATLANTA HAWKS', 'BOSTON CELTICS', 'BROOKLYN NETS', 'CHARLOTTE HORNETS',
+            'CHICAGO BULLS', 'CLEVELAND CAVALIERS', 'DALLAS MAVERICKS', 'DENVER NUGGETS',
+            'DETROIT PISTONS', 'GOLDEN STATE WARRIORS', 'HOUSTON ROCKETS', 'INDIANA PACERS',
+            'LOS ANGELES CLIPPERS', 'LOS ANGELES LAKERS', 'MEMPHIS GRIZZLIES', 'MIAMI HEAT',
+            'MILWAUKEE BUCKS', 'MINNESOTA TIMBERWOLVES', 'NEW ORLEANS PELICANS', 'NEW YORK KNICKS',
+            'OKLAHOMA CITY THUNDER', 'ORLANDO MAGIC', 'PHILADELPHIA 76ERS', 'PHOENIX SUNS',
+            'PORTLAND TRAIL BLAZERS', 'SACRAMENTO KINGS', 'SAN ANTONIO SPURS', 'TORONTO RAPTORS',
+            'UTAH JAZZ', 'WASHINGTON WIZARDS'
+        ]
+        
+        def is_nhl_team(team_name):
+            team_upper = team_name.upper()
+            return any(nhl_team in team_upper or team_upper in nhl_team for nhl_team in NHL_TEAMS)
+        
+        def is_nba_team(team_name):
+            team_upper = team_name.upper()
+            return any(nba_team in team_upper or team_upper in nba_team for nba_team in NBA_TEAMS)
+        
         try:
             if not self.page:
                 logger.error("Browser not initialized")
@@ -2310,10 +2343,10 @@ class Plays888Service:
             # Get page content
             page_text = await self.page.inner_text('body')
             
-            # Parse open bets
-            open_bets = []
+            # Parse open bets - collect raw bets first
+            raw_bets = []
             
-            # Pattern to match NHL totals: [number] TOTAL o6-110 or u6-110
+            # Pattern to match totals: TOTAL o6-110 or u6-110
             # Format: (TEAM1 vrs TEAM2) or (TEAM1 REG.TIME vrs TEAM2 REG.TIME)
             lines = page_text.split('\n')
             
@@ -2340,37 +2373,64 @@ class Plays888Service:
                         away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
                         home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
                         
-                        # Determine sport from context
-                        sport = 'NHL'  # Default to NHL for now
-                        for j in range(max(0, i-5), i):
-                            if 'NBA' in lines[j] or 'BASKETBALL' in lines[j].upper():
-                                sport = 'NBA'
-                                break
-                            elif 'NHL' in lines[j] or 'HOCKEY' in lines[j].upper():
-                                sport = 'NHL'
-                                break
+                        # Determine sport based on team names (more reliable than context)
+                        sport = None
+                        if is_nhl_team(away_team) and is_nhl_team(home_team):
+                            sport = 'NHL'
+                        elif is_nba_team(away_team) and is_nba_team(home_team):
+                            sport = 'NBA'
                         
-                        # Look for risk amount
-                        risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
-                        risk_amount = 0
-                        win_amount = 0
-                        if risk_match:
-                            risk_amount = float(risk_match.group(1).replace(',', ''))
-                            win_amount = float(risk_match.group(2).replace(',', ''))
-                        
-                        open_bets.append({
-                            "sport": sport,
-                            "away_team": away_team,
-                            "home_team": home_team,
-                            "bet_type": bet_type,
-                            "total_line": total_line,
-                            "risk": risk_amount,
-                            "to_win": win_amount
-                        })
+                        # Only add bets for recognized leagues (NHL/NBA)
+                        if sport:
+                            # Look for risk amount
+                            risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
+                            risk_amount = 0
+                            win_amount = 0
+                            if risk_match:
+                                risk_amount = float(risk_match.group(1).replace(',', ''))
+                                win_amount = float(risk_match.group(2).replace(',', ''))
+                            
+                            raw_bets.append({
+                                "sport": sport,
+                                "away_team": away_team,
+                                "home_team": home_team,
+                                "bet_type": bet_type,
+                                "total_line": total_line,
+                                "risk": risk_amount,
+                                "to_win": win_amount
+                            })
                 
                 i += 1
             
-            logger.info(f"Found {len(open_bets)} open bets")
+            # Consolidate duplicate bets (same game + bet type) and count them
+            open_bets = []
+            bet_counts = {}
+            
+            for bet in raw_bets:
+                # Create a unique key for each game + bet type combination
+                key = f"{bet['sport']}:{bet['away_team']}:{bet['home_team']}:{bet['bet_type']}"
+                
+                if key in bet_counts:
+                    bet_counts[key]['count'] += 1
+                    bet_counts[key]['total_risk'] += bet['risk']
+                    bet_counts[key]['total_win'] += bet['to_win']
+                else:
+                    bet_counts[key] = {
+                        'bet': bet,
+                        'count': 1,
+                        'total_risk': bet['risk'],
+                        'total_win': bet['to_win']
+                    }
+            
+            # Build final open_bets list with count
+            for key, data in bet_counts.items():
+                bet = data['bet'].copy()
+                bet['bet_count'] = data['count']
+                bet['total_risk'] = data['total_risk']
+                bet['total_win'] = data['total_win']
+                open_bets.append(bet)
+            
+            logger.info(f"Found {len(open_bets)} unique open bets (from {len(raw_bets)} total)")
             return open_bets
             
         except Exception as e:
