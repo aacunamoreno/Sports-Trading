@@ -2172,9 +2172,11 @@ class Plays888Service:
                     team_name = team_match.group(1).strip()
                     
                     # Look ahead for the total line (o/u pattern)
+                    # NBA uses format like o219-110 (3 digits), NHL uses o6-120 or o5½-110 (1-2 digits)
                     for j in range(i + 1, min(i + 5, len(lines))):
                         next_line = lines[j].strip()
-                        total_match = re.match(r'^[ou](\d{2,3}[½]?)-\d+$', next_line, re.IGNORECASE)
+                        # Updated regex to match 1-3 digit totals
+                        total_match = re.match(r'^[ou](\d{1,3}[½]?)[-+]\d+$', next_line, re.IGNORECASE)
                         if total_match:
                             total_str = total_match.group(1).replace('½', '.5')
                             total = float(total_str)
