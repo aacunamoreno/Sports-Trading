@@ -4917,30 +4917,33 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             edge = abs(combined_gpg - g['total']) if has_line else 0
             game_data["edge"] = round(edge, 1) if has_line else None
             
-            # Only add to plays if this game has an active bet
+            # Only add to plays if this game has an active bet (and not already in plays)
             if game_data.get("has_bet", False) and has_line:
-                # Calculate bet_edge using the line at which the bet was placed
-                bet_line = game_data.get("bet_line")
-                if bet_line:
-                    bet_edge = abs(combined_gpg - bet_line)
-                else:
-                    bet_edge = edge  # fallback to current edge if no bet_line
-                    
-                plays.append({
-                    "game": f"{g['away']} @ {g['home']}",
-                    "total": g['total'],  # Current live line
-                    "bet_line": bet_line,  # Line when bet was placed
-                    "combined_gpg": round(combined_gpg, 1),
-                    "edge": round(bet_edge, 1),  # Edge at bet time
-                    "live_edge": round(edge, 1),  # Current live edge
-                    "game_avg": round(game_avg, 1),
-                    "recommendation": recommendation,
-                    "color": color,
-                    "has_bet": True,
-                    "bet_type": game_data.get("bet_type"),
-                    "bet_risk": game_data.get("bet_risk", 0),
-                    "bet_count": game_data.get("bet_count", 0)
-                })
+                game_key = f"{g['away']} @ {g['home']}"
+                # Check if this game is already in plays to avoid duplicates
+                if not any(p.get('game') == game_key for p in plays):
+                    # Calculate bet_edge using the line at which the bet was placed
+                    bet_line = game_data.get("bet_line")
+                    if bet_line:
+                        bet_edge = abs(combined_gpg - bet_line)
+                    else:
+                        bet_edge = edge  # fallback to current edge if no bet_line
+                        
+                    plays.append({
+                        "game": game_key,
+                        "total": g['total'],  # Current live line
+                        "bet_line": bet_line,  # Line when bet was placed
+                        "combined_gpg": round(combined_gpg, 1),
+                        "edge": round(bet_edge, 1),  # Edge at bet time
+                        "live_edge": round(edge, 1),  # Current live edge
+                        "game_avg": round(game_avg, 1),
+                        "recommendation": recommendation,
+                        "color": color,
+                        "has_bet": True,
+                        "bet_type": game_data.get("bet_type"),
+                        "bet_risk": game_data.get("bet_risk", 0),
+                        "bet_count": game_data.get("bet_count", 0)
+                    })
         
         # Save to database
         await db.nhl_opportunities.update_one(
