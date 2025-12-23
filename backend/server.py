@@ -3067,6 +3067,48 @@ async def get_rules_opportunities():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.get("/open-bets/{account}")
+async def get_open_bets(account: str = "ENANO"):
+    """Get open/pending bets from plays888.co for a specific account"""
+    scrape_service = Plays888Service()
+    
+    try:
+        # Get connection credentials based on account
+        # ENANO = jac075, TIPSTER = jac083
+        if account.upper() == "ENANO":
+            username = "jac075"
+        elif account.upper() == "TIPSTER":
+            username = "jac083"
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown account: {account}")
+        
+        # Get password from connections
+        conn = await db.connections.find_one({"username": username}, {"_id": 0})
+        
+        if not conn:
+            raise HTTPException(status_code=400, detail=f"No connection found for {account}")
+        
+        password = decrypt_password(conn["password_encrypted"])
+        
+        # Login and scrape open bets
+        await scrape_service.login(username, password)
+        open_bets = await scrape_service.scrape_open_bets()
+        
+        return {
+            "success": True,
+            "account": account.upper(),
+            "open_bets": open_bets,
+            "count": len(open_bets)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get open bets error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await scrape_service.close()
+
+
 @api_router.post("/scrape/totals/{league}")
 async def scrape_plays888_totals(league: str):
     """Scrape over/under totals from plays888.co for NBA or NHL"""
