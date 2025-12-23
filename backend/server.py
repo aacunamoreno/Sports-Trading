@@ -4772,6 +4772,8 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             
             if has_line:
                 edge_value = combined_gpg - g['total']  # Positive = OVER, Negative = UNDER
+                # Round to 1 decimal place to avoid floating point precision issues
+                edge_value = round(edge_value, 1)
                 
                 # Recommend based on which side has the edge
                 # Edge must be at least 0.6 goals to make a recommendation (NHL)
