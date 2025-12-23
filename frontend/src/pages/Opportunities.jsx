@@ -387,15 +387,21 @@ export default function Opportunities() {
                       <td className="py-3 px-2 text-center">
                         {game.recommendation ? (
                           day === 'yesterday' ? (
-                            <span className={`px-2 py-1 rounded text-xs font-bold ${
-                              game.result_hit === true
-                                ? 'bg-green-500/30 text-green-400'
-                                : game.result_hit === false
-                                  ? 'bg-red-500/30 text-red-400'
-                                  : 'bg-gray-500/30 text-gray-400'
-                            }`}>
-                              {game.result_hit === true ? '✅ HIT' : game.result_hit === false ? '❌ MISS' : '⏳ PENDING'}
-                            </span>
+                            isNoBet ? (
+                              <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/20 text-gray-400">
+                                ⚪ NO BET
+                              </span>
+                            ) : (
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                game.result_hit === true
+                                  ? 'bg-green-500/30 text-green-400'
+                                  : game.result_hit === false
+                                    ? 'bg-red-500/30 text-red-400'
+                                    : 'bg-gray-500/30 text-gray-400'
+                              }`}>
+                                {game.result_hit === true ? '✅ HIT' : game.result_hit === false ? '❌ MISS' : '⏳ PENDING'}
+                              </span>
+                            )
                           ) : (
                             <span className={`px-2 py-1 rounded text-xs font-bold ${
                               game.recommendation === 'OVER' 
