@@ -3698,6 +3698,196 @@ async def refresh_opportunities():
         logger.error(f"Error refreshing opportunities: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============== NHL OPPORTUNITIES ==============
+
+@api_router.get("/opportunities/nhl")
+async def get_nhl_opportunities():
+    """Get NHL betting opportunities"""
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        # Get cached NHL opportunities
+        cached = await db.nhl_opportunities.find_one({"date": today}, {"_id": 0})
+        
+        if cached and cached.get('games'):
+            return {
+                "success": True,
+                "date": today,
+                "last_updated": cached.get('last_updated'),
+                "games": cached.get('games', []),
+                "plays": cached.get('plays', [])
+            }
+        
+        return {
+            "success": True,
+            "date": today,
+            "message": "No NHL opportunities data yet. Click refresh to load today's games.",
+            "games": [],
+            "plays": []
+        }
+    except Exception as e:
+        logger.error(f"Error getting NHL opportunities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/opportunities/nhl/refresh")
+async def refresh_nhl_opportunities():
+    """Manually refresh NHL opportunities data"""
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        # NHL GPG Rankings (Season) - from ESPN data
+        gpg_season = {
+            'Colorado': 1, 'Dallas': 2, 'Anaheim': 3, 'Edmonton': 4, 'Carolina': 5,
+            'Ottawa': 6, 'Tampa Bay': 7, 'Montreal': 8, 'Boston': 9, 'Washington': 10,
+            'Florida': 11, 'Toronto': 12, 'Detroit': 13, 'Utah': 14, 'Pittsburgh': 15,
+            'Buffalo': 16, 'Minnesota': 17, 'San Jose': 18, 'Winnipeg': 19, 'Columbus': 20,
+            'Philadelphia': 21, 'NY Islanders': 22, 'Chicago': 23, 'Vancouver': 24, 'Nashville': 25,
+            'Vegas': 26, 'New Jersey': 27, 'Calgary': 28, 'Los Angeles': 29, 'St. Louis': 30,
+            'Seattle': 31, 'NY Rangers': 32
+        }
+        
+        # NHL Goals Last 3 Games Rankings - from StatMuse data
+        gpg_last3 = {
+            'Dallas': 1, 'Ottawa': 2, 'Calgary': 3, 'Colorado': 4, 'Montreal': 5,
+            'Minnesota': 6, 'Carolina': 7, 'Philadelphia': 8, 'Vancouver': 9, 'San Jose': 10,
+            'Buffalo': 11, 'Anaheim': 12, 'Edmonton': 13, 'Detroit': 14, 'Utah': 15,
+            'Columbus': 16, 'Seattle': 17, 'Tampa Bay': 18, 'Washington': 19, 'St. Louis': 20,
+            'Florida': 21, 'Nashville': 22, 'Boston': 23, 'NY Rangers': 24, 'Vegas': 25,
+            'Toronto': 26, 'Pittsburgh': 27, 'NY Islanders': 28, 'New Jersey': 29, 'Chicago': 30,
+            'Winnipeg': 31, 'Los Angeles': 32
+        }
+        
+        # Actual GPG values (Season) - for combined calculation
+        gpg_season_values = {
+            'Colorado': 4.03, 'Dallas': 3.51, 'Anaheim': 3.44, 'Edmonton': 3.38, 'Carolina': 3.29,
+            'Ottawa': 3.26, 'Tampa Bay': 3.23, 'Montreal': 3.19, 'Boston': 3.19, 'Washington': 3.17,
+            'Florida': 3.14, 'Toronto': 3.11, 'Detroit': 3.08, 'Utah': 3.05, 'Pittsburgh': 3.03,
+            'Buffalo': 3.03, 'Minnesota': 3.03, 'San Jose': 2.94, 'Winnipeg': 2.91, 'Columbus': 2.89,
+            'Philadelphia': 2.88, 'NY Islanders': 2.83, 'Chicago': 2.80, 'Vancouver': 2.80, 'Nashville': 2.80,
+            'Vegas': 2.76, 'New Jersey': 2.66, 'Calgary': 2.64, 'Los Angeles': 2.56, 'St. Louis': 2.54,
+            'Seattle': 2.52, 'NY Rangers': 2.50
+        }
+        
+        # GPG Last 3 Games values - for combined calculation
+        gpg_last3_values = {
+            'Dallas': 6.00, 'Ottawa': 5.33, 'Calgary': 4.33, 'Colorado': 4.33, 'Montreal': 3.67,
+            'Minnesota': 3.67, 'Carolina': 3.67, 'Philadelphia': 3.67, 'Vancouver': 3.67, 'San Jose': 3.67,
+            'Buffalo': 3.33, 'Anaheim': 3.33, 'Edmonton': 3.00, 'Detroit': 3.00, 'Utah': 3.00,
+            'Columbus': 3.00, 'Seattle': 3.00, 'Tampa Bay': 3.00, 'Washington': 2.67, 'St. Louis': 2.67,
+            'Florida': 2.67, 'Nashville': 2.67, 'Boston': 2.33, 'NY Rangers': 2.33, 'Vegas': 2.33,
+            'Toronto': 2.33, 'Pittsburgh': 2.33, 'NY Islanders': 2.33, 'New Jersey': 2.33, 'Chicago': 2.00,
+            'Winnipeg': 2.00, 'Los Angeles': 2.00
+        }
+        
+        # Today's NHL games with O/U lines (would be scraped in production)
+        games_raw = [
+            {"time": "10:00 PM", "away": "Seattle", "home": "Anaheim", "total": 6.5},
+            {"time": "10:00 PM", "away": "Columbus", "home": "Los Angeles", "total": 5.5},
+        ]
+        
+        # Calculate averages and recommendations
+        games = []
+        plays = []
+        
+        for i, g in enumerate(games_raw, 1):
+            away_season = gpg_season.get(g['away'], 16)
+            away_last3 = gpg_last3.get(g['away'], 16)
+            away_avg = (away_season + away_last3) / 2
+            
+            home_season = gpg_season.get(g['home'], 16)
+            home_last3 = gpg_last3.get(g['home'], 16)
+            home_avg = (home_season + home_last3) / 2
+            
+            game_avg = (away_avg + home_avg) / 2
+            
+            # Calculate combined GPG (actual goals expected in the game)
+            away_season_gpg = gpg_season_values.get(g['away'], 3.0)
+            away_last3_gpg = gpg_last3_values.get(g['away'], 3.0)
+            home_season_gpg = gpg_season_values.get(g['home'], 3.0)
+            home_last3_gpg = gpg_last3_values.get(g['home'], 3.0)
+            
+            # Combined GPG = average of (season totals + last 3 totals)
+            season_total = away_season_gpg + home_season_gpg
+            last3_total = away_last3_gpg + home_last3_gpg
+            combined_gpg = (season_total + last3_total) / 2
+            
+            # NHL Thresholds (32 teams, midpoint = 16, +/- 2.5)
+            # OVER: 1-13.5 (below midpoint - 2.5)
+            # UNDER: 18.5-32 (above midpoint + 2.5)
+            if game_avg <= 13.5:
+                recommendation = "OVER"
+                color = "green"
+            elif game_avg >= 18.5:
+                recommendation = "UNDER"
+                color = "red"
+            else:
+                recommendation = None
+                color = "neutral"
+            
+            game_data = {
+                "game_num": i,
+                "time": g['time'],
+                "away_team": g['away'],
+                "away_gpg_rank": away_season,
+                "away_last3_rank": away_last3,
+                "away_avg": round(away_avg, 1),
+                "home_team": g['home'],
+                "home_gpg_rank": home_season,
+                "home_last3_rank": home_last3,
+                "home_avg": round(home_avg, 1),
+                "total": g['total'],
+                "combined_gpg": round(combined_gpg, 1),
+                "game_avg": round(game_avg, 1),
+                "recommendation": recommendation,
+                "color": color
+            }
+            games.append(game_data)
+            
+            if recommendation:
+                # Calculate edge based on recommendation type
+                if recommendation == "UNDER":
+                    edge = g['total'] - combined_gpg
+                else:  # OVER
+                    edge = combined_gpg - g['total']
+                
+                plays.append({
+                    "game": f"{g['away']} @ {g['home']}",
+                    "total": g['total'],
+                    "combined_gpg": round(combined_gpg, 1),
+                    "edge": round(edge, 1),
+                    "game_avg": round(game_avg, 1),
+                    "recommendation": recommendation,
+                    "color": color
+                })
+        
+        # Save to database
+        await db.nhl_opportunities.update_one(
+            {"date": today},
+            {"$set": {
+                "date": today,
+                "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+                "games": games,
+                "plays": plays
+            }},
+            upsert=True
+        )
+        
+        return {
+            "success": True,
+            "message": "NHL opportunities refreshed",
+            "date": today,
+            "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+            "games": games,
+            "plays": plays
+        }
+    except Exception as e:
+        logger.error(f"Error refreshing NHL opportunities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Include the router in the main app
 app.include_router(api_router)
