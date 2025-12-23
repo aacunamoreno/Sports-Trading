@@ -3934,7 +3934,7 @@ async def refresh_nhl_opportunities(day: str = "today"):
         return {
             "success": True,
             "message": "NHL opportunities refreshed",
-            "date": today,
+            "date": target_date,
             "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
             "games": games,
             "plays": plays
