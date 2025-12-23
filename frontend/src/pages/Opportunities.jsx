@@ -361,11 +361,6 @@ export default function Opportunities() {
                     // For today/tomorrow - muted text for No Bet games
                     textStyle = isNoBet ? 'text-muted-foreground' : getTextStyle(game.recommendation);
                   }
-                        ? 'text-green-400 font-bold'
-                        : game.result_hit === false
-                          ? 'text-red-400 font-bold'
-                          : getTextStyle(game.recommendation)
-                    : getTextStyle(game.recommendation);
 
                   return (
                     <tr 
