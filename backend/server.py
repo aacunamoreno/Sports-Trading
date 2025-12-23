@@ -2065,6 +2065,8 @@ class Plays888Service:
         Scrape over/under totals from plays888.co for a specific league
         Returns list of games with team names and total lines
         """
+        import re
+        
         try:
             if not self.page:
                 logger.error("Browser not initialized")
@@ -2072,132 +2074,140 @@ class Plays888Service:
             
             logger.info(f"Scraping {league} totals from plays888.co")
             
-            # Navigate to the wager page
-            await self.page.goto('https://www.plays888.co/wager/Welcome.aspx', timeout=30000)
+            # Navigate directly to the CreateSports page (Straight bets)
+            await self.page.goto('https://www.plays888.co/wager/CreateSports.aspx?WT=0', timeout=30000)
             await self.page.wait_for_load_state('networkidle')
             await self.page.wait_for_timeout(2000)
             
-            # Click "Straight" to see games
-            try:
-                await self.page.click('a:has-text("Straight")', timeout=10000)
-                await self.page.wait_for_timeout(2000)
-            except Exception as e:
-                logger.error(f"Could not find Straight link: {str(e)}")
+            # Determine checkbox ID and continue button based on league
+            if league.upper() == "NBA":
+                checkbox_id = "lg_3"  # NBA checkbox
+                card_heading = "heading4"  # Baloncesto section
+            elif league.upper() == "NHL":
+                checkbox_id = "lg_1166"  # NHL - OT INCLUDED checkbox
+                card_heading = "heading12"  # Hockey section (adjust if needed)
+            else:
+                logger.error(f"Unsupported league: {league}")
                 return []
             
-            # Select the league
-            league_text = "NATIONAL BASKETBALL ASSOCIATION" if league.upper() == "NBA" else "NATIONAL HOCKEY LEAGUE - OT INCLUDED"
+            # Check the league checkbox using JavaScript
+            checkbox_result = await self.page.evaluate(f'''
+                () => {{
+                    const checkbox = document.getElementById("{checkbox_id}");
+                    if (checkbox) {{
+                        checkbox.checked = true;
+                        checkbox.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        return true;
+                    }}
+                    return false;
+                }}
+            ''')
             
-            try:
-                await self.page.click(f'text=/{league_text}/i', timeout=10000)
-                await self.page.wait_for_timeout(1000)
-                
-                # Click Continue
-                await self.page.click('input[value="Continue"]', force=True, timeout=5000)
-                await self.page.wait_for_load_state('networkidle', timeout=15000)
-                
-                # Wait for games to load
-                for i in range(10):
-                    await self.page.wait_for_timeout(2000)
-                    button_count = await self.page.locator('input[type="submit"]').count()
-                    if button_count > 10:
-                        break
-                
-            except Exception as e:
-                logger.error(f"Could not select league {league}: {str(e)}")
+            if not checkbox_result:
+                logger.error(f"Could not find checkbox for {league}")
                 return []
+            
+            await self.page.wait_for_timeout(500)
+            
+            # Click Continue button using JavaScript (ASP.NET postback)
+            continue_result = await self.page.evaluate(f'''
+                () => {{
+                    // Find checkbox and its card
+                    const checkbox = document.getElementById("{checkbox_id}");
+                    if (!checkbox) return false;
+                    
+                    const card = checkbox.closest('.card');
+                    if (card) {{
+                        const continueBtn = card.querySelector('input[value="Continue"]');
+                        if (continueBtn) {{
+                            continueBtn.click();
+                            return true;
+                        }}
+                    }}
+                    
+                    // Fallback: trigger ASP.NET postback directly
+                    if (typeof __doPostBack !== 'undefined') {{
+                        const buttons = document.querySelectorAll('input[value="Continue"]');
+                        for (const btn of buttons) {{
+                            const rect = btn.getBoundingClientRect();
+                            if (rect.top >= 0 && rect.bottom <= window.innerHeight) {{
+                                btn.click();
+                                return true;
+                            }}
+                        }}
+                    }}
+                    return false;
+                }}
+            ''')
+            
+            await self.page.wait_for_timeout(5000)
+            await self.page.wait_for_load_state('networkidle', timeout=15000)
             
             # Take screenshot for debugging
             await self.page.screenshot(path=f"/tmp/plays888_{league.lower()}_totals.png")
             
-            # Get page content
-            page_content = await self.page.content()
+            # Get page text for parsing
+            page_text = await self.page.inner_text('body')
             
-            # Parse the games and totals
-            import re
+            # Check if error message appeared
+            if "select at least one League" in page_text:
+                logger.error(f"Failed to select {league} - league selection error")
+                return []
+            
+            # Parse games from the page text
+            # Format: "541 BROOKLYN NETS\n+10-110\no219-110\n..." followed by "542 PHILADELPHIA 76ERS\n-10-110\nu219-110\n..."
             games = []
+            lines = page_text.split('\n')
             
-            # Pattern to find over/under lines
-            # Looking for patterns like "o219-110" "u219-110" or "o232½-110"
-            # The page shows teams followed by betting options
+            i = 0
+            current_away_team = None
+            current_time = None
             
-            # First, let's find all team matchups
-            # Usually formatted as "Team1 @ Team2" or similar
-            
-            # Parse the HTML to extract game data
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(page_content, 'html.parser')
-            
-            # Find all rows that might contain game data
-            rows = soup.find_all('tr')
-            
-            current_game = {}
-            for row in rows:
-                text = row.get_text()
+            while i < len(lines):
+                line = lines[i].strip()
                 
-                # Look for team names (usually uppercase city/team names)
-                # And total lines (patterns like o219, u219, etc.)
-                
-                # Check for over/under patterns
-                over_match = re.search(r'o(\d+\.?\d*½?)', text, re.IGNORECASE)
-                under_match = re.search(r'u(\d+\.?\d*½?)', text, re.IGNORECASE)
-                
-                if over_match or under_match:
-                    # Extract the total
-                    total_str = over_match.group(1) if over_match else under_match.group(1)
-                    # Convert ½ to .5
-                    total_str = total_str.replace('½', '.5')
-                    try:
-                        total = float(total_str)
-                        
-                        # Try to find team names in nearby text
-                        # Look for patterns like "TEAM1 @ TEAM2" or team abbreviations
-                        team_pattern = r'([A-Z]{2,})\s*[@vV][sS]?\s*([A-Z]{2,})'
-                        team_match = re.search(team_pattern, text)
-                        
-                        if team_match:
-                            games.append({
-                                "away": team_match.group(1),
-                                "home": team_match.group(2),
-                                "total": total
-                            })
-                        elif current_game.get('teams'):
-                            games.append({
-                                "away": current_game['teams'][0],
-                                "home": current_game['teams'][1],
-                                "total": total
-                            })
-                    except ValueError:
-                        pass
-            
-            # Alternative parsing approach - look for table cells with totals
-            cells = soup.find_all('td')
-            for i, cell in enumerate(cells):
-                text = cell.get_text().strip()
-                over_match = re.search(r'o(\d{3}\.?\d*½?)-\d+', text, re.IGNORECASE)
-                if over_match:
-                    total_str = over_match.group(1).replace('½', '.5')
-                    total = float(total_str)
+                # Look for game number + team name pattern (e.g., "541 BROOKLYN NETS")
+                team_match = re.match(r'^\d{3}\s+(.+)$', line)
+                if team_match:
+                    team_name = team_match.group(1).strip()
                     
-                    # Look backward for team names
-                    game_info = {"total": total}
-                    
-                    # Search previous cells for team info
-                    for j in range(max(0, i-10), i):
-                        prev_text = cells[j].get_text().strip()
-                        # Look for NBA team patterns
-                        if any(team in prev_text.upper() for team in ['NETS', 'KNICKS', 'LAKERS', 'CELTICS', 'WARRIORS', 'BULLS', 'HEAT', 'NUGGETS', 'HORNETS', '76ERS', 'HAWKS', 'JAZZ', 'THUNDER', 'BLAZERS', 'MAGIC', 'KINGS', 'MAVS', 'SUNS', 'CLIPPERS', 'CAVALIERS', 'PELICANS', 'PACERS', 'BUCKS', 'WOLVES', 'WIZARDS', 'PISTONS', 'SPURS', 'GRIZZLIES', 'RAPTORS']):
-                            game_info['teams_text'] = prev_text
+                    # Look ahead for the total line (o/u pattern)
+                    for j in range(i + 1, min(i + 5, len(lines))):
+                        next_line = lines[j].strip()
+                        total_match = re.match(r'^[ou](\d{2,3}[½]?)-\d+$', next_line, re.IGNORECASE)
+                        if total_match:
+                            total_str = total_match.group(1).replace('½', '.5')
+                            total = float(total_str)
+                            
+                            if current_away_team:
+                                # This is the home team, complete the game
+                                games.append({
+                                    "away": current_away_team,
+                                    "home": team_name,
+                                    "total": total,
+                                    "time": current_time
+                                })
+                                current_away_team = None
+                                current_time = None
+                            else:
+                                # This is the away team
+                                current_away_team = team_name
                             break
-                    
-                    if game_info not in games:
-                        games.append(game_info)
+                
+                # Look for time pattern (e.g., "4:10 PM")
+                time_match = re.match(r'^(\d{1,2}:\d{2}\s*[AP]M)$', line, re.IGNORECASE)
+                if time_match and current_away_team:
+                    current_time = time_match.group(1)
+                
+                i += 1
             
             logger.info(f"Found {len(games)} games with totals for {league}")
             return games
             
         except Exception as e:
             logger.error(f"Error scraping totals: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return []
 
 
