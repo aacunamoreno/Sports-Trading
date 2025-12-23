@@ -4149,6 +4149,35 @@ async def update_compound_record(league: str, hits: int = 0, misses: int = 0, re
         logger.error(f"Error updating compound record: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.post("/opportunities/record/set")
+async def set_compound_record(league: str, hits: int = 0, misses: int = 0):
+    """Set the compound record for a league to specific values"""
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        league = league.upper()
+        
+        await db.compound_records.update_one(
+            {"league": league},
+            {"$set": {
+                "league": league,
+                "hits": hits,
+                "misses": misses,
+                "last_updated": datetime.now(arizona_tz).strftime('%Y-%m-%d %I:%M %p')
+            }},
+            upsert=True
+        )
+        
+        return {
+            "success": True,
+            "league": league,
+            "hits": hits,
+            "misses": misses
+        }
+    except Exception as e:
+        logger.error(f"Error setting compound record: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/opportunities")
 async def get_opportunities(day: str = "today"):
     """Get NBA betting opportunities. day parameter: 'yesterday', 'today' or 'tomorrow'"""
