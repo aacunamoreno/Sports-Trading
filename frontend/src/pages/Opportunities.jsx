@@ -221,8 +221,14 @@ export default function Opportunities() {
             )}
             {day === 'yesterday' && data.games?.length > 0 && (
               <>
-                <div><span className="text-muted-foreground">Hits:</span> <span className="font-mono text-green-400">{data.games.filter(g => g.result_hit === true).length}</span></div>
-                <div><span className="text-muted-foreground">Misses:</span> <span className="font-mono text-red-400">{data.games.filter(g => g.result_hit === false).length}</span></div>
+                <div><span className="text-muted-foreground">Hits:</span> <span className="font-mono text-green-400">{data.games.filter(g => {
+                  const edgeThreshold = league === 'NBA' ? 5 : 0.6;
+                  return g.result_hit === true && g.edge !== null && g.edge !== undefined && Math.abs(g.edge) >= edgeThreshold;
+                }).length}</span></div>
+                <div><span className="text-muted-foreground">Misses:</span> <span className="font-mono text-red-400">{data.games.filter(g => {
+                  const edgeThreshold = league === 'NBA' ? 5 : 0.6;
+                  return g.result_hit === false && g.edge !== null && g.edge !== undefined && Math.abs(g.edge) >= edgeThreshold;
+                }).length}</span></div>
               </>
             )}
           </div>
