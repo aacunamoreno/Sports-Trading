@@ -229,8 +229,8 @@ export default function Opportunities() {
         </CardContent>
       </Card>
 
-      {/* Today's Plays */}
-      {data.plays && data.plays.length > 0 && (
+      {/* Today's Plays - only show for today and tomorrow, not yesterday */}
+      {day !== 'yesterday' && data.plays && data.plays.length > 0 && (
         <Card className="glass-card neon-border">
           <CardHeader className="border-b border-border pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
