@@ -268,7 +268,7 @@ export default function Opportunities() {
                       <div>
                         <div className="font-bold">{play.game}</div>
                         <div className="text-sm text-muted-foreground">
-                          Line: {play.total} | {config.combinedLabel}: {play.combined_ppg || play.combined_gpg || 'N/A'}
+                          Line: {play.bet_line || play.total} | {config.combinedLabel}: {play.combined_ppg || play.combined_gpg || 'N/A'}
                         </div>
                       </div>
                     </div>
