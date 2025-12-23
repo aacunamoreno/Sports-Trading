@@ -155,7 +155,7 @@ class BettingSystemAPITester:
                 self.log_test("Betting Logic Test", False, "No games data to test")
                 return False
             
-            # Test betting logic rules
+            # Test betting logic rules (updated rules from frontend)
             over_games = []
             under_games = []
             no_bet_games = []
@@ -165,21 +165,21 @@ class BettingSystemAPITester:
                 recommendation = game.get('recommendation')
                 
                 if game_avg is not None:
-                    if game_avg <= 10:
+                    if game_avg <= 12.5:  # OVER range: 1-12.5
                         if recommendation == 'OVER':
                             over_games.append(game)
                         else:
                             self.log_test("Betting Logic - OVER Rule", False,
                                         f"Game avg {game_avg} should be OVER but got {recommendation}")
                             return False
-                    elif game_avg >= 21:
+                    elif game_avg >= 17.5:  # UNDER range: 17.5-30
                         if recommendation == 'UNDER':
                             under_games.append(game)
                         else:
                             self.log_test("Betting Logic - UNDER Rule", False,
                                         f"Game avg {game_avg} should be UNDER but got {recommendation}")
                             return False
-                    else:  # 11-20 range
+                    else:  # No edge range: 13-17
                         if recommendation is None or recommendation == '':
                             no_bet_games.append(game)
                         else:
