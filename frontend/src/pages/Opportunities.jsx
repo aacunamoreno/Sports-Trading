@@ -239,9 +239,12 @@ export default function Opportunities() {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center gap-3">
                       {play.has_bet && (
-                        <span className="text-2xl" title={`Active bet: ${play.bet_type}${play.bet_count > 1 ? ` (x${play.bet_count})` : ''}`}>
-                          💰{play.bet_count > 1 && <sup className="text-xs text-yellow-400 font-bold">x{play.bet_count}</sup>}
-                        </span>
+                        <div className="flex items-center gap-1" title={`Active bet: ${play.bet_type}${play.bet_count > 1 ? ` (x${play.bet_count})` : ''}`}>
+                          <span className="text-2xl">💰</span>
+                          {play.bet_count > 1 && (
+                            <span className="text-sm text-yellow-400 font-bold bg-yellow-500/20 px-1 rounded">x{play.bet_count}</span>
+                          )}
+                        </div>
                       )}
                       {play.recommendation === 'OVER' ? (
                         <TrendingUp className="w-6 h-6 text-blue-400" />
