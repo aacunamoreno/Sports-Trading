@@ -4164,18 +4164,28 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             last3_total = away_last3_ppg + home_last3_ppg
             combined_ppg = (season_total + last3_total) / 2
             
-            # Determine recommendation (midpoint is 15, +/- 2.5)
-            # OVER: 1-12.5 (2.5 below midpoint)
-            # UNDER: 17.5-30 (2.5 above midpoint)
-            if game_avg <= 12.5:
-                recommendation = "OVER"
-                color = "green"
-            elif game_avg >= 17.5:
-                recommendation = "UNDER"
-                color = "red"
-            else:
-                recommendation = None
-                color = "neutral"
+            # Check if we have a valid line from plays888.co
+            # If total is None or 0, it means "NO LINE" - game not active in plays888
+            has_line = g.get('total') and g['total'] > 0
+            
+            # NEW LOGIC: Determine recommendation based on PPG vs Line comparison
+            # If PPG average > Line → OVER (we expect more points than the line)
+            # If PPG average < Line → UNDER (we expect fewer points than the line)
+            # Only recommend if edge is significant (> 0.5 points)
+            recommendation = None
+            color = "neutral"
+            
+            if has_line:
+                edge_value = combined_ppg - g['total']  # Positive = OVER, Negative = UNDER
+                
+                # Only recommend if there's a meaningful edge (at least 0.5 points)
+                # AND the team ranking average supports the direction
+                if edge_value >= 0.5 and game_avg <= 15:  # PPG higher than line + good ranking
+                    recommendation = "OVER"
+                    color = "green"
+                elif edge_value <= -0.5 and game_avg >= 15:  # PPG lower than line + poor ranking
+                    recommendation = "UNDER"
+                    color = "red"
             
             game_data = {
                 "game_num": i,
@@ -4188,7 +4198,8 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 "home_ppg_rank": home_season,
                 "home_last3_rank": home_last3,
                 "home_avg": round(home_avg, 1),
-                "total": g['total'],
+                "total": g['total'] if has_line else None,  # Show None if no line
+                "has_line": has_line,
                 "combined_ppg": round(combined_ppg, 1),
                 "game_avg": round(game_avg, 1),
                 "recommendation": recommendation,
