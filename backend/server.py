@@ -4745,6 +4745,7 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 home_norm = g['home'].upper().split()[-1]
                 existing_matchups.add(f"{away_norm}:{home_norm}")
             
+            added_from_bets = set()  # Track what we've added from bets to avoid duplicates
             for bet in open_bets:
                 if bet.get('sport') == 'NHL':
                     bet_away = bet.get('away_team', '').upper()
@@ -4754,7 +4755,7 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                     bet_home_norm = bet_home.split()[-1] if bet_home else ''
                     matchup_key = f"{bet_away_norm}:{bet_home_norm}"
                     
-                    if matchup_key not in existing_matchups:
+                    if matchup_key not in existing_matchups and matchup_key not in added_from_bets:
                         # This bet's game isn't in the schedule - add it
                         # Map team names back to short form
                         team_map = {
