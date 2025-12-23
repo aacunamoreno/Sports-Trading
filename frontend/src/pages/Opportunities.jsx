@@ -66,9 +66,9 @@ export default function Opportunities() {
     return 'text-muted-foreground';
   };
 
-  // Edge color: Green if >= 0.7, Red if < 0.7
+  // Edge color: Green if >= 0.9, Red if < 0.9
   const getEdgeStyle = (edge) => {
-    if (edge >= 0.7) return 'text-green-400 font-bold';
+    if (edge >= 0.9) return 'text-green-400 font-bold';
     return 'text-red-400 font-bold';
   };
 
