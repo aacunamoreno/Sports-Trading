@@ -3985,6 +3985,14 @@ async def refresh_nhl_opportunities(day: str = "today"):
                 {"time": "8:00 PM", "away": "San Jose", "home": "Vegas", "total": 6.5},
                 {"time": "8:00 PM", "away": "Winnipeg", "home": "Vancouver", "total": 5.5},
             ]
+        elif day == "yesterday":
+            # Yesterday's NHL games with results (Dec 22)
+            games_raw = [
+                {"time": "1:00 PM", "away": "St. Louis", "home": "Tampa Bay", "total": 6.0, "final_score": 5},
+                {"time": "1:00 PM", "away": "Vancouver", "home": "Philadelphia", "total": 6.0, "final_score": 7},
+                {"time": "8:00 PM", "away": "Seattle", "home": "Anaheim", "total": 6.5, "final_score": 4},
+                {"time": "8:00 PM", "away": "Columbus", "home": "Los Angeles", "total": 5.5, "final_score": 4},
+            ]
         else:
             # Today's NHL games (Arizona time)
             games_raw = [
