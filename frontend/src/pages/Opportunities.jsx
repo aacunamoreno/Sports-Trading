@@ -312,9 +312,14 @@ export default function Opportunities() {
                   return (
                     <tr 
                       key={game.game_num}
-                      className={`border-b border-border/50 ${rowStyle}`}
+                      className={`border-b border-border/50 ${rowStyle} ${game.has_bet ? 'ring-2 ring-yellow-500/50' : ''}`}
                     >
-                      <td className="py-3 px-2 font-mono">{game.game_num}</td>
+                      <td className="py-3 px-2 font-mono">
+                        {game.has_bet && (
+                          <span className="mr-1" title={`Active bet: ${game.bet_type} ($${game.bet_risk?.toLocaleString()})`}>💰</span>
+                        )}
+                        {game.game_num}
+                      </td>
                       <td className="py-3 px-2 text-muted-foreground">{game.time}</td>
                       {/* Away Team with Rankings */}
                       <td className={`py-3 px-2 ${textStyle}`}>
