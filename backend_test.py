@@ -520,7 +520,7 @@ class BettingSystemAPITester:
         return self.tests_passed == self.tests_run
 
 def main():
-    tester = OpportunitiesAPITester()
+    tester = BettingSystemAPITester()
     success = tester.run_all_tests()
     
     # Save detailed results
