@@ -4233,18 +4233,20 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 "date": target_date,
                 "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
                 "games": games,
-                "plays": plays
+                "plays": plays,
+                "data_source": data_source
             }},
             upsert=True
         )
         
         return {
             "success": True,
-            "message": "Opportunities refreshed",
+            "message": f"Opportunities refreshed (source: {data_source})",
             "date": target_date,
             "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
             "games": games,
-            "plays": plays
+            "plays": plays,
+            "data_source": data_source
         }
     except Exception as e:
         logger.error(f"Error refreshing opportunities: {e}")
