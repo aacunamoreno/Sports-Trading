@@ -3987,7 +3987,8 @@ async def get_opportunities(day: str = "today"):
                 "last_updated": cached.get('last_updated'),
                 "games": cached.get('games', []),
                 "plays": cached.get('plays', []),
-                "compound_record": compound_record
+                "compound_record": compound_record,
+                "data_source": cached.get('data_source', 'hardcoded')
             }
         
         return {
@@ -3996,7 +3997,8 @@ async def get_opportunities(day: str = "today"):
             "message": "No opportunities data yet. Data refreshes daily before 10:45 PM Arizona.",
             "games": [],
             "plays": [],
-            "compound_record": compound_record
+            "compound_record": compound_record,
+            "data_source": None
         }
     except Exception as e:
         logger.error(f"Error getting opportunities: {e}")
