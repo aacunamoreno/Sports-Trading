@@ -4674,8 +4674,30 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 "combined_gpg": round(combined_gpg, 1),
                 "game_avg": round(game_avg, 1),
                 "recommendation": recommendation,
-                "color": color
+                "color": color,
+                "has_bet": False,
+                "bet_type": None,
+                "bet_risk": 0
             }
+            
+            # Check if this game has an active bet
+            for bet in open_bets:
+                if bet.get('sport') == 'NHL':
+                    # Match team names (case-insensitive partial match)
+                    bet_away = bet.get('away_team', '').upper()
+                    bet_home = bet.get('home_team', '').upper()
+                    game_away = g['away'].upper()
+                    game_home = g['home'].upper()
+                    
+                    # Check if teams match (partial match for city names)
+                    away_match = any(part in bet_away for part in game_away.split()) or any(part in game_away for part in bet_away.split())
+                    home_match = any(part in bet_home for part in game_home.split()) or any(part in game_home for part in bet_home.split())
+                    
+                    if away_match and home_match:
+                        game_data["has_bet"] = True
+                        game_data["bet_type"] = bet.get('bet_type')
+                        game_data["bet_risk"] = bet.get('risk', 0)
+                        break
             
             # Add result data for yesterday
             if day == "yesterday" and 'final_score' in g:
