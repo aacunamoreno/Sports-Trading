@@ -4782,22 +4782,27 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             games.append(game_data)
             
             if recommendation and has_line:
-                # Edge is always absolute difference (positive value)
-                edge = abs(combined_gpg - g['total'])
+                # Calculate edge (always absolute difference)
+                edge = abs(combined_gpg - g['total']) if has_line else 0
                 
-                plays.append({
-                    "game": f"{g['away']} @ {g['home']}",
-                    "total": g['total'],
-                    "combined_gpg": round(combined_gpg, 1),
-                    "edge": round(edge, 1),
-                    "game_avg": round(game_avg, 1),
-                    "recommendation": recommendation,
-                    "color": color,
-                    "has_bet": game_data.get("has_bet", False),
-                    "bet_type": game_data.get("bet_type"),
-                    "bet_risk": game_data.get("bet_risk", 0),
-                    "bet_count": game_data.get("bet_count", 0)
-                })
+                # Only add to plays if this game has an active bet
+                if game_data.get("has_bet", False):
+                    plays.append({
+                        "game": f"{g['away']} @ {g['home']}",
+                        "total": g['total'],
+                        "combined_gpg": round(combined_gpg, 1),
+                        "edge": round(edge, 1),
+                        "game_avg": round(game_avg, 1),
+                        "recommendation": recommendation,
+                        "color": color,
+                        "has_bet": True,
+                        "bet_type": game_data.get("bet_type"),
+                        "bet_risk": game_data.get("bet_risk", 0),
+                        "bet_count": game_data.get("bet_count", 0)
+                    })
+            
+            # Add edge to game_data for the table
+            game_data["edge"] = round(edge, 1) if has_line else None
         
         # Save to database
         await db.nhl_opportunities.update_one(
