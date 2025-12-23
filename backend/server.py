@@ -4524,18 +4524,20 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 "date": target_date,
                 "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
                 "games": games,
-                "plays": plays
+                "plays": plays,
+                "data_source": data_source
             }},
             upsert=True
         )
         
         return {
             "success": True,
-            "message": "NHL opportunities refreshed",
+            "message": f"NHL opportunities refreshed (source: {data_source})",
             "date": target_date,
             "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
             "games": games,
-            "plays": plays
+            "plays": plays,
+            "data_source": data_source
         }
     except Exception as e:
         logger.error(f"Error refreshing NHL opportunities: {e}")
