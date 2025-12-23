@@ -2901,6 +2901,9 @@ async def get_rules_opportunities():
 @api_router.post("/scrape/totals/{league}")
 async def scrape_plays888_totals(league: str):
     """Scrape over/under totals from plays888.co for NBA or NHL"""
+    # Create a new service instance for each request
+    scrape_service = Plays888Service()
+    
     try:
         # Get connection credentials
         conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
@@ -2912,9 +2915,8 @@ async def scrape_plays888_totals(league: str):
         password = decrypt_password(conn["password_encrypted"])
         
         # Login and scrape
-        await plays888_service.login(username, password)
-        games = await plays888_service.scrape_totals(league.upper())
-        await plays888_service.close()
+        await scrape_service.login(username, password)
+        games = await scrape_service.scrape_totals(league.upper())
         
         return {
             "success": True,
@@ -2923,6 +2925,8 @@ async def scrape_plays888_totals(league: str):
             "count": len(games),
             "screenshot": f"/tmp/plays888_{league.lower()}_totals.png"
         }
+    finally:
+        await scrape_service.close()
     except HTTPException:
         raise
     except Exception as e:
