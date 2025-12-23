@@ -487,11 +487,25 @@ class BettingSystemAPITester:
         print(f"Testing API: {self.api_url}")
         print()
         
-        # Run tests
+        # Run basic tests first
+        print("🔍 BASIC API TESTS")
+        print("-" * 30)
         self.test_get_opportunities()
+        self.test_data_source_field()
         self.test_refresh_opportunities()
         self.test_betting_logic()
         self.test_color_coding()
+        
+        print("\n🌐 PLAYS888.CO SCRAPING TESTS")
+        print("-" * 30)
+        # Run scraping tests (these take longer)
+        self.test_scrape_nba_totals()
+        self.test_scrape_nhl_totals()
+        
+        print("\n🔄 LIVE LINES INTEGRATION TESTS")
+        print("-" * 30)
+        self.test_refresh_with_live_lines_nba()
+        self.test_refresh_with_live_lines_nhl()
         
         # Print summary
         print()
