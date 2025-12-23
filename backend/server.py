@@ -702,6 +702,19 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
     bets = compilation['bets']
     total_result = compilation.get('total_result', 0)
     
+    # For ENANO (jac075), get TIPSTER's bets to compare losses
+    tipster_bet_keys = set()
+    if account == "jac075":
+        tipster_compilation = await db.daily_compilations.find_one({
+            "account": "jac083",
+            "date": today
+        })
+        if tipster_compilation and tipster_compilation.get('bets'):
+            for tb in tipster_compilation['bets']:
+                # Create a unique key for each bet (game + bet_type)
+                key = f"{tb.get('game_short', '')}-{tb.get('bet_type_short', '')}"
+                tipster_bet_keys.add(key)
+    
     # Header differs for short vs detailed
     if detailed:
         lines = [f"📋 *{account_label}* (Detail)", ""]
@@ -732,7 +745,15 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
         if result == 'won':
             bet_line += "🟢"
         elif result == 'lost':
-            bet_line += "🔴"
+            # For ENANO: check if this loss is also in TIPSTER
+            if account == "jac075":
+                bet_key = f"{bet.get('game_short', '')}-{bet.get('bet_type_short', '')}"
+                if bet_key in tipster_bet_keys:
+                    bet_line += "🔴"  # Red: Loss is in both ENANO and TIPSTER
+                else:
+                    bet_line += "🟠"  # Orange: Loss is only in ENANO
+            else:
+                bet_line += "🔴"
         elif result == 'push':
             bet_line += "🔵"
         else:
