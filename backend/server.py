@@ -3622,6 +3622,76 @@ async def refresh_nba_opportunities_scheduled():
     except Exception as e:
         logger.error(f"[Scheduled] Error refreshing NBA opportunities: {e}")
 
+# ============== COMPOUND RECORD TRACKING ==============
+
+@api_router.get("/opportunities/record/{league}")
+async def get_compound_record(league: str):
+    """Get the compound record for a league (NBA or NHL)"""
+    try:
+        league = league.upper()
+        record = await db.compound_records.find_one({"league": league}, {"_id": 0})
+        
+        if record:
+            return {
+                "league": league,
+                "hits": record.get('hits', 0),
+                "misses": record.get('misses', 0),
+                "last_updated": record.get('last_updated')
+            }
+        
+        return {
+            "league": league,
+            "hits": 0,
+            "misses": 0,
+            "last_updated": None
+        }
+    except Exception as e:
+        logger.error(f"Error getting compound record: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/opportunities/record/{league}/update")
+async def update_compound_record(league: str, hits: int = 0, misses: int = 0, reset: bool = False):
+    """Update the compound record for a league. Use reset=True to reset to 0-0"""
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        league = league.upper()
+        
+        if reset:
+            await db.compound_records.update_one(
+                {"league": league},
+                {"$set": {
+                    "league": league,
+                    "hits": 0,
+                    "misses": 0,
+                    "last_updated": datetime.now(arizona_tz).strftime('%Y-%m-%d %I:%M %p')
+                }},
+                upsert=True
+            )
+            return {"success": True, "message": f"{league} record reset to 0-0"}
+        
+        # Add to existing record
+        await db.compound_records.update_one(
+            {"league": league},
+            {
+                "$inc": {"hits": hits, "misses": misses},
+                "$set": {"last_updated": datetime.now(arizona_tz).strftime('%Y-%m-%d %I:%M %p')}
+            },
+            upsert=True
+        )
+        
+        # Get updated record
+        record = await db.compound_records.find_one({"league": league}, {"_id": 0})
+        return {
+            "success": True,
+            "league": league,
+            "hits": record.get('hits', 0),
+            "misses": record.get('misses', 0)
+        }
+    except Exception as e:
+        logger.error(f"Error updating compound record: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/opportunities")
 async def get_opportunities(day: str = "today"):
     """Get NBA betting opportunities. day parameter: 'yesterday', 'today' or 'tomorrow'"""
@@ -3639,13 +3709,21 @@ async def get_opportunities(day: str = "today"):
         # Get cached NBA opportunities
         cached = await db.nba_opportunities.find_one({"date": target_date}, {"_id": 0})
         
+        # Get compound record
+        record = await db.compound_records.find_one({"league": "NBA"}, {"_id": 0})
+        compound_record = {
+            "hits": record.get('hits', 0) if record else 0,
+            "misses": record.get('misses', 0) if record else 0
+        }
+        
         if cached and cached.get('games'):
             return {
                 "success": True,
                 "date": target_date,
                 "last_updated": cached.get('last_updated'),
                 "games": cached.get('games', []),
-                "plays": cached.get('plays', [])
+                "plays": cached.get('plays', []),
+                "compound_record": compound_record
             }
         
         return {
@@ -3653,7 +3731,8 @@ async def get_opportunities(day: str = "today"):
             "date": target_date,
             "message": "No opportunities data yet. Data refreshes daily before 10:45 PM Arizona.",
             "games": [],
-            "plays": []
+            "plays": [],
+            "compound_record": compound_record
         }
     except Exception as e:
         logger.error(f"Error getting opportunities: {e}")
