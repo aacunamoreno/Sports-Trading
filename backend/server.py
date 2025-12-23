@@ -4301,8 +4301,11 @@ async def get_nhl_opportunities(day: str = "today"):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/opportunities/nhl/refresh")
-async def refresh_nhl_opportunities(day: str = "today"):
-    """Manually refresh NHL opportunities data. day parameter: 'yesterday', 'today' or 'tomorrow'"""
+async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = False):
+    """Manually refresh NHL opportunities data. 
+    day parameter: 'yesterday', 'today' or 'tomorrow'
+    use_live_lines: if True, fetch O/U lines from plays888.co instead of hardcoded values
+    """
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
@@ -4358,8 +4361,43 @@ async def refresh_nhl_opportunities(day: str = "today"):
             'Winnipeg': 2.00, 'Los Angeles': 2.00
         }
         
-        # NHL games based on day (Arizona time - would be scraped in production)
-        if day == "tomorrow":
+        games_raw = []
+        data_source = "hardcoded"
+        
+        # Try to fetch live lines from plays888.co if requested and for today's games
+        if use_live_lines and day == "today":
+            try:
+                # Get connection credentials
+                conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+                if conn and conn.get("is_connected"):
+                    username = conn["username"]
+                    password = decrypt_password(conn["password_encrypted"])
+                    
+                    # Create new scraper instance
+                    scraper = Plays888Service()
+                    await scraper.login(username, password)
+                    live_games = await scraper.scrape_totals("NHL")
+                    await scraper.close()
+                    
+                    if live_games:
+                        # Convert plays888 data to our format
+                        for game in live_games:
+                            away_short = convert_plays888_team_name(game.get('away', ''))
+                            home_short = convert_plays888_team_name(game.get('home', ''))
+                            games_raw.append({
+                                "time": game.get('time', ''),
+                                "away": away_short,
+                                "home": home_short,
+                                "total": game.get('total', 6.0)
+                            })
+                        data_source = "plays888.co"
+                        logger.info(f"Fetched {len(games_raw)} NHL games from plays888.co")
+            except Exception as e:
+                logger.error(f"Error fetching live NHL lines: {e}")
+        
+        # Use hardcoded data if live fetch failed or wasn't requested
+        if not games_raw:
+            if day == "tomorrow":
             # Tomorrow's NHL games (Dec 23 - Arizona time)
             games_raw = [
                 {"time": "2:00 PM", "away": "Pittsburgh", "home": "Toronto", "total": 6.5},
