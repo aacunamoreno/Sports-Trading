@@ -4550,7 +4550,15 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                     scraper = Plays888Service()
                     await scraper.login(username, password)
                     live_games = await scraper.scrape_totals("NHL")
+                    
+                    # Also fetch open bets for ENANO account
                     await scraper.close()
+                    scraper = Plays888Service()
+                    enano_conn = await db.connections.find_one({"username": "jac075"}, {"_id": 0})
+                    if enano_conn:
+                        await scraper.login("jac075", decrypt_password(enano_conn["password_encrypted"]))
+                        open_bets = await scraper.scrape_open_bets()
+                        await scraper.close()
                     
                     if live_games:
                         # Convert plays888 data to our format
