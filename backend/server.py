@@ -4466,18 +4466,26 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             last3_total = away_last3_gpg + home_last3_gpg
             combined_gpg = (season_total + last3_total) / 2
             
-            # NHL Thresholds (32 teams, midpoint = 16, +/- 2.5)
-            # OVER: 1-13.5 (below midpoint - 2.5)
-            # UNDER: 18.5-32 (above midpoint + 2.5)
-            if game_avg <= 13.5:
-                recommendation = "OVER"
-                color = "green"
-            elif game_avg >= 18.5:
-                recommendation = "UNDER"
-                color = "red"
-            else:
-                recommendation = None
-                color = "neutral"
+            # Check if we have a valid line from plays888.co
+            has_line = g.get('total') and g['total'] > 0
+            
+            # NEW LOGIC: Determine recommendation based on GPG vs Line comparison
+            # If GPG average > Line → OVER (we expect more goals than the line)
+            # If GPG average < Line → UNDER (we expect fewer goals than the line)
+            recommendation = None
+            color = "neutral"
+            
+            if has_line:
+                edge_value = combined_gpg - g['total']  # Positive = OVER, Negative = UNDER
+                
+                # Only recommend if there's a meaningful edge (at least 0.3 goals for NHL)
+                # AND the team ranking average supports the direction
+                if edge_value >= 0.3 and game_avg <= 16:  # GPG higher than line + good ranking
+                    recommendation = "OVER"
+                    color = "green"
+                elif edge_value <= -0.3 and game_avg >= 16:  # GPG lower than line + poor ranking
+                    recommendation = "UNDER"
+                    color = "red"
             
             game_data = {
                 "game_num": i,
@@ -4490,7 +4498,8 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 "home_gpg_rank": home_season,
                 "home_last3_rank": home_last3,
                 "home_avg": round(home_avg, 1),
-                "total": g['total'],
+                "total": g['total'] if has_line else None,
+                "has_line": has_line,
                 "combined_gpg": round(combined_gpg, 1),
                 "game_avg": round(game_avg, 1),
                 "recommendation": recommendation,
@@ -4511,12 +4520,9 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             
             games.append(game_data)
             
-            if recommendation:
-                # Calculate edge based on recommendation type
-                if recommendation == "UNDER":
-                    edge = g['total'] - combined_gpg
-                else:  # OVER
-                    edge = combined_gpg - g['total']
+            if recommendation and has_line:
+                # Edge is always absolute difference (positive value)
+                edge = abs(combined_gpg - g['total'])
                 
                 plays.append({
                     "game": f"{g['away']} @ {g['home']}",
