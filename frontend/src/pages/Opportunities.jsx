@@ -309,21 +309,29 @@ export default function Opportunities() {
               </thead>
               <tbody>
                 {data.games.map((game) => {
-                  // For yesterday, use result_hit to determine row color
+                  // Check if edge is below threshold - if so, it's a "No Bet" game
+                  const edgeThreshold = league === 'NBA' ? 5 : 0.6;
+                  const isNoBet = game.edge === null || game.edge === undefined || Math.abs(game.edge) < edgeThreshold;
+                  
+                  // For yesterday, use result_hit to determine row color, but only if edge met threshold
                   const rowStyle = day === 'yesterday' && game.recommendation
-                    ? game.result_hit === true 
-                      ? 'bg-green-500/20 border-green-500/50' 
-                      : game.result_hit === false 
-                        ? 'bg-red-500/20 border-red-500/50'
-                        : getRowStyle(game.recommendation)
+                    ? isNoBet
+                      ? 'bg-gray-500/10 border-gray-500/30' // No Bet - muted style
+                      : game.result_hit === true 
+                        ? 'bg-green-500/20 border-green-500/50' 
+                        : game.result_hit === false 
+                          ? 'bg-red-500/20 border-red-500/50'
+                          : getRowStyle(game.recommendation)
                     : getRowStyle(game.recommendation);
                   
                   const textStyle = day === 'yesterday' && game.recommendation
-                    ? game.result_hit === true
-                      ? 'text-green-400 font-bold'
-                      : game.result_hit === false
-                        ? 'text-red-400 font-bold'
-                        : getTextStyle(game.recommendation)
+                    ? isNoBet
+                      ? 'text-gray-400' // No Bet - muted text
+                      : game.result_hit === true
+                        ? 'text-green-400 font-bold'
+                        : game.result_hit === false
+                          ? 'text-red-400 font-bold'
+                          : getTextStyle(game.recommendation)
                     : getTextStyle(game.recommendation);
 
                   return (
