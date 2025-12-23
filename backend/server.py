@@ -353,6 +353,9 @@ async def run_monitoring_cycle():
     new_bets_found = {"jac075": 0, "jac083": 0}  # Default value
     
     try:
+        # Process any pending message deletions first
+        await process_pending_deletions()
+        
         # Log to database
         await db.activity_log.insert_one({
             "type": "bet_check",
