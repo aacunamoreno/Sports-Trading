@@ -391,32 +391,34 @@ export default function Opportunities() {
                         )}
                       </td>
                       <td className="py-3 px-2 text-center">
-                        {game.recommendation ? (
-                          day === 'yesterday' ? (
-                            isNoBet ? (
-                              <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/20 text-gray-400">
-                                ⚪ NO BET
-                              </span>
-                            ) : (
-                              <span className={`px-2 py-1 rounded text-xs font-bold ${
-                                game.result_hit === true
-                                  ? 'bg-green-500/30 text-green-400'
-                                  : game.result_hit === false
-                                    ? 'bg-red-500/30 text-red-400'
-                                    : 'bg-gray-500/30 text-gray-400'
-                              }`}>
-                                {game.result_hit === true ? '✅ HIT' : game.result_hit === false ? '❌ MISS' : '⏳ PENDING'}
-                              </span>
-                            )
-                          ) : (
-                            <span className={`px-2 py-1 rounded text-xs font-bold ${
-                              game.recommendation === 'OVER' 
-                                ? 'bg-blue-500/30 text-blue-400' 
-                                : 'bg-orange-500/30 text-orange-400'
-                            }`}>
-                              {game.recommendation === 'OVER' ? '⬆️' : '⬇️'} {game.recommendation}
+                        {day === 'yesterday' ? (
+                          // For yesterday: show NO BET if edge is below threshold, otherwise show HIT/MISS
+                          isNoBet ? (
+                            <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/20 text-gray-400">
+                              ⚪ NO BET
                             </span>
+                          ) : game.recommendation ? (
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${
+                              game.result_hit === true
+                                ? 'bg-green-500/30 text-green-400'
+                                : game.result_hit === false
+                                  ? 'bg-red-500/30 text-red-400'
+                                  : 'bg-gray-500/30 text-gray-400'
+                            }`}>
+                              {game.result_hit === true ? '✅ HIT' : game.result_hit === false ? '❌ MISS' : '⏳ PENDING'}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
                           )
+                        ) : game.recommendation ? (
+                          // For today/tomorrow: show OVER/UNDER recommendation
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${
+                            game.recommendation === 'OVER' 
+                              ? 'bg-blue-500/30 text-blue-400' 
+                              : 'bg-orange-500/30 text-orange-400'
+                          }`}>
+                            {game.recommendation === 'OVER' ? '⬆️' : '⬇️'} {game.recommendation}
+                          </span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
