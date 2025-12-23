@@ -203,6 +203,14 @@ export default function Opportunities() {
             <div><span className="text-muted-foreground">Date:</span> <span className="font-mono">{data.date || 'N/A'}</span></div>
             <div><span className="text-muted-foreground">Last Updated:</span> <span className="font-mono">{data.last_updated || 'N/A'}</span></div>
             <div><span className="text-muted-foreground">Games:</span> <span className="font-mono">{data.games?.length || 0}</span></div>
+            {data.data_source && (
+              <div>
+                <span className="text-muted-foreground">Source:</span>{' '}
+                <span className={`font-mono ${data.data_source === 'plays888.co' ? 'text-green-400' : 'text-yellow-400'}`}>
+                  {data.data_source === 'plays888.co' ? '🔴 plays888.co (Live)' : '📁 Cached'}
+                </span>
+              </div>
+            )}
             {day === 'yesterday' && data.games?.length > 0 && (
               <>
                 <div><span className="text-muted-foreground">Hits:</span> <span className="font-mono text-green-400">{data.games.filter(g => g.result_hit === true).length}</span></div>
