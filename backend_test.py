@@ -271,7 +271,7 @@ class BettingSystemAPITester:
                 
                 # Validate game structure
                 game = games[0]
-                required_fields = ['team1', 'team2', 'total']
+                required_fields = ['away', 'home', 'total']
                 missing_fields = [field for field in required_fields if field not in game]
                 
                 if missing_fields:
@@ -325,7 +325,7 @@ class BettingSystemAPITester:
                 
                 # Validate game structure
                 game = games[0]
-                required_fields = ['team1', 'team2', 'total']
+                required_fields = ['away', 'home', 'total']
                 missing_fields = [field for field in required_fields if field not in game]
                 
                 if missing_fields:
