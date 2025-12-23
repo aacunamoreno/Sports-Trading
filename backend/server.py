@@ -768,10 +768,30 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
         result_sign = "+" if total_result >= 0 else ""
         lines.append(f"*Result: {result_sign}{format_amount_short(total_result)}*")
         
-        # Add record (wins-losses)
-        wins = len([b for b in bets if b.get('result') == 'won'])
-        losses = len([b for b in bets if b.get('result') == 'lost'])
-        lines.append(f"*Record: {wins}-{losses}*")
+        # Add records
+        if account == "jac075":
+            # ENANO: Show 3 records (overall, $2K bets, $1K bets)
+            overall_wins = len([b for b in bets if b.get('result') == 'won'])
+            overall_losses = len([b for b in bets if b.get('result') == 'lost'])
+            
+            # $2K bets (includes $2K, $2.2K, etc.)
+            bets_2k = [b for b in bets if b.get('wager_short', '').startswith('$2')]
+            wins_2k = len([b for b in bets_2k if b.get('result') == 'won'])
+            losses_2k = len([b for b in bets_2k if b.get('result') == 'lost'])
+            
+            # $1K bets (includes $1K, $1.3K, etc.)
+            bets_1k = [b for b in bets if b.get('wager_short', '').startswith('$1')]
+            wins_1k = len([b for b in bets_1k if b.get('result') == 'won'])
+            losses_1k = len([b for b in bets_1k if b.get('result') == 'lost'])
+            
+            lines.append(f"*Record: {overall_wins}-{overall_losses}*")
+            lines.append(f"*$2K: {wins_2k}-{losses_2k}*")
+            lines.append(f"*$1K: {wins_1k}-{losses_1k}*")
+        else:
+            # TIPSTER: Single overall record
+            wins = len([b for b in bets if b.get('result') == 'won'])
+            losses = len([b for b in bets if b.get('result') == 'lost'])
+            lines.append(f"*Record: {wins}-{losses}*")
     
     return "\n".join(lines)
 
