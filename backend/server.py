@@ -4287,7 +4287,8 @@ async def get_nhl_opportunities(day: str = "today"):
                 "last_updated": cached.get('last_updated'),
                 "games": cached.get('games', []),
                 "plays": cached.get('plays', []),
-                "compound_record": compound_record
+                "compound_record": compound_record,
+                "data_source": cached.get('data_source', 'hardcoded')
             }
         
         return {
@@ -4296,7 +4297,8 @@ async def get_nhl_opportunities(day: str = "today"):
             "message": "No NHL opportunities data yet. Click refresh to load games.",
             "games": [],
             "plays": [],
-            "compound_record": compound_record
+            "compound_record": compound_record,
+            "data_source": None
         }
     except Exception as e:
         logger.error(f"Error getting NHL opportunities: {e}")
