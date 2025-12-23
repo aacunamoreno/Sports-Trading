@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Backend API Testing for Betting Automation System
-Tests the Opportunities endpoints for NBA game analysis
+Tests the Opportunities endpoints and plays888.co scraping functionality
 """
 
 import requests
@@ -9,7 +9,7 @@ import sys
 import json
 from datetime import datetime
 
-class OpportunitiesAPITester:
+class BettingSystemAPITester:
     def __init__(self, base_url="https://betwise-64.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
