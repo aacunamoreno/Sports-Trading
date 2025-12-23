@@ -243,6 +243,242 @@ class BettingSystemAPITester:
             self.log_test("Color Coding Test", False, f"Error: {str(e)}")
             return False
 
+    def test_scrape_nba_totals(self):
+        """Test POST /api/scrape/totals/NBA endpoint"""
+        try:
+            print("Testing NBA totals scraping (this may take 30-60 seconds)...")
+            response = requests.post(f"{self.api_url}/scrape/totals/NBA", timeout=90)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                if not isinstance(data, dict) or 'games' not in data:
+                    self.log_test("POST /api/scrape/totals/NBA - Structure", False,
+                                "Response should have 'games' field")
+                    return False
+                
+                games = data.get('games', [])
+                if not isinstance(games, list):
+                    self.log_test("POST /api/scrape/totals/NBA - Games Array", False,
+                                "Games should be an array")
+                    return False
+                
+                if len(games) == 0:
+                    self.log_test("POST /api/scrape/totals/NBA", False,
+                                "No NBA games found - may be off-season or scraping issue")
+                    return False
+                
+                # Validate game structure
+                game = games[0]
+                required_fields = ['team1', 'team2', 'total']
+                missing_fields = [field for field in required_fields if field not in game]
+                
+                if missing_fields:
+                    self.log_test("POST /api/scrape/totals/NBA - Game Structure", False,
+                                f"Missing game fields: {missing_fields}")
+                    return False
+                
+                self.log_test("POST /api/scrape/totals/NBA", True,
+                            f"Successfully scraped {len(games)} NBA games from plays888.co")
+                return True
+            else:
+                self.log_test("POST /api/scrape/totals/NBA", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.Timeout:
+            self.log_test("POST /api/scrape/totals/NBA", False, "Request timeout (>90s)")
+            return False
+        except requests.exceptions.RequestException as e:
+            self.log_test("POST /api/scrape/totals/NBA", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("POST /api/scrape/totals/NBA", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_scrape_nhl_totals(self):
+        """Test POST /api/scrape/totals/NHL endpoint"""
+        try:
+            print("Testing NHL totals scraping (this may take 30-60 seconds)...")
+            response = requests.post(f"{self.api_url}/scrape/totals/NHL", timeout=90)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                if not isinstance(data, dict) or 'games' not in data:
+                    self.log_test("POST /api/scrape/totals/NHL - Structure", False,
+                                "Response should have 'games' field")
+                    return False
+                
+                games = data.get('games', [])
+                if not isinstance(games, list):
+                    self.log_test("POST /api/scrape/totals/NHL - Games Array", False,
+                                "Games should be an array")
+                    return False
+                
+                if len(games) == 0:
+                    self.log_test("POST /api/scrape/totals/NHL", False,
+                                "No NHL games found - may be off-season or scraping issue")
+                    return False
+                
+                # Validate game structure
+                game = games[0]
+                required_fields = ['team1', 'team2', 'total']
+                missing_fields = [field for field in required_fields if field not in game]
+                
+                if missing_fields:
+                    self.log_test("POST /api/scrape/totals/NHL - Game Structure", False,
+                                f"Missing game fields: {missing_fields}")
+                    return False
+                
+                self.log_test("POST /api/scrape/totals/NHL", True,
+                            f"Successfully scraped {len(games)} NHL games from plays888.co")
+                return True
+            else:
+                self.log_test("POST /api/scrape/totals/NHL", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.Timeout:
+            self.log_test("POST /api/scrape/totals/NHL", False, "Request timeout (>90s)")
+            return False
+        except requests.exceptions.RequestException as e:
+            self.log_test("POST /api/scrape/totals/NHL", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("POST /api/scrape/totals/NHL", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_refresh_with_live_lines_nba(self):
+        """Test POST /api/opportunities/refresh?use_live_lines=true for NBA"""
+        try:
+            print("Testing NBA opportunities refresh with live lines (this may take 30-60 seconds)...")
+            response = requests.post(f"{self.api_url}/opportunities/refresh?use_live_lines=true", timeout=90)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'plays', 'date', 'last_updated', 'data_source']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("POST /api/opportunities/refresh?use_live_lines=true - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                # Check data source
+                data_source = data.get('data_source')
+                if data_source != 'plays888.co':
+                    self.log_test("POST /api/opportunities/refresh?use_live_lines=true - Data Source", False,
+                                f"Expected data_source 'plays888.co', got '{data_source}'")
+                    return False
+                
+                games = data.get('games', [])
+                plays = data.get('plays', [])
+                
+                self.log_test("POST /api/opportunities/refresh?use_live_lines=true", True,
+                            f"NBA refresh with live lines: {len(games)} games, {len(plays)} plays, source: {data_source}")
+                return True
+            else:
+                self.log_test("POST /api/opportunities/refresh?use_live_lines=true", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.Timeout:
+            self.log_test("POST /api/opportunities/refresh?use_live_lines=true", False, "Request timeout (>90s)")
+            return False
+        except requests.exceptions.RequestException as e:
+            self.log_test("POST /api/opportunities/refresh?use_live_lines=true", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("POST /api/opportunities/refresh?use_live_lines=true", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_refresh_with_live_lines_nhl(self):
+        """Test POST /api/opportunities/nhl/refresh?use_live_lines=true for NHL"""
+        try:
+            print("Testing NHL opportunities refresh with live lines (this may take 30-60 seconds)...")
+            response = requests.post(f"{self.api_url}/opportunities/nhl/refresh?use_live_lines=true", timeout=90)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'plays', 'date', 'last_updated', 'data_source']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("POST /api/opportunities/nhl/refresh?use_live_lines=true - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                # Check data source
+                data_source = data.get('data_source')
+                if data_source != 'plays888.co':
+                    self.log_test("POST /api/opportunities/nhl/refresh?use_live_lines=true - Data Source", False,
+                                f"Expected data_source 'plays888.co', got '{data_source}'")
+                    return False
+                
+                games = data.get('games', [])
+                plays = data.get('plays', [])
+                
+                self.log_test("POST /api/opportunities/nhl/refresh?use_live_lines=true", True,
+                            f"NHL refresh with live lines: {len(games)} games, {len(plays)} plays, source: {data_source}")
+                return True
+            else:
+                self.log_test("POST /api/opportunities/nhl/refresh?use_live_lines=true", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.Timeout:
+            self.log_test("POST /api/opportunities/nhl/refresh?use_live_lines=true", False, "Request timeout (>90s)")
+            return False
+        except requests.exceptions.RequestException as e:
+            self.log_test("POST /api/opportunities/nhl/refresh?use_live_lines=true", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("POST /api/opportunities/nhl/refresh?use_live_lines=true", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_data_source_field(self):
+        """Test that GET /api/opportunities returns data_source field"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities", timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if 'data_source' not in data:
+                    self.log_test("GET /api/opportunities - data_source field", False,
+                                "Missing data_source field in response")
+                    return False
+                
+                data_source = data.get('data_source')
+                valid_sources = ['cached', 'plays888.co']
+                
+                if data_source not in valid_sources:
+                    self.log_test("GET /api/opportunities - data_source value", False,
+                                f"Invalid data_source '{data_source}', expected one of {valid_sources}")
+                    return False
+                
+                self.log_test("GET /api/opportunities - data_source field", True,
+                            f"data_source field present with value: {data_source}")
+                return True
+            else:
+                self.log_test("GET /api/opportunities - data_source field", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("GET /api/opportunities - data_source field", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("GET /api/opportunities - data_source field", False, f"JSON decode error: {str(e)}")
+            return False
+
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
