@@ -155,6 +155,33 @@ frontend:
       - working: true
         agent: "main"
         comment: "Full page implemented with TODAY'S PLAYS section, NBA Games Analysis table with all columns (Time, Away/Home teams, PPG ranks, L3 ranks, Total, Game Avg, Bet recommendation), color highlighting (green=OVER, red=UNDER), and betting rule legend."
+      - working: true
+        agent: "main"
+        comment: "Added Live Lines toggle to fetch O/U lines directly from plays888.co. Shows data source indicator."
+
+  - task: "plays888.co O/U Line Scraper API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "POST /api/scrape/totals/{league} endpoint scrapes live O/U lines from plays888.co. Supports NBA and NHL. Returns team names and totals."
+
+  - task: "Live Lines Integration with Opportunities"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "POST /api/opportunities/refresh?use_live_lines=true now fetches live O/U lines from plays888.co instead of hardcoded values. Same for NHL endpoint."
 
   - task: "Opportunities Navigation"
     implemented: true
