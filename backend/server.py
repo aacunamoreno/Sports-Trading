@@ -4220,14 +4220,10 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             
             games.append(game_data)
             
-            if recommendation:
-                # Calculate edge based on recommendation type
-                # UNDER: positive edge = Line - PPG Avg (line is higher than expected)
-                # OVER: positive edge = PPG Avg - Line (expected points higher than line)
-                if recommendation == "UNDER":
-                    edge = g['total'] - combined_ppg
-                else:  # OVER
-                    edge = combined_ppg - g['total']
+            if recommendation and has_line:
+                # Edge is always absolute difference (positive value)
+                # Shows how many points of edge we have
+                edge = abs(combined_ppg - g['total'])
                 
                 plays.append({
                     "game": f"{g['away']} @ {g['home']}",
