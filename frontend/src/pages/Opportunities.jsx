@@ -410,6 +410,10 @@ export default function Opportunities() {
                 <span className="w-4 h-4 rounded bg-gray-500/20 border border-gray-500/30"></span>
                 <span className="text-gray-500">NO LINE = Not available in plays888</span>
               </div>
+              <div className="flex items-center gap-2">
+                <span>💰</span>
+                <span className="text-yellow-400">Active bet placed (ENANO)</span>
+              </div>
             </div>
             <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-4">
               <div className="flex items-center gap-2">
