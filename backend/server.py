@@ -4339,21 +4339,20 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 ]
             elif day == "yesterday":
                 # Yesterday's NBA games with results (Dec 23)
-                # Note: Update final scores once available
                 games_raw = [
-                    {"time": "4:10 PM", "away": "Brooklyn", "home": "Philadelphia", "total": 219.0, "final_score": None},
-                    {"time": "4:10 PM", "away": "Washington", "home": "Charlotte", "total": 238.5, "final_score": None},
-                    {"time": "4:40 PM", "away": "Milwaukee", "home": "Indiana", "total": 218.5, "final_score": None},
-                    {"time": "4:40 PM", "away": "Toronto", "home": "Miami", "total": 217.5, "final_score": None},
-                    {"time": "4:40 PM", "away": "New Orleans", "home": "Cleveland", "total": 245.5, "final_score": None},
-                    {"time": "4:40 PM", "away": "Chicago", "home": "Atlanta", "total": 236.0, "final_score": None},
-                    {"time": "5:10 PM", "away": "Denver", "home": "Dallas", "total": 228.5, "final_score": None},
-                    {"time": "5:10 PM", "away": "New York", "home": "Minnesota", "total": 217.0, "final_score": None},
-                    {"time": "5:10 PM", "away": "Okla City", "home": "San Antonio", "total": 233.5, "final_score": None},
-                    {"time": "6:10 PM", "away": "LA Lakers", "home": "Phoenix", "total": 219.5, "final_score": None},
-                    {"time": "6:10 PM", "away": "Orlando", "home": "Portland", "total": 232.0, "final_score": None},
-                    {"time": "7:10 PM", "away": "Detroit", "home": "Sacramento", "total": 225.0, "final_score": None},
-                    {"time": "7:40 PM", "away": "Houston", "home": "LA Clippers", "total": 219.0, "final_score": None},
+                    {"time": "4:10 PM", "away": "Brooklyn", "home": "Philadelphia", "total": 219.0, "final_score": 220},  # 114+106
+                    {"time": "4:10 PM", "away": "Washington", "home": "Charlotte", "total": 238.5, "final_score": 235},  # 109+126
+                    {"time": "4:40 PM", "away": "Milwaukee", "home": "Indiana", "total": 218.5, "final_score": 205},  # 111+94
+                    {"time": "4:40 PM", "away": "Toronto", "home": "Miami", "total": 217.5, "final_score": 203},  # 112+91
+                    {"time": "4:40 PM", "away": "New Orleans", "home": "Cleveland", "total": 245.5, "final_score": 259},  # 118+141
+                    {"time": "4:40 PM", "away": "Chicago", "home": "Atlanta", "total": 236.0, "final_score": 249},  # 126+123
+                    {"time": "5:10 PM", "away": "Denver", "home": "Dallas", "total": 228.5, "final_score": 261},  # 130+131
+                    {"time": "5:10 PM", "away": "New York", "home": "Minnesota", "total": 217.0, "final_score": 219},  # 104+115
+                    {"time": "5:10 PM", "away": "Okla City", "home": "San Antonio", "total": 233.5, "final_score": 240},  # 110+130
+                    {"time": "6:10 PM", "away": "LA Lakers", "home": "Phoenix", "total": 219.5, "final_score": 240},  # 108+132
+                    {"time": "6:10 PM", "away": "Orlando", "home": "Portland", "total": 232.0, "final_score": 216},  # 110+106
+                    {"time": "7:10 PM", "away": "Detroit", "home": "Sacramento", "total": 225.0, "final_score": 263},  # 136+127
+                    {"time": "7:40 PM", "away": "Houston", "home": "LA Clippers", "total": 219.0, "final_score": 236},  # 108+128
                 ]
             elif day == "today":
                 # Dec 24 (Christmas Eve) - No NBA games
