@@ -4709,21 +4709,20 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 games_raw = []
             elif day == "yesterday":
                 # Yesterday's NHL games with results (Dec 23)
-                # Note: Update final scores once available
                 games_raw = [
-                    {"time": "12:00 PM", "away": "Pittsburgh", "home": "Toronto", "total": 6.0, "final_score": None},
-                    {"time": "3:30 PM", "away": "Dallas", "home": "Detroit", "total": 6.0, "final_score": None},
-                    {"time": "4:00 PM", "away": "NY Rangers", "home": "Washington", "total": 5.5, "final_score": None},
-                    {"time": "4:00 PM", "away": "Florida", "home": "Carolina", "total": 6.0, "final_score": None},
-                    {"time": "4:00 PM", "away": "New Jersey", "home": "NY Islanders", "total": 6.0, "final_score": None},
-                    {"time": "4:00 PM", "away": "Buffalo", "home": "Ottawa", "total": 6.5, "final_score": None},
-                    {"time": "4:00 PM", "away": "Montreal", "home": "Boston", "total": 5.5, "final_score": None},
-                    {"time": "5:00 PM", "away": "Nashville", "home": "Minnesota", "total": 5.5, "final_score": None},
-                    {"time": "6:00 PM", "away": "Calgary", "home": "Edmonton", "total": 6.5, "final_score": None},
-                    {"time": "6:00 PM", "away": "Philadelphia", "home": "Chicago", "total": 6.0, "final_score": None},
-                    {"time": "7:00 PM", "away": "Utah", "home": "Colorado", "total": 6.0, "final_score": None},
-                    {"time": "7:00 PM", "away": "San Jose", "home": "Vegas", "total": 6.0, "final_score": None},
-                    {"time": "7:30 PM", "away": "Seattle", "home": "Los Angeles", "total": 6.0, "final_score": None},
+                    {"time": "12:00 PM", "away": "Pittsburgh", "home": "Toronto", "total": 6.0, "final_score": 9},  # 3+6
+                    {"time": "3:30 PM", "away": "Dallas", "home": "Detroit", "total": 6.0, "final_score": 7},  # 3+4 OT
+                    {"time": "4:00 PM", "away": "NY Rangers", "home": "Washington", "total": 5.5, "final_score": 10},  # 7+3
+                    {"time": "4:00 PM", "away": "Florida", "home": "Carolina", "total": 6.0, "final_score": 7},  # 5+2
+                    {"time": "4:00 PM", "away": "New Jersey", "home": "NY Islanders", "total": 6.0, "final_score": 3},  # 1+2
+                    {"time": "4:00 PM", "away": "Buffalo", "home": "Ottawa", "total": 6.5, "final_score": 5},  # 3+2 OT
+                    {"time": "4:00 PM", "away": "Montreal", "home": "Boston", "total": 5.5, "final_score": 8},  # 6+2
+                    {"time": "5:00 PM", "away": "Nashville", "home": "Minnesota", "total": 5.5, "final_score": 5},  # 3+2 OT
+                    {"time": "6:00 PM", "away": "Calgary", "home": "Edmonton", "total": 6.5, "final_score": 6},  # 1+5
+                    {"time": "6:00 PM", "away": "Philadelphia", "home": "Chicago", "total": 6.0, "final_score": 4},  # 3+1
+                    {"time": "7:00 PM", "away": "Utah", "home": "Colorado", "total": 6.0, "final_score": 1},  # 0+1
+                    {"time": "7:00 PM", "away": "San Jose", "home": "Vegas", "total": 6.0, "final_score": 9},  # 2+7
+                    {"time": "7:30 PM", "away": "Seattle", "home": "Los Angeles", "total": 6.0, "final_score": 5},  # 3+2
                 ]
             elif day == "today":
                 # Dec 24 (Christmas Eve) - No NHL games
