@@ -4488,8 +4488,8 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             # Add result data for yesterday
             if day == "yesterday" and 'final_score' in g:
                 game_data["final_score"] = g['final_score']
-                # Calculate if recommendation hit
-                if recommendation:
+                # Calculate if recommendation hit (only if we have final score)
+                if recommendation and g['final_score'] is not None:
                     if recommendation == "OVER":
                         game_data["result_hit"] = g['final_score'] > g['total']
                     else:  # UNDER
@@ -4919,8 +4919,8 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             # Add result data for yesterday
             if day == "yesterday" and 'final_score' in g:
                 game_data["final_score"] = g['final_score']
-                # Calculate if recommendation hit
-                if recommendation:
+                # Calculate if recommendation hit (only if we have final score)
+                if recommendation and g['final_score'] is not None:
                     if recommendation == "OVER":
                         game_data["result_hit"] = g['final_score'] > g['total']
                     else:  # UNDER
