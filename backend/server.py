@@ -4346,15 +4346,22 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     {"time": "8:30 PM", "away": "Houston", "home": "LA Clippers", "total": 221.5},
                 ]
             elif day == "yesterday":
-                # Yesterday's NBA games with results (Dec 22 - from NBA.com)
+                # Yesterday's NBA games with results (Dec 23)
+                # Note: Update final scores once available
                 games_raw = [
-                    {"time": "5:00 PM", "away": "Charlotte", "home": "Cleveland", "total": 239.5, "final_score": 271},
-                    {"time": "5:30 PM", "away": "Indiana", "home": "Boston", "total": 226.5, "final_score": 198},
-                    {"time": "6:00 PM", "away": "Dallas", "home": "New Orleans", "total": 240.5, "final_score": 232},
-                    {"time": "7:00 PM", "away": "Utah", "home": "Denver", "total": 250.5, "final_score": 247},
-                    {"time": "7:30 PM", "away": "Memphis", "home": "Okla City", "total": 232.5, "final_score": 222},
-                    {"time": "8:00 PM", "away": "Detroit", "home": "Portland", "total": 234.5, "final_score": 212},
-                    {"time": "8:00 PM", "away": "Orlando", "home": "Golden State", "total": 227.5, "final_score": 217},
+                    {"time": "4:10 PM", "away": "Brooklyn", "home": "Philadelphia", "total": 219.0, "final_score": None},
+                    {"time": "4:10 PM", "away": "Washington", "home": "Charlotte", "total": 238.5, "final_score": None},
+                    {"time": "4:40 PM", "away": "Milwaukee", "home": "Indiana", "total": 218.5, "final_score": None},
+                    {"time": "4:40 PM", "away": "Toronto", "home": "Miami", "total": 217.5, "final_score": None},
+                    {"time": "4:40 PM", "away": "New Orleans", "home": "Cleveland", "total": 245.5, "final_score": None},
+                    {"time": "4:40 PM", "away": "Chicago", "home": "Atlanta", "total": 236.0, "final_score": None},
+                    {"time": "5:10 PM", "away": "Denver", "home": "Dallas", "total": 228.5, "final_score": None},
+                    {"time": "5:10 PM", "away": "New York", "home": "Minnesota", "total": 217.0, "final_score": None},
+                    {"time": "5:10 PM", "away": "Okla City", "home": "San Antonio", "total": 233.5, "final_score": None},
+                    {"time": "6:10 PM", "away": "LA Lakers", "home": "Phoenix", "total": 219.5, "final_score": None},
+                    {"time": "6:10 PM", "away": "Orlando", "home": "Portland", "total": 232.0, "final_score": None},
+                    {"time": "7:10 PM", "away": "Detroit", "home": "Sacramento", "total": 225.0, "final_score": None},
+                    {"time": "7:40 PM", "away": "Houston", "home": "LA Clippers", "total": 219.0, "final_score": None},
                 ]
             else:
                 # Today's games (Arizona time - hardcoded fallback)
