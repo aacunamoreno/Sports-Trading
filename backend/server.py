@@ -4740,12 +4740,12 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                     {"time": "7:00 PM", "away": "San Jose", "home": "Vegas", "total": 6.0, "final_score": None},
                     {"time": "7:30 PM", "away": "Seattle", "home": "Los Angeles", "total": 6.0, "final_score": None},
                 ]
+            elif day == "today":
+                # Dec 24 (Christmas Eve) - No NHL games
+                games_raw = []
             else:
-                # Today's NHL games (Arizona time - hardcoded fallback)
-                games_raw = [
-                    {"time": "8:00 PM", "away": "Seattle", "home": "Anaheim", "total": 6.5},
-                    {"time": "8:00 PM", "away": "Columbus", "home": "Los Angeles", "total": 5.5},
-                ]
+                # Default fallback - empty
+                games_raw = []
         
         # Add games from open bets that might have started but aren't in the schedule
         # This ensures we show all games with active bets
