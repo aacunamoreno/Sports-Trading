@@ -4355,6 +4355,9 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     {"time": "7:10 PM", "away": "Detroit", "home": "Sacramento", "total": 225.0, "final_score": None},
                     {"time": "7:40 PM", "away": "Houston", "home": "LA Clippers", "total": 219.0, "final_score": None},
                 ]
+            elif day == "today":
+                # Dec 24 (Christmas Eve) - No NBA games
+                games_raw = []
             else:
                 # Today's games (Arizona time - hardcoded fallback)
                 games_raw = [
