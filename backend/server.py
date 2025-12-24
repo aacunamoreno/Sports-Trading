@@ -4329,21 +4329,13 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         # Use hardcoded data if live fetch failed or wasn't requested
         if not games_raw:
             if day == "tomorrow":
+                # Christmas Day NBA games (Dec 25)
                 games_raw = [
-                    {"time": "5:00 PM", "away": "Washington", "home": "Charlotte", "total": 225.0},
-                    {"time": "5:00 PM", "away": "Brooklyn", "home": "Philadelphia", "total": 219.5},
-                    {"time": "5:30 PM", "away": "Chicago", "home": "Atlanta", "total": 254.5},
-                    {"time": "5:30 PM", "away": "New Orleans", "home": "Cleveland", "total": 230.0},
-                    {"time": "5:30 PM", "away": "Milwaukee", "home": "Indiana", "total": 223.5},
-                    {"time": "5:30 PM", "away": "Toronto", "home": "Miami", "total": 228.5},
-                    {"time": "6:00 PM", "away": "Denver", "home": "Dallas", "total": 235.0},
-                    {"time": "6:00 PM", "away": "New York", "home": "Minnesota", "total": 224.5},
-                    {"time": "6:30 PM", "away": "Okla City", "home": "San Antonio", "total": 234.5},
-                    {"time": "7:00 PM", "away": "LA Lakers", "home": "Phoenix", "total": 224.5},
-                    {"time": "7:00 PM", "away": "Memphis", "home": "Utah", "total": 232.0},
-                    {"time": "8:00 PM", "away": "Orlando", "home": "Portland", "total": 224.0},
-                    {"time": "8:00 PM", "away": "Detroit", "home": "Sacramento", "total": 228.0},
-                    {"time": "8:30 PM", "away": "Houston", "home": "LA Clippers", "total": 221.5},
+                    {"time": "9:00 AM", "away": "San Antonio", "home": "New York", "total": 222.5},
+                    {"time": "11:30 AM", "away": "Minnesota", "home": "Dallas", "total": 226.5},
+                    {"time": "2:00 PM", "away": "Philadelphia", "home": "Boston", "total": 215.0},
+                    {"time": "5:00 PM", "away": "LA Lakers", "home": "Golden State", "total": 225.5},
+                    {"time": "7:30 PM", "away": "Denver", "home": "Phoenix", "total": 230.0},
                 ]
             elif day == "yesterday":
                 # Yesterday's NBA games with results (Dec 23)
