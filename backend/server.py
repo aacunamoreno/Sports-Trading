@@ -4706,22 +4706,8 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
         # Use hardcoded data if live fetch failed or wasn't requested
         if not games_raw:
             if day == "tomorrow":
-                # Tomorrow's NHL games (Dec 23 - Arizona time)
-                games_raw = [
-                    {"time": "2:00 PM", "away": "Pittsburgh", "home": "Toronto", "total": 6.5},
-                    {"time": "4:30 PM", "away": "Dallas", "home": "Detroit", "total": 5.5},
-                    {"time": "5:00 PM", "away": "NY Rangers", "home": "Washington", "total": 5.5},
-                    {"time": "5:00 PM", "away": "Montreal", "home": "Boston", "total": 5.5},
-                    {"time": "5:00 PM", "away": "Buffalo", "home": "Ottawa", "total": 6.5},
-                    {"time": "5:00 PM", "away": "New Jersey", "home": "NY Islanders", "total": 5.5},
-                    {"time": "5:00 PM", "away": "Florida", "home": "Carolina", "total": 5.5},
-                    {"time": "6:00 PM", "away": "Nashville", "home": "Minnesota", "total": 5.5},
-                    {"time": "7:00 PM", "away": "Philadelphia", "home": "Chicago", "total": 5.5},
-                    {"time": "7:00 PM", "away": "Utah", "home": "Colorado", "total": 6.5},
-                    {"time": "7:00 PM", "away": "Calgary", "home": "Edmonton", "total": 6.5},
-                    {"time": "8:00 PM", "away": "San Jose", "home": "Vegas", "total": 6.5},
-                    {"time": "8:00 PM", "away": "Winnipeg", "home": "Vancouver", "total": 5.5},
-                ]
+                # Dec 25 (Christmas Day) - No NHL games
+                games_raw = []
             elif day == "yesterday":
                 # Yesterday's NHL games with results (Dec 23)
                 # Note: Update final scores once available
