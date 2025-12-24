@@ -432,8 +432,11 @@ export default function Opportunities() {
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )
+                        ) : isNoBet ? (
+                          // For today/tomorrow: show "-" for No Bet games
+                          <span className="text-muted-foreground">-</span>
                         ) : game.recommendation ? (
-                          // For today/tomorrow: show OVER/UNDER recommendation
+                          // For today/tomorrow: show OVER/UNDER recommendation only if edge meets threshold
                           <span className={`px-2 py-1 rounded text-xs font-bold ${
                             game.recommendation === 'OVER' 
                               ? 'bg-blue-500/30 text-blue-400' 
