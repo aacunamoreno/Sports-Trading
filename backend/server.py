@@ -4728,12 +4728,22 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                     {"time": "8:00 PM", "away": "Winnipeg", "home": "Vancouver", "total": 5.5},
                 ]
             elif day == "yesterday":
-                # Yesterday's NHL games with results (Dec 22)
+                # Yesterday's NHL games with results (Dec 23)
+                # Note: Update final scores once available
                 games_raw = [
-                    {"time": "1:00 PM", "away": "St. Louis", "home": "Tampa Bay", "total": 6.0, "final_score": 5},
-                    {"time": "1:00 PM", "away": "Vancouver", "home": "Philadelphia", "total": 6.0, "final_score": 7},
-                    {"time": "8:00 PM", "away": "Seattle", "home": "Anaheim", "total": 6.5, "final_score": 4},
-                    {"time": "8:00 PM", "away": "Columbus", "home": "Los Angeles", "total": 5.5, "final_score": 4},
+                    {"time": "12:00 PM", "away": "Pittsburgh", "home": "Toronto", "total": 6.0, "final_score": None},
+                    {"time": "3:30 PM", "away": "Dallas", "home": "Detroit", "total": 6.0, "final_score": None},
+                    {"time": "4:00 PM", "away": "NY Rangers", "home": "Washington", "total": 5.5, "final_score": None},
+                    {"time": "4:00 PM", "away": "Florida", "home": "Carolina", "total": 6.0, "final_score": None},
+                    {"time": "4:00 PM", "away": "New Jersey", "home": "NY Islanders", "total": 6.0, "final_score": None},
+                    {"time": "4:00 PM", "away": "Buffalo", "home": "Ottawa", "total": 6.5, "final_score": None},
+                    {"time": "4:00 PM", "away": "Montreal", "home": "Boston", "total": 5.5, "final_score": None},
+                    {"time": "5:00 PM", "away": "Nashville", "home": "Minnesota", "total": 5.5, "final_score": None},
+                    {"time": "6:00 PM", "away": "Calgary", "home": "Edmonton", "total": 6.5, "final_score": None},
+                    {"time": "6:00 PM", "away": "Philadelphia", "home": "Chicago", "total": 6.0, "final_score": None},
+                    {"time": "7:00 PM", "away": "Utah", "home": "Colorado", "total": 6.0, "final_score": None},
+                    {"time": "7:00 PM", "away": "San Jose", "home": "Vegas", "total": 6.0, "final_score": None},
+                    {"time": "7:30 PM", "away": "Seattle", "home": "Los Angeles", "total": 6.0, "final_score": None},
                 ]
             else:
                 # Today's NHL games (Arizona time - hardcoded fallback)
