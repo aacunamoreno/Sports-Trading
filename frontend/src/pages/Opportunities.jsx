@@ -479,7 +479,7 @@ export default function Opportunities() {
                           ) : '-'}
                         </td>
                       )}
-                      <td className={`py-3 px-2 text-center font-bold ${textStyle}`}>{game.combined_ppg || game.combined_gpg || game.game_avg}</td>
+                      <td className={`py-3 px-2 text-center font-bold ${textStyle}`}>{game.game_avg || game.combined_ppg || game.combined_gpg}</td>
                       <td className="py-3 px-2 text-center">
                         {game.edge !== null && game.edge !== undefined ? (
                           <span className={getEdgeStyle(game.edge)}>
