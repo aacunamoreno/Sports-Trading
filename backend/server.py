@@ -5140,7 +5140,7 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
         
         # PPG Last 3 Games values from teamrankings.com - for combined calculation
         ppg_last3_values = {
-            'San Francisco': 48.0, 'LA Rams': 41.0, 'Jacksonville': 39.3, 'Detroit': 34.0, 'Buffalo': 32.3,
+            'San Francisco': 37.0, 'LA Rams': 41.0, 'Jacksonville': 39.3, 'Detroit': 34.0, 'Buffalo': 32.3,
             'New England': 30.7, 'Pittsburgh': 28.0, 'Denver': 26.0, 'Cincinnati': 26.3, 'Philadelphia': 26.3,
             'Dallas': 24.3, 'LA Chargers': 24.0, 'Houston': 27.7, 'Green Bay': 23.3, 'Baltimore': 23.3,
             'Minnesota': 27.0, 'Chicago': 24.7, 'Tampa Bay': 22.7, 'Carolina': 23.7, 'Miami': 23.3,
