@@ -143,6 +143,33 @@ export default function Opportunities() {
   }
 
   const compoundRecord = data.compound_record || { hits: 0, misses: 0 };
+  
+  // Calculate betting record from yesterday's data (stored in localStorage or fetched)
+  const [bettingRecord, setBettingRecord] = React.useState({ hits: 0, misses: 0 });
+  
+  // Fetch betting record when league changes
+  React.useEffect(() => {
+    const fetchBettingRecord = async () => {
+      try {
+        const endpoint = league === 'NHL' 
+          ? `${BACKEND_URL}/api/opportunities/nhl?day=yesterday`
+          : league === 'NFL'
+          ? `${BACKEND_URL}/api/opportunities/nfl?day=yesterday`
+          : `${BACKEND_URL}/api/opportunities/nba?day=yesterday`;
+        
+        const res = await fetch(endpoint);
+        const data = await res.json();
+        if (data.games) {
+          const hits = data.games.filter(g => g.user_bet && g.user_bet_hit === true).length;
+          const misses = data.games.filter(g => g.user_bet && g.user_bet_hit === false).length;
+          setBettingRecord({ hits, misses });
+        }
+      } catch (e) {
+        console.error('Error fetching betting record:', e);
+      }
+    };
+    fetchBettingRecord();
+  }, [league]);
 
   return (
     <div className="space-y-6">
