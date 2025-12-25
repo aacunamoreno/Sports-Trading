@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, TrendingUp, TrendingDown, Target, Wifi } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Target, Wifi, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -11,6 +11,8 @@ const API = `${BACKEND_URL}/api`;
 export default function Opportunities() {
   const [league, setLeague] = useState('NBA');
   const [day, setDay] = useState('today');
+  const [customDate, setCustomDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [data, setData] = useState({ games: [], plays: [], date: '', last_updated: '' });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -18,14 +20,15 @@ export default function Opportunities() {
 
   useEffect(() => {
     loadOpportunities();
-  }, [league, day]);
+  }, [league, day, customDate]);
 
   const loadOpportunities = async () => {
     setLoading(true);
     try {
+      const dayParam = day === 'custom' && customDate ? customDate : day;
       const endpoint = league === 'NBA' 
-        ? `/opportunities?day=${day}` 
-        : `/opportunities/nhl?day=${day}`;
+        ? `/opportunities?day=${dayParam}` 
+        : `/opportunities/nhl?day=${dayParam}`;
       const response = await axios.get(`${API}${endpoint}`);
       setData(response.data);
     } catch (error) {
@@ -34,6 +37,13 @@ export default function Opportunities() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDateSelect = (e) => {
+    const selectedDate = e.target.value;
+    setCustomDate(selectedDate);
+    setDay('custom');
+    setShowDatePicker(false);
   };
 
   const handleRefresh = async () => {
