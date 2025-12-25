@@ -267,6 +267,12 @@ export default function Opportunities() {
                   const edgeThreshold = league === 'NBA' ? 5 : 0.6;
                   return g.result_hit === false && g.edge !== null && g.edge !== undefined && Math.abs(g.edge) >= edgeThreshold;
                 }).length}</span></div>
+                <div className="border-l border-border pl-4 ml-2">
+                  <span className="text-muted-foreground">💰 My Bets:</span>{' '}
+                  <span className="font-mono text-green-400">{data.games.filter(g => g.user_bet && g.result_hit === true).length}</span>
+                  <span className="text-muted-foreground">-</span>
+                  <span className="font-mono text-red-400">{data.games.filter(g => g.user_bet && g.result_hit === false).length}</span>
+                </div>
               </>
             )}
           </div>
