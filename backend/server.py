@@ -5272,7 +5272,7 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
                 "away_last3_rank": away_last3_rank,
                 "home_last3_rank": home_last3_rank,
                 "total": total,
-                "combined_ppg": combined_ppg,
+                "combined_ppg": game_avg,  # For NFL, use game_avg (Season + Last 3 / 2)
                 "game_avg": game_avg,
                 "edge": edge,
                 "recommendation": recommendation,
