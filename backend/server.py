@@ -4344,6 +4344,18 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         data_source = "hardcoded"
         open_bets = []
         
+        # Always fetch open bets for ENANO account (needed for all days)
+        try:
+            enano_conn = await db.connections.find_one({"username": "jac075"}, {"_id": 0})
+            if enano_conn:
+                scraper = Plays888Service()
+                await scraper.login("jac075", decrypt_password(enano_conn["password_encrypted"]))
+                open_bets = await scraper.scrape_open_bets()
+                await scraper.close()
+                logger.info(f"Fetched {len(open_bets)} open bets for NBA matching")
+        except Exception as e:
+            logger.error(f"Error fetching open bets: {e}")
+        
         # Try to fetch live lines from plays888.co if requested and for today's games
         if use_live_lines and day == "today":
             try:
@@ -4357,13 +4369,6 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     scraper = Plays888Service()
                     await scraper.login(username, password)
                     live_games = await scraper.scrape_totals("NBA")
-                    
-                    # Also fetch open bets for ENANO account
-                    # Re-login as ENANO to get open bets
-                    await scraper.close()
-                    scraper = Plays888Service()
-                    await scraper.login("jac075", decrypt_password((await db.connections.find_one({"username": "jac075"}, {"_id": 0}))["password_encrypted"]))
-                    open_bets = await scraper.scrape_open_bets()
                     await scraper.close()
                     
                     if live_games:
