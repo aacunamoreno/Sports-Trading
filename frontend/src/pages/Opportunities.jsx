@@ -338,7 +338,7 @@ export default function Opportunities() {
       <Card className="glass-card neon-border">
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-lg">
-            {league} Games Analysis - {day === 'yesterday' ? 'Yesterday (Results)' : day === 'tomorrow' ? 'Tomorrow' : 'Today'}
+            {league} Games Analysis - {day === 'custom' && customDate ? customDate : day === 'yesterday' ? 'Yesterday (Results)' : day === 'tomorrow' ? 'Tomorrow' : 'Today'}
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4 overflow-x-auto">
