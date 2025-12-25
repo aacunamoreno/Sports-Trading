@@ -105,7 +105,8 @@ export default function Opportunities() {
       overRange: '1-12.5',
       noEdgeRange: '13-17',
       underRange: '17.5-30',
-      totalTeams: 30
+      totalTeams: 30,
+      edgeThreshold: 5
     },
     NHL: {
       statLabel: 'GPG',
@@ -113,7 +114,17 @@ export default function Opportunities() {
       overRange: '1-13.5',
       noEdgeRange: '14-18',
       underRange: '18.5-32',
-      totalTeams: 32
+      totalTeams: 32,
+      edgeThreshold: 0.6
+    },
+    NFL: {
+      statLabel: 'PPG',
+      combinedLabel: 'PPG Avg',
+      overRange: '1-16',
+      noEdgeRange: '17-20',
+      underRange: '21-32',
+      totalTeams: 32,
+      edgeThreshold: 3
     }
   };
 
