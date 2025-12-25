@@ -254,7 +254,7 @@ export default function Opportunities() {
                 </span>
               </div>
             )}
-            {day === 'yesterday' && data.games?.length > 0 && (
+            {(day === 'yesterday' || day === 'custom') && data.games?.length > 0 && (
               <>
                 <div><span className="text-muted-foreground">Hits:</span> <span className="font-mono text-green-400">{data.games.filter(g => {
                   const edgeThreshold = league === 'NBA' ? 5 : 0.6;
@@ -270,8 +270,8 @@ export default function Opportunities() {
         </CardContent>
       </Card>
 
-      {/* Today's Plays - only show for today and tomorrow, not yesterday */}
-      {day !== 'yesterday' && data.plays && data.plays.length > 0 && (
+      {/* Today's Plays - only show for today and tomorrow, not historical dates */}
+      {day !== 'yesterday' && day !== 'custom' && data.plays && data.plays.length > 0 && (
         <Card className="glass-card neon-border">
           <CardHeader className="border-b border-border pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
