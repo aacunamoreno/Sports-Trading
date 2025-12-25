@@ -185,13 +185,22 @@ export default function Opportunities() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          {/* Compound Record Badge */}
+          {/* Edge Record Badge */}
           <div className="bg-gradient-to-r from-green-600/20 to-red-600/20 border border-primary/30 rounded-lg px-4 py-2">
-            <div className="text-xs text-muted-foreground text-center">Season Record</div>
+            <div className="text-xs text-muted-foreground text-center">Edge Record</div>
             <div className="text-xl font-bold text-center">
               <span className="text-green-400">{compoundRecord.hits}</span>
               <span className="text-muted-foreground mx-1">-</span>
               <span className="text-red-400">{compoundRecord.misses}</span>
+            </div>
+          </div>
+          {/* Betting Record Badge */}
+          <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/30 rounded-lg px-4 py-2">
+            <div className="text-xs text-muted-foreground text-center">💰 Betting Record</div>
+            <div className="text-xl font-bold text-center">
+              <span className="text-green-400">{bettingRecord.hits}</span>
+              <span className="text-muted-foreground mx-1">-</span>
+              <span className="text-red-400">{bettingRecord.misses}</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
