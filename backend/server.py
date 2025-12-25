@@ -2398,8 +2398,10 @@ class Plays888Service:
                             sport = 'NHL'
                         elif is_nba_team(away_team) and is_nba_team(home_team):
                             sport = 'NBA'
+                        elif is_nfl_team(away_team) and is_nfl_team(home_team):
+                            sport = 'NFL'
                         
-                        # Only add bets for recognized leagues (NHL/NBA)
+                        # Only add bets for recognized leagues (NHL/NBA/NFL)
                         if sport:
                             # Look for risk amount
                             risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
