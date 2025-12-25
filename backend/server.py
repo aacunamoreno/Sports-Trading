@@ -4419,18 +4419,22 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     {"time": "7:40 PM", "away": "Houston", "home": "LA Clippers", "total": 219.0, "final_score": 236, "user_bet": True, "bet_type": "OVER"},  # OVER 219 - WIN
                 ]
             elif day == "today":
-                # Dec 24 (Christmas Eve) - No NBA games
-                games_raw = []
-            else:
-                # Today's games (Arizona time - hardcoded fallback)
+                # Dec 25 (Christmas Day) - NBA Christmas Games
                 games_raw = [
-                    {"time": "5:00 PM", "away": "Charlotte", "home": "Cleveland", "total": 239.5},
-                    {"time": "5:30 PM", "away": "Indiana", "home": "Boston", "total": 226.5},
-                    {"time": "6:00 PM", "away": "Dallas", "home": "New Orleans", "total": 240.5},
-                    {"time": "7:00 PM", "away": "Utah", "home": "Denver", "total": 250.5},
-                    {"time": "7:30 PM", "away": "Memphis", "home": "Okla City", "total": 232.5},
-                    {"time": "8:00 PM", "away": "Detroit", "home": "Portland", "total": 234.5},
-                    {"time": "8:00 PM", "away": "Orlando", "home": "Golden State", "total": 227.5},
+                    {"time": "10:00 AM", "away": "San Antonio", "home": "Okla City", "total": 233.0},
+                    {"time": "12:30 PM", "away": "Minnesota", "home": "Dallas", "total": 222.0},
+                    {"time": "3:00 PM", "away": "Philadelphia", "home": "Boston", "total": 215.0},
+                    {"time": "5:00 PM", "away": "LA Lakers", "home": "Golden State", "total": 225.0},
+                    {"time": "8:00 PM", "away": "Denver", "home": "Phoenix", "total": 230.0},
+                ]
+            else:
+                # Default fallback - use Christmas Day games
+                games_raw = [
+                    {"time": "10:00 AM", "away": "San Antonio", "home": "Okla City", "total": 233.0},
+                    {"time": "12:30 PM", "away": "Minnesota", "home": "Dallas", "total": 222.0},
+                    {"time": "3:00 PM", "away": "Philadelphia", "home": "Boston", "total": 215.0},
+                    {"time": "5:00 PM", "away": "LA Lakers", "home": "Golden State", "total": 225.0},
+                    {"time": "8:00 PM", "away": "Denver", "home": "Phoenix", "total": 230.0},
                 ]
         
         # Calculate averages and recommendations
