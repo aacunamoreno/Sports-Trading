@@ -2161,6 +2161,9 @@ class Plays888Service:
             elif league.upper() == "NHL":
                 checkbox_id = "lg_1166"  # NHL - OT INCLUDED checkbox
                 card_heading = "heading12"  # Hockey section (adjust if needed)
+            elif league.upper() == "NFL":
+                checkbox_id = "lg_1"  # NFL checkbox (American Football)
+                card_heading = "heading1"  # Football section
             else:
                 logger.error(f"Unsupported league: {league}")
                 return []
