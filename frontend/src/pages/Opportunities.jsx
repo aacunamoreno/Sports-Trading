@@ -317,6 +317,7 @@ export default function Opportunities() {
                   <th className="text-left py-3 px-2">Home</th>
                   <th className="text-center py-3 px-2">Line</th>
                   {day === 'yesterday' && <th className="text-center py-3 px-2">Final</th>}
+                  {day === 'yesterday' && <th className="text-center py-3 px-2">Diff</th>}
                   <th className="text-center py-3 px-2">{league === 'NBA' ? 'PPG' : 'GPG'} Avg</th>
                   <th className="text-center py-3 px-2">Edge</th>
                   <th className="text-center py-3 px-2">{day === 'yesterday' ? 'Result' : 'Bet'}</th>
