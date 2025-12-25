@@ -4483,9 +4483,11 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 game_data["bet_count"] = 0
                 game_data["bet_line"] = None
             
-            # Add result data for yesterday
-            if day == "yesterday" and 'final_score' in g:
+            # Add result data for yesterday/historical
+            if (day == "yesterday" or (len(day) == 10 and day[4] == '-')) and 'final_score' in g:
                 game_data["final_score"] = g['final_score']
+                # Mark if user actually bet on this game
+                game_data["user_bet"] = g.get('user_bet', False)
                 # Calculate if recommendation hit (only if we have final score)
                 if recommendation and g['final_score'] is not None:
                     if recommendation == "OVER":
@@ -4902,9 +4904,11 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 game_data["bet_count"] = 0
                 game_data["bet_line"] = None
             
-            # Add result data for yesterday
-            if day == "yesterday" and 'final_score' in g:
+            # Add result data for yesterday/historical
+            if (day == "yesterday" or (len(day) == 10 and day[4] == '-')) and 'final_score' in g:
                 game_data["final_score"] = g['final_score']
+                # Mark if user actually bet on this game
+                game_data["user_bet"] = g.get('user_bet', False)
                 # Calculate if recommendation hit (only if we have final score)
                 if recommendation and g['final_score'] is not None:
                     if recommendation == "OVER":
