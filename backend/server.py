@@ -5288,7 +5288,7 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
                 play = {
                     "game": f"{away_team} @ {home_team}",
                     "total": total,
-                    "combined_ppg": combined_ppg,
+                    "combined_ppg": game_avg,  # Use game_avg which includes Season + Last 3
                     "edge": edge,
                     "recommendation": recommendation,
                     "has_bet": has_bet,
