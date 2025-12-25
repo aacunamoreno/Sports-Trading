@@ -321,8 +321,8 @@ export default function Opportunities() {
         </CardContent>
       </Card>
 
-      {/* Today's Plays - only show for today and tomorrow, not historical dates */}
-      {day !== 'yesterday' && day !== 'custom' && data.plays && data.plays.length > 0 && (
+      {/* Today's Plays - only show games with active bets */}
+      {day !== 'yesterday' && day !== 'custom' && data.plays && data.plays.filter(p => p.has_bet).length > 0 && (
         <Card className="glass-card neon-border">
           <CardHeader className="border-b border-border pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -334,7 +334,7 @@ export default function Opportunities() {
           </CardHeader>
           <CardContent className="pt-4">
             <div className="grid gap-3">
-              {data.plays.map((play, idx) => (
+              {data.plays.filter(p => p.has_bet).map((play, idx) => (
                 <div 
                   key={idx}
                   className={`p-4 rounded-lg border ${getRowStyle(play.recommendation)}`}
