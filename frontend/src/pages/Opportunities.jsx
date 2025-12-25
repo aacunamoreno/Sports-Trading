@@ -27,13 +27,14 @@ export default function Opportunities() {
   useEffect(() => {
     const fetchBettingRecord = async () => {
       try {
+        // Use POST to refresh and get the data with user_bet_hit calculated
         const endpoint = league === 'NHL' 
-          ? `${BACKEND_URL}/api/opportunities/nhl?day=yesterday`
+          ? `${BACKEND_URL}/api/opportunities/nhl/refresh?day=yesterday`
           : league === 'NFL'
-          ? `${BACKEND_URL}/api/opportunities/nfl?day=yesterday`
-          : `${BACKEND_URL}/api/opportunities/nba?day=yesterday`;
+          ? `${BACKEND_URL}/api/opportunities/nfl/refresh?day=yesterday`
+          : `${BACKEND_URL}/api/opportunities/refresh?day=yesterday`;
         
-        const res = await fetch(endpoint);
+        const res = await fetch(endpoint, { method: 'POST' });
         const resData = await res.json();
         if (resData.games) {
           const hits = resData.games.filter(g => g.user_bet && g.user_bet_hit === true).length;
