@@ -54,7 +54,9 @@ export default function Opportunities() {
       const liveParam = day === 'today' && useLiveLines ? '&use_live_lines=true' : '';
       const endpoint = league === 'NBA' 
         ? `/opportunities/refresh?day=${day}${liveParam}` 
-        : `/opportunities/nhl/refresh?day=${day}${liveParam}`;
+        : league === 'NHL'
+          ? `/opportunities/nhl/refresh?day=${day}${liveParam}`
+          : `/opportunities/nfl/refresh?day=${day}${liveParam}`;
       const response = await axios.post(`${API}${endpoint}`);
       setData(response.data);
       const source = response.data.data_source === 'plays888.co' ? '(from plays888.co)' : '';
