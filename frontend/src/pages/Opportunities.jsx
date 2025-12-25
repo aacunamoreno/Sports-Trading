@@ -370,7 +370,7 @@ export default function Opportunities() {
                   
                   // Row styling - no color for "No Bet" games
                   let rowStyle = '';
-                  if (day === 'yesterday') {
+                  if (isHistorical) {
                     if (isNoBet) {
                       rowStyle = 'bg-gray-500/10 border-gray-500/30'; // No Bet - muted style
                     } else if (game.result_hit === true) {
@@ -387,7 +387,7 @@ export default function Opportunities() {
                   
                   // Text styling - muted for No Bet games
                   let textStyle = '';
-                  if (day === 'yesterday') {
+                  if (isHistorical) {
                     if (isNoBet) {
                       textStyle = 'text-gray-400';
                     } else if (game.result_hit === true) {
