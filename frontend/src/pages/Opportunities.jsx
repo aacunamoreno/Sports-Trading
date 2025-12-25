@@ -197,11 +197,36 @@ export default function Opportunities() {
         <div className="h-6 w-px bg-border hidden sm:block" />
         
         {/* Day Tabs */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* Calendar Button */}
+          <div className="relative">
+            <button
+              onClick={() => setShowDatePicker(!showDatePicker)}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${
+                day === 'custom'
+                  ? 'bg-green-600 text-white shadow-lg'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              {day === 'custom' && customDate ? customDate : '📅'}
+            </button>
+            {showDatePicker && (
+              <div className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-lg shadow-xl p-3">
+                <input
+                  type="date"
+                  onChange={handleDateSelect}
+                  max={new Date().toISOString().split('T')[0]}
+                  className="bg-muted text-foreground px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            )}
+          </div>
+          
           {['yesterday', 'today', 'tomorrow'].map((d) => (
             <button
               key={d}
-              onClick={() => setDay(d)}
+              onClick={() => { setDay(d); setCustomDate(''); }}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                 day === d
                   ? d === 'yesterday' ? 'bg-purple-600 text-white shadow-lg' : 'bg-blue-600 text-white shadow-lg'
