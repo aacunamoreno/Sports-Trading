@@ -417,8 +417,8 @@ export default function Opportunities() {
                       className={`border-b border-border/50 ${rowStyle} ${game.has_bet ? 'ring-2 ring-yellow-500/50' : ''}`}
                     >
                       <td className="py-3 px-2 font-mono">
-                        {game.has_bet && (
-                          <span className="mr-1" title={`Active bet: ${game.bet_type}${game.bet_count > 1 ? ` (x${game.bet_count})` : ''}`}>
+                        {(game.has_bet || game.user_bet) && (
+                          <span className="mr-1" title={game.has_bet ? `Active bet: ${game.bet_type}${game.bet_count > 1 ? ` (x${game.bet_count})` : ''}` : 'You bet on this game'}>
                             💰{game.bet_count > 1 && <span className="text-xs text-yellow-400 font-bold">x{game.bet_count}</span>}
                           </span>
                         )}
