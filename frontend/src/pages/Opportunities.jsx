@@ -505,10 +505,11 @@ export default function Opportunities() {
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No {league} opportunities data available for {day}.</p>
+              <p>No {league} opportunities data available for {day === 'custom' && customDate ? customDate : day}.</p>
               <p className="text-sm mt-2">Click "Refresh Data" to load games.</p>
             </div>
-          )}
+          )
+          })()}
         </CardContent>
       </Card>
 
