@@ -4332,10 +4332,10 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         # Use hardcoded data if live fetch failed or wasn't requested
         if not games_raw:
             if day == "tomorrow":
-                # Christmas Day NBA games (Dec 25)
+                # Christmas Day NBA games (Dec 25) - Lines from plays888.co
                 games_raw = [
-                    {"time": "9:00 AM", "away": "San Antonio", "home": "New York", "total": 222.5},
-                    {"time": "11:30 AM", "away": "Minnesota", "home": "Dallas", "total": 226.5},
+                    {"time": "9:00 AM", "away": "Cleveland", "home": "New York", "total": 239.5},
+                    {"time": "11:30 AM", "away": "San Antonio", "home": "Okla City", "total": 233.0},
                     {"time": "2:00 PM", "away": "Philadelphia", "home": "Boston", "total": 215.0},
                     {"time": "5:00 PM", "away": "LA Lakers", "home": "Golden State", "total": 225.5},
                     {"time": "7:30 PM", "away": "Denver", "home": "Phoenix", "total": 230.0},
