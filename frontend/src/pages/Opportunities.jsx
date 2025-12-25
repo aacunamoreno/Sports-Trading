@@ -403,6 +403,15 @@ export default function Opportunities() {
                           {game.final_score || '-'}
                         </td>
                       )}
+                      {day === 'yesterday' && (
+                        <td className="py-3 px-2 text-center font-mono">
+                          {game.final_score && game.total ? (
+                            <span className={game.final_score > game.total ? 'text-green-400' : 'text-red-400'}>
+                              {game.final_score > game.total ? '⬆️' : '⬇️'} {game.final_score > game.total ? '+' : ''}{(game.final_score - game.total).toFixed(1)}
+                            </span>
+                          ) : '-'}
+                        </td>
+                      )}
                       <td className={`py-3 px-2 text-center font-bold ${textStyle}`}>{game.combined_ppg || game.combined_gpg || game.game_avg}</td>
                       <td className="py-3 px-2 text-center">
                         {game.edge !== null && game.edge !== undefined ? (
