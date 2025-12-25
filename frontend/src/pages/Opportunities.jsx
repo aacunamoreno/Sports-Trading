@@ -393,7 +393,7 @@ export default function Opportunities() {
               <tbody>
                 {data.games.map((game) => {
                   // Check if edge is below threshold - if so, it's a "No Bet" game
-                  const edgeThreshold = league === 'NBA' ? 5 : 0.6;
+                  const edgeThreshold = league === 'NBA' ? 5 : league === 'NFL' ? 3 : 0.6;
                   const isNoBet = game.edge === null || game.edge === undefined || Math.abs(game.edge) < edgeThreshold;
                   
                   // Row styling - no color for "No Bet" games
