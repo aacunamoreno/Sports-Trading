@@ -4342,20 +4342,21 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 ]
             elif day == "yesterday":
                 # Yesterday's NBA games with results (Dec 23)
+                # user_bet = True means you actually placed a bet on this game
                 games_raw = [
-                    {"time": "4:10 PM", "away": "Brooklyn", "home": "Philadelphia", "total": 219.0, "final_score": 220},  # 114+106
-                    {"time": "4:10 PM", "away": "Washington", "home": "Charlotte", "total": 238.5, "final_score": 235},  # 109+126
-                    {"time": "4:40 PM", "away": "Milwaukee", "home": "Indiana", "total": 218.5, "final_score": 205},  # 111+94
-                    {"time": "4:40 PM", "away": "Toronto", "home": "Miami", "total": 217.5, "final_score": 203},  # 112+91
-                    {"time": "4:40 PM", "away": "New Orleans", "home": "Cleveland", "total": 245.5, "final_score": 259},  # 118+141
-                    {"time": "4:40 PM", "away": "Chicago", "home": "Atlanta", "total": 236.0, "final_score": 249},  # 126+123
-                    {"time": "5:10 PM", "away": "Denver", "home": "Dallas", "total": 228.5, "final_score": 261},  # 130+131
-                    {"time": "5:10 PM", "away": "New York", "home": "Minnesota", "total": 217.0, "final_score": 219},  # 104+115
-                    {"time": "5:10 PM", "away": "Okla City", "home": "San Antonio", "total": 233.5, "final_score": 240},  # 110+130
-                    {"time": "6:10 PM", "away": "LA Lakers", "home": "Phoenix", "total": 219.5, "final_score": 240},  # 108+132
-                    {"time": "6:10 PM", "away": "Orlando", "home": "Portland", "total": 232.0, "final_score": 216},  # 110+106
-                    {"time": "7:10 PM", "away": "Detroit", "home": "Sacramento", "total": 225.0, "final_score": 263},  # 136+127
-                    {"time": "7:40 PM", "away": "Houston", "home": "LA Clippers", "total": 219.0, "final_score": 236},  # 108+128
+                    {"time": "4:10 PM", "away": "Brooklyn", "home": "Philadelphia", "total": 219.0, "final_score": 220, "user_bet": True},  # 114+106 - BET
+                    {"time": "4:10 PM", "away": "Washington", "home": "Charlotte", "total": 238.5, "final_score": 235, "user_bet": True},  # 109+126 - BET
+                    {"time": "4:40 PM", "away": "Milwaukee", "home": "Indiana", "total": 218.5, "final_score": 205, "user_bet": True},  # 111+94 - BET
+                    {"time": "4:40 PM", "away": "Toronto", "home": "Miami", "total": 217.5, "final_score": 203, "user_bet": False},  # 112+91
+                    {"time": "4:40 PM", "away": "New Orleans", "home": "Cleveland", "total": 245.5, "final_score": 259, "user_bet": True},  # 118+141 - BET
+                    {"time": "4:40 PM", "away": "Chicago", "home": "Atlanta", "total": 236.0, "final_score": 249, "user_bet": True},  # 126+123 - BET
+                    {"time": "5:10 PM", "away": "Denver", "home": "Dallas", "total": 228.5, "final_score": 261, "user_bet": False},  # 130+131
+                    {"time": "5:10 PM", "away": "New York", "home": "Minnesota", "total": 217.0, "final_score": 219, "user_bet": False},  # 104+115
+                    {"time": "5:10 PM", "away": "Okla City", "home": "San Antonio", "total": 233.5, "final_score": 240, "user_bet": True},  # 110+130 - BET
+                    {"time": "6:10 PM", "away": "LA Lakers", "home": "Phoenix", "total": 219.5, "final_score": 240, "user_bet": True},  # 108+132 - BET
+                    {"time": "6:10 PM", "away": "Orlando", "home": "Portland", "total": 232.0, "final_score": 216, "user_bet": True},  # 110+106 - BET
+                    {"time": "7:10 PM", "away": "Detroit", "home": "Sacramento", "total": 225.0, "final_score": 263, "user_bet": True},  # 136+127 - BET
+                    {"time": "7:40 PM", "away": "Houston", "home": "LA Clippers", "total": 219.0, "final_score": 236, "user_bet": True},  # 108+128 - BET
                 ]
             elif day == "today":
                 # Dec 24 (Christmas Eve) - No NBA games
