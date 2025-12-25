@@ -17,10 +17,35 @@ export default function Opportunities() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [useLiveLines, setUseLiveLines] = useState(true); // Default to using live lines
+  const [bettingRecord, setBettingRecord] = useState({ hits: 0, misses: 0 });
 
   useEffect(() => {
     loadOpportunities();
   }, [league, day, customDate]);
+  
+  // Fetch betting record when league changes
+  useEffect(() => {
+    const fetchBettingRecord = async () => {
+      try {
+        const endpoint = league === 'NHL' 
+          ? `${BACKEND_URL}/api/opportunities/nhl?day=yesterday`
+          : league === 'NFL'
+          ? `${BACKEND_URL}/api/opportunities/nfl?day=yesterday`
+          : `${BACKEND_URL}/api/opportunities/nba?day=yesterday`;
+        
+        const res = await fetch(endpoint);
+        const resData = await res.json();
+        if (resData.games) {
+          const hits = resData.games.filter(g => g.user_bet && g.user_bet_hit === true).length;
+          const misses = resData.games.filter(g => g.user_bet && g.user_bet_hit === false).length;
+          setBettingRecord({ hits, misses });
+        }
+      } catch (e) {
+        console.error('Error fetching betting record:', e);
+      }
+    };
+    fetchBettingRecord();
+  }, [league]);
 
   const loadOpportunities = async () => {
     setLoading(true);
