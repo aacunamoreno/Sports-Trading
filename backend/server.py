@@ -4548,7 +4548,11 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 game_data["final_score"] = g['final_score']
                 # Mark if user actually bet on this game
                 game_data["user_bet"] = g.get('user_bet', False)
-                # Calculate if recommendation hit (only if we have final score)
+                # Get user's bet type (OVER or UNDER) if they placed a bet
+                user_bet_type = g.get('bet_type', '')
+                game_data["bet_type"] = user_bet_type
+                
+                # Calculate if system recommendation hit (only if we have final score)
                 if recommendation and g['final_score'] is not None:
                     if recommendation == "OVER":
                         game_data["result_hit"] = g['final_score'] > g['total']
@@ -4556,6 +4560,17 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                         game_data["result_hit"] = g['final_score'] < g['total']
                 else:
                     game_data["result_hit"] = None
+                
+                # Calculate if USER's bet hit (based on their actual bet direction)
+                if user_bet_type and g['final_score'] is not None:
+                    if user_bet_type.upper() == "OVER":
+                        game_data["user_bet_hit"] = g['final_score'] > g['total']
+                    elif user_bet_type.upper() == "UNDER":
+                        game_data["user_bet_hit"] = g['final_score'] < g['total']
+                    else:
+                        game_data["user_bet_hit"] = None
+                else:
+                    game_data["user_bet_hit"] = None
             
             # Calculate edge for all games
             edge = abs(combined_ppg - g['total']) if has_line else 0
@@ -4970,7 +4985,11 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 game_data["final_score"] = g['final_score']
                 # Mark if user actually bet on this game
                 game_data["user_bet"] = g.get('user_bet', False)
-                # Calculate if recommendation hit (only if we have final score)
+                # Get user's bet type (OVER or UNDER) if they placed a bet
+                user_bet_type = g.get('bet_type', '')
+                game_data["bet_type"] = user_bet_type
+                
+                # Calculate if system recommendation hit (only if we have final score)
                 if recommendation and g['final_score'] is not None:
                     if recommendation == "OVER":
                         game_data["result_hit"] = g['final_score'] > g['total']
@@ -4978,6 +4997,17 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                         game_data["result_hit"] = g['final_score'] < g['total']
                 else:
                     game_data["result_hit"] = None
+                
+                # Calculate if USER's bet hit (based on their actual bet direction)
+                if user_bet_type and g['final_score'] is not None:
+                    if user_bet_type.upper() == "OVER":
+                        game_data["user_bet_hit"] = g['final_score'] > g['total']
+                    elif user_bet_type.upper() == "UNDER":
+                        game_data["user_bet_hit"] = g['final_score'] < g['total']
+                    else:
+                        game_data["user_bet_hit"] = None
+                else:
+                    game_data["user_bet_hit"] = None
             
             games.append(game_data)
             
