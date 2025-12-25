@@ -4555,12 +4555,15 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
 
 @api_router.get("/opportunities/nhl")
 async def get_nhl_opportunities(day: str = "today"):
-    """Get NHL betting opportunities. day parameter: 'yesterday', 'today' or 'tomorrow'"""
+    """Get NHL betting opportunities. day parameter: 'yesterday', 'today', 'tomorrow', or a specific date 'YYYY-MM-DD'"""
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
         
-        if day == "tomorrow":
+        # Check if day is a specific date format (YYYY-MM-DD)
+        if len(day) == 10 and day[4] == '-' and day[7] == '-':
+            target_date = day
+        elif day == "tomorrow":
             target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
         elif day == "yesterday":
             target_date = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
