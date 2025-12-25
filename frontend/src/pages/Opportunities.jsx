@@ -212,12 +212,15 @@ export default function Opportunities() {
               {day === 'custom' && customDate ? customDate : '📅'}
             </button>
             {showDatePicker && (
-              <div className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-lg shadow-xl p-3">
+              <div className="absolute top-full left-0 mt-2 z-50 bg-card border border-border rounded-lg shadow-xl p-4 min-w-[200px]">
+                <label className="block text-sm text-muted-foreground mb-2">Select Date:</label>
                 <input
                   type="date"
+                  defaultValue={customDate || new Date(Date.now() - 86400000).toISOString().split('T')[0]}
                   onChange={handleDateSelect}
                   max={new Date().toISOString().split('T')[0]}
-                  className="bg-muted text-foreground px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-muted text-foreground px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                  style={{ colorScheme: 'dark' }}
                 />
               </div>
             )}
