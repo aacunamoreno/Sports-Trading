@@ -4794,20 +4794,21 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             elif day == "yesterday":
                 # Yesterday's NHL games with results (Dec 23)
                 # user_bet = True means you actually placed a bet on this game
+                # Record: 2-3
                 games_raw = [
-                    {"time": "12:00 PM", "away": "Pittsburgh", "home": "Toronto", "total": 6.0, "final_score": 9, "user_bet": True},  # 3+6 - BET
-                    {"time": "3:30 PM", "away": "Dallas", "home": "Detroit", "total": 6.0, "final_score": 7, "user_bet": True},  # 3+4 OT - BET x2
-                    {"time": "4:00 PM", "away": "NY Rangers", "home": "Washington", "total": 5.5, "final_score": 10, "user_bet": False},  # 7+3
-                    {"time": "4:00 PM", "away": "Florida", "home": "Carolina", "total": 6.0, "final_score": 7, "user_bet": False},  # 5+2 - HEDGED (not counted)
-                    {"time": "4:00 PM", "away": "New Jersey", "home": "NY Islanders", "total": 6.0, "final_score": 3, "user_bet": True},  # 1+2 - BET
-                    {"time": "4:00 PM", "away": "Buffalo", "home": "Ottawa", "total": 6.5, "final_score": 5, "user_bet": True},  # 3+2 OT - BET
-                    {"time": "4:00 PM", "away": "Montreal", "home": "Boston", "total": 5.5, "final_score": 8, "user_bet": False},  # 6+2
-                    {"time": "5:00 PM", "away": "Nashville", "home": "Minnesota", "total": 5.5, "final_score": 5, "user_bet": False},  # 3+2 OT
-                    {"time": "6:00 PM", "away": "Calgary", "home": "Edmonton", "total": 6.5, "final_score": 6, "user_bet": False},  # 1+5
-                    {"time": "6:00 PM", "away": "Philadelphia", "home": "Chicago", "total": 6.0, "final_score": 4, "user_bet": False},  # 3+1
-                    {"time": "7:00 PM", "away": "Utah", "home": "Colorado", "total": 6.0, "final_score": 1, "user_bet": True},  # 0+1 - BET
-                    {"time": "7:00 PM", "away": "San Jose", "home": "Vegas", "total": 6.0, "final_score": 9, "user_bet": False},  # 2+7
-                    {"time": "7:30 PM", "away": "Seattle", "home": "Los Angeles", "total": 6.0, "final_score": 5, "user_bet": False},  # 3+2
+                    {"time": "12:00 PM", "away": "Pittsburgh", "home": "Toronto", "total": 6.0, "final_score": 9, "user_bet": True, "bet_type": "UNDER"},  # UNDER 6 - LOSE (9 > 6)
+                    {"time": "3:30 PM", "away": "Dallas", "home": "Detroit", "total": 6.0, "final_score": 7, "user_bet": True, "bet_type": "OVER"},  # OVER 6 - WIN (7 > 6) - only count $2k bet
+                    {"time": "4:00 PM", "away": "NY Rangers", "home": "Washington", "total": 5.5, "final_score": 10, "user_bet": False},  # No bet
+                    {"time": "4:00 PM", "away": "Florida", "home": "Carolina", "total": 6.0, "final_score": 7, "user_bet": False, "is_hedged": True},  # HEDGED - bet both OVER & UNDER = cancelled
+                    {"time": "4:00 PM", "away": "New Jersey", "home": "NY Islanders", "total": 6.0, "final_score": 3, "user_bet": True, "bet_type": "UNDER"},  # UNDER 6 - WIN (3 < 6)
+                    {"time": "4:00 PM", "away": "Buffalo", "home": "Ottawa", "total": 6.0, "final_score": 5, "user_bet": True, "bet_type": "OVER"},  # OVER 6 - LOSE (5 < 6)
+                    {"time": "4:00 PM", "away": "Montreal", "home": "Boston", "total": 5.5, "final_score": 8, "user_bet": False},  # No bet
+                    {"time": "5:00 PM", "away": "Nashville", "home": "Minnesota", "total": 5.5, "final_score": 5, "user_bet": False},  # No bet
+                    {"time": "6:00 PM", "away": "Calgary", "home": "Edmonton", "total": 6.5, "final_score": 6, "user_bet": False},  # No bet
+                    {"time": "6:00 PM", "away": "Philadelphia", "home": "Chicago", "total": 6.0, "final_score": 4, "user_bet": False},  # No bet
+                    {"time": "7:00 PM", "away": "Utah", "home": "Colorado", "total": 6.0, "final_score": 1, "user_bet": True, "bet_type": "OVER"},  # OVER 6 - LOSE (1 < 6)
+                    {"time": "7:00 PM", "away": "San Jose", "home": "Vegas", "total": 6.0, "final_score": 9, "user_bet": False},  # No bet
+                    {"time": "7:30 PM", "away": "Seattle", "home": "Los Angeles", "total": 6.0, "final_score": 5, "user_bet": False},  # No bet
                 ]
             elif day == "today":
                 # Dec 24 (Christmas Eve) - No NHL games
