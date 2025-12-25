@@ -2323,6 +2323,18 @@ class Plays888Service:
             'UTAH JAZZ', 'WASHINGTON WIZARDS'
         ]
         
+        # NFL teams for filtering
+        NFL_TEAMS = [
+            'ARIZONA CARDINALS', 'ATLANTA FALCONS', 'BALTIMORE RAVENS', 'BUFFALO BILLS',
+            'CAROLINA PANTHERS', 'CHICAGO BEARS', 'CINCINNATI BENGALS', 'CLEVELAND BROWNS',
+            'DALLAS COWBOYS', 'DENVER BRONCOS', 'DETROIT LIONS', 'GREEN BAY PACKERS',
+            'HOUSTON TEXANS', 'INDIANAPOLIS COLTS', 'JACKSONVILLE JAGUARS', 'KANSAS CITY CHIEFS',
+            'LAS VEGAS RAIDERS', 'LOS ANGELES CHARGERS', 'LOS ANGELES RAMS', 'MIAMI DOLPHINS',
+            'MINNESOTA VIKINGS', 'NEW ENGLAND PATRIOTS', 'NEW ORLEANS SAINTS', 'NEW YORK GIANTS',
+            'NEW YORK JETS', 'PHILADELPHIA EAGLES', 'PITTSBURGH STEELERS', 'SAN FRANCISCO 49ERS',
+            'SEATTLE SEAHAWKS', 'TAMPA BAY BUCCANEERS', 'TENNESSEE TITANS', 'WASHINGTON COMMANDERS'
+        ]
+        
         def is_nhl_team(team_name):
             team_upper = team_name.upper()
             return any(nhl_team in team_upper or team_upper in nhl_team for nhl_team in NHL_TEAMS)
@@ -2330,6 +2342,10 @@ class Plays888Service:
         def is_nba_team(team_name):
             team_upper = team_name.upper()
             return any(nba_team in team_upper or team_upper in nba_team for nba_team in NBA_TEAMS)
+        
+        def is_nfl_team(team_name):
+            team_upper = team_name.upper()
+            return any(nfl_team in team_upper or team_upper in nfl_team for nfl_team in NFL_TEAMS)
         
         try:
             if not self.page:
