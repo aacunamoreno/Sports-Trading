@@ -437,12 +437,12 @@ export default function Opportunities() {
                       <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
                         {game.total ? game.total : <span className="text-gray-500 text-xs">NO LINE</span>}
                       </td>
-                      {day === 'yesterday' && (
+                      {isHistorical && (
                         <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
                           {game.final_score || '-'}
                         </td>
                       )}
-                      {day === 'yesterday' && (
+                      {isHistorical && (
                         <td className="py-3 px-2 text-center font-mono">
                           {game.final_score && game.total ? (
                             <span className={game.final_score > game.total ? 'text-green-400' : 'text-red-400'}>
@@ -462,8 +462,8 @@ export default function Opportunities() {
                         )}
                       </td>
                       <td className="py-3 px-2 text-center">
-                        {day === 'yesterday' ? (
-                          // For yesterday: show NO BET if edge is below threshold, otherwise show HIT/MISS
+                        {isHistorical ? (
+                          // For historical dates: show NO BET if edge is below threshold, otherwise show HIT/MISS
                           isNoBet ? (
                             <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/20 text-gray-400">
                               ⚪ NO BET
