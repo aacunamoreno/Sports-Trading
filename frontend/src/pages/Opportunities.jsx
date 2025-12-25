@@ -144,11 +144,11 @@ export default function Opportunities() {
 
   const compoundRecord = data.compound_record || { hits: 0, misses: 0 };
   
-  // Calculate betting record from yesterday's data (stored in localStorage or fetched)
-  const [bettingRecord, setBettingRecord] = React.useState({ hits: 0, misses: 0 });
+  // Calculate betting record from yesterday's data
+  const [bettingRecord, setBettingRecord] = useState({ hits: 0, misses: 0 });
   
   // Fetch betting record when league changes
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchBettingRecord = async () => {
       try {
         const endpoint = league === 'NHL' 
