@@ -86,9 +86,13 @@ export default function Opportunities() {
   // Edge color based on league
   // NBA: Red < 5, Green >= 5
   // NHL: Red <= 0.5, Green >= 0.6
+  // NFL: Red < 3, Green >= 3
   const getEdgeStyle = (edge, currentLeague = league) => {
     if (currentLeague === 'NBA') {
       if (edge >= 5) return 'text-green-400 font-bold';
+      return 'text-red-400 font-bold';
+    } else if (currentLeague === 'NFL') {
+      if (edge >= 3) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
     } else {
       // NHL
