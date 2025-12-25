@@ -5250,10 +5250,10 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
             recommendation = None
             color = None
             if edge is not None:
-                if edge >= 3:  # NFL threshold is +3
+                if edge >= 7:  # NFL threshold is +7
                     recommendation = "OVER"
                     color = "green"
-                elif edge <= -3:
+                elif edge <= -7:
                     recommendation = "UNDER"
                     color = "red"
             
@@ -5283,8 +5283,8 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
             }
             games.append(game)
             
-            # Add to plays if meets threshold (edge >= 3)
-            if recommendation and edge is not None and abs(edge) >= 3 and not bet_data.get('hedged', False):
+            # Add to plays if meets threshold (edge >= 7)
+            if recommendation and edge is not None and abs(edge) >= 7 and not bet_data.get('hedged', False):
                 play = {
                     "game": f"{away_team} @ {home_team}",
                     "total": total,

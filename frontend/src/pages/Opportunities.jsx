@@ -92,7 +92,7 @@ export default function Opportunities() {
       if (edge >= 5) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
     } else if (currentLeague === 'NFL') {
-      if (edge >= 3) return 'text-green-400 font-bold';
+      if (edge >= 7) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
     } else {
       // NHL
@@ -128,7 +128,7 @@ export default function Opportunities() {
       noEdgeRange: '17-20',
       underRange: '21-32',
       totalTeams: 32,
-      edgeThreshold: 3
+      edgeThreshold: 7
     }
   };
 
