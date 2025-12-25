@@ -326,7 +326,10 @@ export default function Opportunities() {
         <Card className="glass-card neon-border">
           <CardHeader className="border-b border-border pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
-              🎯 {day === 'tomorrow' ? "TOMORROW'S" : "TODAY'S"} PLAYS
+              🎯 {league === 'NFL' 
+                ? (day === 'tomorrow' ? "WEEK 18" : "WEEK 17") + " PLAYS"
+                : (day === 'tomorrow' ? "TOMORROW'S" : "TODAY'S") + " PLAYS"
+              }
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
