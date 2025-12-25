@@ -570,11 +570,11 @@ export default function Opportunities() {
             </div>
             <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-green-400 font-bold">Edge ≥ {league === 'NBA' ? '5' : '0.6'}</span>
+                <span className="text-green-400 font-bold">Edge ≥ {config.edgeThreshold}</span>
                 <span className="text-muted-foreground">= Strong play</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-red-400 font-bold">Edge &lt; {league === 'NBA' ? '5' : '0.6'}</span>
+                <span className="text-red-400 font-bold">Edge &lt; {config.edgeThreshold}</span>
                 <span className="text-muted-foreground">= Wait for better line</span>
               </div>
             </div>
