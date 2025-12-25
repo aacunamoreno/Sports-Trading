@@ -179,7 +179,7 @@ export default function Opportunities() {
       {/* League Tabs */}
       <div className="flex flex-wrap gap-4 items-center">
         <div className="flex gap-2">
-          {['NBA', 'NHL'].map((l) => (
+          {['NBA', 'NHL', 'NFL'].map((l) => (
             <button
               key={l}
               onClick={() => setLeague(l)}
@@ -189,7 +189,7 @@ export default function Opportunities() {
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
             >
-              {l === 'NBA' ? '🏀' : '🏒'} {l}
+              {l === 'NBA' ? '🏀' : l === 'NHL' ? '🏒' : '🏈'} {l}
             </button>
           ))}
         </div>
