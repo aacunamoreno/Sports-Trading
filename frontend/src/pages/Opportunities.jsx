@@ -342,7 +342,11 @@ export default function Opportunities() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4 overflow-x-auto">
-          {data.games && data.games.length > 0 ? (
+          {(() => {
+            // Determine if we're viewing historical data (past dates with results)
+            const isHistorical = day === 'yesterday' || day === 'custom';
+            
+            return data.games && data.games.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
@@ -351,11 +355,11 @@ export default function Opportunities() {
                   <th className="text-left py-3 px-2">Away</th>
                   <th className="text-left py-3 px-2">Home</th>
                   <th className="text-center py-3 px-2">Line</th>
-                  {day === 'yesterday' && <th className="text-center py-3 px-2">Final</th>}
-                  {day === 'yesterday' && <th className="text-center py-3 px-2">Diff</th>}
+                  {isHistorical && <th className="text-center py-3 px-2">Final</th>}
+                  {isHistorical && <th className="text-center py-3 px-2">Diff</th>}
                   <th className="text-center py-3 px-2">{league === 'NBA' ? 'PPG' : 'GPG'} Avg</th>
                   <th className="text-center py-3 px-2">Edge</th>
-                  <th className="text-center py-3 px-2">{day === 'yesterday' ? 'Result' : 'Bet'}</th>
+                  <th className="text-center py-3 px-2">{isHistorical ? 'Result' : 'Bet'}</th>
                 </tr>
               </thead>
               <tbody>
