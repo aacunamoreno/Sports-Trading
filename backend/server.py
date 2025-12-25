@@ -5104,49 +5104,49 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
         else:
             target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
         
-        # NFL PPG Rankings (2024-25 Season) - Points Per Game
-        # Rankings from ESPN/NFL stats
+        # NFL PPG Rankings (2025 Season) - Points Per Game
+        # Rankings from teamrankings.com as of 12/25/2025
         ppg_season = {
-            'Detroit': 1, 'Baltimore': 2, 'Buffalo': 3, 'Tampa Bay': 4, 'Washington': 5,
-            'Green Bay': 6, 'Philadelphia': 7, 'Houston': 8, 'Minnesota': 9, 'Cincinnati': 10,
-            'LA Chargers': 11, 'LA Rams': 12, 'Denver': 13, 'Arizona': 14, 'Pittsburgh': 15,
-            'San Francisco': 16, 'Dallas': 17, 'Kansas City': 18, 'Atlanta': 19, 'Seattle': 20,
-            'Miami': 21, 'New Orleans': 22, 'Indianapolis': 23, 'Chicago': 24, 'Jacksonville': 25,
-            'Las Vegas': 26, 'New England': 27, 'Carolina': 28, 'Tennessee': 29, 'Cleveland': 30,
-            'NY Giants': 31, 'NY Jets': 32
+            'LA Rams': 1, 'Detroit': 2, 'Seattle': 3, 'Buffalo': 4, 'Dallas': 5,
+            'Indianapolis': 6, 'Jacksonville': 7, 'New England': 7, 'San Francisco': 9, 'Chicago': 10,
+            'Pittsburgh': 11, 'Green Bay': 12, 'Denver': 13, 'Cincinnati': 14, 'Baltimore': 14,
+            'LA Chargers': 16, 'Philadelphia': 16, 'Tampa Bay': 18, 'Houston': 19, 'Kansas City': 20,
+            'Arizona': 21, 'Miami': 22, 'NY Giants': 23, 'Washington': 24, 'Atlanta': 25,
+            'Minnesota': 26, 'Carolina': 27, 'NY Jets': 28, 'New Orleans': 29, 'Tennessee': 30,
+            'Cleveland': 31, 'Las Vegas': 32
         }
         
-        # NFL PPG Last 3 Games Rankings 
+        # NFL PPG Last 3 Games Rankings from teamrankings.com
         ppg_last3 = {
-            'Baltimore': 1, 'Detroit': 2, 'Buffalo': 3, 'LA Chargers': 4, 'Washington': 5,
-            'Philadelphia': 6, 'Green Bay': 7, 'Pittsburgh': 8, 'Denver': 9, 'Minnesota': 10,
-            'Tampa Bay': 11, 'Houston': 12, 'Cincinnati': 13, 'San Francisco': 14, 'Kansas City': 15,
-            'Arizona': 16, 'LA Rams': 17, 'Atlanta': 18, 'Seattle': 19, 'Miami': 20,
-            'Dallas': 21, 'Indianapolis': 22, 'New Orleans': 23, 'Chicago': 24, 'Jacksonville': 25,
-            'Tennessee': 26, 'Las Vegas': 27, 'Cleveland': 28, 'New England': 29, 'Carolina': 30,
-            'NY Giants': 31, 'NY Jets': 32
+            'San Francisco': 1, 'LA Rams': 2, 'Jacksonville': 3, 'Detroit': 4, 'Buffalo': 5,
+            'New England': 6, 'Pittsburgh': 7, 'Denver': 8, 'Cincinnati': 9, 'Philadelphia': 10,
+            'Dallas': 11, 'LA Chargers': 12, 'Houston': 13, 'Green Bay': 14, 'Baltimore': 15,
+            'Minnesota': 16, 'Chicago': 17, 'Tampa Bay': 18, 'Carolina': 19, 'Miami': 20,
+            'Atlanta': 21, 'Indianapolis': 22, 'Cleveland': 23, 'Seattle': 24, 'New Orleans': 25,
+            'Arizona': 26, 'Washington': 27, 'Tennessee': 28, 'Kansas City': 29, 'NY Giants': 30,
+            'NY Jets': 31, 'Las Vegas': 32
         }
         
-        # Actual PPG values (Season) - for combined calculation
+        # Actual PPG values (2025 Season) from teamrankings.com - for combined calculation
         ppg_season_values = {
-            'Detroit': 31.0, 'Baltimore': 29.9, 'Buffalo': 28.8, 'Tampa Bay': 27.8, 'Washington': 27.7,
-            'Green Bay': 26.4, 'Philadelphia': 26.2, 'Houston': 25.9, 'Minnesota': 25.4, 'Cincinnati': 25.1,
-            'LA Chargers': 24.6, 'LA Rams': 24.3, 'Denver': 23.5, 'Arizona': 23.3, 'Pittsburgh': 23.0,
-            'San Francisco': 22.8, 'Dallas': 22.5, 'Kansas City': 22.3, 'Atlanta': 22.1, 'Seattle': 21.9,
-            'Miami': 21.5, 'New Orleans': 21.3, 'Indianapolis': 21.0, 'Chicago': 20.8, 'Jacksonville': 20.2,
-            'Las Vegas': 19.8, 'New England': 19.2, 'Carolina': 18.9, 'Tennessee': 18.5, 'Cleveland': 18.0,
-            'NY Giants': 17.2, 'NY Jets': 16.5
+            'LA Rams': 30.5, 'Detroit': 30.1, 'Seattle': 29.5, 'Buffalo': 28.9, 'Dallas': 28.3,
+            'Indianapolis': 27.9, 'Jacksonville': 27.3, 'New England': 27.3, 'San Francisco': 26.1, 'Chicago': 25.8,
+            'Pittsburgh': 24.3, 'Green Bay': 24.3, 'Denver': 24.1, 'Cincinnati': 23.9, 'Baltimore': 23.9,
+            'LA Chargers': 23.3, 'Philadelphia': 23.3, 'Tampa Bay': 23.1, 'Houston': 23.1, 'Kansas City': 22.5,
+            'Arizona': 21.4, 'Miami': 21.1, 'NY Giants': 20.9, 'Washington': 20.6, 'Atlanta': 20.5,
+            'Minnesota': 20.3, 'Carolina': 19.1, 'NY Jets': 18.8, 'New Orleans': 17.0, 'Tennessee': 17.0,
+            'Cleveland': 16.5, 'Las Vegas': 16.3
         }
         
-        # PPG Last 3 Games values - for combined calculation
+        # PPG Last 3 Games values from teamrankings.com - for combined calculation
         ppg_last3_values = {
-            'Baltimore': 35.0, 'Detroit': 33.7, 'Buffalo': 32.3, 'LA Chargers': 30.0, 'Washington': 29.3,
-            'Philadelphia': 28.7, 'Green Bay': 28.0, 'Pittsburgh': 27.3, 'Denver': 26.7, 'Minnesota': 26.0,
-            'Tampa Bay': 25.3, 'Houston': 25.0, 'Cincinnati': 24.7, 'San Francisco': 24.0, 'Kansas City': 23.7,
-            'Arizona': 23.3, 'LA Rams': 22.7, 'Atlanta': 22.0, 'Seattle': 21.7, 'Miami': 21.0,
-            'Dallas': 20.7, 'Indianapolis': 20.0, 'New Orleans': 19.3, 'Chicago': 18.7, 'Jacksonville': 18.3,
-            'Tennessee': 17.7, 'Las Vegas': 17.0, 'Cleveland': 16.3, 'New England': 15.7, 'Carolina': 15.0,
-            'NY Giants': 14.3, 'NY Jets': 13.7
+            'San Francisco': 48.0, 'LA Rams': 41.0, 'Jacksonville': 39.3, 'Detroit': 34.0, 'Buffalo': 32.3,
+            'New England': 30.7, 'Pittsburgh': 28.0, 'Denver': 26.0, 'Cincinnati': 26.3, 'Philadelphia': 26.3,
+            'Dallas': 24.3, 'LA Chargers': 24.0, 'Houston': 27.7, 'Green Bay': 23.3, 'Baltimore': 23.3,
+            'Minnesota': 27.0, 'Chicago': 24.7, 'Tampa Bay': 22.7, 'Carolina': 23.7, 'Miami': 23.3,
+            'Atlanta': 21.3, 'Indianapolis': 20.7, 'Cleveland': 23.0, 'Seattle': 31.0, 'New Orleans': 24.3,
+            'Arizona': 18.7, 'Washington': 15.7, 'Tennessee': 16.0, 'Kansas City': 10.7, 'NY Giants': 16.3,
+            'NY Jets': 12.0, 'Las Vegas': 6.0
         }
         
         games_raw = []
