@@ -4391,33 +4391,17 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         # Use hardcoded data if live fetch failed or wasn't requested
         if not games_raw:
             if day == "tomorrow":
-                # Christmas Day NBA games (Dec 25) - Lines from plays888.co
+                # Dec 26 NBA games - After Christmas
                 games_raw = [
-                    {"time": "10:00 AM", "away": "Cleveland", "home": "New York", "total": 239.5},
-                    {"time": "12:30 PM", "away": "San Antonio", "home": "Okla City", "total": 233.0},
-                    {"time": "3:00 PM", "away": "Dallas", "home": "Golden State", "total": 227.5},
-                    {"time": "6:00 PM", "away": "Houston", "home": "LA Lakers", "total": 230.5},
-                    {"time": "8:30 PM", "away": "Minnesota", "home": "Denver", "total": 238.5},
+                    {"time": "4:00 PM", "away": "Boston", "home": "Philadelphia", "total": 215.0},
+                    {"time": "5:00 PM", "away": "Cleveland", "home": "Indiana", "total": 230.0},
+                    {"time": "5:30 PM", "away": "Brooklyn", "home": "San Antonio", "total": 225.0},
+                    {"time": "6:00 PM", "away": "Charlotte", "home": "Orlando", "total": 220.0},
+                    {"time": "7:00 PM", "away": "Milwaukee", "home": "Toronto", "total": 228.0},
                 ]
             elif day == "yesterday":
-                # Yesterday's NBA games with results (Dec 23)
-                # user_bet = True means you actually placed a bet on this game
-                # Updated based on plays888.co bet history - Record: 5-2
-                games_raw = [
-                    {"time": "4:10 PM", "away": "Brooklyn", "home": "Philadelphia", "total": 219.0, "final_score": 220, "user_bet": True, "bet_type": "OVER"},  # OVER 219 - WIN
-                    {"time": "4:10 PM", "away": "Washington", "home": "Charlotte", "total": 238.5, "final_score": 235, "user_bet": True, "bet_type": "UNDER"},  # UNDER 239 - WIN
-                    {"time": "4:40 PM", "away": "Milwaukee", "home": "Indiana", "total": 218.5, "final_score": 205, "user_bet": True, "bet_type": "UNDER"},  # UNDER 219 - WIN
-                    {"time": "4:40 PM", "away": "Toronto", "home": "Miami", "total": 217.5, "final_score": 203, "user_bet": False},  # No bet
-                    {"time": "4:40 PM", "away": "New Orleans", "home": "Cleveland", "total": 245.5, "final_score": 259, "user_bet": True, "bet_type": "UNDER"},  # UNDER 246 - LOSE
-                    {"time": "4:40 PM", "away": "Chicago", "home": "Atlanta", "total": 236.0, "final_score": 249, "user_bet": False},  # No bet
-                    {"time": "5:10 PM", "away": "Denver", "home": "Dallas", "total": 228.5, "final_score": 261, "user_bet": False},  # No bet
-                    {"time": "5:10 PM", "away": "New York", "home": "Minnesota", "total": 217.0, "final_score": 219, "user_bet": False},  # No bet
-                    {"time": "5:10 PM", "away": "Okla City", "home": "San Antonio", "total": 233.5, "final_score": 240, "user_bet": True, "bet_type": "OVER"},  # OVER 233 - WIN
-                    {"time": "6:10 PM", "away": "LA Lakers", "home": "Phoenix", "total": 219.5, "final_score": 240, "user_bet": False},  # No bet
-                    {"time": "6:10 PM", "away": "Orlando", "home": "Portland", "total": 232.0, "final_score": 216, "user_bet": True, "bet_type": "OVER"},  # OVER 232 - LOSE
-                    {"time": "7:10 PM", "away": "Detroit", "home": "Sacramento", "total": 225.0, "final_score": 263, "user_bet": False},  # No bet
-                    {"time": "7:40 PM", "away": "Houston", "home": "LA Clippers", "total": 219.0, "final_score": 236, "user_bet": True, "bet_type": "OVER"},  # OVER 219 - WIN
-                ]
+                # Dec 24 (Christmas Eve) - No NBA games
+                games_raw = []
             elif day == "today":
                 # Dec 25 (Christmas Day) - NBA Christmas Games
                 games_raw = [
