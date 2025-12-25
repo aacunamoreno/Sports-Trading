@@ -5034,6 +5034,313 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ================= NFL OPPORTUNITIES =================
+
+@api_router.get("/opportunities/nfl")
+async def get_nfl_opportunities(day: str = "today"):
+    """Get NFL betting opportunities. day parameter: 'yesterday', 'today', 'tomorrow', or a specific date 'YYYY-MM-DD'"""
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        # Check if day is a specific date format (YYYY-MM-DD)
+        if len(day) == 10 and day[4] == '-' and day[7] == '-':
+            target_date = day
+        elif day == "tomorrow":
+            target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+        elif day == "yesterday":
+            target_date = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        # Get cached NFL opportunities
+        cached = await db.nfl_opportunities.find_one({"date": target_date}, {"_id": 0})
+        
+        # Get compound record - NFL should start at 0-0
+        record = await db.compound_records.find_one({"league": "NFL"}, {"_id": 0})
+        compound_record = {
+            "hits": record.get('hits', 0) if record else 0,
+            "misses": record.get('misses', 0) if record else 0
+        }
+        
+        if cached and cached.get('games'):
+            return {
+                "success": True,
+                "date": target_date,
+                "last_updated": cached.get('last_updated'),
+                "games": cached.get('games', []),
+                "plays": cached.get('plays', []),
+                "compound_record": compound_record,
+                "data_source": cached.get('data_source', 'plays888.co')
+            }
+        
+        return {
+            "success": True,
+            "date": target_date,
+            "message": "No NFL opportunities data yet. Click refresh to load games.",
+            "games": [],
+            "plays": [],
+            "compound_record": compound_record,
+            "data_source": None
+        }
+    except Exception as e:
+        logger.error(f"Error getting NFL opportunities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/opportunities/nfl/refresh")
+async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = False):
+    """Manually refresh NFL opportunities data. 
+    day parameter: 'yesterday', 'today' or 'tomorrow'
+    use_live_lines: if True, fetch O/U lines from plays888.co (always used for NFL)
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        if day == "tomorrow":
+            target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+        elif day == "yesterday":
+            target_date = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        # NFL PPG Rankings (2024-25 Season) - Points Per Game
+        # Rankings from ESPN/NFL stats
+        ppg_season = {
+            'Detroit': 1, 'Baltimore': 2, 'Buffalo': 3, 'Tampa Bay': 4, 'Washington': 5,
+            'Green Bay': 6, 'Philadelphia': 7, 'Houston': 8, 'Minnesota': 9, 'Cincinnati': 10,
+            'LA Chargers': 11, 'LA Rams': 12, 'Denver': 13, 'Arizona': 14, 'Pittsburgh': 15,
+            'San Francisco': 16, 'Dallas': 17, 'Kansas City': 18, 'Atlanta': 19, 'Seattle': 20,
+            'Miami': 21, 'New Orleans': 22, 'Indianapolis': 23, 'Chicago': 24, 'Jacksonville': 25,
+            'Las Vegas': 26, 'New England': 27, 'Carolina': 28, 'Tennessee': 29, 'Cleveland': 30,
+            'NY Giants': 31, 'NY Jets': 32
+        }
+        
+        # NFL PPG Last 3 Games Rankings 
+        ppg_last3 = {
+            'Baltimore': 1, 'Detroit': 2, 'Buffalo': 3, 'LA Chargers': 4, 'Washington': 5,
+            'Philadelphia': 6, 'Green Bay': 7, 'Pittsburgh': 8, 'Denver': 9, 'Minnesota': 10,
+            'Tampa Bay': 11, 'Houston': 12, 'Cincinnati': 13, 'San Francisco': 14, 'Kansas City': 15,
+            'Arizona': 16, 'LA Rams': 17, 'Atlanta': 18, 'Seattle': 19, 'Miami': 20,
+            'Dallas': 21, 'Indianapolis': 22, 'New Orleans': 23, 'Chicago': 24, 'Jacksonville': 25,
+            'Tennessee': 26, 'Las Vegas': 27, 'Cleveland': 28, 'New England': 29, 'Carolina': 30,
+            'NY Giants': 31, 'NY Jets': 32
+        }
+        
+        # Actual PPG values (Season) - for combined calculation
+        ppg_season_values = {
+            'Detroit': 31.0, 'Baltimore': 29.9, 'Buffalo': 28.8, 'Tampa Bay': 27.8, 'Washington': 27.7,
+            'Green Bay': 26.4, 'Philadelphia': 26.2, 'Houston': 25.9, 'Minnesota': 25.4, 'Cincinnati': 25.1,
+            'LA Chargers': 24.6, 'LA Rams': 24.3, 'Denver': 23.5, 'Arizona': 23.3, 'Pittsburgh': 23.0,
+            'San Francisco': 22.8, 'Dallas': 22.5, 'Kansas City': 22.3, 'Atlanta': 22.1, 'Seattle': 21.9,
+            'Miami': 21.5, 'New Orleans': 21.3, 'Indianapolis': 21.0, 'Chicago': 20.8, 'Jacksonville': 20.2,
+            'Las Vegas': 19.8, 'New England': 19.2, 'Carolina': 18.9, 'Tennessee': 18.5, 'Cleveland': 18.0,
+            'NY Giants': 17.2, 'NY Jets': 16.5
+        }
+        
+        # PPG Last 3 Games values - for combined calculation
+        ppg_last3_values = {
+            'Baltimore': 35.0, 'Detroit': 33.7, 'Buffalo': 32.3, 'LA Chargers': 30.0, 'Washington': 29.3,
+            'Philadelphia': 28.7, 'Green Bay': 28.0, 'Pittsburgh': 27.3, 'Denver': 26.7, 'Minnesota': 26.0,
+            'Tampa Bay': 25.3, 'Houston': 25.0, 'Cincinnati': 24.7, 'San Francisco': 24.0, 'Kansas City': 23.7,
+            'Arizona': 23.3, 'LA Rams': 22.7, 'Atlanta': 22.0, 'Seattle': 21.7, 'Miami': 21.0,
+            'Dallas': 20.7, 'Indianapolis': 20.0, 'New Orleans': 19.3, 'Chicago': 18.7, 'Jacksonville': 18.3,
+            'Tennessee': 17.7, 'Las Vegas': 17.0, 'Cleveland': 16.3, 'New England': 15.7, 'Carolina': 15.0,
+            'NY Giants': 14.3, 'NY Jets': 13.7
+        }
+        
+        games_raw = []
+        data_source = "plays888.co"
+        open_bets = []
+        
+        # Always fetch from plays888.co for NFL
+        try:
+            # Get connection credentials
+            conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+            if conn and conn.get("is_connected"):
+                username = conn["username"]
+                password = decrypt_password(conn["password_encrypted"])
+                
+                # Create new scraper instance
+                scraper = Plays888Service()
+                await scraper.login(username, password)
+                live_games = await scraper.scrape_totals("NFL")
+                
+                # Also fetch open bets for ENANO account
+                await scraper.close()
+                scraper = Plays888Service()
+                enano_conn = await db.connections.find_one({"username": "jac075"}, {"_id": 0})
+                if enano_conn:
+                    await scraper.login("jac075", decrypt_password(enano_conn["password_encrypted"]))
+                    open_bets = await scraper.scrape_open_bets()
+                    await scraper.close()
+                
+                if live_games:
+                    # Convert plays888 data to our format
+                    for game in live_games:
+                        away_name = convert_plays888_team_name(game.get('away', ''))
+                        home_name = convert_plays888_team_name(game.get('home', ''))
+                        total = game.get('total', 0)
+                        time_str = game.get('time', 'TBD')
+                        
+                        games_raw.append({
+                            "away": away_name,
+                            "home": home_name,
+                            "total": total,
+                            "time": time_str
+                        })
+                    
+                    logger.info(f"Got {len(live_games)} NFL games from plays888.co")
+                    data_source = "plays888.co"
+        except Exception as e:
+            logger.error(f"Error fetching live NFL lines: {e}")
+        
+        # Process open bets for NFL
+        nfl_open_bets = {}
+        for bet in open_bets:
+            if bet.get('sport') == 'NFL':
+                away_team = convert_plays888_team_name(bet.get('away_team', ''))
+                home_team = convert_plays888_team_name(bet.get('home_team', ''))
+                game_key = f"{away_team}_{home_team}"
+                
+                if game_key not in nfl_open_bets:
+                    nfl_open_bets[game_key] = {
+                        "bet_type": bet.get('bet_type'),
+                        "bet_line": bet.get('total_line'),
+                        "bet_risk": bet.get('risk', 0),
+                        "bet_count": 1
+                    }
+                else:
+                    # Check for hedged bets (opposite directions)
+                    existing_type = nfl_open_bets[game_key].get('bet_type')
+                    new_type = bet.get('bet_type')
+                    if existing_type and new_type and existing_type != new_type:
+                        nfl_open_bets[game_key]['hedged'] = True
+                    nfl_open_bets[game_key]['bet_count'] += 1
+        
+        games = []
+        plays = []
+        
+        for i, game_data in enumerate(games_raw, 1):
+            away_team = game_data.get('away', 'TBD')
+            home_team = game_data.get('home', 'TBD')
+            total = game_data.get('total', 0)
+            time_str = game_data.get('time', 'TBD')
+            
+            # Get rankings
+            away_ppg_rank = ppg_season.get(away_team, 16)
+            home_ppg_rank = ppg_season.get(home_team, 16)
+            away_last3_rank = ppg_last3.get(away_team, 16)
+            home_last3_rank = ppg_last3.get(home_team, 16)
+            
+            # Calculate combined PPG
+            away_ppg = ppg_season_values.get(away_team, 22.0)
+            home_ppg = ppg_season_values.get(home_team, 22.0)
+            combined_ppg = round((away_ppg + home_ppg), 1)
+            
+            # Calculate combined game average (Season + Last 3)
+            away_last3_ppg = ppg_last3_values.get(away_team, 22.0)
+            home_last3_ppg = ppg_last3_values.get(home_team, 22.0)
+            game_avg = round((away_ppg + home_ppg + away_last3_ppg + home_last3_ppg) / 2, 1)
+            
+            # Calculate edge (positive = OVER, negative = UNDER)
+            edge = round(game_avg - total, 1) if total else None
+            
+            # Determine recommendation based on edge
+            recommendation = None
+            color = None
+            if edge is not None:
+                if edge >= 3:  # NFL threshold is +3
+                    recommendation = "OVER"
+                    color = "green"
+                elif edge <= -3:
+                    recommendation = "UNDER"
+                    color = "red"
+            
+            # Check for open bet on this game
+            game_key = f"{away_team}_{home_team}"
+            bet_data = nfl_open_bets.get(game_key, {})
+            has_bet = bool(bet_data) and not bet_data.get('hedged', False)
+            
+            game = {
+                "game_num": i,
+                "time": time_str,
+                "away_team": away_team,
+                "home_team": home_team,
+                "away_ppg_rank": away_ppg_rank,
+                "home_ppg_rank": home_ppg_rank,
+                "away_last3_rank": away_last3_rank,
+                "home_last3_rank": home_last3_rank,
+                "total": total,
+                "combined_ppg": combined_ppg,
+                "game_avg": game_avg,
+                "edge": edge,
+                "recommendation": recommendation,
+                "color": color,
+                "has_bet": has_bet,
+                "bet_type": bet_data.get('bet_type') if has_bet else None,
+                "bet_count": bet_data.get('bet_count', 0) if has_bet else 0
+            }
+            games.append(game)
+            
+            # Add to plays if meets threshold (edge >= 3)
+            if recommendation and edge is not None and abs(edge) >= 3 and not bet_data.get('hedged', False):
+                play = {
+                    "game": f"{away_team} @ {home_team}",
+                    "total": total,
+                    "combined_ppg": combined_ppg,
+                    "edge": edge,
+                    "recommendation": recommendation,
+                    "has_bet": has_bet,
+                    "bet_type": bet_data.get('bet_type') if has_bet else None,
+                    "bet_count": bet_data.get('bet_count', 0) if has_bet else 0
+                }
+                
+                # If user has bet, show bet-time values
+                if has_bet:
+                    bet_line = bet_data.get('bet_line', total)
+                    bet_edge = round(game_avg - bet_line, 1) if bet_line else edge
+                    play['bet_line'] = bet_line
+                    play['bet_edge'] = bet_edge
+                    play['live_edge'] = edge
+                
+                plays.append(play)
+        
+        # Save to database
+        await db.nfl_opportunities.update_one(
+            {"date": target_date},
+            {"$set": {
+                "date": target_date,
+                "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+                "games": games,
+                "plays": plays,
+                "data_source": data_source
+            }},
+            upsert=True
+        )
+        
+        # Get compound record
+        record = await db.compound_records.find_one({"league": "NFL"}, {"_id": 0})
+        compound_record = {
+            "hits": record.get('hits', 0) if record else 0,
+            "misses": record.get('misses', 0) if record else 0
+        }
+        
+        return {
+            "success": True,
+            "message": f"NFL opportunities refreshed (source: {data_source})",
+            "date": target_date,
+            "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+            "games": games,
+            "plays": plays,
+            "compound_record": compound_record,
+            "data_source": data_source
+        }
+    except Exception as e:
+        logger.error(f"Error refreshing NFL opportunities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
