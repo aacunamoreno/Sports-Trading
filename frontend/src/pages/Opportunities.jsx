@@ -245,19 +245,42 @@ export default function Opportunities() {
             )}
           </div>
           
-          {['yesterday', 'today', 'tomorrow'].map((d) => (
-            <button
-              key={d}
-              onClick={() => { setDay(d); setCustomDate(''); }}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                day === d
-                  ? d === 'yesterday' ? 'bg-purple-600 text-white shadow-lg' : 'bg-blue-600 text-white shadow-lg'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {d === 'yesterday' ? '📊 Yesterday' : d === 'today' ? '📅 Today' : '📆 Tomorrow'}
-            </button>
-          ))}
+          {/* NFL uses Week labels, NBA/NHL use day labels */}
+          {league === 'NFL' ? (
+            // NFL Week selector
+            <>
+              {['yesterday', 'today', 'tomorrow'].map((d) => (
+                <button
+                  key={d}
+                  onClick={() => { setDay(d); setCustomDate(''); }}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    day === d
+                      ? d === 'yesterday' ? 'bg-purple-600 text-white shadow-lg' : 'bg-blue-600 text-white shadow-lg'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {d === 'yesterday' ? '📊 Week 16' : d === 'today' ? '🏈 Week 17' : '📆 Week 18'}
+                </button>
+              ))}
+            </>
+          ) : (
+            // NBA/NHL day selector
+            <>
+              {['yesterday', 'today', 'tomorrow'].map((d) => (
+                <button
+                  key={d}
+                  onClick={() => { setDay(d); setCustomDate(''); }}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    day === d
+                      ? d === 'yesterday' ? 'bg-purple-600 text-white shadow-lg' : 'bg-blue-600 text-white shadow-lg'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {d === 'yesterday' ? '📊 Yesterday' : d === 'today' ? '📅 Today' : '📆 Tomorrow'}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
