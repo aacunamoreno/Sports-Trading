@@ -528,7 +528,19 @@ export default function Opportunities() {
                         </div>
                       </td>
                       <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
-                        {game.total ? game.total : <span className="text-gray-500 text-xs">NO LINE</span>}
+                        {game.total ? (
+                          <div className="flex flex-col">
+                            {/* Show bet-time line if user bet on this game */}
+                            {game.user_bet && game.bet_line && (
+                              <span className="text-xs text-yellow-400 font-bold" title="Line when bet was placed">
+                                🎯 {game.bet_line}
+                              </span>
+                            )}
+                            <span className={game.user_bet && game.bet_line ? 'text-xs text-muted-foreground' : ''}>
+                              {game.user_bet && game.bet_line ? `(${game.total})` : game.total}
+                            </span>
+                          </div>
+                        ) : <span className="text-gray-500 text-xs">NO LINE</span>}
                       </td>
                       {isHistorical && (
                         <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
@@ -547,9 +559,17 @@ export default function Opportunities() {
                       <td className={`py-3 px-2 text-center font-bold ${textStyle}`}>{game.combined_ppg || game.combined_gpg || game.game_avg}</td>
                       <td className="py-3 px-2 text-center">
                         {game.edge !== null && game.edge !== undefined ? (
-                          <span className={getEdgeStyle(game.edge)}>
-                            {game.edge >= 0 ? '+' : ''}{game.edge}
-                          </span>
+                          <div className="flex flex-col">
+                            {/* Show bet-time edge if user bet on this game */}
+                            {game.user_bet && game.bet_edge && (
+                              <span className="text-xs text-yellow-400 font-bold" title="Edge when bet was placed">
+                                🎯 +{game.bet_edge}
+                              </span>
+                            )}
+                            <span className={`${getEdgeStyle(game.edge)} ${game.user_bet && game.bet_edge ? 'text-xs text-muted-foreground' : ''}`}>
+                              {game.user_bet && game.bet_edge ? `(+${game.edge})` : (game.edge >= 0 ? '+' : '') + game.edge}
+                            </span>
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
