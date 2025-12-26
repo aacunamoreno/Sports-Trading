@@ -4918,8 +4918,17 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 user_bet_type = g.get('bet_type', '')
                 game_data["bet_type"] = user_bet_type
                 
-                # Calculate if system recommendation hit (only if we have final score)
-                if recommendation and g['final_score'] is not None:
+                # IMPORTANT: Store bet-time line (line when bet was placed)
+                # This is different from the closing line (g['total'])
+                bet_time_line = g.get('bet_line')
+                if bet_time_line:
+                    game_data["bet_line"] = bet_time_line
+                    # Calculate bet-time edge based on original line
+                    bet_time_edge = abs(combined_ppg - bet_time_line)
+                    game_data["bet_edge"] = round(bet_time_edge, 1)
+                
+                # Calculate if system recommendation hit (using closing line)
+                if recommendation and g['final_score'] is not None and g.get('total'):
                     if recommendation == "OVER":
                         game_data["result_hit"] = g['final_score'] > g['total']
                     else:  # UNDER
@@ -4927,18 +4936,24 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 else:
                     game_data["result_hit"] = None
                 
-                # Calculate if USER's bet hit (based on their actual bet direction)
+                # Calculate if USER's bet hit
+                # CRITICAL: Use bet_line (line when bet was placed) for user bet evaluation
                 if user_bet_type and g['final_score'] is not None:
-                    if user_bet_type.upper() == "OVER":
-                        game_data["user_bet_hit"] = g['final_score'] > g['total']
-                    elif user_bet_type.upper() == "UNDER":
-                        game_data["user_bet_hit"] = g['final_score'] < g['total']
+                    # Use the bet_line if available, otherwise fall back to closing line
+                    line_for_evaluation = bet_time_line if bet_time_line else g.get('total')
+                    if line_for_evaluation:
+                        if user_bet_type.upper() == "OVER":
+                            game_data["user_bet_hit"] = g['final_score'] > line_for_evaluation
+                        elif user_bet_type.upper() == "UNDER":
+                            game_data["user_bet_hit"] = g['final_score'] < line_for_evaluation
+                        else:
+                            game_data["user_bet_hit"] = None
                     else:
                         game_data["user_bet_hit"] = None
                 else:
                     game_data["user_bet_hit"] = None
             
-            # Calculate edge for all games
+            # Calculate edge for all games (using closing line)
             edge = abs(combined_ppg - g['total']) if has_line else 0
             game_data["edge"] = round(edge, 1) if has_line else None
             
