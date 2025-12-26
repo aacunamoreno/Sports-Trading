@@ -192,6 +192,93 @@ def schedule_daily_summary():
     except Exception as e:
         logger.error(f"Error scheduling daily tasks: {str(e)}")
 
+# ============================================================================
+# OPENING LINES TRACKING - Store first seen lines for each game
+# ============================================================================
+
+async def store_opening_line(league: str, date: str, away_team: str, home_team: str, line: float):
+    """
+    Store the opening line for a game. Only stores if no opening line exists yet.
+    This captures the FIRST line we see for a game.
+    """
+    try:
+        game_key = f"{league}_{date}_{away_team}_{home_team}".lower().replace(" ", "_")
+        
+        # Check if opening line already exists
+        existing = await db.opening_lines.find_one({"game_key": game_key}, {"_id": 0})
+        if existing:
+            logger.debug(f"Opening line already exists for {away_team} @ {home_team}: {existing.get('opening_line')}")
+            return existing.get('opening_line')
+        
+        # Store new opening line
+        await db.opening_lines.insert_one({
+            "game_key": game_key,
+            "league": league,
+            "date": date,
+            "away_team": away_team,
+            "home_team": home_team,
+            "opening_line": line,
+            "created_at": datetime.now(timezone.utc)
+        })
+        logger.info(f"Stored opening line for {away_team} @ {home_team}: {line}")
+        return line
+    except Exception as e:
+        logger.error(f"Error storing opening line: {e}")
+        return None
+
+async def get_opening_line(league: str, date: str, away_team: str, home_team: str) -> Optional[float]:
+    """
+    Get the stored opening line for a game.
+    """
+    try:
+        game_key = f"{league}_{date}_{away_team}_{home_team}".lower().replace(" ", "_")
+        existing = await db.opening_lines.find_one({"game_key": game_key}, {"_id": 0})
+        if existing:
+            return existing.get('opening_line')
+        return None
+    except Exception as e:
+        logger.error(f"Error getting opening line: {e}")
+        return None
+
+async def store_opening_lines_batch(league: str, date: str, games: List[Dict]):
+    """
+    Store opening lines for multiple games at once.
+    Only stores lines that don't already exist.
+    """
+    stored_count = 0
+    for game in games:
+        away = game.get('away_team') or game.get('away')
+        home = game.get('home_team') or game.get('home')
+        line = game.get('total')
+        
+        if away and home and line:
+            result = await store_opening_line(league, date, away, home, line)
+            if result:
+                stored_count += 1
+    
+    logger.info(f"Stored {stored_count} opening lines for {league} on {date}")
+    return stored_count
+
+async def get_opening_lines_batch(league: str, date: str, games: List[Dict]) -> Dict[str, float]:
+    """
+    Get opening lines for multiple games. Returns a dict mapping game_key to opening_line.
+    """
+    opening_lines = {}
+    for game in games:
+        away = game.get('away_team') or game.get('away')
+        home = game.get('home_team') or game.get('home')
+        
+        if away and home:
+            opening = await get_opening_line(league, date, away, home)
+            if opening:
+                game_key = f"{away}_{home}".lower().replace(" ", "_")
+                opening_lines[game_key] = opening
+    
+    return opening_lines
+
+# ============================================================================
+
+
 async def auto_start_monitoring():
     """Auto-start bet monitoring if it was previously enabled"""
     global monitoring_enabled
