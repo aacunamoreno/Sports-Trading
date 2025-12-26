@@ -5218,13 +5218,13 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
         # Check if yesterday - use hardcoded Christmas Day games
         if day == "yesterday":
             # Dec 25 (Christmas Day) NFL games - Week 16
-            # Actual results from ESPN
+            # Actual results from scoresandodds.com
             games_raw = [
-                {"time": "10:00 AM", "away": "Dallas", "home": "Washington", "total": 50.5, "final_score": 53, "user_bet": False},  # DAL 30 + WAS 23 = 53 > 50.5 = OVER
-                {"time": "2:30 PM", "away": "Detroit", "home": "Minnesota", "total": 43.0, "final_score": 33, "user_bet": True, "bet_type": "OVER"},  # DET 10 + MIN 23 = 33 < 43 = MISS
-                {"time": "6:00 PM", "away": "Denver", "home": "Kansas City", "total": 36.5, "final_score": 33, "user_bet": False},  # DEN 20 + KC 13 = 33 < 36.5 = UNDER
+                {"time": "1:00 PM", "away": "Dallas", "home": "Washington", "total": 50.5, "final_score": 53, "user_bet": False},  # DAL 30 + WAS 23 = 53 > 50.5 = OVER
+                {"time": "4:30 PM", "away": "Detroit", "home": "Minnesota", "total": 45.5, "final_score": 33, "user_bet": True, "bet_type": "OVER"},  # DET 10 + MIN 23 = 33 < 45.5 = MISS
+                {"time": "8:15 PM", "away": "Denver", "home": "Kansas City", "total": 37.5, "final_score": 33, "user_bet": False},  # DEN 20 + KC 13 = 33 < 37.5 = UNDER
             ]
-            data_source = "hardcoded"
+            data_source = "scoresandodds.com"
         else:
             # Fetch from plays888.co for today/tomorrow
             try:
