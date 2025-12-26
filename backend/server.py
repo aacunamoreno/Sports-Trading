@@ -4294,44 +4294,96 @@ async def scrape_nba_odds():
         return games
 
 async def scrape_nba_ppg_rankings():
-    """Scrape NBA Points Per Game rankings"""
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.get("https://www.teamrankings.com/nba/stat/points-per-game")
-        html = response.text
-        
-        rankings = {}
-        rankings_last3 = {}
-        
-        # Parse rankings table
-        import re
-        # Pattern to find team rows with rankings
-        row_pattern = r'<tr[^>]*>.*?<td[^>]*>(\d+)</td>.*?team/([^"]+)"[^>]*>([^<]+)</a>.*?<td[^>]*>[\d.]+</td>.*?<td[^>]*>([\d.]+)</td>'
-        
-        matches = re.findall(row_pattern, html, re.DOTALL)
-        
-        # Team name mapping
-        team_map = {
-            'denver-nuggets': 'Denver', 'oklahoma-city-thunder': 'Okla City',
-            'houston-rockets': 'Houston', 'new-york-knicks': 'New York',
-            'miami-heat': 'Miami', 'utah-jazz': 'Utah', 'san-antonio-spurs': 'San Antonio',
-            'chicago-bulls': 'Chicago', 'detroit-pistons': 'Detroit', 'atlanta-hawks': 'Atlanta',
-            'cleveland-cavaliers': 'Cleveland', 'minnesota-timberwolves': 'Minnesota',
-            'orlando-magic': 'Orlando', 'los-angeles-lakers': 'LA Lakers',
-            'portland-trail-blazers': 'Portland', 'philadelphia-76ers': 'Philadelphia',
-            'boston-celtics': 'Boston', 'new-orleans-pelicans': 'New Orleans',
-            'memphis-grizzlies': 'Memphis', 'charlotte-hornets': 'Charlotte',
-            'phoenix-suns': 'Phoenix', 'golden-state-warriors': 'Golden State',
-            'toronto-raptors': 'Toronto', 'milwaukee-bucks': 'Milwaukee',
-            'dallas-mavericks': 'Dallas', 'washington-wizards': 'Washington',
-            'sacramento-kings': 'Sacramento', 'los-angeles-clippers': 'LA Clippers',
-            'indiana-pacers': 'Indiana', 'brooklyn-nets': 'Brooklyn'
-        }
-        
-        for rank, slug, name, last3 in matches:
-            team_name = team_map.get(slug, name)
-            rankings[team_name] = int(rank)
-        
-        return rankings
+    """
+    Scrape NBA Points Per Game rankings and values from teamrankings.com
+    Returns: {
+        'season_ranks': {team: rank},
+        'season_values': {team: ppg_value},
+        'last3_ranks': {team: rank},
+        'last3_values': {team: ppg_value}
+    }
+    """
+    import re
+    
+    # Team name mapping
+    team_map = {
+        'denver-nuggets': 'Denver', 'oklahoma-city-thunder': 'Okla City',
+        'houston-rockets': 'Houston', 'new-york-knicks': 'New York',
+        'miami-heat': 'Miami', 'utah-jazz': 'Utah', 'san-antonio-spurs': 'San Antonio',
+        'chicago-bulls': 'Chicago', 'detroit-pistons': 'Detroit', 'atlanta-hawks': 'Atlanta',
+        'cleveland-cavaliers': 'Cleveland', 'minnesota-timberwolves': 'Minnesota',
+        'orlando-magic': 'Orlando', 'los-angeles-lakers': 'LA Lakers',
+        'portland-trail-blazers': 'Portland', 'philadelphia-76ers': 'Philadelphia',
+        'boston-celtics': 'Boston', 'new-orleans-pelicans': 'New Orleans',
+        'memphis-grizzlies': 'Memphis', 'charlotte-hornets': 'Charlotte',
+        'phoenix-suns': 'Phoenix', 'golden-state-warriors': 'Golden State',
+        'toronto-raptors': 'Toronto', 'milwaukee-bucks': 'Milwaukee',
+        'dallas-mavericks': 'Dallas', 'washington-wizards': 'Washington',
+        'sacramento-kings': 'Sacramento', 'los-angeles-clippers': 'LA Clippers',
+        'indiana-pacers': 'Indiana', 'brooklyn-nets': 'Brooklyn'
+    }
+    
+    result = {
+        'season_ranks': {},
+        'season_values': {},
+        'last3_ranks': {},
+        'last3_values': {}
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            # Scrape Season PPG (2024-25 column)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            
+            # Season PPG
+            season_response = await client.get(
+                "https://www.teamrankings.com/nba/stat/points-per-game",
+                headers=headers
+            )
+            season_html = season_response.text
+            
+            # Parse season rankings - pattern: rank, team slug, team name, 2024-25 PPG, Last 3 PPG
+            # Table has: Rank | Team | 2024-25 | Last 3 | Last 1 | Home | Away | ...
+            row_pattern = r'<tr[^>]*>\s*<td[^>]*>(\d+)</td>\s*<td[^>]*>.*?team/([^"]+)"[^>]*>[^<]*</a>\s*</td>\s*<td[^>]*>([\d.]+)</td>\s*<td[^>]*>([\d.]+)</td>'
+            
+            matches = re.findall(row_pattern, season_html, re.DOTALL)
+            
+            logger.info(f"Found {len(matches)} teams in teamrankings.com PPG table")
+            
+            for rank, slug, season_ppg, last3_ppg in matches:
+                team_name = team_map.get(slug)
+                if team_name:
+                    result['season_ranks'][team_name] = int(rank)
+                    result['season_values'][team_name] = float(season_ppg)
+                    result['last3_ranks'][team_name] = int(rank)  # Will update from Last 3 page
+                    result['last3_values'][team_name] = float(last3_ppg)
+            
+            # If we got data, also get Last 3 specific rankings
+            if result['season_ranks']:
+                last3_response = await client.get(
+                    "https://www.teamrankings.com/nba/stat/points-per-game?date=2025-12-26",
+                    headers=headers
+                )
+                last3_html = last3_response.text
+                
+                # Re-parse for Last 3 specific rankings
+                matches = re.findall(row_pattern, last3_html, re.DOTALL)
+                
+                # Create ranking based on Last 3 values
+                last3_sorted = sorted(result['last3_values'].items(), key=lambda x: x[1], reverse=True)
+                for i, (team, _) in enumerate(last3_sorted, 1):
+                    result['last3_ranks'][team] = i
+            
+            logger.info(f"Scraped PPG data: {len(result['season_values'])} teams")
+            return result
+            
+    except Exception as e:
+        logger.error(f"Error scraping NBA PPG rankings: {e}")
+        import traceback
+        traceback.print_exc()
+        return result
 
 async def get_nba_opportunities():
     """Get NBA betting opportunities with PPG analysis"""
