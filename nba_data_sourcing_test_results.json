@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-12-26T18:53:31.245157",
+  "total_tests": 5,
+  "passed_tests": 4,
+  "success_rate": 80.0,
+  "results": [
+    {
+      "test": "Tomorrow - Scoresandodds Strategy",
+      "success": true,
+      "details": "Found 4 games, data_source: hardcoded",
+      "timestamp": "2025-12-26T18:53:16.007724"
+    },
+    {
+      "test": "Today - Plays888 Strategy",
+      "success": true,
+      "details": "Found 9 games, data_source: plays888.co",
+      "timestamp": "2025-12-26T18:53:16.045409"
+    },
+    {
+      "test": "Yesterday - Final Scores & Bet Lines",
+      "success": true,
+      "details": "Found 5 games, 2 with bet-time data",
+      "timestamp": "2025-12-26T18:53:16.083800"
+    },
+    {
+      "test": "Refresh Tomorrow - Force Refresh",
+      "success": false,
+      "details": "Error: HTTPSConnectionPool(host='betguard-2.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)",
+      "timestamp": "2025-12-26T18:53:31.118593"
+    },
+    {
+      "test": "Data Source Verification",
+      "success": true,
+      "details": "Tomorrow: hardcoded, Today: plays888.co, Yesterday: scoresandodds.com",
+      "timestamp": "2025-12-26T18:53:31.242916"
+    }
+  ]
+}
