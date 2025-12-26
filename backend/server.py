@@ -4400,10 +4400,10 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 ]
             elif day == "yesterday":
                 # Dec 25 (Christmas Day) - NBA Christmas Games with YOUR BETS
-                # user_bet = True for games you bet on, with final scores
+                # user_bet = True for games you bet on, with final scores (total of both teams)
                 games_raw = [
-                    {"time": "10:00 AM", "away": "San Antonio", "home": "Okla City", "total": 233.0, "final_score": 115, "user_bet": True, "bet_type": "OVER"},  # SA 120 + OKC 115 = 235 > 233 = WIN
-                    {"time": "12:30 PM", "away": "Minnesota", "home": "Dallas", "total": 222.0, "final_score": 206, "user_bet": False},  # No bet
+                    {"time": "10:00 AM", "away": "San Antonio", "home": "Okla City", "total": 233.0, "final_score": 235, "user_bet": True, "bet_type": "OVER"},  # SA 120 + OKC 115 = 235 > 233 = WIN
+                    {"time": "12:30 PM", "away": "New York", "home": "San Antonio", "total": 213.0, "final_score": 206, "user_bet": False},  # No bet
                     {"time": "3:00 PM", "away": "Philadelphia", "home": "Boston", "total": 215.0, "final_score": 218, "user_bet": False},  # No bet
                     {"time": "5:00 PM", "away": "LA Lakers", "home": "Golden State", "total": 225.0, "final_score": 231, "user_bet": False},  # No bet
                     {"time": "8:00 PM", "away": "Denver", "home": "Phoenix", "total": 230.0, "final_score": 220, "user_bet": False},  # No bet
