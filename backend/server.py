@@ -5216,47 +5216,58 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
         data_source = "plays888.co"
         open_bets = []
         
-        # Always fetch from plays888.co for NFL
-        try:
-            # Get connection credentials
-            conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
-            if conn and conn.get("is_connected"):
-                username = conn["username"]
-                password = decrypt_password(conn["password_encrypted"])
-                
-                # Create new scraper instance
-                scraper = Plays888Service()
-                await scraper.login(username, password)
-                live_games = await scraper.scrape_totals("NFL")
-                
-                # Also fetch open bets for ENANO account
-                await scraper.close()
-                scraper = Plays888Service()
-                enano_conn = await db.connections.find_one({"username": "jac075"}, {"_id": 0})
-                if enano_conn:
-                    await scraper.login("jac075", decrypt_password(enano_conn["password_encrypted"]))
-                    open_bets = await scraper.scrape_open_bets()
-                    await scraper.close()
-                
-                if live_games:
-                    # Convert plays888 data to our format
-                    for game in live_games:
-                        away_name = convert_plays888_team_name(game.get('away', ''))
-                        home_name = convert_plays888_team_name(game.get('home', ''))
-                        total = game.get('total', 0)
-                        time_str = game.get('time', 'TBD')
-                        
-                        games_raw.append({
-                            "away": away_name,
-                            "home": home_name,
-                            "total": total,
-                            "time": time_str
-                        })
+        # Check if yesterday - use hardcoded Christmas Day games
+        if day == "yesterday":
+            # Dec 25 (Christmas Day) NFL games - Week 16
+            # user_bet = True for games you bet on, with final scores
+            games_raw = [
+                {"time": "10:00 AM", "away": "Dallas", "home": "Washington", "total": 50.5, "final_score": 41, "user_bet": False},  # DAL 21 + WAS 20 = 41
+                {"time": "2:30 PM", "away": "Detroit", "home": "Minnesota", "total": 43.0, "final_score": 48, "user_bet": True, "bet_type": "OVER"},  # DET 24 + MIN 24 = 48 > 43 = WIN
+                {"time": "6:00 PM", "away": "Denver", "home": "Kansas City", "total": 36.5, "final_score": 31, "user_bet": False},  # DEN 6 + KC 25 = 31
+            ]
+            data_source = "hardcoded"
+        else:
+            # Fetch from plays888.co for today/tomorrow
+            try:
+                # Get connection credentials
+                conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+                if conn and conn.get("is_connected"):
+                    username = conn["username"]
+                    password = decrypt_password(conn["password_encrypted"])
                     
-                    logger.info(f"Got {len(live_games)} NFL games from plays888.co")
-                    data_source = "plays888.co"
-        except Exception as e:
-            logger.error(f"Error fetching live NFL lines: {e}")
+                    # Create new scraper instance
+                    scraper = Plays888Service()
+                    await scraper.login(username, password)
+                    live_games = await scraper.scrape_totals("NFL")
+                    
+                    # Also fetch open bets for ENANO account
+                    await scraper.close()
+                    scraper = Plays888Service()
+                    enano_conn = await db.connections.find_one({"username": "jac075"}, {"_id": 0})
+                    if enano_conn:
+                        await scraper.login("jac075", decrypt_password(enano_conn["password_encrypted"]))
+                        open_bets = await scraper.scrape_open_bets()
+                        await scraper.close()
+                    
+                    if live_games:
+                        # Convert plays888 data to our format
+                        for game in live_games:
+                            away_name = convert_plays888_team_name(game.get('away', ''))
+                            home_name = convert_plays888_team_name(game.get('home', ''))
+                            total = game.get('total', 0)
+                            time_str = game.get('time', 'TBD')
+                            
+                            games_raw.append({
+                                "away": away_name,
+                                "home": home_name,
+                                "total": total,
+                                "time": time_str
+                            })
+                        
+                        logger.info(f"Got {len(live_games)} NFL games from plays888.co")
+                        data_source = "plays888.co"
+            except Exception as e:
+                logger.error(f"Error fetching live NFL lines: {e}")
         
         # Process open bets for NFL
         nfl_open_bets = {}
