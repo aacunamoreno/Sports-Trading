@@ -4715,6 +4715,26 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             except Exception as e:
                 logger.error(f"Error fetching live lines: {e}")
         
+        # For TOMORROW: Use scoresandodds.com for schedule/lines
+        elif day == "tomorrow":
+            try:
+                scraped_games = await scrape_scoresandodds("NBA", target_date)
+                
+                if scraped_games:
+                    for game in scraped_games:
+                        game_entry = {
+                            "time": game.get('time', ''),
+                            "away": game.get('away_team', ''),
+                            "home": game.get('home_team', ''),
+                            "total": game.get('total', 220.0),  # Default if no line yet
+                        }
+                        games_raw.append(game_entry)
+                    
+                    data_source = "scoresandodds.com"
+                    logger.info(f"Fetched {len(games_raw)} tomorrow games from scoresandodds.com for {target_date}")
+            except Exception as e:
+                logger.error(f"Error scraping tomorrow from scoresandodds.com: {e}")
+        
         # For YESTERDAY/HISTORICAL: Use scoresandodds.com for final scores + plays888 for bet lines
         elif day == "yesterday" or (len(day) == 10 and day[4] == '-'):
             try:
