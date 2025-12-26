@@ -715,16 +715,295 @@ class BettingSystemAPITester:
             self.log_test("Bet Line vs Closing Line Test", False, f"Error: {str(e)}")
             return False
 
+    def test_nba_data_sourcing_strategy_tomorrow(self):
+        """Test GET /api/opportunities?day=tomorrow - should use scoresandodds.com"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities?day=tomorrow", timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success', 'data_source']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("GET /api/opportunities?day=tomorrow - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                # Check data source
+                data_source = data.get('data_source')
+                expected_sources = ['scoresandodds.com', 'hardcoded']  # Allow hardcoded as fallback
+                
+                if data_source not in expected_sources:
+                    self.log_test("GET /api/opportunities?day=tomorrow - Data Source", False,
+                                f"Expected data_source in {expected_sources}, got '{data_source}'")
+                    return False
+                
+                games = data.get('games', [])
+                if len(games) == 0:
+                    self.log_test("GET /api/opportunities?day=tomorrow - Games Count", False,
+                                "No games found for tomorrow")
+                    return False
+                
+                # Validate game structure
+                game = games[0]
+                required_game_fields = ['away_team', 'home_team', 'total']
+                missing_game_fields = [field for field in required_game_fields if field not in game]
+                
+                if missing_game_fields:
+                    self.log_test("GET /api/opportunities?day=tomorrow - Game Structure", False,
+                                f"Missing game fields: {missing_game_fields}")
+                    return False
+                
+                # Expected: 9 games for Dec 27, 2025 (Dallas @ Sacramento, Phoenix @ New Orleans, etc.)
+                expected_min_games = 3  # Allow some flexibility
+                if len(games) < expected_min_games:
+                    self.log_test("GET /api/opportunities?day=tomorrow - Game Count", False,
+                                f"Expected at least {expected_min_games} games, got {len(games)}")
+                    return False
+                
+                self.log_test("GET /api/opportunities?day=tomorrow", True,
+                            f"Found {len(games)} games, data_source: {data_source}")
+                return True
+            else:
+                self.log_test("GET /api/opportunities?day=tomorrow", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("GET /api/opportunities?day=tomorrow", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("GET /api/opportunities?day=tomorrow", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_nba_data_sourcing_strategy_today(self):
+        """Test GET /api/opportunities?day=today - should use plays888.co for live lines"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities?day=today", timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("GET /api/opportunities?day=today - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                # Check data source (may be hardcoded if no live lines fetched)
+                data_source = data.get('data_source')
+                valid_sources = ['plays888.co', 'hardcoded', None]  # Allow hardcoded as fallback
+                
+                if data_source not in valid_sources:
+                    self.log_test("GET /api/opportunities?day=today - Data Source", False,
+                                f"Unexpected data_source '{data_source}', expected one of {valid_sources}")
+                    return False
+                
+                games = data.get('games', [])
+                
+                # Validate game structure if games exist
+                if games:
+                    game = games[0]
+                    required_game_fields = ['away_team', 'home_team', 'total']
+                    missing_game_fields = [field for field in required_game_fields if field not in game]
+                    
+                    if missing_game_fields:
+                        self.log_test("GET /api/opportunities?day=today - Game Structure", False,
+                                    f"Missing game fields: {missing_game_fields}")
+                        return False
+                
+                self.log_test("GET /api/opportunities?day=today", True,
+                            f"Found {len(games)} games, data_source: {data_source}")
+                return True
+            else:
+                self.log_test("GET /api/opportunities?day=today", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("GET /api/opportunities?day=today", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("GET /api/opportunities?day=today", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_nba_data_sourcing_strategy_yesterday(self):
+        """Test GET /api/opportunities?day=yesterday - should use scoresandodds.com for final scores + plays888 for bet lines"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities?day=yesterday", timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("GET /api/opportunities?day=yesterday - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                games = data.get('games', [])
+                if len(games) == 0:
+                    self.log_test("GET /api/opportunities?day=yesterday - Games Count", False,
+                                "No games found for yesterday")
+                    return False
+                
+                # Expected: 5 games for Dec 25 (Christmas Day)
+                expected_games = 5
+                if len(games) != expected_games:
+                    self.log_test("GET /api/opportunities?day=yesterday - Game Count", False,
+                                f"Expected {expected_games} games for Christmas Day, got {len(games)}")
+                    return False
+                
+                # Check for user bets with bet_line and bet_edge fields
+                user_bet_games = [g for g in games if g.get('user_bet') == True]
+                
+                if not user_bet_games:
+                    self.log_test("GET /api/opportunities?day=yesterday - User Bets", False,
+                                "No games with user_bet=true found")
+                    return False
+                
+                # Validate user bet fields
+                for game in user_bet_games:
+                    required_bet_fields = ['bet_line', 'bet_edge']
+                    missing_bet_fields = [field for field in required_bet_fields if field not in game]
+                    
+                    if missing_bet_fields:
+                        self.log_test("GET /api/opportunities?day=yesterday - Bet Fields", False,
+                                    f"Missing bet fields: {missing_bet_fields}")
+                        return False
+                
+                self.log_test("GET /api/opportunities?day=yesterday", True,
+                            f"Found {len(games)} games, {len(user_bet_games)} with user bets and bet-time data")
+                return True
+            else:
+                self.log_test("GET /api/opportunities?day=yesterday", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("GET /api/opportunities?day=yesterday", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("GET /api/opportunities?day=yesterday", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_nba_refresh_tomorrow_scoresandodds(self):
+        """Test POST /api/opportunities/refresh?day=tomorrow - should force refresh from scoresandodds.com"""
+        try:
+            response = requests.post(f"{self.api_url}/opportunities/refresh?day=tomorrow", timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("POST /api/opportunities/refresh?day=tomorrow - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                # Check data source indicates correct source
+                data_source = data.get('data_source')
+                expected_sources = ['scoresandodds.com', 'hardcoded']  # Allow hardcoded as fallback
+                
+                if data_source not in expected_sources:
+                    self.log_test("POST /api/opportunities/refresh?day=tomorrow - Data Source", False,
+                                f"Expected data_source in {expected_sources}, got '{data_source}'")
+                    return False
+                
+                games = data.get('games', [])
+                if len(games) == 0:
+                    self.log_test("POST /api/opportunities/refresh?day=tomorrow - Games Count", False,
+                                "No games found after refresh")
+                    return False
+                
+                self.log_test("POST /api/opportunities/refresh?day=tomorrow", True,
+                            f"Refreshed {len(games)} games, data_source: {data_source}")
+                return True
+            else:
+                self.log_test("POST /api/opportunities/refresh?day=tomorrow", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("POST /api/opportunities/refresh?day=tomorrow", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("POST /api/opportunities/refresh?day=tomorrow", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_nba_refresh_today_plays888(self):
+        """Test POST /api/opportunities/refresh?day=today&use_live_lines=true - should use plays888.co"""
+        try:
+            response = requests.post(f"{self.api_url}/opportunities/refresh?day=today&use_live_lines=true", timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("POST /api/opportunities/refresh?day=today&use_live_lines=true - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                # Check data source
+                data_source = data.get('data_source')
+                expected_sources = ['plays888.co', 'hardcoded']  # Allow hardcoded as fallback
+                
+                if data_source not in expected_sources:
+                    self.log_test("POST /api/opportunities/refresh?day=today&use_live_lines=true - Data Source", False,
+                                f"Expected data_source in {expected_sources}, got '{data_source}'")
+                    return False
+                
+                games = data.get('games', [])
+                
+                self.log_test("POST /api/opportunities/refresh?day=today&use_live_lines=true", True,
+                            f"Refreshed {len(games)} games, data_source: {data_source}")
+                return True
+            else:
+                self.log_test("POST /api/opportunities/refresh?day=today&use_live_lines=true", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("POST /api/opportunities/refresh?day=today&use_live_lines=true", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("POST /api/opportunities/refresh?day=today&use_live_lines=true", False, f"JSON decode error: {str(e)}")
+            return False
+
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
-        print("BETTING AUTOMATION SYSTEM - API TESTING")
+        print("NBA OPPORTUNITIES API - DATA SOURCING STRATEGY TESTING")
         print("=" * 60)
         print(f"Testing API: {self.api_url}")
         print()
         
-        # Run basic tests first
-        print("🔍 BASIC API TESTS")
+        # Run NBA Data Sourcing Strategy Tests
+        print("🏀 NBA DATA SOURCING STRATEGY TESTS")
+        print("-" * 40)
+        self.test_nba_data_sourcing_strategy_tomorrow()
+        self.test_nba_data_sourcing_strategy_today()
+        self.test_nba_data_sourcing_strategy_yesterday()
+        self.test_nba_refresh_tomorrow_scoresandodds()
+        self.test_nba_refresh_today_plays888()
+        
+        print("\n🔍 BASIC API TESTS")
         print("-" * 30)
         self.test_get_opportunities()
         self.test_data_source_field()
