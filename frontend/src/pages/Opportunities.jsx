@@ -462,6 +462,33 @@ export default function Opportunities() {
                   const edgeThreshold = league === 'NBA' ? 5 : league === 'NFL' ? 7 : 0.6;
                   const isNoBet = game.edge === null || game.edge === undefined || Math.abs(game.edge) < edgeThreshold;
                   
+                  // Calculate dot-based recommendation
+                  const awaySeasonRank = game.away_ppg_rank || game.away_gpg_rank || 15;
+                  const awayLast3Rank = game.away_last3_rank || 15;
+                  const homeSeasonRank = game.home_ppg_rank || game.home_gpg_rank || 15;
+                  const homeLast3Rank = game.home_last3_rank || 15;
+                  
+                  // Count dots by color
+                  const ranks = [awaySeasonRank, awayLast3Rank, homeSeasonRank, homeLast3Rank];
+                  const greens = ranks.filter(r => r <= 10).length;
+                  const blues = ranks.filter(r => r > 10 && r <= 15).length;
+                  const yellows = ranks.filter(r => r > 15 && r <= 21).length;
+                  const reds = ranks.filter(r => r > 21).length;
+                  
+                  // Dot-based recommendation logic
+                  // OVER: 2+ Greens OR 1 Green + 2 Blues
+                  // UNDER: 2+ Reds OR 1 Red + 2 Yellows
+                  let dotRecommendation = null;
+                  if (greens >= 2 || (greens >= 1 && blues >= 2)) {
+                    dotRecommendation = 'OVER';
+                  } else if (reds >= 2 || (reds >= 1 && yellows >= 2)) {
+                    dotRecommendation = 'UNDER';
+                  }
+                  
+                  // Check for conflict between dots and edge recommendation
+                  const edgeRecommendation = game.recommendation;
+                  const hasConflict = dotRecommendation && edgeRecommendation && dotRecommendation !== edgeRecommendation;
+                  
                   // Row styling - no color for "No Bet" games
                   let rowStyle = '';
                   if (isHistorical) {
@@ -475,8 +502,14 @@ export default function Opportunities() {
                       rowStyle = getRowStyle(game.recommendation);
                     }
                   } else {
-                    // For today/tomorrow - no color for No Bet games
-                    rowStyle = isNoBet ? '' : getRowStyle(game.recommendation);
+                    // For today/tomorrow - check for conflict
+                    if (isNoBet) {
+                      rowStyle = '';
+                    } else if (hasConflict) {
+                      rowStyle = 'bg-yellow-500/20 border-yellow-500/50'; // Conflict alert - yellow
+                    } else {
+                      rowStyle = getRowStyle(game.recommendation);
+                    }
                   }
                   
                   // Text styling - muted for No Bet games
@@ -492,8 +525,14 @@ export default function Opportunities() {
                       textStyle = getTextStyle(game.recommendation);
                     }
                   } else {
-                    // For today/tomorrow - muted text for No Bet games
-                    textStyle = isNoBet ? 'text-muted-foreground' : getTextStyle(game.recommendation);
+                    // For today/tomorrow - muted text for No Bet games, yellow for conflicts
+                    if (isNoBet) {
+                      textStyle = 'text-muted-foreground';
+                    } else if (hasConflict) {
+                      textStyle = 'text-yellow-400 font-bold';
+                    } else {
+                      textStyle = getTextStyle(game.recommendation);
+                    }
                   }
 
                   return (
