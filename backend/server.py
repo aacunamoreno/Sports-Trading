@@ -5331,10 +5331,19 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
                     recommendation = "UNDER"
                     color = "red"
             
-            # Check for open bet on this game
+            # Check for open bet on this game (for today/tomorrow) or use hardcoded user_bet (for yesterday)
             game_key = f"{away_team}_{home_team}"
             bet_data = nfl_open_bets.get(game_key, {})
-            has_bet = bool(bet_data) and not bet_data.get('hedged', False)
+            
+            # For yesterday, use hardcoded user_bet from games_raw
+            if day == "yesterday":
+                has_bet = game_data.get('user_bet', False)
+                user_bet_type = game_data.get('bet_type', '')
+                final_score = game_data.get('final_score')
+            else:
+                has_bet = bool(bet_data) and not bet_data.get('hedged', False)
+                user_bet_type = bet_data.get('bet_type') if has_bet else None
+                final_score = None
             
             game = {
                 "game_num": i,
@@ -5352,9 +5361,34 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
                 "recommendation": recommendation,
                 "color": color,
                 "has_bet": has_bet,
-                "bet_type": bet_data.get('bet_type') if has_bet else None,
-                "bet_count": bet_data.get('bet_count', 0) if has_bet else 0
+                "user_bet": has_bet,  # Alias for compatibility
+                "bet_type": user_bet_type,
+                "bet_count": bet_data.get('bet_count', 0) if bet_data else 0
             }
+            
+            # Add final score and result for yesterday's games
+            if final_score is not None:
+                game["final_score"] = final_score
+                # Calculate result_hit based on system recommendation
+                if recommendation:
+                    if recommendation == "OVER":
+                        game["result_hit"] = final_score > total
+                    else:
+                        game["result_hit"] = final_score < total
+                else:
+                    game["result_hit"] = None
+                    
+                # Calculate user_bet_hit based on user's actual bet
+                if has_bet and user_bet_type:
+                    if user_bet_type.upper() == "OVER":
+                        game["user_bet_hit"] = final_score > total
+                    elif user_bet_type.upper() == "UNDER":
+                        game["user_bet_hit"] = final_score < total
+                    else:
+                        game["user_bet_hit"] = None
+                else:
+                    game["user_bet_hit"] = None
+            
             games.append(game)
             
             # Add to plays if meets threshold (edge >= 7)
