@@ -479,6 +479,242 @@ class BettingSystemAPITester:
             self.log_test("GET /api/opportunities - data_source field", False, f"JSON decode error: {str(e)}")
             return False
 
+    def test_bet_time_line_tracking_yesterday(self):
+        """Test GET /api/opportunities?day=yesterday for bet-time line tracking"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities?day=yesterday", timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("GET /api/opportunities?day=yesterday - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                games = data.get('games', [])
+                if not isinstance(games, list):
+                    self.log_test("GET /api/opportunities?day=yesterday - Games Array", False,
+                                "Games is not an array")
+                    return False
+                
+                # Look for games with user bets
+                user_bet_games = [g for g in games if g.get('user_bet') == True]
+                
+                if not user_bet_games:
+                    self.log_test("GET /api/opportunities?day=yesterday - User Bets", False,
+                                "No games with user_bet=true found")
+                    return False
+                
+                # Test specific expected game: San Antonio @ Okla City
+                san_antonio_game = None
+                for game in user_bet_games:
+                    if (game.get('away_team') == 'San Antonio' and game.get('home_team') == 'Okla City'):
+                        san_antonio_game = game
+                        break
+                
+                if san_antonio_game:
+                    # Verify required fields for bet-time line tracking
+                    required_bet_fields = ['bet_line', 'bet_edge', 'user_bet_hit', 'final_score']
+                    missing_bet_fields = [field for field in required_bet_fields if field not in san_antonio_game]
+                    
+                    if missing_bet_fields:
+                        self.log_test("Bet-Time Line Tracking - San Antonio Game Fields", False,
+                                    f"Missing bet fields: {missing_bet_fields}")
+                        return False
+                    
+                    # Verify expected values for San Antonio @ Okla City
+                    expected_bet_line = 233.0
+                    expected_bet_edge = 6.0
+                    expected_final_score = 219
+                    expected_user_bet_hit = False  # 219 < 233 means UNDER won
+                    
+                    actual_bet_line = san_antonio_game.get('bet_line')
+                    actual_bet_edge = san_antonio_game.get('bet_edge')
+                    actual_final_score = san_antonio_game.get('final_score')
+                    actual_user_bet_hit = san_antonio_game.get('user_bet_hit')
+                    
+                    # Validate bet_line
+                    if actual_bet_line != expected_bet_line:
+                        self.log_test("Bet-Time Line Tracking - San Antonio bet_line", False,
+                                    f"Expected bet_line {expected_bet_line}, got {actual_bet_line}")
+                        return False
+                    
+                    # Validate bet_edge
+                    if actual_bet_edge != expected_bet_edge:
+                        self.log_test("Bet-Time Line Tracking - San Antonio bet_edge", False,
+                                    f"Expected bet_edge {expected_bet_edge}, got {actual_bet_edge}")
+                        return False
+                    
+                    # Validate final_score
+                    if actual_final_score != expected_final_score:
+                        self.log_test("Bet-Time Line Tracking - San Antonio final_score", False,
+                                    f"Expected final_score {expected_final_score}, got {actual_final_score}")
+                        return False
+                    
+                    # Validate user_bet_hit
+                    if actual_user_bet_hit != expected_user_bet_hit:
+                        self.log_test("Bet-Time Line Tracking - San Antonio user_bet_hit", False,
+                                    f"Expected user_bet_hit {expected_user_bet_hit}, got {actual_user_bet_hit}")
+                        return False
+                    
+                    self.log_test("Bet-Time Line Tracking - San Antonio Game", True,
+                                f"All bet-time tracking fields correct: bet_line={actual_bet_line}, bet_edge={actual_bet_edge}, final={actual_final_score}, hit={actual_user_bet_hit}")
+                else:
+                    self.log_test("Bet-Time Line Tracking - San Antonio Game", False,
+                                "San Antonio @ Okla City game not found in user bets")
+                    return False
+                
+                # Test Houston @ LA Lakers game if present
+                houston_game = None
+                for game in user_bet_games:
+                    if (game.get('away_team') == 'Houston' and game.get('home_team') == 'LA Lakers'):
+                        houston_game = game
+                        break
+                
+                if houston_game:
+                    expected_houston_bet_line = 230.0
+                    expected_houston_bet_edge = 8.5
+                    expected_houston_final_score = 215
+                    expected_houston_user_bet_hit = False  # 215 < 230 means UNDER won
+                    
+                    actual_houston_bet_line = houston_game.get('bet_line')
+                    actual_houston_bet_edge = houston_game.get('bet_edge')
+                    actual_houston_final_score = houston_game.get('final_score')
+                    actual_houston_user_bet_hit = houston_game.get('user_bet_hit')
+                    
+                    if (actual_houston_bet_line == expected_houston_bet_line and
+                        actual_houston_bet_edge == expected_houston_bet_edge and
+                        actual_houston_final_score == expected_houston_final_score and
+                        actual_houston_user_bet_hit == expected_houston_user_bet_hit):
+                        self.log_test("Bet-Time Line Tracking - Houston Game", True,
+                                    f"Houston game correct: bet_line={actual_houston_bet_line}, bet_edge={actual_houston_bet_edge}, final={actual_houston_final_score}, hit={actual_houston_user_bet_hit}")
+                    else:
+                        self.log_test("Bet-Time Line Tracking - Houston Game", False,
+                                    f"Houston game values incorrect. Expected: bet_line={expected_houston_bet_line}, bet_edge={expected_houston_bet_edge}, final={expected_houston_final_score}, hit={expected_houston_user_bet_hit}. Got: bet_line={actual_houston_bet_line}, bet_edge={actual_houston_bet_edge}, final={actual_houston_final_score}, hit={actual_houston_user_bet_hit}")
+                        return False
+                
+                self.log_test("GET /api/opportunities?day=yesterday - Bet-Time Line Tracking", True,
+                            f"Found {len(user_bet_games)} games with user bets, bet-time line tracking working correctly")
+                return True
+            else:
+                self.log_test("GET /api/opportunities?day=yesterday", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("GET /api/opportunities?day=yesterday", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("GET /api/opportunities?day=yesterday", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_refresh_opportunities_yesterday(self):
+        """Test POST /api/opportunities/refresh?day=yesterday for bet-time line tracking"""
+        try:
+            response = requests.post(f"{self.api_url}/opportunities/refresh?day=yesterday", timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("POST /api/opportunities/refresh?day=yesterday - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                # Check data source
+                data_source = data.get('data_source')
+                if data_source:
+                    self.log_test("POST /api/opportunities/refresh?day=yesterday - Data Source", True,
+                                f"Data source: {data_source}")
+                else:
+                    self.log_test("POST /api/opportunities/refresh?day=yesterday - Data Source", False,
+                                "No data_source field in response")
+                    return False
+                
+                games = data.get('games', [])
+                user_bet_games = [g for g in games if g.get('user_bet') == True]
+                
+                if user_bet_games:
+                    # Verify bet-time line tracking fields are present
+                    sample_game = user_bet_games[0]
+                    bet_tracking_fields = ['bet_line', 'bet_edge', 'user_bet_hit']
+                    missing_tracking_fields = [field for field in bet_tracking_fields if field not in sample_game]
+                    
+                    if missing_tracking_fields:
+                        self.log_test("POST /api/opportunities/refresh?day=yesterday - Bet Tracking", False,
+                                    f"Missing bet tracking fields: {missing_tracking_fields}")
+                        return False
+                    
+                    self.log_test("POST /api/opportunities/refresh?day=yesterday - Bet Tracking", True,
+                                f"Bet tracking fields present in {len(user_bet_games)} user bet games")
+                
+                self.log_test("POST /api/opportunities/refresh?day=yesterday", True,
+                            f"Refreshed yesterday data: {len(games)} games, {len(user_bet_games)} with user bets, source: {data_source}")
+                return True
+            else:
+                self.log_test("POST /api/opportunities/refresh?day=yesterday", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("POST /api/opportunities/refresh?day=yesterday", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("POST /api/opportunities/refresh?day=yesterday", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_bet_line_vs_closing_line_difference(self):
+        """Test that bet_line (bet-time) is different from total (closing line) for user bets"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities?day=yesterday", timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                games = data.get('games', [])
+                user_bet_games = [g for g in games if g.get('user_bet') == True]
+                
+                if not user_bet_games:
+                    self.log_test("Bet Line vs Closing Line Test", False,
+                                "No games with user bets found to test")
+                    return False
+                
+                differences_found = 0
+                for game in user_bet_games:
+                    bet_line = game.get('bet_line')
+                    closing_line = game.get('total')
+                    
+                    if bet_line is not None and closing_line is not None:
+                        if bet_line != closing_line:
+                            differences_found += 1
+                            self.log_test(f"Line Difference - {game.get('away_team')} @ {game.get('home_team')}", True,
+                                        f"Bet line: {bet_line}, Closing line: {closing_line}, Difference: {abs(bet_line - closing_line)}")
+                
+                if differences_found > 0:
+                    self.log_test("Bet Line vs Closing Line Test", True,
+                                f"Found {differences_found} games with different bet-time vs closing lines")
+                    return True
+                else:
+                    self.log_test("Bet Line vs Closing Line Test", False,
+                                "No differences found between bet-time and closing lines")
+                    return False
+            else:
+                self.log_test("Bet Line vs Closing Line Test", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_test("Bet Line vs Closing Line Test", False, f"Error: {str(e)}")
+            return False
+
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
@@ -495,6 +731,12 @@ class BettingSystemAPITester:
         self.test_refresh_opportunities()
         self.test_betting_logic()
         self.test_color_coding()
+        
+        print("\n🎯 BET-TIME LINE TRACKING TESTS")
+        print("-" * 30)
+        self.test_bet_time_line_tracking_yesterday()
+        self.test_refresh_opportunities_yesterday()
+        self.test_bet_line_vs_closing_line_difference()
         
         print("\n🌐 PLAYS888.CO SCRAPING TESTS")
         print("-" * 30)
