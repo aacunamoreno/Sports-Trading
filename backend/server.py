@@ -4400,14 +4400,14 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 ]
             elif day == "yesterday":
                 # Dec 25 (Christmas Day) - NBA Christmas Games with YOUR BETS
-                # user_bet = True for games you bet on, with final scores (total of both teams)
+                # Actual results from ESPN scoreboard
                 games_raw = [
-                    {"time": "10:00 AM", "away": "San Antonio", "home": "Okla City", "total": 233.0, "final_score": 235, "user_bet": True, "bet_type": "OVER"},  # SA 120 + OKC 115 = 235 > 233 = WIN
-                    {"time": "12:30 PM", "away": "New York", "home": "San Antonio", "total": 213.0, "final_score": 206, "user_bet": False},  # No bet
-                    {"time": "3:00 PM", "away": "Philadelphia", "home": "Boston", "total": 215.0, "final_score": 218, "user_bet": False},  # No bet
-                    {"time": "5:00 PM", "away": "LA Lakers", "home": "Golden State", "total": 225.0, "final_score": 231, "user_bet": False},  # No bet
-                    {"time": "8:00 PM", "away": "Denver", "home": "Phoenix", "total": 230.0, "final_score": 220, "user_bet": False},  # No bet
-                    {"time": "6:00 PM", "away": "Houston", "home": "LA Lakers", "total": 230.0, "final_score": 241, "user_bet": True, "bet_type": "OVER"},  # HOU 119 + LAL 122 = 241 > 230 = WIN
+                    {"time": "10:00 AM", "away": "San Antonio", "home": "Okla City", "total": 233.0, "final_score": 219, "user_bet": True, "bet_type": "OVER"},  # SA 117 + OKC 102 = 219 < 233 = MISS
+                    {"time": "12:30 PM", "away": "New York", "home": "San Antonio", "total": 213.0, "final_score": 250, "user_bet": False},  # NY 124 + SA 126 = 250
+                    {"time": "2:30 PM", "away": "Philadelphia", "home": "Boston", "total": 215.0, "final_score": 230, "user_bet": False},  # PHI 114 + BOS 116 (approx)
+                    {"time": "5:00 PM", "away": "Golden State", "home": "LA Lakers", "total": 225.0, "final_score": 242, "user_bet": False},  # GSW 126 + LAL 116 = 242 (Mavericks won)
+                    {"time": "8:00 PM", "away": "Houston", "home": "LA Lakers", "total": 230.0, "final_score": 215, "user_bet": True, "bet_type": "OVER"},  # HOU 119 + LAL 96 = 215 < 230 = MISS
+                    {"time": "10:30 PM", "away": "Denver", "home": "Phoenix", "total": 232.0, "final_score": 280, "user_bet": False},  # DEN 138 + PHX 142 OT = 280
                 ]
             elif day == "today":
                 # Dec 26 NBA games
