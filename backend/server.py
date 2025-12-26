@@ -2636,147 +2636,175 @@ class Plays888Service:
 
 async def scrape_scoresandodds(league: str, date_str: str) -> List[Dict[str, Any]]:
     """
-    Scrape game results from scoresandodds.com for a specific league and date
-    This is the source of truth for final scores of settled games
+    Scrape game data from scoresandodds.com for a specific league and date
+    Uses Playwright for dynamic content scraping
     
     Args:
         league: 'NBA', 'NHL', or 'NFL'
         date_str: Date in 'YYYY-MM-DD' format
     
     Returns:
-        List of games with final scores
+        List of games with teams, total lines, and final scores (if available)
     """
     import re
+    from playwright.async_api import async_playwright
     
-    # Convert date to scoresandodds.com format (month-day-year)
-    # Input: 2025-12-25 → Output: december-25-2025
-    try:
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-        month_name = date_obj.strftime('%B').lower()
-        day = date_obj.day
-        year = date_obj.year
-        date_path = f"{month_name}-{day}-{year}"
-    except Exception as e:
-        logger.error(f"Error parsing date {date_str}: {e}")
-        return []
-    
-    # Build URL based on league
+    # Build URL
     league_paths = {
         'NBA': 'nba',
         'NHL': 'nhl',
         'NFL': 'nfl'
     }
     league_path = league_paths.get(league.upper(), 'nba')
-    url = f"https://www.scoresandodds.com/{league_path}/{date_path}"
+    url = f"https://www.scoresandodds.com/{league_path}?date={date_str}"
     
     logger.info(f"Scraping scoresandodds.com: {url}")
     
+    # Team name normalization for matching
+    team_name_map = {
+        # NBA
+        'CAVALIERS': 'Cleveland', 'CAVS': 'Cleveland', 'CLEVELAND': 'Cleveland',
+        'KNICKS': 'New York', 'NEW YORK': 'New York',
+        'SPURS': 'San Antonio', 'SAN ANTONIO': 'San Antonio',
+        'THUNDER': 'Okla City', 'OKLAHOMA CITY': 'Okla City', 'OKC': 'Okla City',
+        'MAVERICKS': 'Dallas', 'DALLAS': 'Dallas', 'MAVS': 'Dallas',
+        'WARRIORS': 'Golden State', 'GOLDEN STATE': 'Golden State', 'GSW': 'Golden State',
+        'ROCKETS': 'Houston', 'HOUSTON': 'Houston',
+        'LAKERS': 'LA Lakers', 'LOS ANGELES LAKERS': 'LA Lakers', 'LAL': 'LA Lakers',
+        'TIMBERWOLVES': 'Minnesota', 'MINNESOTA': 'Minnesota', 'WOLVES': 'Minnesota',
+        'NUGGETS': 'Denver', 'DENVER': 'Denver',
+        'CELTICS': 'Boston', 'BOSTON': 'Boston',
+        '76ERS': 'Philadelphia', 'SIXERS': 'Philadelphia', 'PHILADELPHIA': 'Philadelphia',
+        'PACERS': 'Indiana', 'INDIANA': 'Indiana',
+        'NETS': 'Brooklyn', 'BROOKLYN': 'Brooklyn',
+        'MAGIC': 'Orlando', 'ORLANDO': 'Orlando',
+        'HORNETS': 'Charlotte', 'CHARLOTTE': 'Charlotte',
+        'BUCKS': 'Milwaukee', 'MILWAUKEE': 'Milwaukee',
+        'RAPTORS': 'Toronto', 'TORONTO': 'Toronto',
+        'HEAT': 'Miami', 'MIAMI': 'Miami',
+        'HAWKS': 'Atlanta', 'ATLANTA': 'Atlanta',
+        'BULLS': 'Chicago', 'CHICAGO': 'Chicago',
+        'GRIZZLIES': 'Memphis', 'MEMPHIS': 'Memphis',
+        'PISTONS': 'Detroit', 'DETROIT': 'Detroit',
+        'CLIPPERS': 'LA Clippers', 'LOS ANGELES CLIPPERS': 'LA Clippers', 'LAC': 'LA Clippers',
+        'SUNS': 'Phoenix', 'PHOENIX': 'Phoenix',
+        'KINGS': 'Sacramento', 'SACRAMENTO': 'Sacramento',
+        'BLAZERS': 'Portland', 'TRAIL BLAZERS': 'Portland', 'PORTLAND': 'Portland',
+        'JAZZ': 'Utah', 'UTAH': 'Utah',
+        'PELICANS': 'New Orleans', 'NEW ORLEANS': 'New Orleans',
+        'WIZARDS': 'Washington', 'WASHINGTON': 'Washington',
+    }
+    
+    def normalize_team(name):
+        if not name:
+            return name
+        name_upper = name.upper().strip()
+        for key, val in team_name_map.items():
+            if key in name_upper:
+                return val
+        return name.strip()
+    
     try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-            }
-            response = await client.get(url, headers=headers)
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
             
-            if response.status_code != 200:
-                logger.warning(f"scoresandodds.com returned {response.status_code} for {url}")
-                return []
+            await page.goto(url, timeout=30000)
+            await page.wait_for_load_state('networkidle')
+            await page.wait_for_timeout(2000)
             
-            html = response.text
             games = []
             
-            # Team name normalization for matching
-            team_name_map = {
-                # NBA
-                'CAVS': 'Cleveland', 'CAVALIERS': 'Cleveland', 'CLEVELAND': 'Cleveland',
-                'KNICKS': 'New York', 'NEW YORK': 'New York',
-                'SPURS': 'San Antonio', 'SAN ANTONIO': 'San Antonio',
-                'THUNDER': 'Okla City', 'OKLAHOMA CITY': 'Okla City', 'OKC': 'Okla City',
-                'MAVERICKS': 'Dallas', 'DALLAS': 'Dallas', 'MAVS': 'Dallas',
-                'WARRIORS': 'Golden State', 'GOLDEN STATE': 'Golden State', 'GSW': 'Golden State',
-                'ROCKETS': 'Houston', 'HOUSTON': 'Houston',
-                'LAKERS': 'LA Lakers', 'LOS ANGELES LAKERS': 'LA Lakers', 'LAL': 'LA Lakers',
-                'TIMBERWOLVES': 'Minnesota', 'MINNESOTA': 'Minnesota', 'WOLVES': 'Minnesota',
-                'NUGGETS': 'Denver', 'DENVER': 'Denver',
-                'CELTICS': 'Boston', 'BOSTON': 'Boston',
-                '76ERS': 'Philadelphia', 'SIXERS': 'Philadelphia', 'PHILADELPHIA': 'Philadelphia',
-                'PACERS': 'Indiana', 'INDIANA': 'Indiana',
-                'NETS': 'Brooklyn', 'BROOKLYN': 'Brooklyn',
-                'MAGIC': 'Orlando', 'ORLANDO': 'Orlando',
-                'HORNETS': 'Charlotte', 'CHARLOTTE': 'Charlotte',
-                'BUCKS': 'Milwaukee', 'MILWAUKEE': 'Milwaukee',
-                'RAPTORS': 'Toronto', 'TORONTO': 'Toronto',
-                'HEAT': 'Miami', 'MIAMI': 'Miami',
-                'HAWKS': 'Atlanta', 'ATLANTA': 'Atlanta',
-                'BULLS': 'Chicago', 'CHICAGO': 'Chicago',
-                'GRIZZLIES': 'Memphis', 'MEMPHIS': 'Memphis',
-                'PISTONS': 'Detroit', 'DETROIT': 'Detroit',
-                'CLIPPERS': 'LA Clippers', 'LOS ANGELES CLIPPERS': 'LA Clippers', 'LAC': 'LA Clippers',
-                'SUNS': 'Phoenix', 'PHOENIX': 'Phoenix',
-                'KINGS': 'Sacramento', 'SACRAMENTO': 'Sacramento',
-                'BLAZERS': 'Portland', 'TRAIL BLAZERS': 'Portland', 'PORTLAND': 'Portland',
-                'JAZZ': 'Utah', 'UTAH': 'Utah',
-                'PELICANS': 'New Orleans', 'NEW ORLEANS': 'New Orleans',
-                'WIZARDS': 'Washington', 'WASHINGTON': 'Washington',
-            }
+            # Get all game rows from the page
+            # scoresandodds.com has event-card elements for each game
+            game_elements = await page.query_selector_all('[class*="event-card"]')
             
-            def normalize_team(name):
-                name_upper = name.upper().strip()
-                for key, val in team_name_map.items():
-                    if key in name_upper:
-                        return val
-                return name.strip()
+            # Extract team names from data-abbr attributes
+            team_abbrs = await page.evaluate('''() => {
+                const abbrs = [];
+                document.querySelectorAll('[data-abbr]').forEach(el => {
+                    const abbr = el.getAttribute('data-abbr');
+                    if (abbr && abbr.length > 2 && !['Next', 'Time', 'Rot#', 'Live', 'All', 'Picks', 'Details', 'ML'].includes(abbr)) {
+                        // Skip numeric values (rotation numbers)
+                        if (isNaN(abbr)) {
+                            abbrs.push(abbr);
+                        }
+                    }
+                });
+                return abbrs;
+            }''')
             
-            # Parse HTML to find game scores
-            # scoresandodds.com structure varies, using multiple patterns
+            # Filter to get only team names (not divisions/conferences)
+            team_names = [t for t in team_abbrs if not any(x in t.lower() for x in ['conference', 'eastern', 'western', 'pacific', 'atlantic', 'central', 'southeast', 'southwest', 'northwest'])]
             
-            # Pattern 1: Look for score boxes with team names and final scores
-            # Format typically: team name followed by score
-            score_pattern = re.compile(
-                r'class="[^"]*team[^"]*"[^>]*>([^<]+)</.*?(\d{2,3})',
-                re.DOTALL | re.IGNORECASE
-            )
+            # Get totals from the page
+            totals = await page.evaluate('''() => {
+                const totals = [];
+                document.querySelectorAll('[data-field="current-total"]').forEach(el => {
+                    const text = el.innerText.trim();
+                    // Extract number from text like "o228.5" or "u228.5"
+                    const match = text.match(/[ou]?(\\d+\\.?\\d*)/);
+                    if (match) {
+                        totals.push(parseFloat(match[1]));
+                    }
+                });
+                return totals;
+            }''')
             
-            # Pattern 2: More specific pattern for final scores
-            # Looking for patterns like "Cleveland 124" "New York 126"
-            game_blocks = re.findall(
-                r'<div[^>]*class="[^"]*game[^"]*"[^>]*>(.*?)</div>',
-                html, re.DOTALL | re.IGNORECASE
-            )
+            # Get final scores if available (for completed games)
+            scores = await page.evaluate('''() => {
+                const scores = [];
+                document.querySelectorAll('[data-field="score"]').forEach(el => {
+                    const text = el.innerText.trim();
+                    if (text && !isNaN(text)) {
+                        scores.push(parseInt(text));
+                    }
+                });
+                return scores;
+            }''')
             
-            # Alternative: Parse using simpler text extraction
-            # Find all team name + score pairs
-            simple_pattern = re.compile(
-                r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*[:|-]?\s*(\d{2,3})',
-                re.MULTILINE
-            )
+            # Get game times
+            times = await page.evaluate('''() => {
+                const times = [];
+                document.querySelectorAll('[data-field="time"]').forEach(el => {
+                    times.push(el.innerText.trim());
+                });
+                return times;
+            }''')
             
-            matches = simple_pattern.findall(html)
+            await browser.close()
             
-            # Group matches into games (pairs of teams)
-            team_scores = []
-            for team, score in matches:
-                normalized = normalize_team(team)
-                if normalized and score.isdigit():
-                    team_scores.append((normalized, int(score)))
+            logger.info(f"Found {len(team_names)} teams, {len(totals)} totals, {len(scores)} scores, {len(times)} times")
             
-            # Pair teams into games
-            for i in range(0, len(team_scores) - 1, 2):
-                if i + 1 < len(team_scores):
-                    away_team, away_score = team_scores[i]
-                    home_team, home_score = team_scores[i + 1]
-                    total_score = away_score + home_score
-                    
-                    games.append({
-                        "away_team": away_team,
-                        "home_team": home_team,
-                        "away_score": away_score,
-                        "home_score": home_score,
-                        "final_score": total_score,
-                        "date": date_str
-                    })
+            # Pair teams into games (every 2 teams = 1 game)
+            # totals list has pairs: over line, under line (same value)
+            unique_totals = []
+            for i in range(0, len(totals), 2):
+                if i < len(totals):
+                    unique_totals.append(totals[i])
+            
+            for i in range(0, len(team_names) - 1, 2):
+                game_idx = i // 2
+                away_team = normalize_team(team_names[i])
+                home_team = normalize_team(team_names[i + 1])
+                
+                game = {
+                    "away_team": away_team,
+                    "home_team": home_team,
+                    "total": unique_totals[game_idx] if game_idx < len(unique_totals) else None,
+                    "time": times[game_idx] if game_idx < len(times) else "",
+                    "date": date_str
+                }
+                
+                # Add scores if available (for completed games)
+                if len(scores) >= (i + 2):
+                    away_score = scores[i]
+                    home_score = scores[i + 1]
+                    game["away_score"] = away_score
+                    game["home_score"] = home_score
+                    game["final_score"] = away_score + home_score
+                
+                games.append(game)
             
             logger.info(f"Scraped {len(games)} games from scoresandodds.com for {league} on {date_str}")
             return games
