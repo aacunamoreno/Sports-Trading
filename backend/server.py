@@ -4713,8 +4713,8 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             
             # Fallback Actual PPG values (Season 2025) - from user's teamrankings screenshot
             ppg_season_values = {
-                'Denver': 124.7, 'Okla City': 122.5, 'Houston': 121.0, 'New York': 120.8, 'Miami': 120.2,
-                'Utah': 119.9, 'San Antonio': 119.8, 'Chicago': 119.5, 'Detroit': 118.9, 'Atlanta': 118.7,
+                'Denver': 124.7, 'Okla City': 122.5, 'Houston': 121.0, 'New York': 120.8, 'Miami': 119.2,
+                'Utah': 119.9, 'San Antonio': 119.8, 'Chicago': 119.5, 'Detroit': 118.9, 'Atlanta': 118.8,
                 'Cleveland': 118.7, 'Minnesota': 118.6, 'Orlando': 118.1, 'LA Lakers': 118.0, 'Portland': 118.0,
                 'Philadelphia': 117.0, 'Boston': 116.5, 'New Orleans': 115.3, 'Memphis': 114.7, 'Charlotte': 114.5,
                 'Phoenix': 114.3, 'Golden State': 114.0, 'Toronto': 113.5, 'Milwaukee': 113.1, 'Dallas': 113.0,
@@ -4723,10 +4723,10 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             
             # Fallback Actual PPG values (Last 3 games) - from user's teamrankings screenshot
             ppg_last3_values = {
-                'Chicago': 138.3, 'Utah': 134.0, 'New Orleans': 125.0, 'Atlanta': 124.7, 'San Antonio': 123.0,
+                'Chicago': 138.3, 'Utah': 134.0, 'New Orleans': 125.0, 'Atlanta': 123.7, 'San Antonio': 123.0,
                 'Portland': 122.7, 'Houston': 122.3, 'Orlando': 121.0, 'Dallas': 121.0, 'Memphis': 119.7,
                 'Denver': 118.3, 'Philadelphia': 118.0, 'New York': 117.7, 'Sacramento': 117.0, 'Golden State': 116.0,
-                'LA Lakers': 115.7, 'Cleveland': 115.7, 'Miami': 115.7, 'Boston': 115.3, 'Okla City': 112.7,
+                'LA Lakers': 115.7, 'Cleveland': 115.7, 'Miami': 110.7, 'Boston': 115.3, 'Okla City': 112.7,
                 'Detroit': 112.7, 'Charlotte': 112.7, 'Washington': 112.3, 'Phoenix': 109.7, 'Brooklyn': 106.0,
                 'Toronto': 96.0, 'Indiana': 103.7, 'Minnesota': 108.3, 'LA Clippers': 102.3, 'Milwaukee': 95.7
             }
