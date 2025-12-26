@@ -576,12 +576,24 @@ export default function Opportunities() {
                       </td>
                       <td className="py-3 px-2 text-center">
                         {isHistorical ? (
-                          // For historical dates: show NO BET if edge is below threshold, otherwise show HIT/MISS
-                          isNoBet ? (
+                          // For historical dates with user bets: show user's bet result (HIT/MISS)
+                          game.user_bet ? (
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${
+                              game.user_bet_hit === true
+                                ? 'bg-green-500/30 text-green-400'
+                                : game.user_bet_hit === false
+                                  ? 'bg-red-500/30 text-red-400'
+                                  : 'bg-gray-500/30 text-gray-400'
+                            }`}>
+                              {game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : '⏳ PENDING'}
+                            </span>
+                          ) : isNoBet ? (
+                            // For historical dates without user bet and low edge: show NO BET
                             <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/20 text-gray-400">
                               ⚪ NO BET
                             </span>
                           ) : game.recommendation ? (
+                            // For historical dates without user bet but with edge: show system result
                             <span className={`px-2 py-1 rounded text-xs font-bold ${
                               game.result_hit === true
                                 ? 'bg-green-500/30 text-green-400'
