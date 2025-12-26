@@ -4401,11 +4401,12 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             elif day == "yesterday":
                 # Dec 25 (Christmas Day) - NBA Christmas Games
                 # Actual results from scoresandodds.com
+                # For user bets: bet_line = line when bet was placed, bet_edge = edge at bet time
                 games_raw = [
                     {"time": "12:00 PM", "away": "Cleveland", "home": "New York", "total": 241.5, "final_score": 250, "user_bet": False},  # CLE 124 + NY 126 = 250 > 241.5 = OVER
-                    {"time": "2:30 PM", "away": "San Antonio", "home": "Okla City", "total": 234.5, "final_score": 219, "user_bet": True, "bet_type": "OVER"},  # SA 117 + OKC 102 = 219 < 234.5 = MISS
+                    {"time": "2:30 PM", "away": "San Antonio", "home": "Okla City", "total": 234.5, "final_score": 219, "user_bet": True, "bet_type": "OVER", "bet_line": 233.0, "bet_edge": 6.0},  # User bet at 233 with +6 edge, Final 219 < 233 = MISS
                     {"time": "5:00 PM", "away": "Dallas", "home": "Golden State", "total": 231.5, "final_score": 242, "user_bet": False},  # DAL 116 + GS 126 = 242 > 231.5 = OVER
-                    {"time": "8:00 PM", "away": "Houston", "home": "LA Lakers", "total": 231.5, "final_score": 215, "user_bet": True, "bet_type": "OVER"},  # HOU 119 + LAL 96 = 215 < 231.5 = MISS
+                    {"time": "8:00 PM", "away": "Houston", "home": "LA Lakers", "total": 231.5, "final_score": 215, "user_bet": True, "bet_type": "OVER", "bet_line": 230.0, "bet_edge": 8.5},  # User bet at 230 with +8.5 edge, Final 215 < 230 = MISS
                     {"time": "10:30 PM", "away": "Minnesota", "home": "Denver", "total": 238.5, "final_score": 280, "user_bet": False},  # MIN 138 + DEN 142 OT = 280 > 238.5 = OVER
                 ]
             elif day == "today":
