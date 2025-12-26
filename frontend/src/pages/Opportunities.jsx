@@ -512,8 +512,18 @@ export default function Opportunities() {
                       {/* Away Team with Rankings */}
                       <td className={`py-3 px-2 ${textStyle}`}>
                         <div className="flex flex-col">
-                          <span className="text-xs text-blue-400/70 font-mono">
-                            {game.away_ppg_rank || game.away_gpg_rank}/{game.away_last3_rank}
+                          <span className="text-xs font-mono flex items-center gap-1">
+                            <span className={`w-2 h-2 rounded-full ${
+                              (game.away_ppg_rank || game.away_gpg_rank) <= 10 ? 'bg-green-500' :
+                              (game.away_ppg_rank || game.away_gpg_rank) <= 15 ? 'bg-blue-500' :
+                              (game.away_ppg_rank || game.away_gpg_rank) <= 21 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}></span>
+                            <span className={`w-2 h-2 rounded-full ${
+                              game.away_last3_rank <= 10 ? 'bg-green-500' :
+                              game.away_last3_rank <= 15 ? 'bg-blue-500' :
+                              game.away_last3_rank <= 21 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}></span>
+                            <span className="text-blue-400/70">{game.away_ppg_rank || game.away_gpg_rank}/{game.away_last3_rank}</span>
                           </span>
                           <span className="font-medium">{game.away_team}</span>
                         </div>
@@ -521,8 +531,18 @@ export default function Opportunities() {
                       {/* Home Team with Rankings */}
                       <td className={`py-3 px-2 ${textStyle}`}>
                         <div className="flex flex-col">
-                          <span className="text-xs text-orange-400/70 font-mono">
-                            {game.home_ppg_rank || game.home_gpg_rank}/{game.home_last3_rank}
+                          <span className="text-xs font-mono flex items-center gap-1">
+                            <span className={`w-2 h-2 rounded-full ${
+                              (game.home_ppg_rank || game.home_gpg_rank) <= 10 ? 'bg-green-500' :
+                              (game.home_ppg_rank || game.home_gpg_rank) <= 15 ? 'bg-blue-500' :
+                              (game.home_ppg_rank || game.home_gpg_rank) <= 21 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}></span>
+                            <span className={`w-2 h-2 rounded-full ${
+                              game.home_last3_rank <= 10 ? 'bg-green-500' :
+                              game.home_last3_rank <= 15 ? 'bg-blue-500' :
+                              game.home_last3_rank <= 21 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}></span>
+                            <span className="text-orange-400/70">{game.home_ppg_rank || game.home_gpg_rank}/{game.home_last3_rank}</span>
                           </span>
                           <span className="font-medium">{game.home_team}</span>
                         </div>
