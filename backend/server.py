@@ -4678,45 +4678,58 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         else:
             target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
         
-        # PPG Rankings (Season)
-        ppg_season = {
-            'Denver': 1, 'Okla City': 2, 'Houston': 3, 'New York': 4, 'Miami': 5,
-            'Utah': 6, 'San Antonio': 7, 'Chicago': 8, 'Detroit': 9, 'Atlanta': 10,
-            'Cleveland': 11, 'Minnesota': 12, 'Orlando': 13, 'LA Lakers': 14, 'Portland': 15,
-            'Philadelphia': 16, 'Boston': 17, 'New Orleans': 18, 'Memphis': 19, 'Charlotte': 20,
-            'Phoenix': 21, 'Golden State': 22, 'Toronto': 23, 'Milwaukee': 24, 'Dallas': 25,
-            'Washington': 26, 'Sacramento': 27, 'LA Clippers': 28, 'Indiana': 29, 'Brooklyn': 30
-        }
-        
-        # PPG Rankings (Last 3 games)
-        ppg_last3 = {
-            'Chicago': 1, 'Utah': 2, 'New Orleans': 3, 'Atlanta': 4, 'San Antonio': 5,
-            'Portland': 6, 'Houston': 7, 'Orlando': 8, 'Dallas': 9, 'Memphis': 10,
-            'Denver': 11, 'Philadelphia': 12, 'New York': 13, 'Sacramento': 14, 'Golden State': 15,
-            'LA Lakers': 16, 'Cleveland': 17, 'Miami': 18, 'Boston': 19, 'Okla City': 20,
-            'Detroit': 21, 'Charlotte': 22, 'Washington': 23, 'Phoenix': 24, 'Brooklyn': 25,
-            'Toronto': 26, 'Indiana': 27, 'Minnesota': 28, 'LA Clippers': 29, 'Milwaukee': 30
-        }
-        
-        # Actual PPG values (Season 2025)
-        ppg_season_values = {
-            'Denver': 124.7, 'Okla City': 122.5, 'Houston': 121.0, 'New York': 120.8, 'Miami': 120.2,
-            'Utah': 119.9, 'San Antonio': 119.8, 'Chicago': 119.5, 'Detroit': 118.9, 'Atlanta': 118.7,
-            'Cleveland': 118.7, 'Minnesota': 118.6, 'Orlando': 118.1, 'LA Lakers': 118.0, 'Portland': 118.0,
-            'Philadelphia': 117.0, 'Boston': 116.5, 'New Orleans': 115.3, 'Memphis': 114.7, 'Charlotte': 114.5,
-            'Phoenix': 114.3, 'Golden State': 114.0, 'Toronto': 113.5, 'Milwaukee': 113.1, 'Dallas': 113.0,
-            'Washington': 112.7, 'Sacramento': 111.5, 'LA Clippers': 110.6, 'Indiana': 110.2, 'Brooklyn': 109.1
-        }
-        
-        # Actual PPG values (Last 3 games)
-        ppg_last3_values = {
-            'Chicago': 138.3, 'Utah': 134.0, 'New Orleans': 125.0, 'Atlanta': 124.7, 'San Antonio': 123.0,
-            'Portland': 122.7, 'Houston': 122.3, 'Orlando': 121.0, 'Dallas': 121.0, 'Memphis': 119.7,
-            'Denver': 118.3, 'Philadelphia': 118.0, 'New York': 117.7, 'Sacramento': 117.0, 'Golden State': 116.0,
-            'LA Lakers': 115.7, 'Cleveland': 115.7, 'Miami': 115.7, 'Boston': 115.3, 'Okla City': 112.7,
-            'Detroit': 112.7, 'Charlotte': 112.7, 'Washington': 112.3, 'Phoenix': 109.7, 'Brooklyn': 106.0,
-            'Toronto': 96.0, 'Indiana': 103.7, 'Minnesota': 108.3, 'LA Clippers': 102.3, 'Milwaukee': 95.7
-        }
+        # Try to scrape live PPG data from teamrankings.com
+        try:
+            ppg_data = await scrape_nba_ppg_rankings()
+            if ppg_data['season_values']:
+                ppg_season = ppg_data['season_ranks']
+                ppg_last3 = ppg_data['last3_ranks']
+                ppg_season_values = ppg_data['season_values']
+                ppg_last3_values = ppg_data['last3_values']
+                logger.info(f"Using live PPG data from teamrankings.com: {len(ppg_season_values)} teams")
+            else:
+                raise Exception("No PPG data scraped")
+        except Exception as e:
+            logger.warning(f"Failed to scrape live PPG, using hardcoded fallback: {e}")
+            # Fallback PPG Rankings (Season) - Updated 12/26/2025
+            ppg_season = {
+                'Denver': 1, 'Okla City': 2, 'Houston': 3, 'New York': 4, 'Miami': 5,
+                'Utah': 6, 'San Antonio': 7, 'Chicago': 8, 'Detroit': 9, 'Atlanta': 10,
+                'Cleveland': 11, 'Minnesota': 12, 'Orlando': 13, 'LA Lakers': 14, 'Portland': 15,
+                'Philadelphia': 16, 'Boston': 17, 'New Orleans': 18, 'Memphis': 19, 'Charlotte': 20,
+                'Phoenix': 21, 'Golden State': 22, 'Toronto': 23, 'Milwaukee': 24, 'Dallas': 25,
+                'Washington': 26, 'Sacramento': 27, 'LA Clippers': 28, 'Indiana': 29, 'Brooklyn': 30
+            }
+            
+            # Fallback PPG Rankings (Last 3 games)
+            ppg_last3 = {
+                'Chicago': 1, 'Utah': 2, 'New Orleans': 3, 'Atlanta': 4, 'San Antonio': 5,
+                'Portland': 6, 'Houston': 7, 'Orlando': 8, 'Dallas': 9, 'Memphis': 10,
+                'Denver': 11, 'Philadelphia': 12, 'New York': 13, 'Sacramento': 14, 'Golden State': 15,
+                'LA Lakers': 16, 'Cleveland': 17, 'Miami': 18, 'Boston': 19, 'Okla City': 20,
+                'Detroit': 21, 'Charlotte': 22, 'Washington': 23, 'Phoenix': 24, 'Brooklyn': 25,
+                'Toronto': 26, 'Indiana': 27, 'Minnesota': 28, 'LA Clippers': 29, 'Milwaukee': 30
+            }
+            
+            # Fallback Actual PPG values (Season 2025) - from user's teamrankings screenshot
+            ppg_season_values = {
+                'Denver': 124.7, 'Okla City': 122.5, 'Houston': 121.0, 'New York': 120.8, 'Miami': 120.2,
+                'Utah': 119.9, 'San Antonio': 119.8, 'Chicago': 119.5, 'Detroit': 118.9, 'Atlanta': 118.7,
+                'Cleveland': 118.7, 'Minnesota': 118.6, 'Orlando': 118.1, 'LA Lakers': 118.0, 'Portland': 118.0,
+                'Philadelphia': 117.0, 'Boston': 116.5, 'New Orleans': 115.3, 'Memphis': 114.7, 'Charlotte': 114.5,
+                'Phoenix': 114.3, 'Golden State': 114.0, 'Toronto': 113.5, 'Milwaukee': 113.1, 'Dallas': 113.0,
+                'Washington': 112.7, 'Sacramento': 111.5, 'LA Clippers': 110.6, 'Indiana': 110.2, 'Brooklyn': 109.1
+            }
+            
+            # Fallback Actual PPG values (Last 3 games) - from user's teamrankings screenshot
+            ppg_last3_values = {
+                'Chicago': 138.3, 'Utah': 134.0, 'New Orleans': 125.0, 'Atlanta': 124.7, 'San Antonio': 123.0,
+                'Portland': 122.7, 'Houston': 122.3, 'Orlando': 121.0, 'Dallas': 121.0, 'Memphis': 119.7,
+                'Denver': 118.3, 'Philadelphia': 118.0, 'New York': 117.7, 'Sacramento': 117.0, 'Golden State': 116.0,
+                'LA Lakers': 115.7, 'Cleveland': 115.7, 'Miami': 115.7, 'Boston': 115.3, 'Okla City': 112.7,
+                'Detroit': 112.7, 'Charlotte': 112.7, 'Washington': 112.3, 'Phoenix': 109.7, 'Brooklyn': 106.0,
+                'Toronto': 96.0, 'Indiana': 103.7, 'Minnesota': 108.3, 'LA Clippers': 102.3, 'Milwaukee': 95.7
+            }
         
         games_raw = []
         data_source = "hardcoded"
