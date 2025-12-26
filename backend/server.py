@@ -2493,6 +2493,300 @@ class Plays888Service:
             traceback.print_exc()
             return []
 
+    async def scrape_settled_bets_with_lines(self, league: str = "NBA") -> List[Dict[str, Any]]:
+        """
+        Scrape settled/graded bets from plays888.co History page
+        Returns list of settled bets with their ORIGINAL bet lines (bet-time lines)
+        This is crucial for tracking what line the user bet at vs the closing line
+        """
+        import re
+        
+        # Team lists for filtering
+        NBA_TEAMS = ['ATLANTA HAWKS', 'BOSTON CELTICS', 'BROOKLYN NETS', 'CHARLOTTE HORNETS',
+            'CHICAGO BULLS', 'CLEVELAND CAVALIERS', 'DALLAS MAVERICKS', 'DENVER NUGGETS',
+            'DETROIT PISTONS', 'GOLDEN STATE WARRIORS', 'HOUSTON ROCKETS', 'INDIANA PACERS',
+            'LOS ANGELES CLIPPERS', 'LOS ANGELES LAKERS', 'MEMPHIS GRIZZLIES', 'MIAMI HEAT',
+            'MILWAUKEE BUCKS', 'MINNESOTA TIMBERWOLVES', 'NEW ORLEANS PELICANS', 'NEW YORK KNICKS',
+            'OKLAHOMA CITY THUNDER', 'ORLANDO MAGIC', 'PHILADELPHIA 76ERS', 'PHOENIX SUNS',
+            'PORTLAND TRAIL BLAZERS', 'SACRAMENTO KINGS', 'SAN ANTONIO SPURS', 'TORONTO RAPTORS',
+            'UTAH JAZZ', 'WASHINGTON WIZARDS']
+        
+        NHL_TEAMS = ['ANAHEIM DUCKS', 'ARIZONA COYOTES', 'BOSTON BRUINS', 'BUFFALO SABRES',
+            'CALGARY FLAMES', 'CAROLINA HURRICANES', 'CHICAGO BLACKHAWKS', 'COLORADO AVALANCHE',
+            'COLUMBUS BLUE JACKETS', 'DALLAS STARS', 'DETROIT RED WINGS', 'EDMONTON OILERS',
+            'FLORIDA PANTHERS', 'LOS ANGELES KINGS', 'MINNESOTA WILD', 'MONTREAL CANADIENS',
+            'NASHVILLE PREDATORS', 'NEW JERSEY DEVILS', 'NEW YORK ISLANDERS', 'NEW YORK RANGERS',
+            'OTTAWA SENATORS', 'PHILADELPHIA FLYERS', 'PITTSBURGH PENGUINS', 'SAN JOSE SHARKS',
+            'SEATTLE KRAKEN', 'ST. LOUIS BLUES', 'TAMPA BAY LIGHTNING', 'TORONTO MAPLE LEAFS',
+            'UTAH MAMMOTH', 'VANCOUVER CANUCKS', 'VEGAS GOLDEN KNIGHTS', 'WASHINGTON CAPITALS',
+            'WINNIPEG JETS']
+        
+        NFL_TEAMS = ['ARIZONA CARDINALS', 'ATLANTA FALCONS', 'BALTIMORE RAVENS', 'BUFFALO BILLS',
+            'CAROLINA PANTHERS', 'CHICAGO BEARS', 'CINCINNATI BENGALS', 'CLEVELAND BROWNS',
+            'DALLAS COWBOYS', 'DENVER BRONCOS', 'DETROIT LIONS', 'GREEN BAY PACKERS',
+            'HOUSTON TEXANS', 'INDIANAPOLIS COLTS', 'JACKSONVILLE JAGUARS', 'KANSAS CITY CHIEFS',
+            'LAS VEGAS RAIDERS', 'LOS ANGELES CHARGERS', 'LOS ANGELES RAMS', 'MIAMI DOLPHINS',
+            'MINNESOTA VIKINGS', 'NEW ENGLAND PATRIOTS', 'NEW ORLEANS SAINTS', 'NEW YORK GIANTS',
+            'NEW YORK JETS', 'PHILADELPHIA EAGLES', 'PITTSBURGH STEELERS', 'SAN FRANCISCO 49ERS',
+            'SEATTLE SEAHAWKS', 'TAMPA BAY BUCCANEERS', 'TENNESSEE TITANS', 'WASHINGTON COMMANDERS']
+        
+        def detect_league(team_name):
+            team_upper = team_name.upper()
+            for t in NBA_TEAMS:
+                if t in team_upper or team_upper in t:
+                    return 'NBA'
+            for t in NHL_TEAMS:
+                if t in team_upper or team_upper in t:
+                    return 'NHL'
+            for t in NFL_TEAMS:
+                if t in team_upper or team_upper in t:
+                    return 'NFL'
+            return None
+        
+        try:
+            if not self.page:
+                logger.error("Browser not initialized")
+                return []
+            
+            logger.info(f"Scraping settled bets with lines for {league}")
+            
+            # Navigate to History page (contains settled bets with original lines)
+            await self.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
+            await self.page.wait_for_load_state('networkidle')
+            await self.page.wait_for_timeout(3000)
+            
+            # Get page text
+            page_text = await self.page.inner_text('body')
+            
+            # Parse settled bets - look for TOTAL lines with results
+            settled_bets = []
+            lines = page_text.split('\n')
+            
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+                
+                # Look for TOTAL with o/u (bet line) - e.g., "TOTAL o233-110" or "TOTAL u6-110"
+                total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)[½]?[-+]\d+', line, re.IGNORECASE)
+                if total_match:
+                    bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
+                    bet_line = float(total_match.group(2).replace('½', '.5'))
+                    
+                    # Look for team names in nearby lines
+                    teams_text = ""
+                    for j in range(max(0, i-3), min(len(lines), i+3)):
+                        if 'vrs' in lines[j].lower():
+                            teams_text = lines[j]
+                            break
+                    
+                    # Extract team names
+                    teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
+                    if teams_match:
+                        away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
+                        home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                        
+                        # Detect sport
+                        detected_league = detect_league(away_team) or detect_league(home_team)
+                        
+                        # Only add if matches requested league
+                        if detected_league == league.upper():
+                            # Look for result (WIN/LOSE/PUSH) in nearby lines
+                            result = 'pending'
+                            for j in range(i, min(len(lines), i+5)):
+                                result_line = lines[j].upper()
+                                if 'WINWIN' in result_line or result_line.endswith('WIN'):
+                                    result = 'won'
+                                    break
+                                elif 'LOSELOSE' in result_line or result_line.endswith('LOSE') or 'LOSS' in result_line:
+                                    result = 'lost'
+                                    break
+                                elif 'PUSH' in result_line:
+                                    result = 'push'
+                                    break
+                            
+                            # Look for date (MM/DD/YYYY format)
+                            bet_date = None
+                            for j in range(max(0, i-5), min(len(lines), i+5)):
+                                date_match = re.search(r'(\d{1,2}/\d{1,2}/\d{4})', lines[j])
+                                if date_match:
+                                    bet_date = date_match.group(1)
+                                    break
+                            
+                            settled_bets.append({
+                                "sport": detected_league,
+                                "away_team": away_team,
+                                "home_team": home_team,
+                                "bet_type": bet_type,
+                                "bet_line": bet_line,  # This is the original line when bet was placed
+                                "result": result,
+                                "bet_date": bet_date
+                            })
+                
+                i += 1
+            
+            logger.info(f"Found {len(settled_bets)} settled {league} bets with original lines")
+            return settled_bets
+            
+        except Exception as e:
+            logger.error(f"Error scraping settled bets: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return []
+
+
+async def scrape_scoresandodds(league: str, date_str: str) -> List[Dict[str, Any]]:
+    """
+    Scrape game results from scoresandodds.com for a specific league and date
+    This is the source of truth for final scores of settled games
+    
+    Args:
+        league: 'NBA', 'NHL', or 'NFL'
+        date_str: Date in 'YYYY-MM-DD' format
+    
+    Returns:
+        List of games with final scores
+    """
+    import re
+    
+    # Convert date to scoresandodds.com format (month-day-year)
+    # Input: 2025-12-25 → Output: december-25-2025
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        month_name = date_obj.strftime('%B').lower()
+        day = date_obj.day
+        year = date_obj.year
+        date_path = f"{month_name}-{day}-{year}"
+    except Exception as e:
+        logger.error(f"Error parsing date {date_str}: {e}")
+        return []
+    
+    # Build URL based on league
+    league_paths = {
+        'NBA': 'nba',
+        'NHL': 'nhl',
+        'NFL': 'nfl'
+    }
+    league_path = league_paths.get(league.upper(), 'nba')
+    url = f"https://www.scoresandodds.com/{league_path}/{date_path}"
+    
+    logger.info(f"Scraping scoresandodds.com: {url}")
+    
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+            }
+            response = await client.get(url, headers=headers)
+            
+            if response.status_code != 200:
+                logger.warning(f"scoresandodds.com returned {response.status_code} for {url}")
+                return []
+            
+            html = response.text
+            games = []
+            
+            # Team name normalization for matching
+            team_name_map = {
+                # NBA
+                'CAVS': 'Cleveland', 'CAVALIERS': 'Cleveland', 'CLEVELAND': 'Cleveland',
+                'KNICKS': 'New York', 'NEW YORK': 'New York',
+                'SPURS': 'San Antonio', 'SAN ANTONIO': 'San Antonio',
+                'THUNDER': 'Okla City', 'OKLAHOMA CITY': 'Okla City', 'OKC': 'Okla City',
+                'MAVERICKS': 'Dallas', 'DALLAS': 'Dallas', 'MAVS': 'Dallas',
+                'WARRIORS': 'Golden State', 'GOLDEN STATE': 'Golden State', 'GSW': 'Golden State',
+                'ROCKETS': 'Houston', 'HOUSTON': 'Houston',
+                'LAKERS': 'LA Lakers', 'LOS ANGELES LAKERS': 'LA Lakers', 'LAL': 'LA Lakers',
+                'TIMBERWOLVES': 'Minnesota', 'MINNESOTA': 'Minnesota', 'WOLVES': 'Minnesota',
+                'NUGGETS': 'Denver', 'DENVER': 'Denver',
+                'CELTICS': 'Boston', 'BOSTON': 'Boston',
+                '76ERS': 'Philadelphia', 'SIXERS': 'Philadelphia', 'PHILADELPHIA': 'Philadelphia',
+                'PACERS': 'Indiana', 'INDIANA': 'Indiana',
+                'NETS': 'Brooklyn', 'BROOKLYN': 'Brooklyn',
+                'MAGIC': 'Orlando', 'ORLANDO': 'Orlando',
+                'HORNETS': 'Charlotte', 'CHARLOTTE': 'Charlotte',
+                'BUCKS': 'Milwaukee', 'MILWAUKEE': 'Milwaukee',
+                'RAPTORS': 'Toronto', 'TORONTO': 'Toronto',
+                'HEAT': 'Miami', 'MIAMI': 'Miami',
+                'HAWKS': 'Atlanta', 'ATLANTA': 'Atlanta',
+                'BULLS': 'Chicago', 'CHICAGO': 'Chicago',
+                'GRIZZLIES': 'Memphis', 'MEMPHIS': 'Memphis',
+                'PISTONS': 'Detroit', 'DETROIT': 'Detroit',
+                'CLIPPERS': 'LA Clippers', 'LOS ANGELES CLIPPERS': 'LA Clippers', 'LAC': 'LA Clippers',
+                'SUNS': 'Phoenix', 'PHOENIX': 'Phoenix',
+                'KINGS': 'Sacramento', 'SACRAMENTO': 'Sacramento',
+                'BLAZERS': 'Portland', 'TRAIL BLAZERS': 'Portland', 'PORTLAND': 'Portland',
+                'JAZZ': 'Utah', 'UTAH': 'Utah',
+                'PELICANS': 'New Orleans', 'NEW ORLEANS': 'New Orleans',
+                'WIZARDS': 'Washington', 'WASHINGTON': 'Washington',
+            }
+            
+            def normalize_team(name):
+                name_upper = name.upper().strip()
+                for key, val in team_name_map.items():
+                    if key in name_upper:
+                        return val
+                return name.strip()
+            
+            # Parse HTML to find game scores
+            # scoresandodds.com structure varies, using multiple patterns
+            
+            # Pattern 1: Look for score boxes with team names and final scores
+            # Format typically: team name followed by score
+            score_pattern = re.compile(
+                r'class="[^"]*team[^"]*"[^>]*>([^<]+)</.*?(\d{2,3})',
+                re.DOTALL | re.IGNORECASE
+            )
+            
+            # Pattern 2: More specific pattern for final scores
+            # Looking for patterns like "Cleveland 124" "New York 126"
+            game_blocks = re.findall(
+                r'<div[^>]*class="[^"]*game[^"]*"[^>]*>(.*?)</div>',
+                html, re.DOTALL | re.IGNORECASE
+            )
+            
+            # Alternative: Parse using simpler text extraction
+            # Find all team name + score pairs
+            simple_pattern = re.compile(
+                r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*[:|-]?\s*(\d{2,3})',
+                re.MULTILINE
+            )
+            
+            matches = simple_pattern.findall(html)
+            
+            # Group matches into games (pairs of teams)
+            team_scores = []
+            for team, score in matches:
+                normalized = normalize_team(team)
+                if normalized and score.isdigit():
+                    team_scores.append((normalized, int(score)))
+            
+            # Pair teams into games
+            for i in range(0, len(team_scores) - 1, 2):
+                if i + 1 < len(team_scores):
+                    away_team, away_score = team_scores[i]
+                    home_team, home_score = team_scores[i + 1]
+                    total_score = away_score + home_score
+                    
+                    games.append({
+                        "away_team": away_team,
+                        "home_team": home_team,
+                        "away_score": away_score,
+                        "home_score": home_score,
+                        "final_score": total_score,
+                        "date": date_str
+                    })
+            
+            logger.info(f"Scraped {len(games)} games from scoresandodds.com for {league} on {date_str}")
+            return games
+            
+    except Exception as e:
+        logger.error(f"Error scraping scoresandodds.com: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
 
 plays888_service = Plays888Service()
 
