@@ -607,15 +607,18 @@ export default function Opportunities() {
                       <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
                         {game.total ? (
                           <div className="flex flex-col">
+                            {/* Current line */}
+                            <span>{game.total}</span>
+                            {/* Opening line in gray (if available) */}
+                            {game.opening_line && game.opening_line !== game.total && (
+                              <span className="text-xs text-gray-500">({game.opening_line})</span>
+                            )}
                             {/* Show bet-time line if user bet on this game */}
                             {game.user_bet && game.bet_line && (
                               <span className="text-xs text-yellow-400 font-bold" title="Line when bet was placed">
                                 🎯 {game.bet_line}
                               </span>
                             )}
-                            <span className={game.user_bet && game.bet_line ? 'text-xs text-muted-foreground' : ''}>
-                              {game.user_bet && game.bet_line ? `(${game.total})` : game.total}
-                            </span>
                           </div>
                         ) : <span className="text-gray-500 text-xs">NO LINE</span>}
                       </td>
