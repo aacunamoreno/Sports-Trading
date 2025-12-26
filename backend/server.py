@@ -4637,36 +4637,42 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         games_raw = []
         data_source = "hardcoded"
         open_bets = []
+        settled_bets = []
         
-        # Always fetch open bets for ENANO account (needed for all days)
+        # Always fetch open bets and settled bets for ENANO account
         try:
             enano_conn = await db.connections.find_one({"username": "jac075"}, {"_id": 0})
             if enano_conn:
                 scraper = Plays888Service()
                 await scraper.login("jac075", decrypt_password(enano_conn["password_encrypted"]))
                 open_bets = await scraper.scrape_open_bets()
+                # Also get settled bets with original lines for historical data
+                if day == "yesterday" or (len(day) == 10 and day[4] == '-'):
+                    settled_bets = await scraper.scrape_settled_bets_with_lines("NBA")
                 await scraper.close()
-                logger.info(f"Fetched {len(open_bets)} open bets for NBA matching")
+                logger.info(f"Fetched {len(open_bets)} open bets, {len(settled_bets)} settled bets for NBA matching")
         except Exception as e:
-            logger.error(f"Error fetching open bets: {e}")
+            logger.error(f"Error fetching bets: {e}")
         
-        # Try to fetch live lines from plays888.co if requested and for today's games
-        if use_live_lines and day == "today":
+        # DATA SOURCING STRATEGY:
+        # - TODAY: Use plays888.co for live lines
+        # - YESTERDAY/HISTORICAL: Use scoresandodds.com for final scores
+        # - TOMORROW: Use plays888.co or hardcoded data
+        
+        # For TODAY: fetch live lines from plays888.co
+        if day == "today" and use_live_lines:
             try:
-                # Get connection credentials
                 conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
                 if conn and conn.get("is_connected"):
                     username = conn["username"]
                     password = decrypt_password(conn["password_encrypted"])
                     
-                    # Create new scraper instance
                     scraper = Plays888Service()
                     await scraper.login(username, password)
                     live_games = await scraper.scrape_totals("NBA")
                     await scraper.close()
                     
                     if live_games:
-                        # Convert plays888 data to our format
                         for game in live_games:
                             away_short = convert_plays888_team_name(game.get('away', ''))
                             home_short = convert_plays888_team_name(game.get('home', ''))
@@ -4680,9 +4686,50 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                         logger.info(f"Fetched {len(games_raw)} NBA games from plays888.co")
             except Exception as e:
                 logger.error(f"Error fetching live lines: {e}")
-                # Fall back to hardcoded data
         
-        # Use hardcoded data if live fetch failed or wasn't requested
+        # For YESTERDAY/HISTORICAL: Use scoresandodds.com for final scores + plays888 for bet lines
+        elif day == "yesterday" or (len(day) == 10 and day[4] == '-'):
+            try:
+                # Scrape final scores from scoresandodds.com
+                scraped_games = await scrape_scoresandodds("NBA", target_date)
+                
+                if scraped_games:
+                    # Create a lookup for settled bets by team names
+                    settled_lookup = {}
+                    for bet in settled_bets:
+                        away_short = convert_plays888_team_name(bet.get('away_team', ''))
+                        home_short = convert_plays888_team_name(bet.get('home_team', ''))
+                        key = f"{away_short.lower()}_{home_short.lower()}"
+                        settled_lookup[key] = bet
+                    
+                    for game in scraped_games:
+                        away = game.get('away_team', '')
+                        home = game.get('home_team', '')
+                        final = game.get('final_score', 0)
+                        
+                        game_key = f"{away.lower()}_{home.lower()}"
+                        
+                        # Check if user had a bet on this game
+                        user_bet_data = settled_lookup.get(game_key, {})
+                        
+                        game_entry = {
+                            "time": "",
+                            "away": away,
+                            "home": home,
+                            "total": 0,  # Will need closing line from another source
+                            "final_score": final,
+                            "user_bet": bool(user_bet_data),
+                            "bet_type": user_bet_data.get('bet_type', ''),
+                            "bet_line": user_bet_data.get('bet_line'),  # Original line when bet was placed
+                        }
+                        games_raw.append(game_entry)
+                    
+                    data_source = "scoresandodds.com"
+                    logger.info(f"Fetched {len(games_raw)} games from scoresandodds.com for {target_date}")
+            except Exception as e:
+                logger.error(f"Error scraping scoresandodds.com: {e}")
+        
+        # Fallback to hardcoded data if scraping failed
         if not games_raw:
             if day == "tomorrow":
                 # Dec 27 NBA games
@@ -4693,15 +4740,14 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     {"time": "7:00 PM", "away": "Chicago", "home": "Memphis", "total": 230.0},
                 ]
             elif day == "yesterday":
-                # Dec 25 (Christmas Day) - NBA Christmas Games
-                # Actual results from scoresandodds.com
-                # For user bets: bet_line = line when bet was placed, bet_edge = edge at bet time
+                # Dec 25 (Christmas Day) - NBA Christmas Games - FALLBACK hardcoded data
+                # These values include bet_line (line when bet was placed) vs total (closing line)
                 games_raw = [
-                    {"time": "12:00 PM", "away": "Cleveland", "home": "New York", "total": 241.5, "final_score": 250, "user_bet": False},  # CLE 124 + NY 126 = 250 > 241.5 = OVER
-                    {"time": "2:30 PM", "away": "San Antonio", "home": "Okla City", "total": 234.5, "final_score": 219, "user_bet": True, "bet_type": "OVER", "bet_line": 233.0, "bet_edge": 6.0},  # User bet at 233 with +6 edge, Final 219 < 233 = MISS
-                    {"time": "5:00 PM", "away": "Dallas", "home": "Golden State", "total": 231.5, "final_score": 242, "user_bet": False},  # DAL 116 + GS 126 = 242 > 231.5 = OVER
-                    {"time": "8:00 PM", "away": "Houston", "home": "LA Lakers", "total": 231.5, "final_score": 215, "user_bet": True, "bet_type": "OVER", "bet_line": 230.0, "bet_edge": 8.5},  # User bet at 230 with +8.5 edge, Final 215 < 230 = MISS
-                    {"time": "10:30 PM", "away": "Minnesota", "home": "Denver", "total": 238.5, "final_score": 280, "user_bet": False},  # MIN 138 + DEN 142 OT = 280 > 238.5 = OVER
+                    {"time": "12:00 PM", "away": "Cleveland", "home": "New York", "total": 241.5, "final_score": 250, "user_bet": False},
+                    {"time": "2:30 PM", "away": "San Antonio", "home": "Okla City", "total": 234.5, "final_score": 219, "user_bet": True, "bet_type": "OVER", "bet_line": 233.0, "bet_edge": 6.0},
+                    {"time": "5:00 PM", "away": "Dallas", "home": "Golden State", "total": 231.5, "final_score": 242, "user_bet": False},
+                    {"time": "8:00 PM", "away": "Houston", "home": "LA Lakers", "total": 231.5, "final_score": 215, "user_bet": True, "bet_type": "OVER", "bet_line": 230.0, "bet_edge": 8.5},
+                    {"time": "10:30 PM", "away": "Minnesota", "home": "Denver", "total": 238.5, "final_score": 280, "user_bet": False},
                 ]
             elif day == "today":
                 # Dec 26 NBA games
