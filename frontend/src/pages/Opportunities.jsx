@@ -446,6 +446,7 @@ export default function Opportunities() {
                   <th className="text-left py-3 px-2">#</th>
                   <th className="text-left py-3 px-2">Time</th>
                   <th className="text-left py-3 px-2">Away</th>
+                  <th className="text-center py-3 px-1"></th>
                   <th className="text-left py-3 px-2">Home</th>
                   <th className="text-center py-3 px-2">Line</th>
                   {isHistorical && <th className="text-center py-3 px-2">Final</th>}
