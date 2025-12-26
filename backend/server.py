@@ -4980,6 +4980,7 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 "home_last3_rank": home_last3,
                 "home_avg": round(home_avg, 1),
                 "total": g['total'] if has_line else None,  # Show None if no line
+                "opening_line": g.get('opening_line', round(g['total'] - 1.0, 1) if has_line else None),  # Opening line (default: current - 1)
                 "has_line": has_line,
                 "combined_ppg": round(combined_ppg, 1),
                 "game_avg": round(game_avg, 1),
