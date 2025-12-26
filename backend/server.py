@@ -2763,11 +2763,15 @@ async def scrape_scoresandodds(league: str, date_str: str) -> List[Dict[str, Any
                 return scores;
             }''')
             
-            # Get game times
+            # Get game times (filter out non-time values)
             times = await page.evaluate('''() => {
                 const times = [];
                 document.querySelectorAll('[data-field="time"]').forEach(el => {
-                    times.push(el.innerText.trim());
+                    const text = el.innerText.trim();
+                    // Only include if it looks like a time (contains AM or PM or : or numbers)
+                    if (text && (text.includes('AM') || text.includes('PM') || text.includes(':')) && !text.includes('Sort')) {
+                        times.push(text);
+                    }
                 });
                 return times;
             }''')
