@@ -5070,7 +5070,7 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 "home_last3_rank": home_last3,
                 "home_avg": round(home_avg, 1),
                 "total": g['total'] if has_line else None,  # Show None if no line
-                "opening_line": g.get('opening_line', round(g['total'] - 1.0, 1) if has_line else None),  # Opening line (default: current - 1)
+                "opening_line": None,  # Will be set below from database
                 "has_line": has_line,
                 "combined_ppg": round(combined_ppg, 1),
                 "game_avg": round(game_avg, 1),
@@ -5081,6 +5081,15 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 "bet_risk": 0,
                 "bet_count": 0
             }
+            
+            # Get stored opening line from database
+            stored_opening = await get_opening_line("NBA", target_date, g['away'], g['home'])
+            if stored_opening:
+                game_data["opening_line"] = stored_opening
+            elif has_line:
+                # If no stored opening, store current line as opening (first time seeing this game)
+                await store_opening_line("NBA", target_date, g['away'], g['home'], g['total'])
+                game_data["opening_line"] = g['total']  # First time = opening equals current
             
             # Check if this game has an active bet
             # Also detect "hedged" bets (both OVER and UNDER on same game = cancelled out)
