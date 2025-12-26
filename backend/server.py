@@ -4881,6 +4881,9 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 scraped_games = await scrape_scoresandodds("NBA", target_date)
                 
                 if scraped_games:
+                    # STORE OPENING LINES - First time we see these games
+                    await store_opening_lines_batch("NBA", target_date, scraped_games)
+                    
                     for game in scraped_games:
                         game_entry = {
                             "time": game.get('time', ''),
