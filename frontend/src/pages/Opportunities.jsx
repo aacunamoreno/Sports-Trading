@@ -475,19 +475,27 @@ export default function Opportunities() {
                   const yellows = ranks.filter(r => r > 15 && r <= 21).length;
                   const reds = ranks.filter(r => r > 21).length;
                   
-                  // Dot-based recommendation logic
-                  // OVER: 2+ Greens OR 1 Green + 2 Blues
-                  // UNDER: 2+ Reds OR 1 Red + 2 Yellows
+                  // Dot-based recommendation logic - STRICT rules
+                  // CLEAR OVER: 2+ Greens OR 1 Green + 2 Blues (strong offensive signal)
+                  // CLEAR UNDER: 2+ Reds OR 1 Red + 2 Yellows (strong defensive signal)
+                  // MIXED: Everything else (caution)
                   let dotRecommendation = null;
                   if (greens >= 2 || (greens >= 1 && blues >= 2)) {
                     dotRecommendation = 'OVER';
                   } else if (reds >= 2 || (reds >= 1 && yellows >= 2)) {
                     dotRecommendation = 'UNDER';
                   }
+                  // If dots are mixed (not clearly OVER or UNDER), it's a caution situation
+                  const dotsAreMixed = dotRecommendation === null;
                   
                   // Check for conflict between dots and edge recommendation
                   const edgeRecommendation = game.recommendation;
-                  const hasConflict = dotRecommendation && edgeRecommendation && dotRecommendation !== edgeRecommendation;
+                  // Conflict = dots clearly say one thing, edge says another
+                  // OR dots are mixed but edge has a recommendation (caution)
+                  const hasConflict = (dotRecommendation && edgeRecommendation && dotRecommendation !== edgeRecommendation) ||
+                                     (dotsAreMixed && edgeRecommendation && !isNoBet);
+                  // Clear agreement = dots and edge both say the same thing
+                  const hasClearAgreement = dotRecommendation && edgeRecommendation && dotRecommendation === edgeRecommendation;
                   
                   // Row styling - no color for "No Bet" games
                   let rowStyle = '';
@@ -502,11 +510,13 @@ export default function Opportunities() {
                       rowStyle = getRowStyle(game.recommendation);
                     }
                   } else {
-                    // For today/tomorrow - check for conflict
+                    // For today/tomorrow - check for conflict or clear agreement
                     if (isNoBet) {
                       rowStyle = '';
                     } else if (hasConflict) {
-                      rowStyle = 'bg-yellow-500/20 border-yellow-500/50'; // Conflict alert - yellow
+                      rowStyle = 'bg-yellow-500/20 border-yellow-500/50'; // Conflict/caution - yellow
+                    } else if (hasClearAgreement) {
+                      rowStyle = getRowStyle(game.recommendation); // Clear agreement - blue/orange
                     } else {
                       rowStyle = getRowStyle(game.recommendation);
                     }
@@ -530,6 +540,8 @@ export default function Opportunities() {
                       textStyle = 'text-muted-foreground';
                     } else if (hasConflict) {
                       textStyle = 'text-yellow-400 font-bold';
+                    } else if (hasClearAgreement) {
+                      textStyle = getTextStyle(game.recommendation);
                     } else {
                       textStyle = getTextStyle(game.recommendation);
                     }
