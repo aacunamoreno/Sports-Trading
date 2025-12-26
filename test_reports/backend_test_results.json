@@ -1,128 +1,116 @@
 {
-  "timestamp": "2025-12-26T18:32:47.344403",
-  "total_tests": 20,
-  "passed_tests": 18,
-  "success_rate": 90.0,
+  "timestamp": "2025-12-26T18:52:31.331911",
+  "total_tests": 18,
+  "passed_tests": 13,
+  "success_rate": 72.22222222222221,
   "results": [
+    {
+      "test": "GET /api/opportunities?day=tomorrow",
+      "success": true,
+      "details": "Found 9 games, data_source: scoresandodds.com",
+      "timestamp": "2025-12-26T18:49:59.481972"
+    },
+    {
+      "test": "GET /api/opportunities?day=today",
+      "success": true,
+      "details": "Found 9 games, data_source: plays888.co",
+      "timestamp": "2025-12-26T18:49:59.521212"
+    },
+    {
+      "test": "GET /api/opportunities?day=yesterday",
+      "success": true,
+      "details": "Found 5 games, 2 with user bets and bet-time data",
+      "timestamp": "2025-12-26T18:49:59.557542"
+    },
+    {
+      "test": "POST /api/opportunities/refresh?day=tomorrow",
+      "success": false,
+      "details": "Request error: HTTPSConnectionPool(host='betguard-2.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)",
+      "timestamp": "2025-12-26T18:50:14.597567"
+    },
+    {
+      "test": "POST /api/opportunities/refresh?day=today&use_live_lines=true",
+      "success": true,
+      "details": "Refreshed 9 games, data_source: plays888.co",
+      "timestamp": "2025-12-26T18:50:40.593284"
+    },
     {
       "test": "GET /api/opportunities - Game Structure",
       "success": true,
       "details": "Game has all required fields",
-      "timestamp": "2025-12-26T18:30:59.914947"
-    },
-    {
-      "test": "GET /api/opportunities - Play Structure",
-      "success": true,
-      "details": "Play has all required fields",
-      "timestamp": "2025-12-26T18:30:59.914974"
+      "timestamp": "2025-12-26T18:50:40.646175"
     },
     {
       "test": "GET /api/opportunities",
       "success": true,
-      "details": "Returned 6 games, 1 plays",
-      "timestamp": "2025-12-26T18:30:59.914981"
+      "details": "Returned 9 games, 0 plays",
+      "timestamp": "2025-12-26T18:50:40.646203"
     },
     {
-      "test": "GET /api/opportunities - data_source value",
-      "success": false,
-      "details": "Invalid data_source 'hardcoded', expected one of ['cached', 'plays888.co']",
-      "timestamp": "2025-12-26T18:30:59.954561"
+      "test": "GET /api/opportunities - data_source field",
+      "success": true,
+      "details": "data_source field present with value: plays888.co",
+      "timestamp": "2025-12-26T18:50:40.689718"
     },
     {
       "test": "POST /api/opportunities/refresh",
       "success": true,
       "details": "Refreshed: 6 games, 0 plays",
-      "timestamp": "2025-12-26T18:31:09.307987"
+      "timestamp": "2025-12-26T18:50:49.574284"
     },
     {
       "test": "Betting Logic - No Bet Rule",
       "success": false,
       "details": "Game avg 16.0 should have no recommendation but got OVER",
-      "timestamp": "2025-12-26T18:31:09.364503"
+      "timestamp": "2025-12-26T18:50:49.631909"
     },
     {
       "test": "Color Coding Test",
       "success": true,
       "details": "All color coding is correct",
-      "timestamp": "2025-12-26T18:31:09.397559"
+      "timestamp": "2025-12-26T18:50:49.666295"
     },
     {
-      "test": "Bet-Time Line Tracking - San Antonio Game",
-      "success": true,
-      "details": "All bet-time tracking fields correct: bet_line=233.0, bet_edge=6.0, final=219, hit=False",
-      "timestamp": "2025-12-26T18:31:09.432992"
-    },
-    {
-      "test": "Bet-Time Line Tracking - Houston Game",
-      "success": true,
-      "details": "Houston game correct: bet_line=230.0, bet_edge=8.5, final=215, hit=False",
-      "timestamp": "2025-12-26T18:31:09.433021"
-    },
-    {
-      "test": "GET /api/opportunities?day=yesterday - Bet-Time Line Tracking",
-      "success": true,
-      "details": "Found 2 games with user bets, bet-time line tracking working correctly",
-      "timestamp": "2025-12-26T18:31:09.433027"
-    },
-    {
-      "test": "POST /api/opportunities/refresh?day=yesterday - Data Source",
-      "success": true,
-      "details": "Data source: hardcoded",
-      "timestamp": "2025-12-26T18:31:22.751244"
-    },
-    {
-      "test": "POST /api/opportunities/refresh?day=yesterday - Bet Tracking",
-      "success": true,
-      "details": "Bet tracking fields present in 2 user bet games",
-      "timestamp": "2025-12-26T18:31:22.751275"
+      "test": "Bet-Time Line Tracking - San Antonio final_score",
+      "success": false,
+      "details": "Expected final_score 219, got 0",
+      "timestamp": "2025-12-26T18:50:49.703101"
     },
     {
       "test": "POST /api/opportunities/refresh?day=yesterday",
-      "success": true,
-      "details": "Refreshed yesterday data: 5 games, 2 with user bets, source: hardcoded",
-      "timestamp": "2025-12-26T18:31:22.751281"
-    },
-    {
-      "test": "Line Difference - San Antonio @ Okla City",
-      "success": true,
-      "details": "Bet line: 233.0, Closing line: 234.5, Difference: 1.5",
-      "timestamp": "2025-12-26T18:31:22.806723"
-    },
-    {
-      "test": "Line Difference - Houston @ LA Lakers",
-      "success": true,
-      "details": "Bet line: 230.0, Closing line: 231.5, Difference: 1.5",
-      "timestamp": "2025-12-26T18:31:22.806751"
+      "success": false,
+      "details": "Request error: HTTPSConnectionPool(host='betguard-2.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)",
+      "timestamp": "2025-12-26T18:51:04.763962"
     },
     {
       "test": "Bet Line vs Closing Line Test",
-      "success": true,
-      "details": "Found 2 games with different bet-time vs closing lines",
-      "timestamp": "2025-12-26T18:31:22.806756"
+      "success": false,
+      "details": "No differences found between bet-time and closing lines",
+      "timestamp": "2025-12-26T18:51:04.831426"
     },
     {
       "test": "POST /api/scrape/totals/NBA",
       "success": true,
       "details": "Successfully scraped 9 NBA games from plays888.co",
-      "timestamp": "2025-12-26T18:31:39.302347"
+      "timestamp": "2025-12-26T18:51:22.931551"
     },
     {
       "test": "POST /api/scrape/totals/NHL",
       "success": true,
       "details": "Successfully scraped 8 NHL games from plays888.co",
-      "timestamp": "2025-12-26T18:31:55.865076"
+      "timestamp": "2025-12-26T18:51:39.605253"
     },
     {
       "test": "POST /api/opportunities/refresh?use_live_lines=true",
       "success": true,
       "details": "NBA refresh with live lines: 9 games, 0 plays, source: plays888.co",
-      "timestamp": "2025-12-26T18:32:21.692842"
+      "timestamp": "2025-12-26T18:52:05.332224"
     },
     {
       "test": "POST /api/opportunities/nhl/refresh?use_live_lines=true",
       "success": true,
       "details": "NHL refresh with live lines: 8 games, 0 plays, source: plays888.co",
-      "timestamp": "2025-12-26T18:32:47.343475"
+      "timestamp": "2025-12-26T18:52:31.331010"
     }
   ]
 }
