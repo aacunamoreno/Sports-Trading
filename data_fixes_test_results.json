@@ -1,0 +1,26 @@
+{
+  "timestamp": "2025-12-27T18:06:02.510468",
+  "total_tests": 3,
+  "passed_tests": 3,
+  "success_rate": 100.0,
+  "results": [
+    {
+      "test": "NHL Today - Tampa Bay @ Florida Line Fix",
+      "success": true,
+      "details": "\u2705 CRITICAL FIX VERIFIED: Tampa Bay @ Florida total is 6 (was 5.5)",
+      "timestamp": "2025-12-27T18:06:02.460305"
+    },
+    {
+      "test": "NBA Yesterday - Final Scores Population",
+      "success": true,
+      "details": "\u2705 All 9 games have correct final_score values populated",
+      "timestamp": "2025-12-27T18:06:02.509550"
+    },
+    {
+      "test": "NBA Yesterday - Individual Game Verification",
+      "success": true,
+      "details": "Verified games: Boston @ Indiana: 262; Toronto @ Washington: 255; Charlotte @ Orlando: 225; Miami @ Atlanta: 237; Philadelphia @ Chicago: 211; Milwaukee @ Memphis: 229; Phoenix @ New Orleans: 223; Detroit @ Utah: 260; LA Clippers @ Portland: 222",
+      "timestamp": "2025-12-27T18:06:02.509587"
+    }
+  ]
+}
