@@ -4934,12 +4934,18 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         # Fallback to hardcoded data if scraping failed or returned empty data
         if not games_raw:
             if day == "tomorrow":
-                # Dec 27 NBA games
+                # Dec 27 NBA games - Lines from scoresandodds.com
                 games_raw = [
-                    {"time": "4:00 PM", "away": "Milwaukee", "home": "Brooklyn", "total": 225.0},
-                    {"time": "5:00 PM", "away": "Atlanta", "home": "Miami", "total": 220.0},
-                    {"time": "6:00 PM", "away": "New York", "home": "Toronto", "total": 218.0},
-                    {"time": "7:00 PM", "away": "Chicago", "home": "Memphis", "total": 230.0},
+                    {"time": "3:30 PM", "away": "Dallas", "home": "Sacramento", "total": 231.5},
+                    {"time": "6:00 PM", "away": "Phoenix", "home": "New Orleans", "total": 239.5},
+                    {"time": "6:00 PM", "away": "Denver", "home": "Orlando", "total": 235.5},
+                    {"time": "6:00 PM", "away": "Milwaukee", "home": "Brooklyn", "total": 222.5},
+                    {"time": "6:00 PM", "away": "Indiana", "home": "Miami", "total": 224.5},
+                    {"time": "6:30 PM", "away": "New York", "home": "Toronto", "total": 229.5},
+                    {"time": "7:00 PM", "away": "Chicago", "home": "Memphis", "total": 232.5},
+                    {"time": "8:00 PM", "away": "Utah", "home": "San Antonio", "total": 227.5},
+                    {"time": "9:00 PM", "away": "Cleveland", "home": "Houston", "total": 227.5},
+                    {"time": "10:00 PM", "away": "LA Clippers", "home": "Golden State", "total": 228.0},
                 ]
             elif day == "yesterday":
                 # Dec 25 (Christmas Day) - NBA Christmas Games - FALLBACK hardcoded data
