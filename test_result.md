@@ -2,41 +2,36 @@
 
 ## Test Date: 2025-12-27
 
-## Latest Testing: NHL Tomorrow Lines API Verification (Testing Agent)
+## Latest Testing: Data Fixes Verification (Testing Agent)
 
-### Test Completed: 2025-12-27 - NHL Opportunities API for December 27, 2025
+### Test Completed: 2025-12-27 - Data Fixes Verification for December 27, 2024
 
-**API Endpoint Tested:** GET /api/opportunities/nhl?day=tomorrow
+**Critical Fix Verified:** Tampa Bay @ Florida line corrected to 6.0
 
-**Test Results:** ✅ ALL TESTS PASSED
+**Test Results:** ✅ ALL DATA FIXES VERIFIED SUCCESSFULLY
 
-#### Verification Summary:
-- **Total Games Found:** 13 NHL games ✅
-- **All Game Totals Correct:** ✅ 
-- **API Response Structure:** ✅ Valid JSON with required fields
-- **HTTP Status:** ✅ 200 OK
+#### Test 1: NHL Today - Tampa Bay @ Florida Line Fix
+- **API Endpoint:** GET /api/opportunities/nhl?day=today
+- **Expected:** Tampa Bay @ Florida total = 6.0 (NOT 5.5)
+- **Result:** ✅ VERIFIED - Tampa Bay @ Florida total is 6.0
+- **Status:** Critical user complaint fix successfully applied
 
-#### Individual Game Verification:
-1. NY Rangers @ NY Islanders: 5.5 ✅
-2. Minnesota @ Winnipeg: 5.5 ✅
-3. Tampa Bay @ Florida: 5.5 ✅
-4. Boston @ Buffalo: 6.5 ✅
-5. Detroit @ Carolina: 6.5 ✅
-6. Ottawa @ Toronto: 6.5 ✅
-7. Washington @ New Jersey: 5.5 ✅ (Previously corrected from 6.5)
-8. Chicago @ Dallas: 5.5 ✅
-9. Nashville @ St. Louis: 5.5 ✅
-10. Anaheim @ Los Angeles: 6.5 ✅ (Previously corrected from 5.5)
-11. Colorado @ Vegas: 6.5 ✅
-12. Edmonton @ Calgary: 6.5 ✅
-13. San Jose @ Vancouver: 5.5 ✅ (Previously corrected from 6.0)
+#### Test 2: NBA Yesterday - Final Scores Population  
+- **API Endpoint:** GET /api/opportunities?day=yesterday
+- **Expected:** All 9 games should have final_score values populated
+- **Result:** ✅ VERIFIED - All 9 games have correct final_score values
+- **Games Verified:**
+  - Boston @ Indiana: 262 ✅
+  - Toronto @ Washington: 255 ✅
+  - Charlotte @ Orlando: 225 ✅
+  - Miami @ Atlanta: 237 ✅
+  - Philadelphia @ Chicago: 211 ✅
+  - Milwaukee @ Memphis: 229 ✅
+  - Phoenix @ New Orleans: 223 ✅
+  - Detroit @ Utah: 260 ✅
+  - LA Clippers @ Portland: 222 ✅
 
-#### Critical Verification - 3 Corrected Games:
-- **Washington @ New Jersey:** 5.5 ✅ (Fixed from 6.5)
-- **Anaheim @ Los Angeles:** 6.5 ✅ (Fixed from 5.5)  
-- **San Jose @ Vancouver:** 5.5 ✅ (Fixed from 6.0)
-
-**Status:** The NHL Opportunities API is working correctly. All 13 games for December 27, 2025 have the exact totals as verified against scoresandodds.com. The 3 previously incorrect lines have been successfully corrected.
+**Status:** Both critical data fixes have been successfully verified and are working correctly.
 
 ---
 
