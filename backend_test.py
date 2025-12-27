@@ -986,6 +986,142 @@ class BettingSystemAPITester:
             self.log_test("POST /api/opportunities/refresh?day=today&use_live_lines=true", False, f"JSON decode error: {str(e)}")
             return False
 
+    def test_nhl_opportunities_tomorrow_lines(self):
+        """Test GET /api/opportunities/nhl?day=tomorrow - verify all 13 NHL games have correct totals for Dec 27, 2025"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities/nhl?day=tomorrow", timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("GET /api/opportunities/nhl?day=tomorrow - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                games = data.get('games', [])
+                if not isinstance(games, list):
+                    self.log_test("GET /api/opportunities/nhl?day=tomorrow - Games Array", False,
+                                "Games is not an array")
+                    return False
+                
+                # Expected: 13 NHL games for December 27, 2025
+                expected_game_count = 13
+                if len(games) != expected_game_count:
+                    self.log_test("GET /api/opportunities/nhl?day=tomorrow - Game Count", False,
+                                f"Expected {expected_game_count} NHL games, got {len(games)}")
+                    return False
+                
+                # Expected totals for each game (verified against scoresandodds.com)
+                expected_totals = {
+                    ("NY Rangers", "NY Islanders"): 5.5,
+                    ("Minnesota", "Winnipeg"): 5.5,
+                    ("Tampa Bay", "Florida"): 5.5,
+                    ("Boston", "Buffalo"): 6.5,
+                    ("Detroit", "Carolina"): 6.5,
+                    ("Ottawa", "Toronto"): 6.5,
+                    ("Washington", "New Jersey"): 5.5,  # Previously incorrect as 6.5
+                    ("Chicago", "Dallas"): 5.5,
+                    ("Nashville", "St. Louis"): 5.5,
+                    ("Anaheim", "Los Angeles"): 6.5,  # Previously incorrect as 5.5
+                    ("Colorado", "Vegas"): 6.5,
+                    ("Edmonton", "Calgary"): 6.5,
+                    ("San Jose", "Vancouver"): 5.5,  # Previously incorrect as 6.0
+                }
+                
+                # Track found games and their totals
+                found_games = {}
+                incorrect_totals = []
+                
+                for game in games:
+                    away_team = game.get('away_team', '').strip()
+                    home_team = game.get('home_team', '').strip()
+                    total = game.get('total')
+                    
+                    # Validate game structure
+                    if not away_team or not home_team or total is None:
+                        self.log_test("GET /api/opportunities/nhl?day=tomorrow - Game Structure", False,
+                                    f"Game missing required fields: away_team='{away_team}', home_team='{home_team}', total={total}")
+                        return False
+                    
+                    # Check if this game matches any expected game
+                    game_key = (away_team, home_team)
+                    if game_key in expected_totals:
+                        found_games[game_key] = total
+                        expected_total = expected_totals[game_key]
+                        
+                        if total != expected_total:
+                            incorrect_totals.append({
+                                'game': f"{away_team} @ {home_team}",
+                                'expected': expected_total,
+                                'actual': total
+                            })
+                
+                # Check if all expected games were found
+                missing_games = []
+                for expected_game in expected_totals:
+                    if expected_game not in found_games:
+                        missing_games.append(f"{expected_game[0]} @ {expected_game[1]}")
+                
+                if missing_games:
+                    self.log_test("GET /api/opportunities/nhl?day=tomorrow - Missing Games", False,
+                                f"Missing expected games: {missing_games}")
+                    return False
+                
+                # Check for incorrect totals
+                if incorrect_totals:
+                    error_details = []
+                    for error in incorrect_totals:
+                        error_details.append(f"{error['game']}: expected {error['expected']}, got {error['actual']}")
+                    
+                    self.log_test("GET /api/opportunities/nhl?day=tomorrow - Incorrect Totals", False,
+                                f"Incorrect totals found: {'; '.join(error_details)}")
+                    return False
+                
+                # Specifically verify the 3 corrected games
+                corrected_games = [
+                    ("Washington", "New Jersey", 5.5),
+                    ("Anaheim", "Los Angeles", 6.5),
+                    ("San Jose", "Vancouver", 5.5)
+                ]
+                
+                corrected_games_verified = []
+                for away, home, expected_total in corrected_games:
+                    game_key = (away, home)
+                    if game_key in found_games:
+                        actual_total = found_games[game_key]
+                        if actual_total == expected_total:
+                            corrected_games_verified.append(f"{away} @ {home}: {actual_total} ✓")
+                        else:
+                            self.log_test("GET /api/opportunities/nhl?day=tomorrow - Corrected Game", False,
+                                        f"{away} @ {home}: expected {expected_total}, got {actual_total}")
+                            return False
+                
+                self.log_test("GET /api/opportunities/nhl?day=tomorrow - All Games Verified", True,
+                            f"All {len(games)} NHL games have correct totals")
+                
+                self.log_test("GET /api/opportunities/nhl?day=tomorrow - Corrected Games", True,
+                            f"3 corrected games verified: {'; '.join(corrected_games_verified)}")
+                
+                self.log_test("GET /api/opportunities/nhl?day=tomorrow", True,
+                            f"Successfully verified all {len(games)} NHL games for Dec 27, 2025")
+                return True
+            else:
+                self.log_test("GET /api/opportunities/nhl?day=tomorrow", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("GET /api/opportunities/nhl?day=tomorrow", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("GET /api/opportunities/nhl?day=tomorrow", False, f"JSON decode error: {str(e)}")
+            return False
+
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
