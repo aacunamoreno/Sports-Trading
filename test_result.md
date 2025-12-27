@@ -2,6 +2,44 @@
 
 ## Test Date: 2025-12-27
 
+## Latest Testing: NHL Tomorrow Lines API Verification (Testing Agent)
+
+### Test Completed: 2025-12-27 - NHL Opportunities API for December 27, 2025
+
+**API Endpoint Tested:** GET /api/opportunities/nhl?day=tomorrow
+
+**Test Results:** ✅ ALL TESTS PASSED
+
+#### Verification Summary:
+- **Total Games Found:** 13 NHL games ✅
+- **All Game Totals Correct:** ✅ 
+- **API Response Structure:** ✅ Valid JSON with required fields
+- **HTTP Status:** ✅ 200 OK
+
+#### Individual Game Verification:
+1. NY Rangers @ NY Islanders: 5.5 ✅
+2. Minnesota @ Winnipeg: 5.5 ✅
+3. Tampa Bay @ Florida: 5.5 ✅
+4. Boston @ Buffalo: 6.5 ✅
+5. Detroit @ Carolina: 6.5 ✅
+6. Ottawa @ Toronto: 6.5 ✅
+7. Washington @ New Jersey: 5.5 ✅ (Previously corrected from 6.5)
+8. Chicago @ Dallas: 5.5 ✅
+9. Nashville @ St. Louis: 5.5 ✅
+10. Anaheim @ Los Angeles: 6.5 ✅ (Previously corrected from 5.5)
+11. Colorado @ Vegas: 6.5 ✅
+12. Edmonton @ Calgary: 6.5 ✅
+13. San Jose @ Vancouver: 5.5 ✅ (Previously corrected from 6.0)
+
+#### Critical Verification - 3 Corrected Games:
+- **Washington @ New Jersey:** 5.5 ✅ (Fixed from 6.5)
+- **Anaheim @ Los Angeles:** 6.5 ✅ (Fixed from 5.5)  
+- **San Jose @ Vancouver:** 5.5 ✅ (Fixed from 6.0)
+
+**Status:** The NHL Opportunities API is working correctly. All 13 games for December 27, 2025 have the exact totals as verified against scoresandodds.com. The 3 previously incorrect lines have been successfully corrected.
+
+---
+
 ## Latest Fix: NHL Tomorrow Lines Correction
 
 ### Issue Fixed:
