@@ -4961,14 +4961,17 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     {"time": "10:30 PM", "away": "Minnesota", "home": "Denver", "total": 238.5, "final_score": 280, "user_bet": False},
                 ]
             elif day == "today":
-                # Dec 26 NBA games
+                # Dec 26 NBA games - 9 games total
                 games_raw = [
-                    {"time": "4:00 PM", "away": "Boston", "home": "Philadelphia", "total": 215.0},
-                    {"time": "5:00 PM", "away": "Cleveland", "home": "Indiana", "total": 230.0},
-                    {"time": "5:30 PM", "away": "Brooklyn", "home": "San Antonio", "total": 225.0},
-                    {"time": "6:00 PM", "away": "Charlotte", "home": "Orlando", "total": 220.0},
-                    {"time": "7:00 PM", "away": "Milwaukee", "home": "Memphis", "total": 228.0},
-                    {"time": "7:00 PM", "away": "Houston", "home": "LA Lakers", "total": 232.0},
+                    {"time": "12:00 PM", "away": "Boston", "home": "Indiana", "total": 222.0},
+                    {"time": "2:30 PM", "away": "Toronto", "home": "Washington", "total": 226.0},
+                    {"time": "5:00 PM", "away": "Charlotte", "home": "Orlando", "total": 212.0},
+                    {"time": "5:00 PM", "away": "Miami", "home": "Atlanta", "total": 251.0},
+                    {"time": "5:00 PM", "away": "Philadelphia", "home": "Chicago", "total": 221.0},
+                    {"time": "7:00 PM", "away": "Milwaukee", "home": "Memphis", "total": 223.0},
+                    {"time": "7:00 PM", "away": "Phoenix", "home": "New Orleans", "total": 242.0},
+                    {"time": "9:00 PM", "away": "Detroit", "home": "Utah", "total": 230.0},
+                    {"time": "10:00 PM", "away": "LA Clippers", "home": "Portland", "total": 226.0},
                 ]
             else:
                 # Default fallback - Dec 26 games
