@@ -5423,6 +5423,13 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             except Exception as e:
                 logger.error(f"Error fetching live NHL lines: {e}")
         
+        # Fallback: Load open bets from database if scraping didn't find any
+        if not open_bets:
+            db_bets = await db.open_bets.find({"sport": "NHL"}, {"_id": 0}).to_list(100)
+            if db_bets:
+                open_bets = db_bets
+                logger.info(f"Loaded {len(open_bets)} NHL open bets from database")
+        
         # Use hardcoded data if live fetch failed or wasn't requested
         if not games_raw:
             if day == "tomorrow":
