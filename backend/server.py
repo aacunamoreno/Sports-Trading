@@ -5441,11 +5441,25 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                     {"time": "10:00 PM", "away": "San Jose", "home": "Vancouver", "total": 5.5},
                 ]
             elif day == "yesterday":
-                # Dec 25 (Christmas Day) - No NHL games
+                # Dec 26 - No NHL games (day after Christmas)
                 games_raw = []
             elif day == "today":
-                # Dec 26 - No NHL games
-                games_raw = []
+                # Dec 27 NHL games - Lines from plays888.co (LIVE DATA SOURCE)
+                games_raw = [
+                    {"time": "6:00 PM", "away": "NY Rangers", "home": "NY Islanders", "total": 5.5},
+                    {"time": "7:00 PM", "away": "Minnesota", "home": "Winnipeg", "total": 5.5},
+                    {"time": "7:00 PM", "away": "Tampa Bay", "home": "Florida", "total": 6.0},
+                    {"time": "7:00 PM", "away": "Boston", "home": "Buffalo", "total": 6.5},
+                    {"time": "7:00 PM", "away": "Detroit", "home": "Carolina", "total": 6.5},
+                    {"time": "7:00 PM", "away": "Ottawa", "home": "Toronto", "total": 6.5},
+                    {"time": "7:00 PM", "away": "Washington", "home": "New Jersey", "total": 5.5},
+                    {"time": "8:00 PM", "away": "Chicago", "home": "Dallas", "total": 5.5},
+                    {"time": "8:00 PM", "away": "Nashville", "home": "St. Louis", "total": 5.5},
+                    {"time": "9:00 PM", "away": "Anaheim", "home": "Los Angeles", "total": 6.5},
+                    {"time": "10:00 PM", "away": "Colorado", "home": "Vegas", "total": 6.5},
+                    {"time": "10:00 PM", "away": "Edmonton", "home": "Calgary", "total": 6.5},
+                    {"time": "10:00 PM", "away": "San Jose", "home": "Vancouver", "total": 5.5},
+                ]
             else:
                 # Default fallback - empty
                 games_raw = []
