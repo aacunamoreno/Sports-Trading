@@ -2824,17 +2824,43 @@ async def scrape_scoresandodds(league: str, date_str: str) -> List[Dict[str, Any
             # Filter to get only team names (not divisions/conferences)
             team_names = [t for t in team_abbrs if not any(x in t.lower() for x in ['conference', 'eastern', 'western', 'pacific', 'atlantic', 'central', 'southeast', 'southwest', 'northwest'])]
             
-            # Get totals from the page
+            # Get totals from the page - try multiple selectors
             totals = await page.evaluate('''() => {
                 const totals = [];
-                document.querySelectorAll('[data-field="current-total"]').forEach(el => {
-                    const text = el.innerText.trim();
-                    // Extract number from text like "o228.5" or "u228.5"
-                    const match = text.match(/[ou]?(\\d+\\.?\\d*)/);
-                    if (match) {
-                        totals.push(parseFloat(match[1]));
+                
+                // Try different selectors for totals
+                const selectors = [
+                    '[data-field="current-total"]',
+                    '[class*="total"]',
+                    '.event-card-book-value'
+                ];
+                
+                // First try the specific selectors
+                for (const selector of selectors) {
+                    document.querySelectorAll(selector).forEach(el => {
+                        const text = el.innerText.trim();
+                        const match = text.match(/[ou]?(\\d+\\.?\\d*)/);
+                        if (match && parseFloat(match[1]) > 100) {
+                            totals.push(parseFloat(match[1]));
+                        }
+                    });
+                    if (totals.length > 0) break;
+                }
+                
+                // If still no totals, search the whole page for o/u patterns
+                if (totals.length === 0) {
+                    const bodyText = document.body.innerText;
+                    const matches = bodyText.match(/[ou](\\d{3}\\.?\\d*)/g);
+                    if (matches) {
+                        matches.forEach(m => {
+                            const num = parseFloat(m.substring(1));
+                            if (num > 100 && num < 300) {
+                                totals.push(num);
+                            }
+                        });
                     }
-                });
+                }
+                
                 return totals;
             }''')
             
