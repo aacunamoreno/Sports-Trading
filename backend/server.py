@@ -5145,7 +5145,9 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             if (day == "yesterday" or (len(day) == 10 and day[4] == '-')) and 'final_score' in g:
                 game_data["final_score"] = g['final_score']
                 # Mark if user actually bet on this game
+                # IMPORTANT: Only count ENANO bets ($2k+) for user betting record
                 game_data["user_bet"] = g.get('user_bet', False)
+                game_data["is_enano_bet"] = g.get('is_enano_bet', g.get('user_bet', False))  # Default: user_bet = ENANO bet for hardcoded data
                 # Get user's bet type (OVER or UNDER) if they placed a bet
                 user_bet_type = g.get('bet_type', '')
                 game_data["bet_type"] = user_bet_type
