@@ -27,15 +27,15 @@ export default function Opportunities() {
   useEffect(() => {
     const fetchBettingRecord = async () => {
       try {
-        // Use POST to refresh and get the data with user_bet_hit calculated
+        // Use GET to get cached data (faster) - data should already have user_bet_hit from previous refresh
         const endpoint = league === 'NHL' 
-          ? `${BACKEND_URL}/api/opportunities/nhl/refresh?day=yesterday`
+          ? `${BACKEND_URL}/api/opportunities/nhl?day=yesterday`
           : league === 'NFL'
-          ? `${BACKEND_URL}/api/opportunities/nfl/refresh?day=yesterday`
-          : `${BACKEND_URL}/api/opportunities/refresh?day=yesterday`;
+          ? `${BACKEND_URL}/api/opportunities/nfl?day=yesterday`
+          : `${BACKEND_URL}/api/opportunities?day=yesterday`;
         
         console.log('Fetching betting record from:', endpoint);
-        const res = await fetch(endpoint, { method: 'POST' });
+        const res = await fetch(endpoint);
         const resData = await res.json();
         console.log('Betting record response:', resData.games?.length, 'games');
         if (resData.games) {
