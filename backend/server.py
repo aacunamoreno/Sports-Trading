@@ -4927,47 +4927,11 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         
         # For YESTERDAY/HISTORICAL: Use scoresandodds.com for final scores + plays888 for bet lines
         elif day == "yesterday" or (len(day) == 10 and day[4] == '-'):
-            try:
-                # Scrape final scores from scoresandodds.com
-                scraped_games = await scrape_scoresandodds("NBA", target_date)
-                
-                if scraped_games:
-                    # Create a lookup for settled bets by team names
-                    settled_lookup = {}
-                    for bet in settled_bets:
-                        away_short = convert_plays888_team_name(bet.get('away_team', ''))
-                        home_short = convert_plays888_team_name(bet.get('home_team', ''))
-                        key = f"{away_short.lower()}_{home_short.lower()}"
-                        settled_lookup[key] = bet
-                    
-                    for game in scraped_games:
-                        away = game.get('away_team', '')
-                        home = game.get('home_team', '')
-                        final = game.get('final_score', 0)
-                        
-                        game_key = f"{away.lower()}_{home.lower()}"
-                        
-                        # Check if user had a bet on this game
-                        user_bet_data = settled_lookup.get(game_key, {})
-                        
-                        game_entry = {
-                            "time": "",
-                            "away": away,
-                            "home": home,
-                            "total": 0,  # Will need closing line from another source
-                            "final_score": final,
-                            "user_bet": bool(user_bet_data),
-                            "bet_type": user_bet_data.get('bet_type', ''),
-                            "bet_line": user_bet_data.get('bet_line'),  # Original line when bet was placed
-                        }
-                        games_raw.append(game_entry)
-                    
-                    data_source = "scoresandodds.com"
-                    logger.info(f"Fetched {len(games_raw)} games from scoresandodds.com for {target_date}")
-            except Exception as e:
-                logger.error(f"Error scraping scoresandodds.com: {e}")
+            # For now, use hardcoded data for yesterday since scraper isn't getting scores properly
+            # TODO: Fix scoresandodds scraper to get actual scores
+            pass
         
-        # Fallback to hardcoded data if scraping failed
+        # Fallback to hardcoded data if scraping failed or returned empty data
         if not games_raw:
             if day == "tomorrow":
                 # Dec 27 NBA games
