@@ -5010,30 +5010,32 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         for g in games_raw:
             games_in_list.add(f"{g['away'].lower()}_{g['home'].lower()}")
         
-        # Check for open bets on games not in our list and add them
-        for bet in open_bets:
-            if bet.get('sport') != 'NBA':
-                continue
-            
-            bet_away = bet.get('away_team', '').upper()
-            bet_home = bet.get('home_team', '').upper()
-            
-            # Convert bet team names to short names
-            away_short = convert_plays888_team_name(bet_away)
-            home_short = convert_plays888_team_name(bet_home)
-            
-            game_key = f"{away_short.lower()}_{home_short.lower()}"
-            if game_key not in games_in_list:
-                # This bet is for a game not in our list - add it
-                bet_line = bet.get('total_line', 220.0)
-                games_raw.append({
-                    "time": "LIVE",  # Mark as live game
-                    "away": away_short,
-                    "home": home_short,
-                    "total": bet_line
-                })
-                games_in_list.add(game_key)
-                logger.info(f"Added game from open bet: {away_short} @ {home_short}")
+        # Only add games from open bets for TODAY - NOT for yesterday or historical
+        # Open bets are CURRENT bets, not historical ones
+        if day == "today":
+            for bet in open_bets:
+                if bet.get('sport') != 'NBA':
+                    continue
+                
+                bet_away = bet.get('away_team', '').upper()
+                bet_home = bet.get('home_team', '').upper()
+                
+                # Convert bet team names to short names
+                away_short = convert_plays888_team_name(bet_away)
+                home_short = convert_plays888_team_name(bet_home)
+                
+                game_key = f"{away_short.lower()}_{home_short.lower()}"
+                if game_key not in games_in_list:
+                    # This bet is for a game not in our list - add it
+                    bet_line = bet.get('total_line', 220.0)
+                    games_raw.append({
+                        "time": "LIVE",  # Mark as live game
+                        "away": away_short,
+                        "home": home_short,
+                        "total": bet_line
+                    })
+                    games_in_list.add(game_key)
+                    logger.info(f"Added game from open bet: {away_short} @ {home_short}")
         
         for i, g in enumerate(games_raw, 1):
             away_season = ppg_season.get(g['away'], 15)
