@@ -1,116 +1,158 @@
 {
-  "timestamp": "2025-12-26T18:52:31.331911",
-  "total_tests": 18,
-  "passed_tests": 13,
-  "success_rate": 72.22222222222221,
+  "timestamp": "2025-12-27T06:49:40.261169",
+  "total_tests": 25,
+  "passed_tests": 19,
+  "success_rate": 76.0,
   "results": [
+    {
+      "test": "GET /api/opportunities/nhl?day=tomorrow - All Games Verified",
+      "success": true,
+      "details": "All 13 NHL games have correct totals",
+      "timestamp": "2025-12-27T06:47:08.705365"
+    },
+    {
+      "test": "GET /api/opportunities/nhl?day=tomorrow - Corrected Games",
+      "success": true,
+      "details": "3 corrected games verified: Washington @ New Jersey: 5.5 \u2713; Anaheim @ Los Angeles: 6.5 \u2713; San Jose @ Vancouver: 5.5 \u2713",
+      "timestamp": "2025-12-27T06:47:08.705394"
+    },
+    {
+      "test": "GET /api/opportunities/nhl?day=tomorrow",
+      "success": true,
+      "details": "Successfully verified all 13 NHL games for Dec 27, 2025",
+      "timestamp": "2025-12-27T06:47:08.705401"
+    },
     {
       "test": "GET /api/opportunities?day=tomorrow",
       "success": true,
       "details": "Found 9 games, data_source: scoresandodds.com",
-      "timestamp": "2025-12-26T18:49:59.481972"
+      "timestamp": "2025-12-27T06:47:08.741937"
     },
     {
       "test": "GET /api/opportunities?day=today",
       "success": true,
-      "details": "Found 9 games, data_source: plays888.co",
-      "timestamp": "2025-12-26T18:49:59.521212"
+      "details": "Found 9 games, data_source: hardcoded",
+      "timestamp": "2025-12-27T06:47:08.779162"
     },
     {
       "test": "GET /api/opportunities?day=yesterday",
       "success": true,
       "details": "Found 5 games, 2 with user bets and bet-time data",
-      "timestamp": "2025-12-26T18:49:59.557542"
+      "timestamp": "2025-12-27T06:47:08.821730"
     },
     {
       "test": "POST /api/opportunities/refresh?day=tomorrow",
       "success": false,
-      "details": "Request error: HTTPSConnectionPool(host='betguard-2.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)",
-      "timestamp": "2025-12-26T18:50:14.597567"
+      "details": "Request error: HTTPSConnectionPool(host='bettingbot-4.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)",
+      "timestamp": "2025-12-27T06:47:23.865110"
     },
     {
       "test": "POST /api/opportunities/refresh?day=today&use_live_lines=true",
       "success": true,
-      "details": "Refreshed 9 games, data_source: plays888.co",
-      "timestamp": "2025-12-26T18:50:40.593284"
+      "details": "Refreshed 9 games, data_source: hardcoded",
+      "timestamp": "2025-12-27T06:47:50.136272"
     },
     {
       "test": "GET /api/opportunities - Game Structure",
       "success": true,
       "details": "Game has all required fields",
-      "timestamp": "2025-12-26T18:50:40.646175"
+      "timestamp": "2025-12-27T06:47:50.204762"
     },
     {
       "test": "GET /api/opportunities",
       "success": true,
       "details": "Returned 9 games, 0 plays",
-      "timestamp": "2025-12-26T18:50:40.646203"
+      "timestamp": "2025-12-27T06:47:50.204788"
     },
     {
-      "test": "GET /api/opportunities - data_source field",
-      "success": true,
-      "details": "data_source field present with value: plays888.co",
-      "timestamp": "2025-12-26T18:50:40.689718"
+      "test": "GET /api/opportunities - data_source value",
+      "success": false,
+      "details": "Invalid data_source 'hardcoded', expected one of ['cached', 'plays888.co']",
+      "timestamp": "2025-12-27T06:47:50.241894"
     },
     {
       "test": "POST /api/opportunities/refresh",
       "success": true,
-      "details": "Refreshed: 6 games, 0 plays",
-      "timestamp": "2025-12-26T18:50:49.574284"
+      "details": "Refreshed: 9 games, 0 plays",
+      "timestamp": "2025-12-27T06:47:59.580982"
     },
     {
-      "test": "Betting Logic - No Bet Rule",
+      "test": "Betting Logic - UNDER Rule",
       "success": false,
-      "details": "Game avg 16.0 should have no recommendation but got OVER",
-      "timestamp": "2025-12-26T18:50:49.631909"
+      "details": "Game avg 21.5 should be UNDER but got OVER",
+      "timestamp": "2025-12-27T06:47:59.631807"
     },
     {
       "test": "Color Coding Test",
       "success": true,
       "details": "All color coding is correct",
-      "timestamp": "2025-12-26T18:50:49.666295"
+      "timestamp": "2025-12-27T06:47:59.668175"
     },
     {
-      "test": "Bet-Time Line Tracking - San Antonio final_score",
+      "test": "Bet-Time Line Tracking - San Antonio bet_edge",
       "success": false,
-      "details": "Expected final_score 219, got 0",
-      "timestamp": "2025-12-26T18:50:49.703101"
+      "details": "Expected bet_edge 6.0, got 4.7",
+      "timestamp": "2025-12-27T06:47:59.707094"
+    },
+    {
+      "test": "POST /api/opportunities/refresh?day=yesterday - Data Source",
+      "success": true,
+      "details": "Data source: hardcoded",
+      "timestamp": "2025-12-27T06:48:13.406339"
+    },
+    {
+      "test": "POST /api/opportunities/refresh?day=yesterday - Bet Tracking",
+      "success": true,
+      "details": "Bet tracking fields present in 2 user bet games",
+      "timestamp": "2025-12-27T06:48:13.406369"
     },
     {
       "test": "POST /api/opportunities/refresh?day=yesterday",
-      "success": false,
-      "details": "Request error: HTTPSConnectionPool(host='betguard-2.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)",
-      "timestamp": "2025-12-26T18:51:04.763962"
+      "success": true,
+      "details": "Refreshed yesterday data: 5 games, 2 with user bets, source: hardcoded",
+      "timestamp": "2025-12-27T06:48:13.406375"
+    },
+    {
+      "test": "Line Difference - San Antonio @ Okla City",
+      "success": true,
+      "details": "Bet line: 233.0, Closing line: 234.5, Difference: 1.5",
+      "timestamp": "2025-12-27T06:48:13.461773"
+    },
+    {
+      "test": "Line Difference - Houston @ LA Lakers",
+      "success": true,
+      "details": "Bet line: 230.0, Closing line: 231.5, Difference: 1.5",
+      "timestamp": "2025-12-27T06:48:13.461798"
     },
     {
       "test": "Bet Line vs Closing Line Test",
-      "success": false,
-      "details": "No differences found between bet-time and closing lines",
-      "timestamp": "2025-12-26T18:51:04.831426"
+      "success": true,
+      "details": "Found 2 games with different bet-time vs closing lines",
+      "timestamp": "2025-12-27T06:48:13.461804"
     },
     {
       "test": "POST /api/scrape/totals/NBA",
-      "success": true,
-      "details": "Successfully scraped 9 NBA games from plays888.co",
-      "timestamp": "2025-12-26T18:51:22.931551"
+      "success": false,
+      "details": "No NBA games found - may be off-season or scraping issue",
+      "timestamp": "2025-12-27T06:48:30.597453"
     },
     {
       "test": "POST /api/scrape/totals/NHL",
       "success": true,
       "details": "Successfully scraped 8 NHL games from plays888.co",
-      "timestamp": "2025-12-26T18:51:39.605253"
+      "timestamp": "2025-12-27T06:48:46.961926"
     },
     {
-      "test": "POST /api/opportunities/refresh?use_live_lines=true",
-      "success": true,
-      "details": "NBA refresh with live lines: 9 games, 0 plays, source: plays888.co",
-      "timestamp": "2025-12-26T18:52:05.332224"
+      "test": "POST /api/opportunities/refresh?use_live_lines=true - Data Source",
+      "success": false,
+      "details": "Expected data_source 'plays888.co', got 'hardcoded'",
+      "timestamp": "2025-12-27T06:49:13.760725"
     },
     {
       "test": "POST /api/opportunities/nhl/refresh?use_live_lines=true",
       "success": true,
       "details": "NHL refresh with live lines: 8 games, 0 plays, source: plays888.co",
-      "timestamp": "2025-12-26T18:52:31.331010"
+      "timestamp": "2025-12-27T06:49:40.260223"
     }
   ]
 }
