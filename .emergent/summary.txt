@@ -1,0 +1,231 @@
+<analysis>**original_problem_statement:** The user wants to create a system that can automatically log into their account on the betting website . This system should be able to place wagers based on specific scenarios and rules provided by the user.
+
+PRODUCT REQUIREMENTS:
+1.  A web dashboard to manage the betting automation system.
+2.  Secure login and connection to  for two accounts:  (labeled ENANO) and  (labeled TIPSTER).
+3.  Server-side monitoring to detect bets placed from any device and send notifications.
+4.  Telegram notifications for all new bets and settled bet results.
+5.  A sleep mode to pause monitoring.
+6.  A mechanism to scrape bet results from a reliable source to track profit/loss.
+7.  An Opportunities section in the dashboard to analyze and display potential betting opportunities from sports leagues like NBA, NHL, and NFL.
+8.  For games the user has bet on, the dashboard must track and display the specific betting line and calculated edge *at the time the bet was placed*, separate from the current or closing line.
+9.  The data source for live/upcoming games should be , while the source for historical/settled game results should be .
+10. A UI to display team rankings with colored dots (🟢🔵🟡🔴) to help with analysis.
+11. A highlighting system (yellow) to alert the user when the dot-based analysis conflicts with the edge-based recommendation.
+12. A UI feature to show the opening line for a game in gray text next to the current line.
+13. The main Betting Record should only count bets from the ENANO account (>k bets).
+
+**User's preferred language**: English
+
+**what currently exists?**
+The application is a multi-sport (NBA, NHL, NFL) betting analysis dashboard. In this session, several major features and fixes were implemented:
+-   **Bet-Time & Opening Line Tracking:** For NBA games, the UI now displays the line/edge at the time a bet was placed (), the live/closing line (), and the opening line (stored in MongoDB).
+-   **Advanced UI Analytics:** Team rankings are now displayed with colored dots (e.g., 🟢🔴), and a conflict-detection system highlights rows in yellow when the dot-based analysis contradicts the statistical edge recommendation.
+-   **Corrected Data & Calculations:**
+    -   NBA PPG (Points Per Game) calculations were fixed by scraping live data from .
+    -   Game schedules for NBA (today) and NHL (today/tomorrow) have been corrected to show the right number of games from the correct sources.
+    -   The main Betting Record now correctly filters to only include the user's personal bets (ENANO account, >k wager), ignoring copied bets (TIPSTER account).
+-   **Data Sourcing Strategy:** A data sourcing model has been implemented:  for live data (today), and  for future (tomorrow) and past (yesterday) data.
+
+**Last working item**:
+-   **Last item agent was working:** The user pointed out that the betting line for the NHL game Washington @ New Jersey for tomorrow (Dec 27) was incorrect (showing 6.5 instead of 5.5). The agent was in the process of fixing this hardcoded value.
+-   **Status:** IN PROGRESS
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** backend testing agent to verify the API returns the correct line, and the screenshot tool to verify the UI.
+-   **User Testing Done:** N
+
+**All Pending/In progress Issue list**:
+-   **Issue 1:** Fix the Washington @ New Jersey NHL game line for Dec 27 (P0)
+-   **Issue 2:** Verify all other NHL lines for Dec 27 (P0)
+-   **Issue 3:** The  scraper is unreliable (P1)
+-   **Issue 4:** Automate Daily Results Scraping (P1)
+-   **Issue 5:** Refactor  (P2)
+-   **Issue 6:** Reliable auto-deletion of Telegram status messages (P3)
+
+**Issues Detail**:
+-   **Issue 1:**
+    -   **Description:** The user identified that the NHL game Washington @ New Jersey for Dec 27 has an incorrect line of 6.5. It should be 5.5.
+    -   **Attempted fixes:** The agent was about to edit the hardcoded data in .
+    -   **Next debug checklist:**
+        1.  Edit  to change the  for this game in the  list for NHL tomorrow's data.
+        2.  Restart the backend.
+        3.  Test the  endpoint to confirm the line is 5.5.
+        4.  Take a screenshot of the NHL Tomorrow view to verify the UI.
+    -   **Why fix this issue and what will be achieved with the fix?** To ensure data accuracy and maintain user trust, which is currently very low.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** both
+    -   **Blocked on other issue:** None
+
+-   **Issue 2:**
+    -   **Description:** The user's message implies that other NHL lines for tomorrow might also be wrong. A full verification is needed.
+    -   **Attempted fixes:** None.
+    -   **Next debug checklist:**
+        1.  Cross-reference all 13 NHL game lines for Dec 27 in the UI/API against .
+        2.  Update any incorrect lines in the hardcoded data in .
+    -   **Why fix this issue and what will be achieved with the fix?** Proactively fixes data errors before the user finds them, helping to rebuild trust.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** both
+    -   **Blocked on other issue:** None
+
+-   **Issue 3:**
+    -   **Description:** The Playwright scraper for  frequently times out, causing the system to fall back on hardcoded data. This is a primary source of data inaccuracy when dates change.
+    -   **Attempted fixes:** The agent implemented a fallback mechanism, but did not fix the scraper's reliability.
+    -   **Next debug checklist:**
+        1.  Investigate the  function in .
+        2.  Increase timeout values, add retries, or optimize the Playwright selectors to be faster and more resilient.
+        3.  Ensure the function gracefully handles cases where the site structure changes.
+    -   **Why fix this issue and what will be achieved with the fix?** Creates a robust data pipeline that doesn't rely on brittle, hardcoded fallbacks.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Backend
+    -   **Blocked on other issue:** None
+
+-   **Issue 4:**
+    -   **Description:** The process for updating historical results is manual. A background job is needed to scrape results from  daily.
+    -   **Attempted fixes:** None.
+    -   **Next debug checklist:**
+        1.  Create a new  job in .
+        2.  The job should run daily and call the  function for the previous day's date for all leagues.
+        3.  It should update the respective opportunity collections with final scores.
+    -   **Why fix this issue and what will be achieved with the fix?** Fully automates the data pipeline, ensuring the dashboard is always up-to-date.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Backend
+    -   **Blocked on other issue:** Issue 3 (The scraper must be reliable first).
+
+-   **Issue 5:**
+    -   **Description:** The backend file, , is a monolithic monster exceeding 5,500 lines. It contains all API routes, web scraping, data processing, and scheduling logic, making it extremely difficult and risky to modify.
+    -   **Attempted fixes:** None. The file has only grown larger.
+    -   **Next debug checklist:**
+        1.  Create a new directory structure: , , .
+        2.  Systematically move logic from  into the new structure (e.g., API endpoints to , scraping to ).
+    -   **Why fix this issue and what will be achieved with the fix?** Drastically improves code maintainability, reduces bugs, and enables faster future development. This is critical for the project's long-term health.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** both (extensive regression testing needed)
+    -   **Blocked on other issue:** None.
+
+-   **Issue 6:**
+    -   **Description:** Non-essential Telegram status messages were cluttering the chat. A fix was implemented using a database-backed deletion queue.
+    -   **Attempted fixes:** A  collection in MongoDB was created.
+    -   **Next debug checklist:** User needs to monitor the Telegram chat to confirm no extraneous status messages appear.
+    -   **Why fix this issue and what will be achieved with the fix?** Provides a clean, uncluttered Telegram notification experience.
+    -   **Status:** USER VERIFICATION PENDING
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Backend
+    -   **Blocked on other issue:** None.
+
+**In progress Task List**:
+-   None.
+
+**Upcoming and Future Tasks**
+
+-   **Upcoming Tasks:**
+    -   (P1) Improve  scraper reliability to prevent timeouts.
+    -   (P1) Implement automated daily scraping for historical game results.
+-   **Future Tasks:**
+    -   (P2) **Refactor the monolithic  file.** This is a high-priority technical debt item.
+    -   (P3) Implement a UI and API to create, manage, and store custom betting rules (e.g., edge thresholds) in MongoDB.
+
+**Completed work in this session**
+-   **Bet-Time & Opening Line Tracking (DONE):** Implemented UI and backend logic to display the original bet line/edge (), the live line, and the opening line (from MongoDB) for NBA games.
+-   **Advanced UI Analytics (DONE):**
+    -   Added colored dots (🟢🔵🟡🔴) to represent team rankings (Season vs. Last 3).
+    -   Implemented a conflict-highlighting system (yellow rows) for when dot analysis and edge recommendations disagree.
+-   **Data Accuracy & Calculations (DONE):**
+    -   Fixed NBA PPG calculations by scraping live data from .
+    -   Corrected NBA schedule to show all 9 games for the current day.
+    -   Corrected NHL schedule to show 0 games for Dec 26 and all 13 games for Dec 27.
+    -   Fixed the Betting Record to only count the user's personal ENANO bets (>k), ignoring copied TIPSTER bets.
+    -   Fixed the Yesterday view to correctly show only past games with final scores, removing active bets.
+
+**Earlier issues found/mentioned but not fixed**
+-   **Issue 1: Monolithic  file.** This critical issue was ignored again and has worsened as more logic was added to the file.
+-   **Issue 2: Unreliable  scraper.** The scraper frequently times out, forcing the system to use brittle hardcoded data. A robust solution is needed.
+
+**Known issue recurrence from previous fork**
+-   **Data Accuracy:** The issue of incorrect data (game schedules, calculations) recurred multiple times in this session, causing significant user frustration. The reliance on hardcoded fallbacks is the primary cause. Recurrence count: 5+ times. Status: IN PROGRESS.
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+-   **Backend:** FastAPI, Playwright, , BeautifulSoup, Pydantic, APScheduler
+-   **Frontend:** React (Hooks), Tailwind CSS, Shadcn UI, 
+-   **Database:** MongoDB
+-   **Web Scraping:** Complex, multi-source scraping from , , and .
+
+**key DB schema**
+-   ****: . Game objects now contain , , , , , , and .
+-   ** (NEW)**: . Stores the first line scraped for a game.
+-   : 
+-   : 
+-   : 
+
+**changes in tech stack**
+-   None.
+
+**All files of reference**
+-   : All backend logic was modified here. This includes the implementation of opening line storage, PPG scraping, bet filtering, and fixes to game schedules.
+-   : All frontend changes were made here, including the UI for bet-time lines, opening lines, colored dots, and the conflict highlighting system.
+
+**Areas that need refactoring**:
+-   : **CRITICAL PRIORITY.** This file is dangerously large and complex. It MUST be broken down into a proper project structure (, , ) before any more features are added. The technical debt is severe.
+-   : This file is now very large. It should be decomposed into smaller components (, , , etc.).
+
+**key api endpoints**
+-   : Fetches opportunity data. The backend logic for this endpoint was significantly refactored to handle different data sources and calculations.
+-   : Forces a refresh of opportunity data.
+
+**Critical Info for New Agent**
+-   **USER IS EXTREMELY FRUSTRATED:** The user is very unhappy about recurring data accuracy bugs and the associated credit costs. Your first priority is to be meticulous and accurate. Double-check all data points against the user's sources (, ).
+-   **DO NOT ADDRESS CREDIT ISSUES:** The user was referred to Emergent support for credit-related complaints. Do not engage on this topic. Focus solely on fixing the technical issues.
+-   **Immediate Task:** Fix the NHL Washington @ New Jersey line to 5.5 and then verify all other NHL lines for Dec 27.
+-   **Data Pipeline is Brittle:** Be aware that the  scraper is flaky. The system often falls back to hardcoded data in , which is a common source of errors when the date changes. Your goal should be to make scrapers more reliable to reduce reliance on hardcoded data.
+-   **Opening Lines:** The system now stores the *first seen* line from  as the . This is a persistent value.
+
+**documents and test reports created in this job**
+-   
+-   
+-   
+
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **User Request:** Fix the NHL Washington @ New Jersey line from 6.5 to 5.5. (PENDING)
+2.  **User Feedback:** All 13 NHL games for tomorrow are not showing. (RESOLVED)
+3.  **User Feedback:** NHL data is wrong; showing games on Dec 26 (no games) and 0 games on Dec 27. (RESOLVED)
+4.  **User Feedback:** The betting lines for tomorrow's NBA games are wrong. Also, the switch to  should be at 5am, not 10pm. (RESOLVED)
+5.  **User Feedback:** Yesterday's games are missing results and an active game (Clippers) is incorrectly showing. (RESOLVED)
+6.  **User Feedback:** Today's NBA view is only showing 6 games instead of 9. NEED IT TO BE THE LAST TIME YOU FIX THIS. (RESOLVED)
+7.  **User Request:** The Betting Record should only count the user's k bets (ENANO), not the k copied bets (TIPSTER). (RESOLVED)
+8.  **User Request:** Scrape and store the opening line for games from . (RESOLVED)
+9.  **User Request:** Add a gray number for the opening line and adjust the yellow highlighting logic. (RESOLVED)
+10. **User Feedback:** Extremely angry about recurring bugs and credit charges. Contacted support. (NO ACTION NEEDED)
+
+**Project Health Check:**
+-   **Broken:** The data pipeline is fragile. The  scraper is prone to timeouts, and the system's reliance on hardcoded fallbacks in  is a primary source of recurring data errors.
+-   **Mocked:** Opening lines were initially simulated with fake data before a real storage mechanism was implemented. The hardcoded data for game schedules still acts as a critical, and often incorrect, fallback.
+
+**3rd Party Integrations**
+-   **Telegram:** Used for all notifications.
+-   **Playwright:** Used for web scraping , , and .
+
+**Testing status**
+-   **Testing agent used after significant changes:** YES, the agent used the backend and frontend testing subagents to verify the bet-time tracking feature.
+-   **Troubleshoot agent used after agent stuck in loop:** NO
+-   **Test files created:**
+    - 
+-   **Known regressions:** None.
+
+**Credentials to test flow:**
+-   **Website:** 
+    -   **Account 1:** , Password:  (Label: ENANO)
+    -   **Account 2:** , Password:  (Label: TIPSTER)
+-   **Telegram:**
+    -   Bot Token: 
+    -   Group Chat ID: 
+
+**What agent forgot to execute**
+-   The agent again failed to address the critical technical debt of refactoring the monolithic  file.
+-   The agent did not make the  scraper more robust, instead implementing workarounds (fallbacks), which continues to cause data integrity issues.</analysis>
