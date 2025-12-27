@@ -4974,14 +4974,17 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     {"time": "10:00 PM", "away": "LA Clippers", "home": "Golden State", "total": 228.0},
                 ]
             elif day == "yesterday":
-                # Dec 25 (Christmas Day) - NBA Christmas Games - FALLBACK hardcoded data
-                # These values include bet_line (line when bet was placed) vs total (closing line)
+                # Dec 26, 2025 - NBA games with FINAL SCORES from scoresandodds.com
                 games_raw = [
-                    {"time": "12:00 PM", "away": "Cleveland", "home": "New York", "total": 241.5, "final_score": 250, "user_bet": False},
-                    {"time": "2:30 PM", "away": "San Antonio", "home": "Okla City", "total": 234.5, "final_score": 219, "user_bet": True, "bet_type": "OVER", "bet_line": 233.0, "bet_edge": 6.0},
-                    {"time": "5:00 PM", "away": "Dallas", "home": "Golden State", "total": 231.5, "final_score": 242, "user_bet": False},
-                    {"time": "8:00 PM", "away": "Houston", "home": "LA Lakers", "total": 231.5, "final_score": 215, "user_bet": True, "bet_type": "OVER", "bet_line": 230.0, "bet_edge": 8.5},
-                    {"time": "10:30 PM", "away": "Minnesota", "home": "Denver", "total": 238.5, "final_score": 280, "user_bet": False},
+                    {"time": "12:00 PM", "away": "Boston", "home": "Indiana", "total": 222.5, "final_score": 262},
+                    {"time": "2:30 PM", "away": "Toronto", "home": "Washington", "total": 225.5, "final_score": 255},
+                    {"time": "5:00 PM", "away": "Charlotte", "home": "Orlando", "total": 227.5, "final_score": 225},
+                    {"time": "5:00 PM", "away": "Miami", "home": "Atlanta", "total": 250.5, "final_score": 237},
+                    {"time": "5:00 PM", "away": "Philadelphia", "home": "Chicago", "total": 241.5, "final_score": 211},
+                    {"time": "7:00 PM", "away": "Milwaukee", "home": "Memphis", "total": 228.5, "final_score": 229},
+                    {"time": "7:00 PM", "away": "Phoenix", "home": "New Orleans", "total": 241.5, "final_score": 223},
+                    {"time": "9:00 PM", "away": "Detroit", "home": "Utah", "total": 245.5, "final_score": 260},
+                    {"time": "10:00 PM", "away": "LA Clippers", "home": "Portland", "total": 226.5, "final_score": 222},
                 ]
             else:
                 # Default fallback - Dec 26 games
