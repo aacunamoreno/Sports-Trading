@@ -5093,7 +5093,10 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             
             # Check if this game has an active bet
             # Also detect "hedged" bets (both OVER and UNDER on same game = cancelled out)
+            # IMPORTANT: Only count ENANO bets ($2k+) for betting record, NOT TIPSTER copies ($1k)
             game_bets = []
+            enano_bets = []  # Only $2k+ bets count for user record
+            
             for bet in open_bets:
                 if bet.get('sport') == 'NBA':
                     # Match team names (case-insensitive partial match)
@@ -5108,11 +5111,16 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     
                     if away_match and home_match:
                         game_bets.append(bet)
+                        # Check if it's an ENANO bet ($2k+) - these count for user betting record
+                        bet_risk = bet.get('total_risk', bet.get('risk', 0))
+                        if bet_risk >= 1500:  # ENANO bets are $2k+, TIPSTER copies are $1k
+                            enano_bets.append(bet)
             
             # Check if game is hedged (has both OVER and UNDER bets)
             bet_types = [b.get('bet_type', '').upper() for b in game_bets]
             is_hedged = 'OVER' in bet_types and 'UNDER' in bet_types
             
+            # For display purposes, show all bets
             if game_bets and not is_hedged:
                 # Game has active bet(s) that are not hedged
                 game_data["has_bet"] = True
@@ -5121,6 +5129,8 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 game_data["bet_count"] = sum(b.get('bet_count', 1) for b in game_bets)
                 # Store the line at which the bet was placed
                 game_data["bet_line"] = game_bets[0].get('total_line')
+                # Flag if this is an ENANO bet (counts for user record)
+                game_data["is_enano_bet"] = len(enano_bets) > 0
             elif is_hedged:
                 # Game is hedged (OVER + UNDER = push/cancelled)
                 game_data["has_bet"] = False
@@ -5129,6 +5139,7 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 game_data["bet_risk"] = 0
                 game_data["bet_count"] = 0
                 game_data["bet_line"] = None
+                game_data["is_enano_bet"] = False
             
             # Add result data for yesterday/historical
             if (day == "yesterday" or (len(day) == 10 and day[4] == '-')) and 'final_score' in g:
