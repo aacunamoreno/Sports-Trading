@@ -34,13 +34,16 @@ export default function Opportunities() {
           ? `${BACKEND_URL}/api/opportunities/nfl/refresh?day=yesterday`
           : `${BACKEND_URL}/api/opportunities/refresh?day=yesterday`;
         
+        console.log('Fetching betting record from:', endpoint);
         const res = await fetch(endpoint, { method: 'POST' });
         const resData = await res.json();
+        console.log('Betting record response:', resData.games?.length, 'games');
         if (resData.games) {
           // IMPORTANT: Only count ENANO bets ($2k+) for betting record, NOT TIPSTER copies ($1k)
           // Use is_enano_bet flag if available, otherwise fall back to user_bet
           const hits = resData.games.filter(g => (g.is_enano_bet || g.user_bet) && g.user_bet_hit === true).length;
           const misses = resData.games.filter(g => (g.is_enano_bet || g.user_bet) && g.user_bet_hit === false).length;
+          console.log('Betting record calculated:', hits, '-', misses);
           setBettingRecord({ hits, misses });
         }
       } catch (e) {
