@@ -37,8 +37,10 @@ export default function Opportunities() {
         const res = await fetch(endpoint, { method: 'POST' });
         const resData = await res.json();
         if (resData.games) {
-          const hits = resData.games.filter(g => g.user_bet && g.user_bet_hit === true).length;
-          const misses = resData.games.filter(g => g.user_bet && g.user_bet_hit === false).length;
+          // IMPORTANT: Only count ENANO bets ($2k+) for betting record, NOT TIPSTER copies ($1k)
+          // Use is_enano_bet flag if available, otherwise fall back to user_bet
+          const hits = resData.games.filter(g => (g.is_enano_bet || g.user_bet) && g.user_bet_hit === true).length;
+          const misses = resData.games.filter(g => (g.is_enano_bet || g.user_bet) && g.user_bet_hit === false).length;
           setBettingRecord({ hits, misses });
         }
       } catch (e) {
