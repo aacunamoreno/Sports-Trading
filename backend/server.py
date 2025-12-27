@@ -5423,7 +5423,7 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
         # Use hardcoded data if live fetch failed or wasn't requested
         if not games_raw:
             if day == "tomorrow":
-                # Dec 27 NHL games - 13 games from scoresandodds.com
+                # Dec 27 NHL games - 13 games from scoresandodds.com/plays888.co
                 games_raw = [
                     {"time": "1:00 PM", "away": "NY Rangers", "home": "NY Islanders", "total": 5.5},
                     {"time": "3:00 PM", "away": "Minnesota", "home": "Winnipeg", "total": 5.5},
@@ -5431,7 +5431,7 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                     {"time": "6:00 PM", "away": "Boston", "home": "Buffalo", "total": 6.5},
                     {"time": "6:00 PM", "away": "Detroit", "home": "Carolina", "total": 6.5},
                     {"time": "6:00 PM", "away": "Ottawa", "home": "Toronto", "total": 6.5},
-                    {"time": "6:00 PM", "away": "Washington", "home": "New Jersey", "total": 6.5},
+                    {"time": "6:00 PM", "away": "Washington", "home": "New Jersey", "total": 5.5},
                     {"time": "7:00 PM", "away": "Chicago", "home": "Dallas", "total": 5.5},
                     {"time": "7:00 PM", "away": "Nashville", "home": "St. Louis", "total": 5.5},
                     {"time": "8:00 PM", "away": "Anaheim", "home": "Los Angeles", "total": 5.5},
