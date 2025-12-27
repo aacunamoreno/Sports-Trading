@@ -1125,13 +1125,18 @@ class BettingSystemAPITester:
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
-        print("NBA OPPORTUNITIES API - DATA SOURCING STRATEGY TESTING")
+        print("NHL OPPORTUNITIES API TESTING - DECEMBER 27, 2025")
         print("=" * 60)
         print(f"Testing API: {self.api_url}")
         print()
         
+        # Run NHL Tomorrow Lines Test FIRST (primary focus)
+        print("🏒 NHL TOMORROW LINES VERIFICATION")
+        print("-" * 40)
+        self.test_nhl_opportunities_tomorrow_lines()
+        
         # Run NBA Data Sourcing Strategy Tests
-        print("🏀 NBA DATA SOURCING STRATEGY TESTS")
+        print("\n🏀 NBA DATA SOURCING STRATEGY TESTS")
         print("-" * 40)
         self.test_nba_data_sourcing_strategy_tomorrow()
         self.test_nba_data_sourcing_strategy_today()
