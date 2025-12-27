@@ -4847,33 +4847,60 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         # - YESTERDAY/HISTORICAL: Use scoresandodds.com for final scores
         # - TOMORROW: Use plays888.co or hardcoded data
         
-        # For TODAY: fetch live lines from plays888.co
-        if day == "today" and use_live_lines:
-            try:
-                conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
-                if conn and conn.get("is_connected"):
-                    username = conn["username"]
-                    password = decrypt_password(conn["password_encrypted"])
-                    
-                    scraper = Plays888Service()
-                    await scraper.login(username, password)
-                    live_games = await scraper.scrape_totals("NBA")
-                    await scraper.close()
-                    
-                    if live_games:
-                        for game in live_games:
-                            away_short = convert_plays888_team_name(game.get('away', ''))
-                            home_short = convert_plays888_team_name(game.get('home', ''))
-                            games_raw.append({
-                                "time": game.get('time', ''),
-                                "away": away_short,
-                                "home": home_short,
-                                "total": game.get('total', 220.0)
-                            })
-                        data_source = "plays888.co"
-                        logger.info(f"Fetched {len(games_raw)} NBA games from plays888.co")
-            except Exception as e:
-                logger.error(f"Error fetching live lines: {e}")
+        # For TODAY: Start with full schedule, then update with live lines from plays888.co
+        if day == "today":
+            # ALWAYS start with the full hardcoded schedule
+            games_raw = [
+                {"time": "12:00 PM", "away": "Boston", "home": "Indiana", "total": 222.0},
+                {"time": "2:30 PM", "away": "Toronto", "home": "Washington", "total": 226.0},
+                {"time": "5:00 PM", "away": "Charlotte", "home": "Orlando", "total": 212.0},
+                {"time": "5:00 PM", "away": "Miami", "home": "Atlanta", "total": 251.0},
+                {"time": "5:00 PM", "away": "Philadelphia", "home": "Chicago", "total": 221.0},
+                {"time": "7:00 PM", "away": "Milwaukee", "home": "Memphis", "total": 223.0},
+                {"time": "7:00 PM", "away": "Phoenix", "home": "New Orleans", "total": 242.0},
+                {"time": "9:00 PM", "away": "Detroit", "home": "Utah", "total": 245.5},
+                {"time": "10:00 PM", "away": "LA Clippers", "home": "Portland", "total": 226.5},
+            ]
+            data_source = "hardcoded"
+            
+            # Now try to UPDATE with live lines from plays888.co
+            if use_live_lines:
+                try:
+                    conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+                    if conn and conn.get("is_connected"):
+                        username = conn["username"]
+                        password = decrypt_password(conn["password_encrypted"])
+                        
+                        scraper = Plays888Service()
+                        await scraper.login(username, password)
+                        live_games = await scraper.scrape_totals("NBA")
+                        await scraper.close()
+                        
+                        if live_games:
+                            # Update existing games with live lines
+                            live_lookup = {}
+                            for game in live_games:
+                                away_short = convert_plays888_team_name(game.get('away', ''))
+                                home_short = convert_plays888_team_name(game.get('home', ''))
+                                key = f"{away_short.lower()}_{home_short.lower()}"
+                                live_lookup[key] = {
+                                    "time": game.get('time', ''),
+                                    "total": game.get('total')
+                                }
+                            
+                            # Update games_raw with live data
+                            for g in games_raw:
+                                key = f"{g['away'].lower()}_{g['home'].lower()}"
+                                if key in live_lookup:
+                                    if live_lookup[key]['total']:
+                                        g['total'] = live_lookup[key]['total']
+                                    if live_lookup[key]['time']:
+                                        g['time'] = live_lookup[key]['time']
+                            
+                            data_source = "plays888.co (Live)"
+                            logger.info(f"Updated {len(live_lookup)} games with live lines from plays888.co")
+                except Exception as e:
+                    logger.error(f"Error fetching live lines: {e}")
         
         # For TOMORROW: Use scoresandodds.com for schedule/lines
         elif day == "tomorrow":
