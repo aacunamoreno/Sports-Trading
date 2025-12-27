@@ -1,6 +1,34 @@
 # Test Results for BetBot Opportunities Dashboard
 
-## Test Date: 2025-12-26
+## Test Date: 2025-12-27
+
+## Latest Fix: NHL Tomorrow Lines Correction
+
+### Issue Fixed:
+The NHL lines for December 27, 2025 had incorrect values in the database cache:
+- Washington @ New Jersey: 6.5 → 5.5 ✅
+- Anaheim @ Los Angeles: 5.5 → 6.5 ✅
+- San Jose @ Vancouver: 6.0 → 5.5 ✅
+
+### Verification:
+All 13 NHL games for Dec 27 now match scoresandodds.com:
+1. NY Rangers @ NY Islanders: 5.5 ✅
+2. Minnesota @ Winnipeg: 5.5 ✅
+3. Tampa Bay @ Florida: 5.5 ✅
+4. Boston @ Buffalo: 6.5 ✅
+5. Detroit @ Carolina: 6.5 ✅
+6. Ottawa @ Toronto: 6.5 ✅
+7. Washington @ New Jersey: 5.5 ✅
+8. Chicago @ Dallas: 5.5 ✅
+9. Nashville @ St. Louis: 5.5 ✅
+10. Anaheim @ Los Angeles: 6.5 ✅
+11. Colorado @ Vegas: 6.5 ✅
+12. Edmonton @ Calgary: 6.5 ✅
+13. San Jose @ Vancouver: 5.5 ✅
+
+---
+
+## Previous Test Date: 2025-12-26
 
 ## Feature Being Tested: Bet-Time Line Tracking
 
