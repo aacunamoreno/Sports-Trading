@@ -189,6 +189,29 @@ def schedule_daily_summary():
             replace_existing=True
         )
         logger.info("NBA opportunities refresh scheduled for 10:30 PM Arizona time")
+        
+        # ============================================
+        # PROCESS NOTEBOOK SCHEDULED JOBS
+        # ============================================
+        
+        # #1 - 8:00 PM Arizona: Scrape tomorrow's games (opening lines) from ScoresAndOdds
+        scheduler.add_job(
+            scrape_tomorrows_opening_lines,
+            trigger=CronTrigger(hour=20, minute=0, timezone='America/Phoenix'),  # 8:00 PM Arizona
+            id='scrape_tomorrows_opening_lines',
+            replace_existing=True
+        )
+        logger.info("Tomorrow's opening lines scrape scheduled for 8:00 PM Arizona time")
+        
+        # #4, #5, #6 - 5:00 AM Arizona: Morning data refresh
+        scheduler.add_job(
+            morning_data_refresh,
+            trigger=CronTrigger(hour=5, minute=0, timezone='America/Phoenix'),  # 5:00 AM Arizona
+            id='morning_data_refresh',
+            replace_existing=True
+        )
+        logger.info("Morning data refresh scheduled for 5:00 AM Arizona time")
+        
     except Exception as e:
         logger.error(f"Error scheduling daily tasks: {str(e)}")
 
