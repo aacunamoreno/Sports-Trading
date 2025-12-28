@@ -4690,6 +4690,286 @@ async def scrape_tomorrows_opening_lines():
     except Exception as e:
         logger.error(f"[8PM Job] Error in scrape_tomorrows_opening_lines: {e}")
 
+
+async def populate_ppg_and_dots_for_tomorrow():
+    """
+    #2 - After Scraping: Fill PPG Data & 4-Dot System for Tomorrow's Games
+    
+    Formula: GPG Avg = (Team1 Season PPG + Team2 Season PPG + Team1 L3 PPG + Team2 L3 PPG) / 2
+    Edge = GPG Avg - Line
+    
+    4 Dots System:
+    - 🟢 Green: Rank 1-8 (Top tier)
+    - 🔵 Blue: Rank 9-16 (Upper middle)
+    - 🟡 Yellow: Rank 17-24 (Lower middle)
+    - 🔴 Red: Rank 25-32 (Bottom tier)
+    """
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    tomorrow = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    logger.info(f"[8PM Job #2] Populating PPG and dots for tomorrow ({tomorrow})")
+    
+    def get_dot_color(rank: int) -> str:
+        """Get dot color based on rank (1-32)"""
+        if rank <= 8:
+            return "🟢"  # Green: Top tier
+        elif rank <= 16:
+            return "🔵"  # Blue: Upper middle
+        elif rank <= 24:
+            return "🟡"  # Yellow: Lower middle
+        else:
+            return "🔴"  # Red: Bottom tier
+    
+    # ==================== NBA PPG DATA ====================
+    nba_ppg_season = {
+        'Boston': 1, 'Okla City': 2, 'Indiana': 3, 'Milwaukee': 4, 'Golden State': 5,
+        'Denver': 6, 'Minnesota': 7, 'Sacramento': 8, 'New York': 9, 'Dallas': 10,
+        'Memphis': 11, 'Cleveland': 12, 'Houston': 13, 'LA Lakers': 14, 'Detroit': 15,
+        'Phoenix': 16, 'San Antonio': 17, 'Atlanta': 18, 'New Orleans': 19, 'Brooklyn': 20,
+        'LA Clippers': 21, 'Toronto': 22, 'Philadelphia': 23, 'Portland': 24, 'Washington': 25,
+        'Chicago': 26, 'Utah': 27, 'Orlando': 28, 'Charlotte': 29, 'Miami': 30
+    }
+    nba_ppg_last3 = {
+        'Indiana': 1, 'Boston': 2, 'Memphis': 3, 'Golden State': 4, 'Detroit': 5,
+        'Washington': 6, 'New York': 7, 'Milwaukee': 8, 'Houston': 9, 'Phoenix': 10,
+        'Denver': 11, 'LA Lakers': 12, 'Sacramento': 13, 'Okla City': 14, 'Minnesota': 15,
+        'Dallas': 16, 'San Antonio': 17, 'Cleveland': 18, 'Brooklyn': 19, 'Toronto': 20,
+        'Atlanta': 21, 'New Orleans': 22, 'LA Clippers': 23, 'Portland': 24, 'Philadelphia': 25,
+        'Chicago': 26, 'Utah': 27, 'Charlotte': 28, 'Orlando': 29, 'Miami': 30
+    }
+    nba_ppg_season_values = {
+        'Boston': 121.5, 'Okla City': 120.8, 'Indiana': 119.2, 'Milwaukee': 117.5, 'Golden State': 117.2,
+        'Denver': 116.8, 'Minnesota': 115.9, 'Sacramento': 115.3, 'New York': 114.7, 'Dallas': 114.5,
+        'Memphis': 113.2, 'Cleveland': 112.8, 'Houston': 112.5, 'LA Lakers': 112.1, 'Detroit': 111.8,
+        'Phoenix': 111.5, 'San Antonio': 111.0, 'Atlanta': 110.7, 'New Orleans': 110.3, 'Brooklyn': 109.8,
+        'LA Clippers': 109.5, 'Toronto': 109.1, 'Philadelphia': 108.8, 'Portland': 108.2, 'Washington': 107.9,
+        'Chicago': 107.5, 'Utah': 106.8, 'Orlando': 106.2, 'Charlotte': 105.5, 'Miami': 104.8
+    }
+    nba_ppg_last3_values = {
+        'Indiana': 128.3, 'Boston': 125.7, 'Memphis': 124.0, 'Golden State': 122.7, 'Detroit': 121.3,
+        'Washington': 120.0, 'New York': 119.3, 'Milwaukee': 118.7, 'Houston': 118.0, 'Phoenix': 117.3,
+        'Denver': 116.7, 'LA Lakers': 116.0, 'Sacramento': 115.3, 'Okla City': 114.7, 'Minnesota': 114.0,
+        'Dallas': 113.3, 'San Antonio': 112.7, 'Cleveland': 112.0, 'Brooklyn': 111.3, 'Toronto': 110.7,
+        'Atlanta': 110.0, 'New Orleans': 109.3, 'LA Clippers': 108.7, 'Portland': 108.0, 'Philadelphia': 107.3,
+        'Chicago': 106.7, 'Utah': 106.0, 'Charlotte': 105.3, 'Orlando': 104.7, 'Miami': 104.0
+    }
+    
+    # ==================== NHL GPG DATA ====================
+    nhl_gpg_season = {
+        'Colorado': 1, 'Dallas': 2, 'Anaheim': 3, 'Edmonton': 4, 'Carolina': 5,
+        'Ottawa': 6, 'Tampa Bay': 7, 'Montreal': 8, 'Boston': 9, 'Washington': 10,
+        'Florida': 11, 'Toronto': 12, 'Detroit': 13, 'Utah': 14, 'Pittsburgh': 15,
+        'Buffalo': 16, 'Minnesota': 17, 'San Jose': 18, 'Winnipeg': 19, 'Columbus': 20,
+        'Philadelphia': 21, 'NY Islanders': 22, 'Chicago': 23, 'Vancouver': 24, 'Nashville': 25,
+        'Vegas': 26, 'New Jersey': 27, 'Calgary': 28, 'Los Angeles': 29, 'St. Louis': 30,
+        'Seattle': 31, 'NY Rangers': 32
+    }
+    nhl_gpg_last3 = {
+        'Dallas': 1, 'Ottawa': 2, 'Calgary': 3, 'Colorado': 4, 'Montreal': 5,
+        'Minnesota': 6, 'Carolina': 7, 'Philadelphia': 8, 'Vancouver': 9, 'San Jose': 10,
+        'Buffalo': 11, 'Anaheim': 12, 'Edmonton': 13, 'Detroit': 14, 'Utah': 15,
+        'Columbus': 16, 'Seattle': 17, 'Tampa Bay': 18, 'Washington': 19, 'St. Louis': 20,
+        'Florida': 21, 'Nashville': 22, 'Boston': 23, 'NY Rangers': 24, 'Vegas': 25,
+        'Toronto': 26, 'Pittsburgh': 27, 'NY Islanders': 28, 'New Jersey': 29, 'Chicago': 30,
+        'Winnipeg': 31, 'Los Angeles': 32
+    }
+    nhl_gpg_season_values = {
+        'Colorado': 4.03, 'Dallas': 3.51, 'Anaheim': 3.44, 'Edmonton': 3.38, 'Carolina': 3.29,
+        'Ottawa': 3.26, 'Tampa Bay': 3.23, 'Montreal': 3.19, 'Boston': 3.19, 'Washington': 3.17,
+        'Florida': 3.14, 'Toronto': 3.11, 'Detroit': 3.08, 'Utah': 3.05, 'Pittsburgh': 3.03,
+        'Buffalo': 3.03, 'Minnesota': 3.03, 'San Jose': 2.94, 'Winnipeg': 2.91, 'Columbus': 2.89,
+        'Philadelphia': 2.88, 'NY Islanders': 2.83, 'Chicago': 2.80, 'Vancouver': 2.80, 'Nashville': 2.80,
+        'Vegas': 2.76, 'New Jersey': 2.66, 'Calgary': 2.64, 'Los Angeles': 2.56, 'St. Louis': 2.54,
+        'Seattle': 2.52, 'NY Rangers': 2.50
+    }
+    nhl_gpg_last3_values = {
+        'Dallas': 6.00, 'Ottawa': 5.33, 'Calgary': 4.33, 'Colorado': 4.33, 'Montreal': 3.67,
+        'Minnesota': 3.67, 'Carolina': 3.67, 'Philadelphia': 3.67, 'Vancouver': 3.67, 'San Jose': 3.67,
+        'Buffalo': 3.33, 'Anaheim': 3.33, 'Edmonton': 3.00, 'Detroit': 3.00, 'Utah': 3.00,
+        'Columbus': 3.00, 'Seattle': 3.00, 'Tampa Bay': 3.00, 'Washington': 2.67, 'St. Louis': 2.67,
+        'Florida': 2.67, 'Nashville': 2.67, 'Boston': 2.33, 'NY Rangers': 2.33, 'Vegas': 2.33,
+        'Toronto': 2.33, 'Pittsburgh': 2.33, 'NY Islanders': 2.33, 'New Jersey': 2.33, 'Chicago': 2.00,
+        'Winnipeg': 2.00, 'Los Angeles': 2.00
+    }
+    
+    # ==================== NFL PPG DATA ====================
+    nfl_ppg_season = {
+        'LA Rams': 1, 'Detroit': 2, 'Seattle': 3, 'Buffalo': 4, 'Dallas': 5,
+        'Indianapolis': 6, 'Jacksonville': 7, 'New England': 8, 'San Francisco': 9, 'Chicago': 10,
+        'Pittsburgh': 11, 'Green Bay': 12, 'Denver': 13, 'Cincinnati': 14, 'Baltimore': 15,
+        'LA Chargers': 16, 'Philadelphia': 17, 'Tampa Bay': 18, 'Houston': 19, 'Kansas City': 20,
+        'Arizona': 21, 'Miami': 22, 'NY Giants': 23, 'Washington': 24, 'Atlanta': 25,
+        'Minnesota': 26, 'Carolina': 27, 'NY Jets': 28, 'New Orleans': 29, 'Tennessee': 30,
+        'Cleveland': 31, 'Las Vegas': 32
+    }
+    nfl_ppg_last3 = {
+        'San Francisco': 1, 'LA Rams': 2, 'Jacksonville': 3, 'Detroit': 4, 'Buffalo': 5,
+        'New England': 6, 'Pittsburgh': 7, 'Denver': 8, 'Cincinnati': 9, 'Philadelphia': 10,
+        'Dallas': 11, 'LA Chargers': 12, 'Houston': 13, 'Green Bay': 14, 'Baltimore': 15,
+        'Minnesota': 16, 'Chicago': 17, 'Tampa Bay': 18, 'Carolina': 19, 'Miami': 20,
+        'Atlanta': 21, 'Indianapolis': 22, 'Cleveland': 23, 'Seattle': 24, 'New Orleans': 25,
+        'Arizona': 26, 'Washington': 27, 'Tennessee': 28, 'Kansas City': 29, 'NY Giants': 30,
+        'NY Jets': 31, 'Las Vegas': 32
+    }
+    nfl_ppg_season_values = {
+        'LA Rams': 30.5, 'Detroit': 30.1, 'Seattle': 29.5, 'Buffalo': 28.9, 'Dallas': 28.3,
+        'Indianapolis': 27.9, 'Jacksonville': 27.3, 'New England': 27.3, 'San Francisco': 26.1, 'Chicago': 25.8,
+        'Pittsburgh': 24.3, 'Green Bay': 24.3, 'Denver': 24.1, 'Cincinnati': 23.9, 'Baltimore': 23.9,
+        'LA Chargers': 23.3, 'Philadelphia': 23.3, 'Tampa Bay': 23.1, 'Houston': 23.1, 'Kansas City': 22.5,
+        'Arizona': 21.4, 'Miami': 21.1, 'NY Giants': 20.9, 'Washington': 20.6, 'Atlanta': 20.5,
+        'Minnesota': 20.3, 'Carolina': 19.1, 'NY Jets': 18.8, 'New Orleans': 17.0, 'Tennessee': 17.0,
+        'Cleveland': 16.5, 'Las Vegas': 16.3
+    }
+    nfl_ppg_last3_values = {
+        'San Francisco': 37.0, 'LA Rams': 41.0, 'Jacksonville': 39.3, 'Detroit': 34.0, 'Buffalo': 32.3,
+        'New England': 30.7, 'Pittsburgh': 28.0, 'Denver': 26.0, 'Cincinnati': 26.3, 'Philadelphia': 26.3,
+        'Dallas': 24.3, 'LA Chargers': 24.0, 'Houston': 27.7, 'Green Bay': 23.3, 'Baltimore': 23.3,
+        'Minnesota': 27.0, 'Chicago': 24.7, 'Tampa Bay': 22.7, 'Carolina': 23.7, 'Miami': 23.3,
+        'Atlanta': 21.3, 'Indianapolis': 20.7, 'Cleveland': 23.0, 'Seattle': 31.0, 'New Orleans': 24.3,
+        'Arizona': 18.7, 'Washington': 15.7, 'Tennessee': 16.0, 'Kansas City': 10.7, 'NY Giants': 16.3,
+        'NY Jets': 12.0, 'Las Vegas': 6.0
+    }
+    
+    # Edge thresholds by league
+    edge_thresholds = {'NBA': 5, 'NHL': 0.5, 'NFL': 7}
+    
+    for league in ['NBA', 'NHL', 'NFL']:
+        try:
+            collection_name = f"{league.lower()}_opportunities"
+            collection = db[collection_name]
+            
+            # Fetch existing tomorrow data
+            cached = await collection.find_one({"date": tomorrow}, {"_id": 0})
+            
+            if not cached or not cached.get('games'):
+                logger.warning(f"[8PM Job #2] No {league} games found for {tomorrow}, skipping PPG population")
+                continue
+            
+            games = cached['games']
+            logger.info(f"[8PM Job #2] Processing {len(games)} {league} games for PPG and dots")
+            
+            # Select appropriate PPG data based on league
+            if league == 'NBA':
+                ppg_season = nba_ppg_season
+                ppg_last3 = nba_ppg_last3
+                ppg_season_values = nba_ppg_season_values
+                ppg_last3_values = nba_ppg_last3_values
+            elif league == 'NHL':
+                ppg_season = nhl_gpg_season
+                ppg_last3 = nhl_gpg_last3
+                ppg_season_values = nhl_gpg_season_values
+                ppg_last3_values = nhl_gpg_last3_values
+            else:  # NFL
+                ppg_season = nfl_ppg_season
+                ppg_last3 = nfl_ppg_last3
+                ppg_season_values = nfl_ppg_season_values
+                ppg_last3_values = nfl_ppg_last3_values
+            
+            edge_threshold = edge_thresholds[league]
+            
+            # Process each game
+            for game in games:
+                away = game.get('away_team') or game.get('away', '')
+                home = game.get('home_team') or game.get('home', '')
+                total = game.get('total')
+                
+                # Get rankings
+                away_season_rank = ppg_season.get(away, 16)
+                away_last3_rank = ppg_last3.get(away, 16)
+                home_season_rank = ppg_season.get(home, 16)
+                home_last3_rank = ppg_last3.get(home, 16)
+                
+                # Get PPG values
+                away_season_ppg = ppg_season_values.get(away, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 20.0))
+                away_last3_ppg = ppg_last3_values.get(away, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 20.0))
+                home_season_ppg = ppg_season_values.get(home, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 20.0))
+                home_last3_ppg = ppg_last3_values.get(home, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 20.0))
+                
+                # Calculate combined PPG using the formula:
+                # (Team1 Season PPG + Team2 Season PPG + Team1 L3 PPG + Team2 L3 PPG) / 2
+                combined_ppg = round((away_season_ppg + home_season_ppg + away_last3_ppg + home_last3_ppg) / 2, 1)
+                
+                # Calculate edge
+                edge = round(combined_ppg - total, 1) if total else None
+                
+                # Determine recommendation
+                recommendation = None
+                color = "neutral"
+                if edge is not None:
+                    if edge >= edge_threshold:
+                        recommendation = "OVER"
+                        color = "green"
+                    elif edge <= -edge_threshold:
+                        recommendation = "UNDER"
+                        color = "red"
+                
+                # Generate 4 dots (away_season, away_l3, home_season, home_l3)
+                dots = f"{get_dot_color(away_season_rank)}{get_dot_color(away_last3_rank)}{get_dot_color(home_season_rank)}{get_dot_color(home_last3_rank)}"
+                
+                # Update game data
+                game['away_ppg_rank'] = away_season_rank
+                game['away_last3_rank'] = away_last3_rank
+                game['away_season_ppg'] = away_season_ppg
+                game['away_last3_ppg'] = away_last3_ppg
+                game['home_ppg_rank'] = home_season_rank
+                game['home_last3_rank'] = home_last3_rank
+                game['home_season_ppg'] = home_season_ppg
+                game['home_last3_ppg'] = home_last3_ppg
+                game['combined_ppg'] = combined_ppg
+                game['edge'] = edge
+                game['recommendation'] = recommendation
+                game['color'] = color
+                game['dots'] = dots
+                game['away_dots'] = f"{get_dot_color(away_season_rank)}{get_dot_color(away_last3_rank)}"
+                game['home_dots'] = f"{get_dot_color(home_season_rank)}{get_dot_color(home_last3_rank)}"
+                
+                logger.debug(f"[8PM Job #2] {away} @ {home}: PPG={combined_ppg}, Edge={edge}, Dots={dots}")
+            
+            # Save updated data
+            await collection.update_one(
+                {"date": tomorrow},
+                {"$set": {"games": games, "ppg_populated": True, "ppg_updated_at": datetime.now(timezone.utc).isoformat()}},
+                upsert=True
+            )
+            
+            logger.info(f"[8PM Job #2] ✅ {league}: Updated {len(games)} games with PPG and dots")
+            
+        except Exception as e:
+            logger.error(f"[8PM Job #2] Error processing {league}: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    logger.info(f"[8PM Job #2] Completed PPG and dots population for tomorrow ({tomorrow})")
+
+
+async def execute_8pm_process():
+    """
+    Execute the full 8pm process: #1 (scrape opening lines) + #2 (populate PPG and dots)
+    This is called by the scheduled job at 8pm Arizona time or manually via API.
+    """
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    now_arizona = datetime.now(arizona_tz)
+    tomorrow = (now_arizona + timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    logger.info(f"=" * 60)
+    logger.info(f"[8PM PROCESS] Starting at {now_arizona.strftime('%I:%M %p')} Arizona time")
+    logger.info(f"[8PM PROCESS] Target date: {tomorrow}")
+    logger.info(f"=" * 60)
+    
+    # Step #1: Scrape tomorrow's opening lines from ScoresAndOdds
+    logger.info(f"[8PM PROCESS] Step #1: Scraping tomorrow's opening lines...")
+    await scrape_tomorrows_opening_lines()
+    
+    # Step #2: Populate PPG and dots
+    logger.info(f"[8PM PROCESS] Step #2: Populating PPG and 4-dot analysis...")
+    await populate_ppg_and_dots_for_tomorrow()
+    
+    logger.info(f"[8PM PROCESS] ✅ Completed successfully")
+    return {"status": "success", "date": tomorrow, "timestamp": now_arizona.isoformat()}
+
+
 async def morning_data_refresh():
     """
     5:00 AM Arizona: Morning data refresh
