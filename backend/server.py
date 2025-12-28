@@ -6579,7 +6579,9 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
                         "bet_type": bet.get('bet_type'),
                         "bet_line": bet.get('total_line'),
                         "bet_risk": bet.get('risk', 0),
-                        "bet_count": 1
+                        "bet_count": 1,
+                        "away_team": away_team,
+                        "home_team": home_team
                     }
                 else:
                     # Check for hedged bets (opposite directions)
@@ -6588,6 +6590,37 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
                     if existing_type and new_type and existing_type != new_type:
                         nfl_open_bets[game_key]['hedged'] = True
                     nfl_open_bets[game_key]['bet_count'] += 1
+        
+        # #3.85: Add games from open bets that aren't in the schedule (started games with bets)
+        if day == "today":
+            existing_matchups = set()
+            for g in games_raw:
+                key = f"{g['away'].upper()}_{g['home'].upper()}"
+                existing_matchups.add(key)
+            
+            added_from_bets = 0
+            for game_key, bet_data in nfl_open_bets.items():
+                away = bet_data.get('away_team', '')
+                home = bet_data.get('home_team', '')
+                check_key = f"{away.upper()}_{home.upper()}"
+                
+                if check_key not in existing_matchups and away and home:
+                    # This bet's game isn't in the schedule - add it
+                    bet_line = bet_data.get('bet_line', 45.0)
+                    games_raw.append({
+                        "time": "Started",
+                        "away": away,
+                        "home": home,
+                        "total": bet_line,
+                        "started": True,
+                        "from_bet": True
+                    })
+                    existing_matchups.add(check_key)
+                    added_from_bets += 1
+                    logger.info(f"[#3.85] Added bet game to NFL schedule: {away} @ {home} (line: {bet_line})")
+            
+            if added_from_bets > 0:
+                logger.info(f"[#3.85] Added {added_from_bets} games from NFL open bets (total: {len(games_raw)} games)")
         
         games = []
         plays = []
