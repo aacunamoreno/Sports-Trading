@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, TrendingUp, TrendingDown, Target, Wifi, Calendar } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Target, Wifi, Calendar, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -18,6 +18,7 @@ export default function Opportunities() {
   const [refreshing, setRefreshing] = useState(false);
   const [useLiveLines, setUseLiveLines] = useState(true); // Default to using live lines
   const [bettingRecord, setBettingRecord] = useState({ hits: 0, misses: 0 });
+  const [exporting, setExporting] = useState(false);
   const [edgeRecord, setEdgeRecord] = useState({ hits: 0, misses: 0 });
 
   useEffect(() => {
