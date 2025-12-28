@@ -1122,52 +1122,247 @@ class BettingSystemAPITester:
             self.log_test("GET /api/opportunities/nhl?day=tomorrow", False, f"JSON decode error: {str(e)}")
             return False
 
+    def test_historical_data_nba_date(self, date_str, expected_record=None):
+        """Test NBA historical data for a specific date"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities?day={date_str}", timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test(f"NBA Historical Data {date_str} - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                games = data.get('games', [])
+                if not isinstance(games, list):
+                    self.log_test(f"NBA Historical Data {date_str} - Games Array", False,
+                                "Games is not an array")
+                    return False
+                
+                if len(games) == 0:
+                    self.log_test(f"NBA Historical Data {date_str} - No Games", False,
+                                "No games found for this date")
+                    return False
+                
+                # Check that all games have final_score populated
+                games_without_final_score = []
+                for game in games:
+                    final_score = game.get('final_score')
+                    if final_score is None:
+                        games_without_final_score.append(f"{game.get('away_team', 'Unknown')} @ {game.get('home_team', 'Unknown')}")
+                
+                if games_without_final_score:
+                    self.log_test(f"NBA Historical Data {date_str} - Final Scores", False,
+                                f"Games missing final_score: {', '.join(games_without_final_score)}")
+                    return False
+                
+                # Check user bets
+                user_bet_games = [g for g in games if g.get('user_bet') == True]
+                
+                # Validate user bet fields
+                for game in user_bet_games:
+                    required_bet_fields = ['bet_type', 'bet_line', 'bet_result', 'user_bet_hit']
+                    missing_bet_fields = [field for field in required_bet_fields if field not in game]
+                    
+                    if missing_bet_fields:
+                        self.log_test(f"NBA Historical Data {date_str} - Bet Fields", False,
+                                    f"Game {game.get('away_team')} @ {game.get('home_team')} missing bet fields: {missing_bet_fields}")
+                        return False
+                    
+                    # Validate user_bet_hit calculation
+                    final_score = game.get('final_score')
+                    bet_line = game.get('bet_line')
+                    bet_result = game.get('bet_result')
+                    user_bet_hit = game.get('user_bet_hit')
+                    
+                    if final_score is not None and bet_line is not None:
+                        # Calculate expected result based on bet type
+                        if bet_result in ['won', 'lost']:
+                            expected_hit = (bet_result == 'won')
+                            if user_bet_hit != expected_hit:
+                                self.log_test(f"NBA Historical Data {date_str} - Bet Calculation", False,
+                                            f"Game {game.get('away_team')} @ {game.get('home_team')}: user_bet_hit={user_bet_hit} but bet_result={bet_result}")
+                                return False
+                
+                # Check expected record if provided
+                if expected_record and user_bet_games:
+                    won_bets = len([g for g in user_bet_games if g.get('bet_result') == 'won'])
+                    lost_bets = len([g for g in user_bet_games if g.get('bet_result') == 'lost'])
+                    actual_record = f"{won_bets}-{lost_bets}"
+                    
+                    if actual_record != expected_record:
+                        self.log_test(f"NBA Historical Data {date_str} - Record", False,
+                                    f"Expected record {expected_record}, got {actual_record}")
+                        return False
+                
+                self.log_test(f"NBA Historical Data {date_str}", True,
+                            f"Found {len(games)} games, {len(user_bet_games)} with user bets, all final scores populated")
+                return True
+            else:
+                self.log_test(f"NBA Historical Data {date_str}", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test(f"NBA Historical Data {date_str}", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test(f"NBA Historical Data {date_str}", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_historical_data_nhl_date(self, date_str, expected_record=None):
+        """Test NHL historical data for a specific date"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities/nhl?day={date_str}", timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test(f"NHL Historical Data {date_str} - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                games = data.get('games', [])
+                if not isinstance(games, list):
+                    self.log_test(f"NHL Historical Data {date_str} - Games Array", False,
+                                "Games is not an array")
+                    return False
+                
+                if len(games) == 0:
+                    self.log_test(f"NHL Historical Data {date_str} - No Games", False,
+                                "No games found for this date")
+                    return False
+                
+                # Check that all games have final_score populated
+                games_without_final_score = []
+                for game in games:
+                    final_score = game.get('final_score')
+                    if final_score is None:
+                        games_without_final_score.append(f"{game.get('away_team', 'Unknown')} @ {game.get('home_team', 'Unknown')}")
+                
+                if games_without_final_score:
+                    self.log_test(f"NHL Historical Data {date_str} - Final Scores", False,
+                                f"Games missing final_score: {', '.join(games_without_final_score)}")
+                    return False
+                
+                # Check user bets
+                user_bet_games = [g for g in games if g.get('user_bet') == True]
+                
+                # Validate user bet fields
+                for game in user_bet_games:
+                    required_bet_fields = ['bet_type', 'bet_line', 'bet_result', 'user_bet_hit']
+                    missing_bet_fields = [field for field in required_bet_fields if field not in game]
+                    
+                    if missing_bet_fields:
+                        self.log_test(f"NHL Historical Data {date_str} - Bet Fields", False,
+                                    f"Game {game.get('away_team')} @ {game.get('home_team')} missing bet fields: {missing_bet_fields}")
+                        return False
+                    
+                    # Validate user_bet_hit calculation
+                    final_score = game.get('final_score')
+                    bet_line = game.get('bet_line')
+                    bet_result = game.get('bet_result')
+                    user_bet_hit = game.get('user_bet_hit')
+                    
+                    if final_score is not None and bet_line is not None:
+                        # Calculate expected result based on bet type
+                        if bet_result in ['won', 'lost']:
+                            expected_hit = (bet_result == 'won')
+                            if user_bet_hit != expected_hit:
+                                self.log_test(f"NHL Historical Data {date_str} - Bet Calculation", False,
+                                            f"Game {game.get('away_team')} @ {game.get('home_team')}: user_bet_hit={user_bet_hit} but bet_result={bet_result}")
+                                return False
+                
+                # Check expected record if provided
+                if expected_record and user_bet_games:
+                    won_bets = len([g for g in user_bet_games if g.get('bet_result') == 'won'])
+                    lost_bets = len([g for g in user_bet_games if g.get('bet_result') == 'lost'])
+                    actual_record = f"{won_bets}-{lost_bets}"
+                    
+                    if actual_record != expected_record:
+                        self.log_test(f"NHL Historical Data {date_str} - Record", False,
+                                    f"Expected record {expected_record}, got {actual_record}")
+                        return False
+                
+                self.log_test(f"NHL Historical Data {date_str}", True,
+                            f"Found {len(games)} games, {len(user_bet_games)} with user bets, all final scores populated")
+                return True
+            else:
+                self.log_test(f"NHL Historical Data {date_str}", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test(f"NHL Historical Data {date_str}", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test(f"NHL Historical Data {date_str}", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_historical_data_verification(self):
+        """Test historical data for NBA and NHL games from 12/22/2025 to 12/27/2025"""
+        print("📊 HISTORICAL DATA VERIFICATION (12/22/2025 - 12/27/2025)")
+        print("-" * 60)
+        
+        # Expected betting records from the review request
+        nba_expected_records = {
+            "2025-12-22": "1-2",
+            "2025-12-23": "4-3", 
+            "2025-12-25": "1-1",
+            "2025-12-26": "3-2",
+            "2025-12-27": "2-2"
+        }
+        
+        nhl_expected_records = {
+            "2025-12-22": "0-1",
+            "2025-12-23": "3-3",
+            "2025-12-27": "4-1"
+        }
+        
+        # Test NBA dates
+        print("\n🏀 NBA Historical Data Tests:")
+        nba_success = True
+        for date_str, expected_record in nba_expected_records.items():
+            success = self.test_historical_data_nba_date(date_str, expected_record)
+            if not success:
+                nba_success = False
+        
+        # Test NHL dates  
+        print("\n🏒 NHL Historical Data Tests:")
+        nhl_success = True
+        for date_str, expected_record in nhl_expected_records.items():
+            success = self.test_historical_data_nhl_date(date_str, expected_record)
+            if not success:
+                nhl_success = False
+        
+        # Overall result
+        overall_success = nba_success and nhl_success
+        self.log_test("Historical Data Verification (12/22-12/27)", overall_success,
+                    f"NBA: {'✅' if nba_success else '❌'}, NHL: {'✅' if nhl_success else '❌'}")
+        
+        return overall_success
+
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
-        print("NHL OPPORTUNITIES API TESTING - DECEMBER 27, 2025")
+        print("BETBOT HISTORICAL DATA VERIFICATION - 12/22/2025 to 12/27/2025")
         print("=" * 60)
         print(f"Testing API: {self.api_url}")
         print()
         
-        # Run NHL Tomorrow Lines Test FIRST (primary focus)
-        print("🏒 NHL TOMORROW LINES VERIFICATION")
-        print("-" * 40)
-        self.test_nhl_opportunities_tomorrow_lines()
-        
-        # Run NBA Data Sourcing Strategy Tests
-        print("\n🏀 NBA DATA SOURCING STRATEGY TESTS")
-        print("-" * 40)
-        self.test_nba_data_sourcing_strategy_tomorrow()
-        self.test_nba_data_sourcing_strategy_today()
-        self.test_nba_data_sourcing_strategy_yesterday()
-        self.test_nba_refresh_tomorrow_scoresandodds()
-        self.test_nba_refresh_today_plays888()
-        
-        print("\n🔍 BASIC API TESTS")
-        print("-" * 30)
-        self.test_get_opportunities()
-        self.test_data_source_field()
-        self.test_refresh_opportunities()
-        self.test_betting_logic()
-        self.test_color_coding()
-        
-        print("\n🎯 BET-TIME LINE TRACKING TESTS")
-        print("-" * 30)
-        self.test_bet_time_line_tracking_yesterday()
-        self.test_refresh_opportunities_yesterday()
-        self.test_bet_line_vs_closing_line_difference()
-        
-        print("\n🌐 PLAYS888.CO SCRAPING TESTS")
-        print("-" * 30)
-        # Run scraping tests (these take longer)
-        self.test_scrape_nba_totals()
-        self.test_scrape_nhl_totals()
-        
-        print("\n🔄 LIVE LINES INTEGRATION TESTS")
-        print("-" * 30)
-        self.test_refresh_with_live_lines_nba()
-        self.test_refresh_with_live_lines_nhl()
+        # Run Historical Data Verification FIRST (primary focus)
+        success = self.test_historical_data_verification()
         
         # Print summary
         print()
