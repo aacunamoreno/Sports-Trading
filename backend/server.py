@@ -4982,7 +4982,7 @@ async def morning_data_refresh():
     """
     5:00 AM Arizona: Morning data refresh
     #3 - Switch to Plays888 live lines (handled by flag)
-    #4 - Get yesterday's scores from ScoresAndOdds
+    #4 - Get yesterday's scores from ScoresAndOdds + Mark edge HITs/MISSes
     #5 - Get bet results from Plays888 History
     #6 - Update betting and edge records
     """
@@ -4992,44 +4992,98 @@ async def morning_data_refresh():
     today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
     
     logger.info(f"[5AM Job] Starting morning data refresh for {today}")
+    logger.info(f"[5AM Job] Getting yesterday's ({yesterday}) results")
     
     try:
-        # #4 - Get yesterday's scores from ScoresAndOdds
+        # #4 - Get yesterday's scores from ScoresAndOdds and mark edge HITs/MISSes
         leagues = ['NBA', 'NHL', 'NFL']
+        edge_results = {}  # Track edge performance by league
         
         for league in leagues:
             try:
-                # Scrape yesterday's results
-                results = await scrape_scoresandodds(league.lower(), yesterday)
+                # Scrape yesterday's results from ScoresAndOdds
+                logger.info(f"[#4 Process] Scraping {league} results for {yesterday}")
+                results = await scrape_scoresandodds(league.upper(), yesterday)
                 
                 if results:
+                    logger.info(f"[#4 Process] Got {len(results)} {league} games from ScoresAndOdds")
+                    
                     # Update the opportunities collection with final scores
                     collection_name = f"{league.lower()}_opportunities"
                     collection = db[collection_name]
                     
-                    cached = await collection.find_one({"date": yesterday}, {"_id": 0})
-                    if cached and cached.get('games'):
-                        for game in cached['games']:
-                            # Match with scraped results and update final_score
-                            for result in results:
-                                r_away = (result.get('away_team') or result.get('away', '')).lower()
-                                r_home = (result.get('home_team') or result.get('home', '')).lower()
-                                g_away = (game.get('away_team') or game.get('away', '')).lower()
-                                g_home = (game.get('home_team') or game.get('home', '')).lower()
-                                
-                                if r_away in g_away or g_away in r_away:
-                                    if r_home in g_home or g_home in r_home:
-                                        if result.get('final_score'):
-                                            game['final_score'] = result['final_score']
-                        
-                        await collection.update_one(
-                            {"date": yesterday},
-                            {"$set": {"games": cached['games']}}
-                        )
-                        logger.info(f"[5AM Job] Updated {league} yesterday results")
+                    # For NFL, also check the previous day (games span multiple days)
+                    dates_to_check = [yesterday]
+                    if league == 'NFL':
+                        two_days_ago = (datetime.now(arizona_tz) - timedelta(days=2)).strftime('%Y-%m-%d')
+                        dates_to_check.append(two_days_ago)
+                    
+                    edge_hits = 0
+                    edge_misses = 0
+                    games_updated = 0
+                    
+                    for check_date in dates_to_check:
+                        cached = await collection.find_one({"date": check_date}, {"_id": 0})
+                        if cached and cached.get('games'):
+                            games = cached['games']
+                            
+                            for game in games:
+                                # Match with scraped results and update final_score
+                                for result in results:
+                                    r_away = (result.get('away_team') or result.get('away', '')).lower()
+                                    r_home = (result.get('home_team') or result.get('home', '')).lower()
+                                    g_away = (game.get('away_team') or game.get('away', '')).lower()
+                                    g_home = (game.get('home_team') or game.get('home', '')).lower()
+                                    
+                                    # Match games by team names
+                                    if (r_away in g_away or g_away in r_away) and (r_home in g_home or g_home in r_home):
+                                        final_score = result.get('final_score')
+                                        
+                                        if final_score:
+                                            game['final_score'] = final_score
+                                            game['away_score'] = result.get('away_score')
+                                            game['home_score'] = result.get('home_score')
+                                            games_updated += 1
+                                            
+                                            # Determine if the total went OVER or UNDER
+                                            line = game.get('total')
+                                            if line:
+                                                actual_result = 'OVER' if final_score > line else 'UNDER'
+                                                game['actual_result'] = actual_result
+                                                
+                                                # Check if our edge recommendation was correct
+                                                recommendation = game.get('recommendation')
+                                                if recommendation:
+                                                    edge_hit = (recommendation == actual_result)
+                                                    game['edge_hit'] = edge_hit
+                                                    
+                                                    if edge_hit:
+                                                        edge_hits += 1
+                                                    else:
+                                                        edge_misses += 1
+                                                    
+                                                    logger.debug(f"[#4] {g_away} @ {g_home}: Final={final_score}, Line={line}, Result={actual_result}, Rec={recommendation}, HIT={edge_hit}")
+                                        break
+                            
+                            # Save updated games back to database
+                            await collection.update_one(
+                                {"date": check_date},
+                                {"$set": {
+                                    "games": games,
+                                    "scores_updated": True,
+                                    "scores_updated_at": datetime.now(timezone.utc).isoformat()
+                                }}
+                            )
+                    
+                    edge_results[league] = {"hits": edge_hits, "misses": edge_misses}
+                    logger.info(f"[#4 Process] {league}: Updated {games_updated} games, Edge: {edge_hits}-{edge_misses}")
+                else:
+                    logger.warning(f"[#4 Process] No {league} results found for {yesterday}")
                         
             except Exception as e:
-                logger.error(f"[5AM Job] Error getting {league} results: {e}")
+                logger.error(f"[#4 Process] Error getting {league} results: {e}")
+                import traceback
+                traceback.print_exc()
         
         # #5 - Get bet results from Plays888 History
         try:
@@ -5068,10 +5122,15 @@ async def morning_data_refresh():
         except Exception as e:
             logger.error(f"[5AM Job] Error getting bet results: {e}")
         
+        # Summary
         logger.info(f"[5AM Job] Morning data refresh completed")
+        logger.info(f"[5AM Job] Edge Results Summary: {edge_results}")
+        
+        return {"status": "success", "edge_results": edge_results}
         
     except Exception as e:
         logger.error(f"[5AM Job] Error in morning_data_refresh: {e}")
+        return {"status": "error", "error": str(e)}
 
 # ============== COMPOUND RECORD TRACKING ==============
 
