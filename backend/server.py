@@ -6521,6 +6521,64 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/process/8pm")
+async def trigger_8pm_process():
+    """
+    Manually trigger the 8pm process for all leagues.
+    This runs:
+    #1 - Scrape tomorrow's games opening lines from ScoresAndOdds
+    #2 - Fill PPG data and 4-dot analysis for all games
+    """
+    try:
+        result = await execute_8pm_process()
+        return result
+    except Exception as e:
+        logger.error(f"Error in 8pm process: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/process/status")
+async def get_process_status():
+    """Get status of scheduled processes and tomorrow's data."""
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    now_arizona = datetime.now(arizona_tz)
+    tomorrow = (now_arizona + timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    status = {
+        "current_time_arizona": now_arizona.strftime('%Y-%m-%d %I:%M %p'),
+        "tomorrow_date": tomorrow,
+        "leagues": {}
+    }
+    
+    for league in ['nba', 'nhl', 'nfl']:
+        coll_name = f"{league}_opportunities"
+        doc = await db[coll_name].find_one({"date": tomorrow}, {"_id": 0})
+        
+        if doc:
+            games = doc.get('games', [])
+            ppg_populated = doc.get('ppg_populated', False)
+            sample_game = games[0] if games else {}
+            
+            status["leagues"][league.upper()] = {
+                "games_count": len(games),
+                "ppg_populated": ppg_populated,
+                "ppg_updated_at": doc.get('ppg_updated_at'),
+                "has_dots": 'dots' in sample_game if sample_game else False,
+                "has_combined_ppg": 'combined_ppg' in sample_game if sample_game else False
+            }
+        else:
+            status["leagues"][league.upper()] = {
+                "games_count": 0,
+                "ppg_populated": False,
+                "ppg_updated_at": None,
+                "has_dots": False,
+                "has_combined_ppg": False
+            }
+    
+    return status
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
