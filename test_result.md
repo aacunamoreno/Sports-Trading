@@ -1,8 +1,43 @@
 # Test Results for BetBot Opportunities Dashboard
 
-## Test Date: 2025-12-27
+## Test Date: 2025-12-28
 
-## Latest Testing: Data Fixes Verification (Testing Agent)
+## Latest Testing: Historical Data Population (Process #4 & #5)
+
+### Test Completed: 2025-12-28 - Historical Data Population for 12/22-12/27
+
+**Task:** Populate final scores from ScoresAndOdds.com and bet results from Plays888 History for date range 12/22/2025 to 12/27/2025
+
+**Test Results:** ✅ ALL DATA POPULATED SUCCESSFULLY
+
+#### NBA Data Summary (12/22-12/27):
+| Date | Games | Bets | Record | Notes |
+|------|-------|------|--------|-------|
+| 12/22 | 7 | 3 | 1-2 | Charlotte hit, Indiana & Utah miss |
+| 12/23 | 13 | 7 | 4-3 | Brooklyn, Cleveland, OKC, Houston hit |
+| 12/25 | 5 | 2 | 1-1 | LA Lakers hit, OKC miss |
+| 12/26 | 9 | 5 | 3-2 | Atlanta, Phoenix, Portland hit |
+| 12/27 | 9 | 4 | 2-2 | Phoenix, Denver hit |
+| **TOTAL** | **43** | **21** | **11-10** | **52.4% win rate** |
+
+#### NHL Data Summary (12/22-12/27):
+| Date | Games | Bets | Record | Notes |
+|------|-------|------|--------|-------|
+| 12/22 | 4 | 1 | 0-1 | Columbus @ LA miss |
+| 12/23 | 13 | 6 | 3-3 | Detroit, Carolina, NJ hit |
+| 12/27 | 13 | 5 | 4-1 | NY Rangers, Ottawa, Chicago, SJ hit |
+| **TOTAL** | **30** | **12** | **7-5** | **58.3% win rate** |
+
+**Combined Record: 18-15 (54.5% win rate)**
+
+#### Data Cleanup:
+- ✅ Removed duplicate 12/24 data (no NBA games on Christmas Eve)
+- ✅ Removed 12/24-12/26 NHL data (no NHL games on those dates)
+- ✅ Removed duplicate NHL games on 12/27
+
+---
+
+## Previous Testing: Data Fixes Verification (Testing Agent)
 
 ### Test Completed: 2025-12-27 - Data Fixes Verification for December 27, 2024
 
