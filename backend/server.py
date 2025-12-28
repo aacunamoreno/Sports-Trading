@@ -5035,8 +5035,25 @@ async def morning_data_refresh():
                                     g_away = (game.get('away_team') or game.get('away', '')).lower()
                                     g_home = (game.get('home_team') or game.get('home', '')).lower()
                                     
-                                    # Match games by team names
-                                    if (r_away in g_away or g_away in r_away) and (r_home in g_home or g_home in r_home):
+                                    # Use multiple matching strategies
+                                    # 1. Exact or substring match
+                                    match1 = (r_away in g_away or g_away in r_away) and (r_home in g_home or g_home in r_home)
+                                    
+                                    # 2. Last word match (team nickname)
+                                    r_away_last = r_away.split()[-1] if r_away else ''
+                                    r_home_last = r_home.split()[-1] if r_home else ''
+                                    g_away_last = g_away.split()[-1] if g_away else ''
+                                    g_home_last = g_home.split()[-1] if g_home else ''
+                                    match2 = (r_away_last == g_away_last) and (r_home_last == g_home_last)
+                                    
+                                    # 3. First word match (city name)
+                                    r_away_first = r_away.split()[0] if r_away else ''
+                                    r_home_first = r_home.split()[0] if r_home else ''
+                                    g_away_first = g_away.split()[0] if g_away else ''
+                                    g_home_first = g_home.split()[0] if g_home else ''
+                                    match3 = (r_away_first == g_away_first) and (r_home_first == g_home_first)
+                                    
+                                    if match1 or match2 or match3:
                                         final_score = result.get('final_score')
                                         
                                         if final_score:
@@ -5062,7 +5079,7 @@ async def morning_data_refresh():
                                                     else:
                                                         edge_misses += 1
                                                     
-                                                    logger.debug(f"[#4] {g_away} @ {g_home}: Final={final_score}, Line={line}, Result={actual_result}, Rec={recommendation}, HIT={edge_hit}")
+                                                    logger.info(f"[#4] {g_away} @ {g_home}: Final={final_score}, Line={line}, Result={actual_result}, Rec={recommendation}, HIT={edge_hit}")
                                         break
                             
                             # Save updated games back to database
