@@ -18,39 +18,43 @@ export default function Opportunities() {
   const [refreshing, setRefreshing] = useState(false);
   const [useLiveLines, setUseLiveLines] = useState(true); // Default to using live lines
   const [bettingRecord, setBettingRecord] = useState({ hits: 0, misses: 0 });
+  const [edgeRecord, setEdgeRecord] = useState({ hits: 0, misses: 0 });
 
   useEffect(() => {
     loadOpportunities();
   }, [league, day, customDate]);
   
-  // Fetch betting record when league changes
+  // Fetch records summary (from 12/22/25 to yesterday) when league changes
   useEffect(() => {
-    const fetchBettingRecord = async () => {
+    const fetchRecordsSummary = async () => {
       try {
-        // Use GET to get cached data (faster) - data should already have user_bet_hit from previous refresh
-        const endpoint = league === 'NHL' 
-          ? `${BACKEND_URL}/api/opportunities/nhl?day=yesterday`
-          : league === 'NFL'
-          ? `${BACKEND_URL}/api/opportunities/nfl?day=yesterday`
-          : `${BACKEND_URL}/api/opportunities?day=yesterday`;
+        console.log('Fetching records summary for', league);
+        const res = await fetch(`${BACKEND_URL}/api/records/summary`);
+        const summary = await res.json();
+        console.log('Records summary:', summary);
         
-        console.log('Fetching betting record from:', endpoint);
-        const res = await fetch(endpoint);
-        const resData = await res.json();
-        console.log('Betting record response:', resData.games?.length, 'games');
-        if (resData.games) {
-          // IMPORTANT: Only count ENANO bets ($2k+) for betting record, NOT TIPSTER copies ($1k)
-          // Use is_enano_bet flag if available, otherwise fall back to user_bet
-          const hits = resData.games.filter(g => (g.is_enano_bet || g.user_bet) && g.user_bet_hit === true).length;
-          const misses = resData.games.filter(g => (g.is_enano_bet || g.user_bet) && g.user_bet_hit === false).length;
-          console.log('Betting record calculated:', hits, '-', misses);
-          setBettingRecord({ hits, misses });
+        if (summary[league]) {
+          // Parse betting record (e.g., "11-10")
+          const bettingParts = summary[league].betting_record.split('-');
+          setBettingRecord({ 
+            hits: parseInt(bettingParts[0]) || 0, 
+            misses: parseInt(bettingParts[1]) || 0 
+          });
+          
+          // Parse edge record (e.g., "23-16")
+          const edgeParts = summary[league].edge_record.split('-');
+          setEdgeRecord({ 
+            hits: parseInt(edgeParts[0]) || 0, 
+            misses: parseInt(edgeParts[1]) || 0 
+          });
+          
+          console.log(`${league} records - Betting: ${bettingParts[0]}-${bettingParts[1]}, Edge: ${edgeParts[0]}-${edgeParts[1]}`);
         }
       } catch (e) {
-        console.error('Error fetching betting record:', e);
+        console.error('Error fetching records summary:', e);
       }
     };
-    fetchBettingRecord();
+    fetchRecordsSummary();
   }, [league]);
 
   const loadOpportunities = async () => {
