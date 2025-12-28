@@ -5938,7 +5938,39 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 open_bets = db_bets
                 logger.info(f"Loaded {len(open_bets)} NHL open bets from database")
         
-        # Use hardcoded data if live fetch failed or wasn't requested
+        # #3.85: MERGE live games with cached games to keep started games visible ALL DAY
+        if games_raw and day == "today":
+            cached = await db.nhl_opportunities.find_one({"date": target_date}, {"_id": 0})
+            if cached and cached.get('games'):
+                # Create lookup of current games from Plays888
+                live_matchups = set()
+                for g in games_raw:
+                    key = f"{g['away'].upper()}_{g['home'].upper()}"
+                    live_matchups.add(key)
+                
+                # Add cached games that are NOT in the live list (started games)
+                added_started = 0
+                for cached_game in cached['games']:
+                    away = cached_game.get('away_team', cached_game.get('away', ''))
+                    home = cached_game.get('home_team', cached_game.get('home', ''))
+                    key = f"{away.upper()}_{home.upper()}"
+                    
+                    if key not in live_matchups:
+                        # This game has started - add it from cache
+                        games_raw.append({
+                            "time": cached_game.get('time', 'Started'),
+                            "away": away,
+                            "home": home,
+                            "total": cached_game.get('total'),
+                            "started": True  # Mark as started
+                        })
+                        added_started += 1
+                
+                if added_started > 0:
+                    logger.info(f"[#3.85] Added {added_started} started NHL games from cache (total: {len(games_raw)} games)")
+                    data_source = "plays888.co + cached"
+        
+        # Use database cache if live fetch failed or wasn't requested
         if not games_raw:
             # First try to load from database cache (from last night's 8pm scrape)
             cached = await db.nhl_opportunities.find_one({"date": target_date}, {"_id": 0})
