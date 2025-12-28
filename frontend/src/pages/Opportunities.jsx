@@ -262,6 +262,15 @@ export default function Opportunities() {
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh Data
             </Button>
+            <Button 
+              onClick={handleExport} 
+              disabled={exporting}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Download className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} />
+              {exporting ? 'Exporting...' : 'Export Excel'}
+            </Button>
           </div>
         </div>
       </div>
