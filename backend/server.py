@@ -6096,7 +6096,8 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 "home_gpg_rank": home_season,
                 "home_last3_rank": home_last3,
                 "home_avg": round(home_avg, 1),
-                "total": g['total'] if has_line else None,
+                "total": g['total'] if has_line else None,  # Current live line from Plays888
+                "opening_line": None,  # Will be set from database (8pm scrape)
                 "has_line": has_line,
                 "combined_gpg": round(combined_gpg, 1),
                 "game_avg": round(game_avg, 1),
@@ -6107,6 +6108,25 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 "bet_risk": 0,
                 "bet_count": 0
             }
+            
+            # #3.75: Get opening line from database (from last night's 8pm scrape)
+            # This allows comparison: Opening Line vs Current Live Line vs Bet Line
+            if day == "today":
+                try:
+                    cached_today = await db.nhl_opportunities.find_one({"date": target_date}, {"_id": 0})
+                    if cached_today and cached_today.get('games'):
+                        for cached_game in cached_today['games']:
+                            cached_away = (cached_game.get('away_team') or cached_game.get('away', '')).upper()
+                            cached_home = (cached_game.get('home_team') or cached_game.get('home', '')).upper()
+                            if g['away'].upper() in cached_away or cached_away in g['away'].upper():
+                                if g['home'].upper() in cached_home or cached_home in g['home'].upper():
+                                    # Found matching game - get opening line
+                                    opening = cached_game.get('opening_line') or cached_game.get('total')
+                                    if opening:
+                                        game_data["opening_line"] = opening
+                                    break
+                except Exception as e:
+                    logger.debug(f"Could not get opening line for {g['away']} @ {g['home']}: {e}")
             
             # Add dots for NHL
             def get_nhl_dot_color(rank: int) -> str:
