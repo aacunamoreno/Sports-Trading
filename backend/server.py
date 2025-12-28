@@ -5407,6 +5407,240 @@ async def get_records_summary():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============== EXCEL EXPORT ==============
+
+@api_router.get("/export/excel")
+async def export_to_excel(
+    league: str = "NBA",
+    start_date: str = "2025-12-22",
+    end_date: str = None
+):
+    """
+    Export opportunities data to Excel with colored dots and all analysis data.
+    
+    Args:
+        league: NBA, NHL, or NFL
+        start_date: Start date in 'YYYY-MM-DD' format
+        end_date: End date in 'YYYY-MM-DD' format (defaults to yesterday)
+    """
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Fill, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from zoneinfo import ZoneInfo
+    
+    try:
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        # Default end_date to yesterday
+        if not end_date:
+            end_date = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        league = league.upper()
+        collection_name = f"{league.lower()}_opportunities"
+        collection = db[collection_name]
+        
+        # Generate list of dates
+        start = datetime.strptime(start_date, '%Y-%m-%d')
+        end = datetime.strptime(end_date, '%Y-%m-%d')
+        
+        dates = []
+        current = start
+        while current <= end:
+            dates.append(current.strftime('%Y-%m-%d'))
+            current += timedelta(days=1)
+        
+        # Create workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"{league} Analysis"
+        
+        # Define colors for dots - using RGB fills
+        dot_colors = {
+            'green': PatternFill(start_color='00FF00', end_color='00FF00', fill_type='solid'),
+            'yellow': PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid'),
+            'red': PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid'),
+            'blue': PatternFill(start_color='0000FF', end_color='0000FF', fill_type='solid'),
+        }
+        
+        # Result colors
+        hit_fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')  # Light green
+        miss_fill = PatternFill(start_color='FFB6C1', end_color='FFB6C1', fill_type='solid')  # Light red
+        
+        # Header style
+        header_font = Font(bold=True, color='FFFFFF')
+        header_fill = PatternFill(start_color='2F4F4F', end_color='2F4F4F', fill_type='solid')
+        center_align = Alignment(horizontal='center', vertical='center')
+        
+        # Border style
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Headers
+        headers = [
+            'Date', '#', 'Time', 
+            'Away Dot 1', 'Away Dot 2', 'Away Team',
+            'Home Dot 1', 'Home Dot 2', 'Home Team',
+            'Opening Line', 'Bet Line', 'Final Score',
+            'Diff', 'PPG Avg', 'Edge', 
+            'Recommendation', 'Actual Result', 'Edge Hit',
+            'User Bet', 'Bet Type', 'Bet Result'
+        ]
+        
+        # Write headers
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center_align
+            cell.border = thin_border
+        
+        row_num = 2
+        
+        # Process each date
+        for date in dates:
+            doc = await collection.find_one({"date": date})
+            if not doc or not doc.get('games'):
+                continue
+            
+            games = doc['games']
+            
+            for idx, game in enumerate(games, 1):
+                # Get dot values (1-4 scale or color names)
+                away_dots = game.get('away_dots', [])
+                home_dots = game.get('home_dots', [])
+                
+                # Get dot colors from ranking thresholds
+                def get_dot_color(rank, is_offense=True):
+                    """Convert ranking to dot color"""
+                    if rank is None:
+                        return 'gray', ''
+                    
+                    # Different thresholds for different stats
+                    if is_offense:  # Higher rank = worse (offense)
+                        if rank <= 8:
+                            return 'green', rank
+                        elif rank <= 16:
+                            return 'yellow', rank
+                        elif rank <= 24:
+                            return 'red', rank
+                        else:
+                            return 'blue', rank
+                    else:  # Lower rank = worse (defense) - inverted
+                        if rank <= 8:
+                            return 'blue', rank
+                        elif rank <= 16:
+                            return 'red', rank
+                        elif rank <= 24:
+                            return 'yellow', rank
+                        else:
+                            return 'green', rank
+                
+                # Get ranking data
+                away_offense_rank = game.get('away_offense_rank', game.get('away_ppg_rank'))
+                away_defense_rank = game.get('away_defense_rank', game.get('away_opp_ppg_rank'))
+                home_offense_rank = game.get('home_offense_rank', game.get('home_ppg_rank'))
+                home_defense_rank = game.get('home_defense_rank', game.get('home_opp_ppg_rank'))
+                
+                # Write row data
+                row_data = [
+                    date,
+                    idx,
+                    game.get('time', ''),
+                    away_offense_rank or '',
+                    away_defense_rank or '',
+                    game.get('away_team', game.get('away', '')),
+                    home_offense_rank or '',
+                    home_defense_rank or '',
+                    game.get('home_team', game.get('home', '')),
+                    game.get('total', game.get('opening_line', '')),
+                    game.get('bet_line', ''),
+                    game.get('final_score', ''),
+                    game.get('diff', ''),
+                    game.get('ppg_avg', game.get('combined_ppg', '')),
+                    game.get('edge', ''),
+                    game.get('recommendation', ''),
+                    game.get('actual_result', ''),
+                    'HIT' if game.get('edge_hit') or game.get('result_hit') else ('MISS' if game.get('edge_hit') == False else ''),
+                    '💰' if game.get('user_bet') else '',
+                    game.get('bet_type', ''),
+                    game.get('bet_result', '')
+                ]
+                
+                for col, value in enumerate(row_data, 1):
+                    cell = ws.cell(row=row_num, column=col, value=value)
+                    cell.alignment = center_align
+                    cell.border = thin_border
+                    
+                    # Apply dot colors for ranking columns
+                    if col == 4 and away_offense_rank:  # Away Offense Rank
+                        color, _ = get_dot_color(away_offense_rank, is_offense=True)
+                        if color in dot_colors:
+                            cell.fill = dot_colors[color]
+                    elif col == 5 and away_defense_rank:  # Away Defense Rank
+                        color, _ = get_dot_color(away_defense_rank, is_offense=False)
+                        if color in dot_colors:
+                            cell.fill = dot_colors[color]
+                    elif col == 7 and home_offense_rank:  # Home Offense Rank
+                        color, _ = get_dot_color(home_offense_rank, is_offense=True)
+                        if color in dot_colors:
+                            cell.fill = dot_colors[color]
+                    elif col == 8 and home_defense_rank:  # Home Defense Rank
+                        color, _ = get_dot_color(home_defense_rank, is_offense=False)
+                        if color in dot_colors:
+                            cell.fill = dot_colors[color]
+                    
+                    # Apply result colors
+                    if col == 18:  # Edge Hit column
+                        if value == 'HIT':
+                            cell.fill = hit_fill
+                        elif value == 'MISS':
+                            cell.fill = miss_fill
+                    
+                    if col == 21:  # Bet Result column
+                        if value == 'won':
+                            cell.fill = hit_fill
+                        elif value == 'lost':
+                            cell.fill = miss_fill
+                
+                row_num += 1
+        
+        # Auto-adjust column widths
+        for col in range(1, len(headers) + 1):
+            max_length = 0
+            column = get_column_letter(col)
+            for cell in ws[column]:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 20)
+            ws.column_dimensions[column].width = adjusted_width
+        
+        # Save to buffer
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        
+        # Generate filename
+        filename = f"{league}_Analysis_{start_date}_to_{end_date}.xlsx"
+        
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except Exception as e:
+        logger.error(f"Error exporting to Excel: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============== COMPOUND RECORD TRACKING ==============
 
 @api_router.get("/opportunities/record/{league}")
