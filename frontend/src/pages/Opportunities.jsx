@@ -105,23 +105,15 @@ export default function Opportunities() {
     }
   };
 
-  // Export to Excel - opens direct download link
+  // Export to Excel - direct download
   const handleExport = () => {
     setExporting(true);
     try {
-      // Use direct link approach which is more reliable across browsers
+      // Create direct download link
       const downloadUrl = `${BACKEND_URL}/api/export/excel?league=${league}&start_date=2025-12-22`;
       
-      // Create hidden iframe for download (works better for file downloads)
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = downloadUrl;
-      document.body.appendChild(iframe);
-      
-      // Clean up iframe after a delay
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 5000);
+      // Open in new window/tab which will trigger the download
+      window.open(downloadUrl, '_blank');
       
       toast.success(`${league} analysis downloading...`);
     } catch (error) {
