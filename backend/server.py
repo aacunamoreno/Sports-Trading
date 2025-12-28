@@ -5106,7 +5106,7 @@ async def morning_data_refresh():
                                                 recommendation = game.get('recommendation')
                                                 if recommendation:
                                                     edge_hit = (recommendation == actual_result)
-                                                    game['edge_hit'] = edge_hit
+                                                    game['result_hit'] = edge_hit
                                                     
                                                     if edge_hit:
                                                         edge_hits += 1
