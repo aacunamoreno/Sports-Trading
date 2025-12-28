@@ -579,24 +579,24 @@ export default function Opportunities() {
                       <td className="py-3 px-1">
                         <div className="flex items-center justify-center gap-0.5">
                           <span className={`w-2.5 h-2.5 rounded-full ${
-                            (game.away_ppg_rank || game.away_gpg_rank) <= 10 ? 'bg-green-500' :
-                            (game.away_ppg_rank || game.away_gpg_rank) <= 15 ? 'bg-blue-500' :
-                            (game.away_ppg_rank || game.away_gpg_rank) <= 21 ? 'bg-yellow-500' : 'bg-red-500'
+                            (game.away_ppg_rank || game.away_gpg_rank) <= 8 ? 'bg-green-500' :
+                            (game.away_ppg_rank || game.away_gpg_rank) <= 16 ? 'bg-blue-500' :
+                            (game.away_ppg_rank || game.away_gpg_rank) <= 24 ? 'bg-yellow-500' : 'bg-red-500'
                           }`}></span>
                           <span className={`w-2.5 h-2.5 rounded-full ${
-                            game.away_last3_rank <= 10 ? 'bg-green-500' :
-                            game.away_last3_rank <= 15 ? 'bg-blue-500' :
-                            game.away_last3_rank <= 21 ? 'bg-yellow-500' : 'bg-red-500'
+                            game.away_last3_rank <= 8 ? 'bg-green-500' :
+                            game.away_last3_rank <= 16 ? 'bg-blue-500' :
+                            game.away_last3_rank <= 24 ? 'bg-yellow-500' : 'bg-red-500'
                           }`}></span>
                           <span className={`w-2.5 h-2.5 rounded-full ${
-                            (game.home_ppg_rank || game.home_gpg_rank) <= 10 ? 'bg-green-500' :
-                            (game.home_ppg_rank || game.home_gpg_rank) <= 15 ? 'bg-blue-500' :
-                            (game.home_ppg_rank || game.home_gpg_rank) <= 21 ? 'bg-yellow-500' : 'bg-red-500'
+                            (game.home_ppg_rank || game.home_gpg_rank) <= 8 ? 'bg-green-500' :
+                            (game.home_ppg_rank || game.home_gpg_rank) <= 16 ? 'bg-blue-500' :
+                            (game.home_ppg_rank || game.home_gpg_rank) <= 24 ? 'bg-yellow-500' : 'bg-red-500'
                           }`}></span>
                           <span className={`w-2.5 h-2.5 rounded-full ${
-                            game.home_last3_rank <= 10 ? 'bg-green-500' :
-                            game.home_last3_rank <= 15 ? 'bg-blue-500' :
-                            game.home_last3_rank <= 21 ? 'bg-yellow-500' : 'bg-red-500'
+                            game.home_last3_rank <= 8 ? 'bg-green-500' :
+                            game.home_last3_rank <= 16 ? 'bg-blue-500' :
+                            game.home_last3_rank <= 24 ? 'bg-yellow-500' : 'bg-red-500'
                           }`}></span>
                         </div>
                       </td>
