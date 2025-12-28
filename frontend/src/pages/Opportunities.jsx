@@ -177,11 +177,9 @@ export default function Opportunities() {
     );
   }
 
-  const compoundRecord = data.compound_record || { hits: 0, misses: 0 };
-
   return (
     <div className="space-y-6">
-      {/* Header with Compound Record */}
+      {/* Header with Records from 12/22/25 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-4xl font-heading font-bold tracking-tight flex items-center gap-2">
@@ -193,16 +191,17 @@ export default function Opportunities() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          {/* Edge Record Badge */}
+          {/* Edge Record Badge - from 12/22/25 */}
           <div className="bg-gradient-to-r from-green-600/20 to-red-600/20 border border-primary/30 rounded-lg px-4 py-2">
             <div className="text-xs text-muted-foreground text-center">Edge Record</div>
             <div className="text-xl font-bold text-center">
-              <span className="text-green-400">{compoundRecord.hits}</span>
+              <span className="text-green-400">{edgeRecord.hits}</span>
               <span className="text-muted-foreground mx-1">-</span>
-              <span className="text-red-400">{compoundRecord.misses}</span>
+              <span className="text-red-400">{edgeRecord.misses}</span>
             </div>
+            <div className="text-[10px] text-muted-foreground text-center">Since 12/22</div>
           </div>
-          {/* Betting Record Badge */}
+          {/* Betting Record Badge - from 12/22/25 */}
           <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/30 rounded-lg px-4 py-2">
             <div className="text-xs text-muted-foreground text-center">💰 Betting Record</div>
             <div className="text-xl font-bold text-center">
