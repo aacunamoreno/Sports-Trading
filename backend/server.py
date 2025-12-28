@@ -6045,6 +6045,21 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 "bet_count": 0
             }
             
+            # Add dots for NHL
+            def get_nhl_dot_color(rank: int) -> str:
+                if rank <= 8:
+                    return "🟢"  # Green: Top tier
+                elif rank <= 16:
+                    return "🔵"  # Blue: Upper middle
+                elif rank <= 24:
+                    return "🟡"  # Yellow: Lower middle
+                else:
+                    return "🔴"  # Red: Bottom tier
+            
+            game_data["dots"] = f"{get_nhl_dot_color(away_season)}{get_nhl_dot_color(away_last3)}{get_nhl_dot_color(home_season)}{get_nhl_dot_color(home_last3)}"
+            game_data["away_dots"] = f"{get_nhl_dot_color(away_season)}{get_nhl_dot_color(away_last3)}"
+            game_data["home_dots"] = f"{get_nhl_dot_color(home_season)}{get_nhl_dot_color(home_last3)}"
+            
             # Check if this game has an active bet
             # Also detect "hedged" bets (both OVER and UNDER on same game = cancelled out)
             game_bets = []
