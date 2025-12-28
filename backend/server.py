@@ -6367,6 +6367,20 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
             except Exception as e:
                 logger.error(f"Error fetching live NFL lines: {e}")
         
+        # Fallback: If no games from Plays888, check database cache
+        if not games_raw and day in ["today", "tomorrow"]:
+            cached = await db.nfl_opportunities.find_one({"date": target_date}, {"_id": 0})
+            if cached and cached.get('games'):
+                for g in cached['games']:
+                    games_raw.append({
+                        "time": g.get('time', ''),
+                        "away": g.get('away_team', g.get('away', '')),
+                        "home": g.get('home_team', g.get('home', '')),
+                        "total": g.get('total')
+                    })
+                data_source = "cached (from last night's scrape)"
+                logger.info(f"Using {len(games_raw)} cached NFL games from database for {target_date}")
+        
         # Process open bets for NFL
         nfl_open_bets = {}
         for bet in open_bets:
