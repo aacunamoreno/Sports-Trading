@@ -209,6 +209,7 @@ export default function Opportunities() {
               <span className="text-muted-foreground mx-1">-</span>
               <span className="text-red-400">{bettingRecord.misses}</span>
             </div>
+            <div className="text-[10px] text-muted-foreground text-center">Since 12/22</div>
           </div>
           <div className="flex items-center gap-3">
             {/* Live Lines Toggle */}
