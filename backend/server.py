@@ -5550,6 +5550,21 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 "bet_count": 0
             }
             
+            # Add dots for NBA
+            def get_nba_dot_color(rank: int) -> str:
+                if rank <= 8:
+                    return "🟢"  # Green: Top tier
+                elif rank <= 16:
+                    return "🔵"  # Blue: Upper middle
+                elif rank <= 24:
+                    return "🟡"  # Yellow: Lower middle
+                else:
+                    return "🔴"  # Red: Bottom tier
+            
+            game_data["dots"] = f"{get_nba_dot_color(away_season)}{get_nba_dot_color(away_last3)}{get_nba_dot_color(home_season)}{get_nba_dot_color(home_last3)}"
+            game_data["away_dots"] = f"{get_nba_dot_color(away_season)}{get_nba_dot_color(away_last3)}"
+            game_data["home_dots"] = f"{get_nba_dot_color(home_season)}{get_nba_dot_color(home_last3)}"
+            
             # Get stored opening line from database
             stored_opening = await get_opening_line("NBA", target_date, g['away'], g['home'])
             if stored_opening:
