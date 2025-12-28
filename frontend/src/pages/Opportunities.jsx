@@ -105,60 +105,30 @@ export default function Opportunities() {
     }
   };
 
-  // Export to Excel
-  const handleExport = async () => {
+  // Export to Excel - opens direct download link
+  const handleExport = () => {
     setExporting(true);
     try {
-      // Direct download by opening URL in new tab/triggering download
-      const downloadUrl = `${API}/export/excel?league=${league}&start_date=2025-12-22`;
+      // Use direct link approach which is more reliable across browsers
+      const downloadUrl = `${BACKEND_URL}/api/export/excel?league=${league}&start_date=2025-12-22`;
       
-      // Method 1: Try using fetch and blob
-      const response = await fetch(downloadUrl);
-      if (!response.ok) throw new Error('Export failed');
+      // Create hidden iframe for download (works better for file downloads)
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = downloadUrl;
+      document.body.appendChild(iframe);
       
-      const blob = await response.blob();
+      // Clean up iframe after a delay
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 5000);
       
-      // Get filename from Content-Disposition header or use default
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = `${league}_Analysis_12-22_to_yesterday.xlsx`;
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1].replace(/['"]/g, '');
-        }
-      }
-      
-      // Create object URL and download link
-      const blobUrl = window.URL.createObjectURL(new Blob([blob], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      }));
-      
-      // Create and click download link
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      
-      // Append to body and click
-      document.body.appendChild(link);
-      link.click();
-      
-      // Clean up
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-      
-      toast.success(`${league} analysis exported to Excel!`);
+      toast.success(`${league} analysis downloading...`);
     } catch (error) {
       console.error('Export error:', error);
-      // Fallback: try direct link open
-      try {
-        const downloadUrl = `${API}/export/excel?league=${league}&start_date=2025-12-22`;
-        window.open(downloadUrl, '_blank');
-        toast.success(`${league} analysis export started!`);
-      } catch (fallbackError) {
-        toast.error('Failed to export: ' + error.message);
-      }
+      toast.error('Failed to export');
     } finally {
-      setExporting(false);
+      setTimeout(() => setExporting(false), 1000);
     }
   };
 
