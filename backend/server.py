@@ -6891,6 +6891,23 @@ async def trigger_8pm_process():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/process/5am")
+async def trigger_5am_process():
+    """
+    Manually trigger the 5am morning process for all leagues.
+    This runs:
+    #4 - Get yesterday's scores from ScoresAndOdds + mark edge HITs/MISSes
+    #5 - Get bet results from Plays888 History
+    #6 - Update betting and edge records
+    """
+    try:
+        result = await morning_data_refresh()
+        return result
+    except Exception as e:
+        logger.error(f"Error in 5am process: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.get("/process/status")
 async def get_process_status():
     """Get status of scheduled processes and tomorrow's data."""
