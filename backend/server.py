@@ -5649,7 +5649,12 @@ async def export_to_excel(
         return StreamingResponse(
             buffer,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "Access-Control-Expose-Headers": "Content-Disposition",
+                "Cache-Control": "no-cache"
+            }
         )
         
     except Exception as e:
