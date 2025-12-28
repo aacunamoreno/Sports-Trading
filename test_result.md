@@ -2,52 +2,44 @@
 
 ## Test Date: 2025-12-28
 
-## Latest Testing: Historical Data API Verification (Testing Agent)
+## Latest Testing: Process #6 - Update Records Implementation
 
-### Test Completed: 2025-12-28 - Historical Data API Verification for 12/22-12/27
+### Test Completed: 2025-12-28 - Records Calculation from 12/22/25
 
-**Task:** Test BetBot Opportunities API to verify historical data for NBA and NHL games from 12/22/2025 to 12/27/2025 has been correctly populated with final scores and bet results.
+**Task:** Implement Process #6 - Calculate and update betting records and edge records from 12/22/25 to yesterday
 
-**Test Results:** ✅ ALL API ENDPOINTS VERIFIED SUCCESSFULLY
+**Test Results:** ✅ ALL TESTS PASSED
 
-#### API Endpoints Tested:
-1. ✅ GET /api/opportunities?day=2025-12-22 - NBA games
-2. ✅ GET /api/opportunities?day=2025-12-23 - NBA games  
-3. ✅ GET /api/opportunities?day=2025-12-25 - NBA games
-4. ✅ GET /api/opportunities?day=2025-12-26 - NBA games
-5. ✅ GET /api/opportunities?day=2025-12-27 - NBA games
-6. ✅ GET /api/opportunities/nhl?day=2025-12-22 - NHL games
-7. ✅ GET /api/opportunities/nhl?day=2025-12-23 - NHL games
-8. ✅ GET /api/opportunities/nhl?day=2025-12-27 - NHL games
+#### New API Endpoints:
+1. ✅ POST /api/process/update-records - Recalculates all records from start_date
+2. ✅ GET /api/records/summary - Returns summary of betting and edge records for all leagues
 
-#### Verification Results:
-- ✅ All games have `final_score` populated
-- ✅ Games with user bets have `user_bet: true`, `bet_type`, `bet_line`, and `bet_result` (won/lost)
-- ✅ `user_bet_hit` correctly calculates if the bet hit based on final_score vs bet_line
-- ✅ All expected betting records match exactly
+#### Calculated Records (12/22-12/27):
+**NBA:**
+- Edge Record: **23-16** (58.9% win rate)
+- Betting Record: **11-10** (52.4% win rate)
 
-#### Verified Betting Records:
-**NBA Results:**
-- 12/22: 1-2 ✅ (Charlotte hit, Indiana & Utah miss)
-- 12/23: 4-3 ✅ (Brooklyn, Cleveland, OKC, Houston hit)
-- 12/25: 1-1 ✅ (LA Lakers hit, OKC miss)
-- 12/26: 3-2 ✅ (Atlanta, Phoenix, Portland hit)
-- 12/27: 2-2 ✅ (Phoenix, Denver hit)
+**NHL:**
+- Edge Record: **11-5** (68.8% win rate)
+- Betting Record: **7-5** (58.3% win rate)
 
-**NHL Results:**
-- 12/22: 0-1 ✅ (Columbus @ LA miss)
-- 12/23: 3-3 ✅ (Detroit, Carolina, NJ hit)
-- 12/27: 4-1 ✅ (NY Rangers, Ottawa, Chicago, SJ hit)
+**NFL:**
+- Edge Record: **0-0** (no games with recommendations)
+- Betting Record: **0-0** (no bets placed)
 
-#### Technical Verification:
-- ✅ All 43 NBA games have complete final scores
-- ✅ All 30 NHL games have complete final scores
-- ✅ All 21 NBA user bets have proper bet tracking data
-- ✅ All 12 NHL user bets have proper bet tracking data
-- ✅ user_bet_hit calculations are accurate for all games
-- ✅ API response structure is correct for all endpoints
+#### UI Verification:
+- ✅ Frontend updated to fetch records from /api/records/summary
+- ✅ Edge Record and Betting Record badges display correct values
+- ✅ "Since 12/22" subtitle added to indicate start date
+- ✅ Records update correctly when switching between NBA/NHL/NFL
+
+#### Integration with Morning Job:
+- ✅ update_records_from_start_date() added to morning_data_refresh()
+- ✅ Records will auto-update at 5am Arizona time
 
 ---
+
+## Previous Testing: Historical Data API Verification (Testing Agent)
 
 ## Previous Testing: Historical Data Population (Process #4 & #5)
 
