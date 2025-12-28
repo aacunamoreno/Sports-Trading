@@ -109,11 +109,17 @@ export default function Opportunities() {
   const handleExport = () => {
     setExporting(true);
     try {
-      // Create direct download link
+      // Create direct download link - using window.location triggers immediate download
       const downloadUrl = `${BACKEND_URL}/api/export/excel?league=${league}&start_date=2025-12-22`;
       
-      // Open in new window/tab which will trigger the download
-      window.open(downloadUrl, '_blank');
+      // Method: Use anchor element with download attribute
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
       toast.success(`${league} analysis downloading...`);
     } catch (error) {
