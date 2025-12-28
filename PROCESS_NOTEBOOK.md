@@ -173,12 +173,13 @@ Edge = Combined PPG - Betting Line
 | 2 | Populate PPG & 4-Dots | ✅ Ready | - | Runs after #1 |
 | 3 | Switch to Plays888 (5am) | ✅ Ready | 2025-12-28 | Auto-activates after 5am Arizona |
 | 3.5 | Bet Deduplication | ✅ Ready | 2025-12-28 | Avoids duplicate games from bets |
-| 3.75 | Bet Line Capture | ✅ Ready | 2025-12-28 | Captures correct line with ½ symbol |
+| 3.75 | Bet Line Capture (½) | ✅ Ready | 2025-12-28 | Captures correct line with ½ symbol |
+| 3.85 | Keep Started Games | ✅ Ready | 2025-12-28 | Shows all games including started ones |
 | 4 | Get Yesterday's Scores | 🟡 Pending | - | Morning job |
 | 5 | Get Bet Results from History | 🟡 Pending | - | Morning job |
 | 6 | Update Records | 🟡 Pending | - | Morning job |
 | 7 | Refresh Data Button | 🟡 Partial | - | Needs line movement tracking |
-| 8 | TODAY'S PLAYS Display | 🟡 Partial | - | Needs to persist after game start |
+| 8 | TODAY'S PLAYS Display | ✅ Ready | 2025-12-28 | Shows all bets including started games |
 
 ---
 
