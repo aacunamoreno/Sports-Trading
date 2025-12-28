@@ -105,6 +105,32 @@ export default function Opportunities() {
     }
   };
 
+  // Export to Excel
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const response = await fetch(`${API}/export/excel?league=${league}&start_date=2025-12-22`);
+      if (!response.ok) throw new Error('Export failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${league}_Analysis_12-22_to_yesterday.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success(`${league} analysis exported to Excel!`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Row styles: Orange for UNDER, Blue for OVER
   const getRowStyle = (recommendation) => {
     if (recommendation === 'OVER') return 'bg-blue-500/20 border-blue-500/50';
