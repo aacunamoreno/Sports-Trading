@@ -2893,12 +2893,46 @@ async def scrape_scoresandodds(league: str, date_str: str) -> List[Dict[str, Any
             # Get final scores if available (for completed games)
             scores = await page.evaluate('''() => {
                 const scores = [];
-                document.querySelectorAll('[data-field="score"]').forEach(el => {
-                    const text = el.innerText.trim();
-                    if (text && !isNaN(text)) {
-                        scores.push(parseInt(text));
-                    }
-                });
+                // Try multiple selectors for scores
+                const scoreSelectors = [
+                    '[data-field="score"]',
+                    '.score',
+                    '.game-score',
+                    '.final-score',
+                    '.team-score',
+                    '.score-value',
+                    '.box-score td.score'
+                ];
+                
+                for (const selector of scoreSelectors) {
+                    document.querySelectorAll(selector).forEach(el => {
+                        const text = el.innerText.trim();
+                        if (text && !isNaN(text) && parseInt(text) > 0) {
+                            scores.push(parseInt(text));
+                        }
+                    });
+                    if (scores.length > 0) break;
+                }
+                
+                // Also try getting scores from the main game container
+                if (scores.length === 0) {
+                    document.querySelectorAll('.game-row, .game-container, .matchup, tr').forEach(row => {
+                        const scoreEls = row.querySelectorAll('.score, [class*="score"], td');
+                        scoreEls.forEach(el => {
+                            const text = el.innerText.trim();
+                            const num = parseInt(text);
+                            // NBA/NFL scores typically 70-150, NHL 0-10
+                            if (!isNaN(num) && num >= 0 && num <= 200) {
+                                // Check if it's in a score context (not line numbers)
+                                const parent = el.parentElement;
+                                if (parent && !parent.innerText.includes('o/u') && !parent.innerText.includes('+') && !parent.innerText.includes('-')) {
+                                    scores.push(num);
+                                }
+                            }
+                        });
+                    });
+                }
+                
                 return scores;
             }''')
             
