@@ -473,12 +473,12 @@ export default function Opportunities() {
                   const homeSeasonRank = game.home_ppg_rank || game.home_gpg_rank || 15;
                   const homeLast3Rank = game.home_last3_rank || 15;
                   
-                  // Count dots by color
+                  // Count dots by color using thresholds: 🟢(1-8) 🔵(9-16) 🟡(17-24) 🔴(25-32)
                   const ranks = [awaySeasonRank, awayLast3Rank, homeSeasonRank, homeLast3Rank];
-                  const greens = ranks.filter(r => r <= 10).length;
-                  const blues = ranks.filter(r => r > 10 && r <= 15).length;
-                  const yellows = ranks.filter(r => r > 15 && r <= 21).length;
-                  const reds = ranks.filter(r => r > 21).length;
+                  const greens = ranks.filter(r => r <= 8).length;
+                  const blues = ranks.filter(r => r > 8 && r <= 16).length;
+                  const yellows = ranks.filter(r => r > 16 && r <= 24).length;
+                  const reds = ranks.filter(r => r > 24).length;
                   
                   // Dot-based recommendation logic - STRICT rules
                   // CLEAR OVER: 2+ Greens OR 1 Green + 2 Blues (strong offensive signal)
