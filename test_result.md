@@ -2,13 +2,29 @@
 
 ## Test Date: 2025-12-28
 
-## Latest Testing: Historical Data Population (Process #4 & #5)
+## Latest Testing: Historical Data API Verification (Testing Agent)
 
-### Test Completed: 2025-12-28 - Historical Data Population for 12/22-12/27
+### Test Completed: 2025-12-28 - Historical Data API Verification for 12/22-12/27
 
-**Task:** Populate final scores from ScoresAndOdds.com and bet results from Plays888 History for date range 12/22/2025 to 12/27/2025
+**Task:** Test BetBot Opportunities API to verify historical data for NBA and NHL games from 12/22/2025 to 12/27/2025 has been correctly populated with final scores and bet results.
 
-**Test Results:** ✅ ALL DATA POPULATED SUCCESSFULLY
+**Test Results:** ✅ ALL API ENDPOINTS VERIFIED SUCCESSFULLY
+
+#### API Endpoints Tested:
+1. ✅ GET /api/opportunities?day=2025-12-22 - NBA games
+2. ✅ GET /api/opportunities?day=2025-12-23 - NBA games  
+3. ✅ GET /api/opportunities?day=2025-12-25 - NBA games
+4. ✅ GET /api/opportunities?day=2025-12-26 - NBA games
+5. ✅ GET /api/opportunities?day=2025-12-27 - NBA games
+6. ✅ GET /api/opportunities/nhl?day=2025-12-22 - NHL games
+7. ✅ GET /api/opportunities/nhl?day=2025-12-23 - NHL games
+8. ✅ GET /api/opportunities/nhl?day=2025-12-27 - NHL games
+
+#### Verification Results:
+- ✅ All games have `final_score` populated
+- ✅ Games with user bets have `user_bet: true`, `bet_type`, `bet_line`, and `bet_result` (won/lost)
+- ✅ `user_bet_hit` correctly calculates if the bet hit based on final_score vs bet_line
+- ✅ All expected betting records match exactly
 
 #### NBA Data Summary (12/22-12/27):
 | Date | Games | Bets | Record | Notes |
