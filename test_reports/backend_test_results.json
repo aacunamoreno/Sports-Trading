@@ -1,158 +1,62 @@
 {
-  "timestamp": "2025-12-27T06:49:40.261169",
-  "total_tests": 25,
-  "passed_tests": 19,
-  "success_rate": 76.0,
+  "timestamp": "2025-12-28T22:56:39.340402",
+  "total_tests": 9,
+  "passed_tests": 9,
+  "success_rate": 100.0,
   "results": [
     {
-      "test": "GET /api/opportunities/nhl?day=tomorrow - All Games Verified",
+      "test": "NBA Historical Data 2025-12-22",
       "success": true,
-      "details": "All 13 NHL games have correct totals",
-      "timestamp": "2025-12-27T06:47:08.705365"
+      "details": "Found 7 games, 3 with user bets, all final scores populated",
+      "timestamp": "2025-12-28T22:56:39.018714"
     },
     {
-      "test": "GET /api/opportunities/nhl?day=tomorrow - Corrected Games",
+      "test": "NBA Historical Data 2025-12-23",
       "success": true,
-      "details": "3 corrected games verified: Washington @ New Jersey: 5.5 \u2713; Anaheim @ Los Angeles: 6.5 \u2713; San Jose @ Vancouver: 5.5 \u2713",
-      "timestamp": "2025-12-27T06:47:08.705394"
+      "details": "Found 13 games, 7 with user bets, all final scores populated",
+      "timestamp": "2025-12-28T22:56:39.066449"
     },
     {
-      "test": "GET /api/opportunities/nhl?day=tomorrow",
+      "test": "NBA Historical Data 2025-12-25",
       "success": true,
-      "details": "Successfully verified all 13 NHL games for Dec 27, 2025",
-      "timestamp": "2025-12-27T06:47:08.705401"
+      "details": "Found 5 games, 2 with user bets, all final scores populated",
+      "timestamp": "2025-12-28T22:56:39.110813"
     },
     {
-      "test": "GET /api/opportunities?day=tomorrow",
+      "test": "NBA Historical Data 2025-12-26",
       "success": true,
-      "details": "Found 9 games, data_source: scoresandodds.com",
-      "timestamp": "2025-12-27T06:47:08.741937"
+      "details": "Found 9 games, 5 with user bets, all final scores populated",
+      "timestamp": "2025-12-28T22:56:39.161077"
     },
     {
-      "test": "GET /api/opportunities?day=today",
+      "test": "NBA Historical Data 2025-12-27",
       "success": true,
-      "details": "Found 9 games, data_source: hardcoded",
-      "timestamp": "2025-12-27T06:47:08.779162"
+      "details": "Found 9 games, 4 with user bets, all final scores populated",
+      "timestamp": "2025-12-28T22:56:39.210847"
     },
     {
-      "test": "GET /api/opportunities?day=yesterday",
+      "test": "NHL Historical Data 2025-12-22",
       "success": true,
-      "details": "Found 5 games, 2 with user bets and bet-time data",
-      "timestamp": "2025-12-27T06:47:08.821730"
+      "details": "Found 4 games, 1 with user bets, all final scores populated",
+      "timestamp": "2025-12-28T22:56:39.251257"
     },
     {
-      "test": "POST /api/opportunities/refresh?day=tomorrow",
-      "success": false,
-      "details": "Request error: HTTPSConnectionPool(host='bettingbot-4.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)",
-      "timestamp": "2025-12-27T06:47:23.865110"
-    },
-    {
-      "test": "POST /api/opportunities/refresh?day=today&use_live_lines=true",
+      "test": "NHL Historical Data 2025-12-23",
       "success": true,
-      "details": "Refreshed 9 games, data_source: hardcoded",
-      "timestamp": "2025-12-27T06:47:50.136272"
+      "details": "Found 13 games, 6 with user bets, all final scores populated",
+      "timestamp": "2025-12-28T22:56:39.293860"
     },
     {
-      "test": "GET /api/opportunities - Game Structure",
+      "test": "NHL Historical Data 2025-12-27",
       "success": true,
-      "details": "Game has all required fields",
-      "timestamp": "2025-12-27T06:47:50.204762"
+      "details": "Found 13 games, 5 with user bets, all final scores populated",
+      "timestamp": "2025-12-28T22:56:39.339277"
     },
     {
-      "test": "GET /api/opportunities",
+      "test": "Historical Data Verification (12/22-12/27)",
       "success": true,
-      "details": "Returned 9 games, 0 plays",
-      "timestamp": "2025-12-27T06:47:50.204788"
-    },
-    {
-      "test": "GET /api/opportunities - data_source value",
-      "success": false,
-      "details": "Invalid data_source 'hardcoded', expected one of ['cached', 'plays888.co']",
-      "timestamp": "2025-12-27T06:47:50.241894"
-    },
-    {
-      "test": "POST /api/opportunities/refresh",
-      "success": true,
-      "details": "Refreshed: 9 games, 0 plays",
-      "timestamp": "2025-12-27T06:47:59.580982"
-    },
-    {
-      "test": "Betting Logic - UNDER Rule",
-      "success": false,
-      "details": "Game avg 21.5 should be UNDER but got OVER",
-      "timestamp": "2025-12-27T06:47:59.631807"
-    },
-    {
-      "test": "Color Coding Test",
-      "success": true,
-      "details": "All color coding is correct",
-      "timestamp": "2025-12-27T06:47:59.668175"
-    },
-    {
-      "test": "Bet-Time Line Tracking - San Antonio bet_edge",
-      "success": false,
-      "details": "Expected bet_edge 6.0, got 4.7",
-      "timestamp": "2025-12-27T06:47:59.707094"
-    },
-    {
-      "test": "POST /api/opportunities/refresh?day=yesterday - Data Source",
-      "success": true,
-      "details": "Data source: hardcoded",
-      "timestamp": "2025-12-27T06:48:13.406339"
-    },
-    {
-      "test": "POST /api/opportunities/refresh?day=yesterday - Bet Tracking",
-      "success": true,
-      "details": "Bet tracking fields present in 2 user bet games",
-      "timestamp": "2025-12-27T06:48:13.406369"
-    },
-    {
-      "test": "POST /api/opportunities/refresh?day=yesterday",
-      "success": true,
-      "details": "Refreshed yesterday data: 5 games, 2 with user bets, source: hardcoded",
-      "timestamp": "2025-12-27T06:48:13.406375"
-    },
-    {
-      "test": "Line Difference - San Antonio @ Okla City",
-      "success": true,
-      "details": "Bet line: 233.0, Closing line: 234.5, Difference: 1.5",
-      "timestamp": "2025-12-27T06:48:13.461773"
-    },
-    {
-      "test": "Line Difference - Houston @ LA Lakers",
-      "success": true,
-      "details": "Bet line: 230.0, Closing line: 231.5, Difference: 1.5",
-      "timestamp": "2025-12-27T06:48:13.461798"
-    },
-    {
-      "test": "Bet Line vs Closing Line Test",
-      "success": true,
-      "details": "Found 2 games with different bet-time vs closing lines",
-      "timestamp": "2025-12-27T06:48:13.461804"
-    },
-    {
-      "test": "POST /api/scrape/totals/NBA",
-      "success": false,
-      "details": "No NBA games found - may be off-season or scraping issue",
-      "timestamp": "2025-12-27T06:48:30.597453"
-    },
-    {
-      "test": "POST /api/scrape/totals/NHL",
-      "success": true,
-      "details": "Successfully scraped 8 NHL games from plays888.co",
-      "timestamp": "2025-12-27T06:48:46.961926"
-    },
-    {
-      "test": "POST /api/opportunities/refresh?use_live_lines=true - Data Source",
-      "success": false,
-      "details": "Expected data_source 'plays888.co', got 'hardcoded'",
-      "timestamp": "2025-12-27T06:49:13.760725"
-    },
-    {
-      "test": "POST /api/opportunities/nhl/refresh?use_live_lines=true",
-      "success": true,
-      "details": "NHL refresh with live lines: 8 games, 0 plays, source: plays888.co",
-      "timestamp": "2025-12-27T06:49:40.260223"
+      "details": "NBA: \u2705, NHL: \u2705",
+      "timestamp": "2025-12-28T22:56:39.339998"
     }
   ]
 }
