@@ -5330,21 +5330,10 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
         
         # For TODAY: Start with full schedule, then update with live lines from plays888.co
         if day == "today":
-            # Dec 27, 2025 - CORRECT NBA games from scoresandodds.com
-            games_raw = [
-                {"time": "5:00 PM", "away": "Dallas", "home": "Sacramento", "total": 233.5},
-                {"time": "7:00 PM", "away": "Phoenix", "home": "New Orleans", "total": 237.5},
-                {"time": "7:00 PM", "away": "Denver", "home": "Orlando", "total": 234.5},
-                {"time": "8:00 PM", "away": "Brooklyn", "home": "Minnesota", "total": 224.5},
-                {"time": "8:00 PM", "away": "Indiana", "home": "Miami", "total": 228.5},
-                {"time": "8:00 PM", "away": "Milwaukee", "home": "Chicago", "total": 232.5},
-                {"time": "8:00 PM", "away": "New York", "home": "Atlanta", "total": 242.5},
-                {"time": "8:00 PM", "away": "Utah", "home": "San Antonio", "total": 241.5},
-                {"time": "8:00 PM", "away": "Cleveland", "home": "Houston", "total": 234.5},
-            ]
-            data_source = "scoresandodds.com"
+            games_raw = []
+            data_source = "plays888.co"
             
-            # Now try to UPDATE with live lines from plays888.co
+            # #3 PROCESS: After 5am, use Plays888 as PRIMARY source for today's games
             if use_live_lines:
                 try:
                     conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
@@ -5358,30 +5347,35 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                         await scraper.close()
                         
                         if live_games:
-                            # Update existing games with live lines
-                            live_lookup = {}
+                            # Use Plays888 games as the PRIMARY source
                             for game in live_games:
                                 away_short = convert_plays888_team_name(game.get('away', ''))
                                 home_short = convert_plays888_team_name(game.get('home', ''))
-                                key = f"{away_short.lower()}_{home_short.lower()}"
-                                live_lookup[key] = {
+                                games_raw.append({
                                     "time": game.get('time', ''),
+                                    "away": away_short,
+                                    "home": home_short,
                                     "total": game.get('total')
-                                }
-                            
-                            # Update games_raw with live data
-                            for g in games_raw:
-                                key = f"{g['away'].lower()}_{g['home'].lower()}"
-                                if key in live_lookup:
-                                    if live_lookup[key]['total']:
-                                        g['total'] = live_lookup[key]['total']
-                                    if live_lookup[key]['time']:
-                                        g['time'] = live_lookup[key]['time']
+                                })
                             
                             data_source = "plays888.co (Live)"
-                            logger.info(f"Updated {len(live_lookup)} games with live lines from plays888.co")
+                            logger.info(f"[#3 Process] Using {len(games_raw)} games from Plays888 as primary source")
                 except Exception as e:
-                    logger.error(f"Error fetching live lines: {e}")
+                    logger.error(f"Error fetching live games from Plays888: {e}")
+            
+            # Fallback: If no games from Plays888, check database cache
+            if not games_raw:
+                cached = await db.nba_opportunities.find_one({"date": target_date}, {"_id": 0})
+                if cached and cached.get('games'):
+                    for g in cached['games']:
+                        games_raw.append({
+                            "time": g.get('time', ''),
+                            "away": g.get('away_team', g.get('away', '')),
+                            "home": g.get('home_team', g.get('home', '')),
+                            "total": g.get('total')
+                        })
+                    data_source = "cached (from last night's scrape)"
+                    logger.info(f"Using {len(games_raw)} cached games from database for {target_date}")
         
         # For TOMORROW: Use scoresandodds.com for schedule/lines
         elif day == "tomorrow":
