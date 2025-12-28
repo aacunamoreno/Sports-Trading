@@ -6519,11 +6519,26 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
             except Exception as e:
                 logger.error(f"Error fetching live NFL lines: {e}")
         
-        # #3.85: MERGE live games with cached games to keep started games visible ALL DAY
+        # #3.85/#3.90: MERGE live games with cached games to keep ALL games visible ALL DAY
         # Games that have started disappear from Plays888, but we want to show them
+        # For NFL, we need to check BOTH today's date AND the week's main date (yesterday for Week 17)
         if day == "today":
-            cached = await db.nfl_opportunities.find_one({"date": target_date}, {"_id": 0})
-            if cached and cached.get('games'):
+            all_cached_games = []
+            
+            # Check today's cache
+            cached_today = await db.nfl_opportunities.find_one({"date": target_date}, {"_id": 0})
+            if cached_today and cached_today.get('games'):
+                all_cached_games.extend(cached_today['games'])
+            
+            # Also check yesterday's cache (NFL weeks span multiple days)
+            yesterday = (now_arizona - timedelta(days=1)).strftime('%Y-%m-%d')
+            cached_yesterday = await db.nfl_opportunities.find_one({"date": yesterday}, {"_id": 0})
+            if cached_yesterday and cached_yesterday.get('games'):
+                all_cached_games.extend(cached_yesterday['games'])
+            
+            logger.info(f"[#3.90] Found {len(all_cached_games)} total cached NFL games from today + yesterday")
+            
+            if all_cached_games:
                 # Create lookup of current games from Plays888
                 live_matchups = set()
                 for g in games_raw:
@@ -6532,13 +6547,15 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
                 
                 # Add cached games that are NOT in the live list (started games)
                 added_started = 0
-                for cached_game in cached['games']:
+                seen_matchups = set(live_matchups)  # Track what we've added
+                
+                for cached_game in all_cached_games:
                     away = cached_game.get('away_team', cached_game.get('away', ''))
                     home = cached_game.get('home_team', cached_game.get('home', ''))
                     key = f"{away.upper()}_{home.upper()}"
                     
-                    if key not in live_matchups:
-                        # This game has started - add it from cache
+                    if key not in seen_matchups:
+                        # This game has started or wasn't in live list - add it from cache
                         games_raw.append({
                             "time": cached_game.get('time', 'Started'),
                             "away": away,
@@ -6546,10 +6563,12 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
                             "total": cached_game.get('total'),
                             "started": True  # Mark as started
                         })
+                        seen_matchups.add(key)
                         added_started += 1
+                        logger.debug(f"[#3.90] Added from cache: {away} @ {home}")
                 
                 if added_started > 0:
-                    logger.info(f"[#3.85] Added {added_started} started NFL games from cache (total: {len(games_raw)} games)")
+                    logger.info(f"[#3.90] Added {added_started} started NFL games from cache (total: {len(games_raw)} games)")
                     data_source = "plays888.co + cached"
         
         # Fallback: If no games from Plays888, check database cache
