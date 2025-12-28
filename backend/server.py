@@ -2517,10 +2517,13 @@ class Plays888Service:
                 line = lines[i].strip()
                 
                 # Look for TOTAL lines with o/u
-                total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)[½]?[-+]\d+', line, re.IGNORECASE)
+                total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)(½)?[-+]\d+', line, re.IGNORECASE)
                 if total_match:
                     bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
-                    total_line = float(total_match.group(2).replace('½', '.5'))
+                    total_line = float(total_match.group(2))
+                    # Add 0.5 if there's a ½ symbol
+                    if total_match.group(3) == '½':
+                        total_line += 0.5
                     
                     # Look for team names in nearby lines
                     teams_text = ""
