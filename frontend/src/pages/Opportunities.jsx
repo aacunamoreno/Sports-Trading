@@ -113,19 +113,39 @@ export default function Opportunities() {
       if (!response.ok) throw new Error('Export failed');
       
       const blob = await response.blob();
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${league}_Analysis_12-22_to_yesterday.xlsx`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+      
+      // Create download link and trigger
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${league}_Analysis_12-22_to_yesterday.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      
+      // Use setTimeout to ensure the link is properly added to DOM
+      setTimeout(() => {
+        link.click();
+        // Cleanup after download starts
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      }, 0);
       
       toast.success(`${league} analysis exported to Excel!`);
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Failed to export');
+      toast.error('Failed to export: ' + error.message);
     } finally {
       setExporting(false);
     }
