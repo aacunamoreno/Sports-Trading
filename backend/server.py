@@ -5163,15 +5163,18 @@ async def morning_data_refresh():
                             losses = sum(1 for b in league_bets if b.get('result') == 'lost')
                             
                             if wins > 0 or losses > 0:
-                                await db.compound_records.update_one(
-                                    {"league": league.upper()},
-                                    {"$inc": {"hits": wins, "misses": losses}},
-                                    upsert=True
-                                )
-                                logger.info(f"[5AM Job] Updated {league} record: +{wins} wins, +{losses} losses")
+                                logger.info(f"[5AM Job] Found {league} bet results: {wins} wins, {losses} losses")
                                 
         except Exception as e:
             logger.error(f"[5AM Job] Error getting bet results: {e}")
+        
+        # #6 - Update Records from 12/22/25 to yesterday
+        try:
+            logger.info(f"[#6 Process] Updating betting and edge records from 12/22/25")
+            records_result = await update_records_from_start_date("2025-12-22")
+            logger.info(f"[#6 Process] Records updated: {records_result}")
+        except Exception as e:
+            logger.error(f"[5AM Job] Error updating records: {e}")
         
         # Summary
         logger.info(f"[5AM Job] Morning data refresh completed")
