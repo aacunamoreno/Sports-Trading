@@ -5183,6 +5183,226 @@ async def morning_data_refresh():
         logger.error(f"[5AM Job] Error in morning_data_refresh: {e}")
         return {"status": "error", "error": str(e)}
 
+
+# ============== PROCESS #6: UPDATE RECORDS FROM 12/22/25 ==============
+
+async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
+    """
+    Calculate betting records and edge records from start_date to yesterday.
+    
+    Betting Record: W-L record of actual user bets (ENANO account)
+    Edge Record: W-L record of system recommendations (edge-based predictions)
+    
+    Args:
+        start_date: Start date in 'YYYY-MM-DD' format (default: 12/22/25)
+    
+    Returns:
+        Dictionary with calculated records for each league
+    """
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    
+    # Get yesterday's date (we don't count today since games may not be finished)
+    yesterday = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    logger.info(f"[#6] Calculating records from {start_date} to {yesterday}")
+    
+    results = {
+        "NBA": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}},
+        "NHL": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}},
+        "NFL": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}},
+    }
+    
+    # Generate list of dates from start_date to yesterday
+    start = datetime.strptime(start_date, '%Y-%m-%d')
+    end = datetime.strptime(yesterday, '%Y-%m-%d')
+    
+    dates = []
+    current = start
+    while current <= end:
+        dates.append(current.strftime('%Y-%m-%d'))
+        current += timedelta(days=1)
+    
+    logger.info(f"[#6] Processing {len(dates)} dates")
+    
+    # Process NBA records
+    for date in dates:
+        doc = await db.nba_opportunities.find_one({"date": date})
+        if doc and doc.get('games'):
+            for game in doc['games']:
+                # Check if game has final score (completed)
+                if game.get('final_score') is None:
+                    continue
+                
+                # Edge Record: Check if system recommendation hit
+                recommendation = game.get('recommendation')
+                actual_result = game.get('actual_result')
+                if recommendation and actual_result:
+                    if recommendation == actual_result:
+                        results["NBA"]["edge"]["hits"] += 1
+                    else:
+                        results["NBA"]["edge"]["misses"] += 1
+                
+                # Betting Record: Check if user bet hit
+                if game.get('user_bet'):
+                    bet_result = game.get('bet_result')
+                    if bet_result == 'won':
+                        results["NBA"]["betting"]["wins"] += 1
+                    elif bet_result == 'lost':
+                        results["NBA"]["betting"]["losses"] += 1
+    
+    # Process NHL records
+    for date in dates:
+        doc = await db.nhl_opportunities.find_one({"date": date})
+        if doc and doc.get('games'):
+            for game in doc['games']:
+                # Check if game has final score (completed)
+                if game.get('final_score') is None:
+                    continue
+                
+                # Edge Record: Check if system recommendation hit
+                recommendation = game.get('recommendation')
+                actual_result = game.get('actual_result')
+                if recommendation and actual_result:
+                    if recommendation == actual_result:
+                        results["NHL"]["edge"]["hits"] += 1
+                    else:
+                        results["NHL"]["edge"]["misses"] += 1
+                
+                # Betting Record: Check if user bet hit
+                if game.get('user_bet'):
+                    bet_result = game.get('bet_result')
+                    if bet_result == 'won':
+                        results["NHL"]["betting"]["wins"] += 1
+                    elif bet_result == 'lost':
+                        results["NHL"]["betting"]["losses"] += 1
+    
+    # Process NFL records
+    for date in dates:
+        doc = await db.nfl_opportunities.find_one({"date": date})
+        if doc and doc.get('games'):
+            for game in doc['games']:
+                # Check if game has final score (completed)
+                if game.get('final_score') is None:
+                    continue
+                
+                # Edge Record: Check if system recommendation hit
+                recommendation = game.get('recommendation')
+                actual_result = game.get('actual_result')
+                if recommendation and actual_result:
+                    if recommendation == actual_result:
+                        results["NFL"]["edge"]["hits"] += 1
+                    else:
+                        results["NFL"]["edge"]["misses"] += 1
+                
+                # Betting Record: Check if user bet hit
+                if game.get('user_bet'):
+                    bet_result = game.get('bet_result')
+                    if bet_result == 'won':
+                        results["NFL"]["betting"]["wins"] += 1
+                    elif bet_result == 'lost':
+                        results["NFL"]["betting"]["losses"] += 1
+    
+    logger.info(f"[#6] Calculated records: {results}")
+    return results
+
+
+async def update_records_from_start_date(start_date: str = "2025-12-22"):
+    """
+    Update compound_records (betting) and edge_records collections with calculated values.
+    This replaces (not increments) the values to ensure accuracy.
+    """
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    
+    # Calculate records
+    records = await calculate_records_from_start_date(start_date)
+    now = datetime.now(arizona_tz).strftime('%Y-%m-%d %I:%M %p')
+    
+    # Update compound_records (Betting Record)
+    for league in ["NBA", "NHL", "NFL"]:
+        betting = records[league]["betting"]
+        await db.compound_records.update_one(
+            {"league": league},
+            {"$set": {
+                "league": league,
+                "hits": betting["wins"],
+                "misses": betting["losses"],
+                "last_updated": now,
+                "start_date": start_date
+            }},
+            upsert=True
+        )
+        logger.info(f"[#6] Updated {league} betting record: {betting['wins']}-{betting['losses']}")
+    
+    # Update edge_records (Edge/Recommendation Record)
+    for league in ["NBA", "NHL", "NFL"]:
+        edge = records[league]["edge"]
+        await db.edge_records.update_one(
+            {"league": league},
+            {"$set": {
+                "league": league,
+                "hits": edge["hits"],
+                "misses": edge["misses"],
+                "last_updated": now,
+                "start_date": start_date
+            }},
+            upsert=True
+        )
+        logger.info(f"[#6] Updated {league} edge record: {edge['hits']}-{edge['misses']}")
+    
+    return {
+        "status": "success",
+        "records": records,
+        "updated_at": now,
+        "start_date": start_date
+    }
+
+
+@api_router.post("/process/update-records")
+async def trigger_update_records(start_date: str = "2025-12-22"):
+    """
+    Process #6: Manually trigger record update from start_date to yesterday.
+    
+    Args:
+        start_date: Start date in 'YYYY-MM-DD' format (default: 12/22/25)
+    """
+    try:
+        result = await update_records_from_start_date(start_date)
+        return result
+    except Exception as e:
+        logger.error(f"Error updating records: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/records/summary")
+async def get_records_summary():
+    """
+    Get a summary of both betting and edge records for all leagues.
+    """
+    try:
+        summary = {}
+        
+        for league in ["NBA", "NHL", "NFL"]:
+            # Get betting record
+            betting = await db.compound_records.find_one({"league": league}, {"_id": 0})
+            # Get edge record  
+            edge = await db.edge_records.find_one({"league": league}, {"_id": 0})
+            
+            summary[league] = {
+                "betting_record": f"{betting.get('hits', 0)}-{betting.get('misses', 0)}" if betting else "0-0",
+                "edge_record": f"{edge.get('hits', 0)}-{edge.get('misses', 0)}" if edge else "0-0",
+                "betting_last_updated": betting.get('last_updated') if betting else None,
+                "edge_last_updated": edge.get('last_updated') if edge else None,
+                "start_date": betting.get('start_date', '2025-12-22') if betting else '2025-12-22'
+            }
+        
+        return summary
+    except Exception as e:
+        logger.error(f"Error getting records summary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============== COMPOUND RECORD TRACKING ==============
 
 @api_router.get("/opportunities/record/{league}")
