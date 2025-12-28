@@ -6280,17 +6280,26 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
     """Manually refresh NFL opportunities data. 
     day parameter: 'yesterday', 'today' or 'tomorrow'
     use_live_lines: if True, fetch O/U lines from plays888.co (always used for NFL)
+    
+    #3 PROCESS: After 5am Arizona time, TODAY's data automatically uses Plays888 for live lines
     """
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
+        now_arizona = datetime.now(arizona_tz)
+        current_hour = now_arizona.hour
+        
+        # #3 PROCESS: Automatically use Plays888 for TODAY after 5am Arizona time
+        if day == "today" and current_hour >= 5:
+            use_live_lines = True
+            logger.info(f"[#3 Process] NFL: After 5am Arizona ({now_arizona.strftime('%I:%M %p')}), using Plays888 for live lines")
         
         if day == "tomorrow":
-            target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+            target_date = (now_arizona + timedelta(days=1)).strftime('%Y-%m-%d')
         elif day == "yesterday":
-            target_date = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+            target_date = (now_arizona - timedelta(days=1)).strftime('%Y-%m-%d')
         else:
-            target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+            target_date = now_arizona.strftime('%Y-%m-%d')
         
         # NFL PPG Rankings (2025 Season) - From teamrankings.com/nfl/stat/points-per-game (Dec 27, 2025)
         ppg_season = {
