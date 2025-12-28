@@ -1680,13 +1680,19 @@ class BettingSystemAPITester:
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
-        print("BETBOT HISTORICAL DATA VERIFICATION - 12/22/2025 to 12/27/2025")
+        print("BETBOT PROCESS #6 - UPDATE RECORDS TESTING")
         print("=" * 60)
         print(f"Testing API: {self.api_url}")
         print()
         
-        # Run Historical Data Verification FIRST (primary focus)
-        success = self.test_historical_data_verification()
+        # Run Process #6 Implementation Tests FIRST (primary focus)
+        process_6_success = self.test_process_6_implementation()
+        
+        # Run Historical Data Verification (secondary focus)
+        print("\n" + "=" * 60)
+        print("HISTORICAL DATA VERIFICATION - 12/22/2025 to 12/27/2025")
+        print("=" * 60)
+        historical_success = self.test_historical_data_verification()
         
         # Print summary
         print()
@@ -1697,6 +1703,10 @@ class BettingSystemAPITester:
         print(f"Tests Passed: {self.tests_passed}")
         print(f"Tests Failed: {self.tests_run - self.tests_passed}")
         print(f"Success Rate: {(self.tests_passed/self.tests_run)*100:.1f}%")
+        
+        print("\n📊 RESULTS BY CATEGORY:")
+        print(f"Process #6 Implementation: {'✅ PASSED' if process_6_success else '❌ FAILED'}")
+        print(f"Historical Data Verification: {'✅ PASSED' if historical_success else '❌ FAILED'}")
         
         return self.tests_passed == self.tests_run
 
