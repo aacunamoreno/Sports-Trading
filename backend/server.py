@@ -6421,6 +6421,21 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
                 user_bet_type = bet_data.get('bet_type') if has_bet else None
                 final_score = None
             
+            # Calculate dots based on rankings
+            def get_dot_color(rank: int) -> str:
+                if rank <= 8:
+                    return "🟢"  # Green: Top tier
+                elif rank <= 16:
+                    return "🔵"  # Blue: Upper middle
+                elif rank <= 24:
+                    return "🟡"  # Yellow: Lower middle
+                else:
+                    return "🔴"  # Red: Bottom tier
+            
+            dots = f"{get_dot_color(away_ppg_rank)}{get_dot_color(away_last3_rank)}{get_dot_color(home_ppg_rank)}{get_dot_color(home_last3_rank)}"
+            away_dots = f"{get_dot_color(away_ppg_rank)}{get_dot_color(away_last3_rank)}"
+            home_dots = f"{get_dot_color(home_ppg_rank)}{get_dot_color(home_last3_rank)}"
+            
             game = {
                 "game_num": i,
                 "time": time_str,
@@ -6430,6 +6445,9 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
                 "home_ppg_rank": home_ppg_rank,
                 "away_last3_rank": away_last3_rank,
                 "home_last3_rank": home_last3_rank,
+                "dots": dots,
+                "away_dots": away_dots,
+                "home_dots": home_dots,
                 "total": total,
                 "combined_ppg": game_avg,  # For NFL, use game_avg (Season + Last 3 / 2)
                 "game_avg": game_avg,
