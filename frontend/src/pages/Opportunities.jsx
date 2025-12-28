@@ -105,51 +105,19 @@ export default function Opportunities() {
     }
   };
 
-  // Export to Excel - fetch blob and download
-  const handleExport = async () => {
+  // Export to Excel - using location.assign for direct download
+  const handleExport = () => {
     setExporting(true);
-    try {
-      const downloadUrl = `${BACKEND_URL}/api/export/excel?league=${league}&start_date=2025-12-22`;
-      
-      // Fetch the file as blob
-      const response = await fetch(downloadUrl);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      // Get the blob data
-      const blob = await response.blob();
-      
-      // Create a blob URL
-      const blobUrl = URL.createObjectURL(blob);
-      
-      // Create filename
-      const today = new Date().toISOString().split('T')[0];
-      const filename = `${league}_Analysis_2025-12-22_to_${today}.xlsx`;
-      
-      // Create temporary link and trigger download
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      link.style.display = 'none';
-      
-      // Add to DOM, click, and remove
-      document.body.appendChild(link);
-      link.click();
-      
-      // Cleanup after small delay
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-      }, 100);
-      
-      toast.success(`${league} analysis downloaded!`);
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export: ' + error.message);
-    } finally {
-      setExporting(false);
-    }
+    
+    const downloadUrl = `${BACKEND_URL}/api/export/excel?league=${league}&start_date=2025-12-22`;
+    
+    // Use location.assign which forces the browser to navigate/download
+    // Since Content-Disposition is "attachment", it should trigger download
+    window.location.assign(downloadUrl);
+    
+    toast.success(`${league} analysis downloading...`);
+    
+    setTimeout(() => setExporting(false), 2000);
   };
 
   // Row styles: Orange for UNDER, Blue for OVER
