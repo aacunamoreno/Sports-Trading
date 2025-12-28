@@ -4647,6 +4647,144 @@ async def refresh_nba_opportunities_scheduled():
     except Exception as e:
         logger.error(f"[Scheduled] Error refreshing NBA opportunities: {e}")
 
+# ============================================
+# PROCESS NOTEBOOK - SCHEDULED JOBS
+# ============================================
+
+async def scrape_tomorrows_opening_lines():
+    """
+    #1 - 8:00 PM Arizona: Scrape tomorrow's games from ScoresAndOdds
+    These are the opening lines for each game.
+    """
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    tomorrow = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    logger.info(f"[8PM Job] Scraping tomorrow's opening lines for {tomorrow}")
+    
+    try:
+        leagues = ['NBA', 'NHL', 'NFL']
+        
+        for league in leagues:
+            try:
+                # Use the existing scrape_scoresandodds function
+                games = await scrape_scoresandodds(league.lower(), tomorrow)
+                
+                if games:
+                    # Store opening lines for each game
+                    for game in games:
+                        away = game.get('away_team') or game.get('away')
+                        home = game.get('home_team') or game.get('home')
+                        total = game.get('total')
+                        
+                        if away and home and total:
+                            await store_opening_line(league, tomorrow, away, home, total)
+                    
+                    logger.info(f"[8PM Job] Stored {len(games)} {league} opening lines for {tomorrow}")
+                else:
+                    logger.warning(f"[8PM Job] No {league} games found for {tomorrow}")
+                    
+            except Exception as e:
+                logger.error(f"[8PM Job] Error scraping {league}: {e}")
+                
+    except Exception as e:
+        logger.error(f"[8PM Job] Error in scrape_tomorrows_opening_lines: {e}")
+
+async def morning_data_refresh():
+    """
+    5:00 AM Arizona: Morning data refresh
+    #3 - Switch to Plays888 live lines (handled by flag)
+    #4 - Get yesterday's scores from ScoresAndOdds
+    #5 - Get bet results from Plays888 History
+    #6 - Update betting and edge records
+    """
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    yesterday = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+    today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    
+    logger.info(f"[5AM Job] Starting morning data refresh for {today}")
+    
+    try:
+        # #4 - Get yesterday's scores from ScoresAndOdds
+        leagues = ['NBA', 'NHL', 'NFL']
+        
+        for league in leagues:
+            try:
+                # Scrape yesterday's results
+                results = await scrape_scoresandodds(league.lower(), yesterday)
+                
+                if results:
+                    # Update the opportunities collection with final scores
+                    collection_name = f"{league.lower()}_opportunities"
+                    collection = db[collection_name]
+                    
+                    cached = await collection.find_one({"date": yesterday}, {"_id": 0})
+                    if cached and cached.get('games'):
+                        for game in cached['games']:
+                            # Match with scraped results and update final_score
+                            for result in results:
+                                r_away = (result.get('away_team') or result.get('away', '')).lower()
+                                r_home = (result.get('home_team') or result.get('home', '')).lower()
+                                g_away = (game.get('away_team') or game.get('away', '')).lower()
+                                g_home = (game.get('home_team') or game.get('home', '')).lower()
+                                
+                                if r_away in g_away or g_away in r_away:
+                                    if r_home in g_home or g_home in r_home:
+                                        if result.get('final_score'):
+                                            game['final_score'] = result['final_score']
+                        
+                        await collection.update_one(
+                            {"date": yesterday},
+                            {"$set": {"games": cached['games']}}
+                        )
+                        logger.info(f"[5AM Job] Updated {league} yesterday results")
+                        
+            except Exception as e:
+                logger.error(f"[5AM Job] Error getting {league} results: {e}")
+        
+        # #5 - Get bet results from Plays888 History
+        try:
+            conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+            if conn and conn.get("is_connected"):
+                username = conn["username"]
+                password = decrypt_password(conn["password_encrypted"])
+                
+                scraper = Plays888Service()
+                await scraper.login(username, password)
+                
+                # Get bet history
+                bets = await scraper.scrape_open_bets()  # This gets history too
+                await scraper.close()
+                
+                if bets:
+                    # Update settled bets
+                    settled = [b for b in bets if b.get('result') in ['won', 'lost', 'push']]
+                    logger.info(f"[5AM Job] Found {len(settled)} settled bets")
+                    
+                    # #6 - Update records based on settled bets
+                    for league in leagues:
+                        league_bets = [b for b in settled if league.upper() in (b.get('sport') or '').upper()]
+                        if league_bets:
+                            wins = sum(1 for b in league_bets if b.get('result') == 'won')
+                            losses = sum(1 for b in league_bets if b.get('result') == 'lost')
+                            
+                            if wins > 0 or losses > 0:
+                                await db.compound_records.update_one(
+                                    {"league": league.upper()},
+                                    {"$inc": {"hits": wins, "misses": losses}},
+                                    upsert=True
+                                )
+                                logger.info(f"[5AM Job] Updated {league} record: +{wins} wins, +{losses} losses")
+                                
+        except Exception as e:
+            logger.error(f"[5AM Job] Error getting bet results: {e}")
+        
+        logger.info(f"[5AM Job] Morning data refresh completed")
+        
+    except Exception as e:
+        logger.error(f"[5AM Job] Error in morning_data_refresh: {e}")
+
 # ============== COMPOUND RECORD TRACKING ==============
 
 @api_router.get("/opportunities/record/{league}")
