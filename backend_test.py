@@ -1353,6 +1353,330 @@ class BettingSystemAPITester:
         
         return overall_success
 
+    def test_process_update_records(self):
+        """Test POST /api/process/update-records?start_date=2025-12-22 - Process #6 implementation"""
+        try:
+            print("Testing Process #6 - Update Records (this may take 30-60 seconds)...")
+            response = requests.post(f"{self.api_url}/process/update-records?start_date=2025-12-22", timeout=90)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['success', 'message', 'records_updated']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("POST /api/process/update-records - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                success = data.get('success')
+                if not success:
+                    self.log_test("POST /api/process/update-records - Success", False,
+                                f"API returned success=false: {data.get('message', 'No message')}")
+                    return False
+                
+                records_updated = data.get('records_updated', {})
+                
+                # Validate that records were calculated for all leagues
+                expected_leagues = ['NBA', 'NHL', 'NFL']
+                for league in expected_leagues:
+                    if league not in records_updated:
+                        self.log_test(f"POST /api/process/update-records - {league} Records", False,
+                                    f"No records found for {league}")
+                        return False
+                    
+                    league_data = records_updated[league]
+                    required_record_fields = ['edge_record', 'betting_record']
+                    missing_record_fields = [field for field in required_record_fields if field not in league_data]
+                    
+                    if missing_record_fields:
+                        self.log_test(f"POST /api/process/update-records - {league} Structure", False,
+                                    f"Missing record fields for {league}: {missing_record_fields}")
+                        return False
+                
+                # Validate expected records for NBA (12/22-12/27)
+                nba_data = records_updated.get('NBA', {})
+                expected_nba_edge = "23-16"
+                expected_nba_betting = "11-10"
+                
+                actual_nba_edge = nba_data.get('edge_record')
+                actual_nba_betting = nba_data.get('betting_record')
+                
+                if actual_nba_edge != expected_nba_edge:
+                    self.log_test("POST /api/process/update-records - NBA Edge Record", False,
+                                f"Expected NBA edge record {expected_nba_edge}, got {actual_nba_edge}")
+                    return False
+                
+                if actual_nba_betting != expected_nba_betting:
+                    self.log_test("POST /api/process/update-records - NBA Betting Record", False,
+                                f"Expected NBA betting record {expected_nba_betting}, got {actual_nba_betting}")
+                    return False
+                
+                # Validate expected records for NHL (12/22-12/27)
+                nhl_data = records_updated.get('NHL', {})
+                expected_nhl_edge = "11-5"
+                expected_nhl_betting = "7-5"
+                
+                actual_nhl_edge = nhl_data.get('edge_record')
+                actual_nhl_betting = nhl_data.get('betting_record')
+                
+                if actual_nhl_edge != expected_nhl_edge:
+                    self.log_test("POST /api/process/update-records - NHL Edge Record", False,
+                                f"Expected NHL edge record {expected_nhl_edge}, got {actual_nhl_edge}")
+                    return False
+                
+                if actual_nhl_betting != expected_nhl_betting:
+                    self.log_test("POST /api/process/update-records - NHL Betting Record", False,
+                                f"Expected NHL betting record {expected_nhl_betting}, got {actual_nhl_betting}")
+                    return False
+                
+                # Validate expected records for NFL (12/22-12/27)
+                nfl_data = records_updated.get('NFL', {})
+                expected_nfl_edge = "0-0"
+                expected_nfl_betting = "0-0"
+                
+                actual_nfl_edge = nfl_data.get('edge_record')
+                actual_nfl_betting = nfl_data.get('betting_record')
+                
+                if actual_nfl_edge != expected_nfl_edge:
+                    self.log_test("POST /api/process/update-records - NFL Edge Record", False,
+                                f"Expected NFL edge record {expected_nfl_edge}, got {actual_nfl_edge}")
+                    return False
+                
+                if actual_nfl_betting != expected_nfl_betting:
+                    self.log_test("POST /api/process/update-records - NFL Betting Record", False,
+                                f"Expected NFL betting record {expected_nfl_betting}, got {actual_nfl_betting}")
+                    return False
+                
+                self.log_test("POST /api/process/update-records", True,
+                            f"Successfully calculated records: NBA({actual_nba_edge}/{actual_nba_betting}), NHL({actual_nhl_edge}/{actual_nhl_betting}), NFL({actual_nfl_edge}/{actual_nfl_betting})")
+                return True
+            else:
+                self.log_test("POST /api/process/update-records", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.Timeout:
+            self.log_test("POST /api/process/update-records", False, "Request timeout (>90s)")
+            return False
+        except requests.exceptions.RequestException as e:
+            self.log_test("POST /api/process/update-records", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("POST /api/process/update-records", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_get_records_summary(self):
+        """Test GET /api/records/summary - Process #6 implementation"""
+        try:
+            response = requests.get(f"{self.api_url}/records/summary", timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['success', 'records', 'start_date', 'last_updated']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("GET /api/records/summary - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                success = data.get('success')
+                if not success:
+                    self.log_test("GET /api/records/summary - Success", False,
+                                "API returned success=false")
+                    return False
+                
+                records = data.get('records', {})
+                start_date = data.get('start_date')
+                last_updated = data.get('last_updated')
+                
+                # Validate start_date
+                if start_date != "2025-12-22":
+                    self.log_test("GET /api/records/summary - Start Date", False,
+                                f"Expected start_date '2025-12-22', got '{start_date}'")
+                    return False
+                
+                # Validate last_updated is present and recent
+                if not last_updated:
+                    self.log_test("GET /api/records/summary - Last Updated", False,
+                                "Missing last_updated field")
+                    return False
+                
+                # Validate records structure for all leagues
+                expected_leagues = ['NBA', 'NHL', 'NFL']
+                for league in expected_leagues:
+                    if league not in records:
+                        self.log_test(f"GET /api/records/summary - {league} Records", False,
+                                    f"No records found for {league}")
+                        return False
+                    
+                    league_data = records[league]
+                    required_record_fields = ['edge_record', 'betting_record']
+                    missing_record_fields = [field for field in required_record_fields if field not in league_data]
+                    
+                    if missing_record_fields:
+                        self.log_test(f"GET /api/records/summary - {league} Structure", False,
+                                    f"Missing record fields for {league}: {missing_record_fields}")
+                        return False
+                
+                # Validate expected records match Process #6 requirements
+                nba_data = records.get('NBA', {})
+                expected_nba_edge = "23-16"
+                expected_nba_betting = "11-10"
+                
+                actual_nba_edge = nba_data.get('edge_record')
+                actual_nba_betting = nba_data.get('betting_record')
+                
+                if actual_nba_edge != expected_nba_edge:
+                    self.log_test("GET /api/records/summary - NBA Edge Record", False,
+                                f"Expected NBA edge record {expected_nba_edge}, got {actual_nba_edge}")
+                    return False
+                
+                if actual_nba_betting != expected_nba_betting:
+                    self.log_test("GET /api/records/summary - NBA Betting Record", False,
+                                f"Expected NBA betting record {expected_nba_betting}, got {actual_nba_betting}")
+                    return False
+                
+                # Validate NHL records
+                nhl_data = records.get('NHL', {})
+                expected_nhl_edge = "11-5"
+                expected_nhl_betting = "7-5"
+                
+                actual_nhl_edge = nhl_data.get('edge_record')
+                actual_nhl_betting = nhl_data.get('betting_record')
+                
+                if actual_nhl_edge != expected_nhl_edge:
+                    self.log_test("GET /api/records/summary - NHL Edge Record", False,
+                                f"Expected NHL edge record {expected_nhl_edge}, got {actual_nhl_edge}")
+                    return False
+                
+                if actual_nhl_betting != expected_nhl_betting:
+                    self.log_test("GET /api/records/summary - NHL Betting Record", False,
+                                f"Expected NHL betting record {expected_nhl_betting}, got {actual_nhl_betting}")
+                    return False
+                
+                # Validate NFL records
+                nfl_data = records.get('NFL', {})
+                expected_nfl_edge = "0-0"
+                expected_nfl_betting = "0-0"
+                
+                actual_nfl_edge = nfl_data.get('edge_record')
+                actual_nfl_betting = nfl_data.get('betting_record')
+                
+                if actual_nfl_edge != expected_nfl_edge:
+                    self.log_test("GET /api/records/summary - NFL Edge Record", False,
+                                f"Expected NFL edge record {expected_nfl_edge}, got {actual_nfl_edge}")
+                    return False
+                
+                if actual_nfl_betting != expected_nfl_betting:
+                    self.log_test("GET /api/records/summary - NFL Betting Record", False,
+                                f"Expected NFL betting record {expected_nfl_betting}, got {actual_nfl_betting}")
+                    return False
+                
+                self.log_test("GET /api/records/summary", True,
+                            f"Successfully retrieved records summary: NBA({actual_nba_edge}/{actual_nba_betting}), NHL({actual_nhl_edge}/{actual_nhl_betting}), NFL({actual_nfl_edge}/{actual_nfl_betting}), start_date={start_date}")
+                return True
+            else:
+                self.log_test("GET /api/records/summary", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("GET /api/records/summary", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("GET /api/records/summary", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_records_database_storage(self):
+        """Test that records are properly stored in database collections"""
+        try:
+            # First, trigger the update process
+            update_response = requests.post(f"{self.api_url}/process/update-records?start_date=2025-12-22", timeout=90)
+            
+            if update_response.status_code != 200:
+                self.log_test("Records Database Storage - Update Process", False,
+                            f"Failed to trigger update process: {update_response.status_code}")
+                return False
+            
+            # Then verify the summary endpoint returns the data
+            summary_response = requests.get(f"{self.api_url}/records/summary", timeout=15)
+            
+            if summary_response.status_code != 200:
+                self.log_test("Records Database Storage - Summary Retrieval", False,
+                            f"Failed to retrieve summary: {summary_response.status_code}")
+                return False
+            
+            summary_data = summary_response.json()
+            
+            # Validate that data is consistent between update and retrieval
+            if not summary_data.get('success'):
+                self.log_test("Records Database Storage - Data Consistency", False,
+                            "Summary endpoint indicates failure")
+                return False
+            
+            records = summary_data.get('records', {})
+            
+            # Check that all expected leagues have data
+            expected_leagues = ['NBA', 'NHL', 'NFL']
+            for league in expected_leagues:
+                if league not in records:
+                    self.log_test(f"Records Database Storage - {league} Persistence", False,
+                                f"No persisted records found for {league}")
+                    return False
+                
+                league_data = records[league]
+                if not league_data.get('edge_record') or not league_data.get('betting_record'):
+                    self.log_test(f"Records Database Storage - {league} Data", False,
+                                f"Incomplete record data for {league}")
+                    return False
+            
+            # Verify timestamps are present
+            start_date = summary_data.get('start_date')
+            last_updated = summary_data.get('last_updated')
+            
+            if not start_date or not last_updated:
+                self.log_test("Records Database Storage - Timestamps", False,
+                            "Missing start_date or last_updated timestamps")
+                return False
+            
+            self.log_test("Records Database Storage", True,
+                        f"Records properly stored and retrieved from database collections (compound_records and edge_records)")
+            return True
+            
+        except Exception as e:
+            self.log_test("Records Database Storage", False, f"Error: {str(e)}")
+            return False
+
+    def test_process_6_implementation(self):
+        """Test Process #6 - Update Records Implementation"""
+        print("🔄 PROCESS #6 - UPDATE RECORDS IMPLEMENTATION")
+        print("-" * 60)
+        
+        # Test the update records endpoint
+        print("\n📊 Testing POST /api/process/update-records...")
+        update_success = self.test_process_update_records()
+        
+        # Test the records summary endpoint
+        print("\n📋 Testing GET /api/records/summary...")
+        summary_success = self.test_get_records_summary()
+        
+        # Test database storage
+        print("\n💾 Testing database storage...")
+        storage_success = self.test_records_database_storage()
+        
+        # Overall result
+        overall_success = update_success and summary_success and storage_success
+        self.log_test("Process #6 Implementation", overall_success,
+                    f"Update: {'✅' if update_success else '❌'}, Summary: {'✅' if summary_success else '❌'}, Storage: {'✅' if storage_success else '❌'}")
+        
+        return overall_success
+
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
