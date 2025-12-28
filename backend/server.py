@@ -5920,56 +5920,121 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
         
         # Add games from open bets that might have started but aren't in the schedule
         # This ensures we show all games with active bets
+        # BUT we need to avoid duplicates - games already scraped from Plays888
         if day == "today":
+            # Create comprehensive matching keys for existing games
+            # Use both city names and team nicknames for matching
+            nhl_team_nicknames = {
+                'NY ISLANDERS': ['ISLANDERS', 'NY ISLANDERS', 'NEW YORK ISLANDERS'],
+                'NY RANGERS': ['RANGERS', 'NY RANGERS', 'NEW YORK RANGERS'],
+                'COLUMBUS': ['BLUE JACKETS', 'JACKETS', 'COLUMBUS'],
+                'TORONTO': ['MAPLE LEAFS', 'LEAFS', 'TORONTO'],
+                'DETROIT': ['RED WINGS', 'WINGS', 'DETROIT'],
+                'PITTSBURGH': ['PENGUINS', 'PITTSBURGH'],
+                'CHICAGO': ['BLACKHAWKS', 'HAWKS', 'CHICAGO'],
+                'PHILADELPHIA': ['FLYERS', 'PHILADELPHIA'],
+                'SEATTLE': ['KRAKEN', 'SEATTLE'],
+                'MONTREAL': ['CANADIENS', 'HABS', 'MONTREAL'],
+                'TAMPA BAY': ['LIGHTNING', 'BOLTS', 'TAMPA BAY', 'TAMPA'],
+                'BOSTON': ['BRUINS', 'BOSTON'],
+                'BUFFALO': ['SABRES', 'BUFFALO'],
+                'CAROLINA': ['HURRICANES', 'CANES', 'CAROLINA'],
+                'OTTAWA': ['SENATORS', 'SENS', 'OTTAWA'],
+                'NEW JERSEY': ['DEVILS', 'NEW JERSEY'],
+                'DALLAS': ['STARS', 'DALLAS'],
+                'NASHVILLE': ['PREDATORS', 'PREDS', 'NASHVILLE'],
+                'ST. LOUIS': ['BLUES', 'ST. LOUIS', 'ST LOUIS'],
+                'ANAHEIM': ['DUCKS', 'ANAHEIM'],
+                'LOS ANGELES': ['KINGS', 'LOS ANGELES', 'LA KINGS'],
+                'COLORADO': ['AVALANCHE', 'AVS', 'COLORADO'],
+                'VEGAS': ['GOLDEN KNIGHTS', 'KNIGHTS', 'VEGAS'],
+                'EDMONTON': ['OILERS', 'EDMONTON'],
+                'CALGARY': ['FLAMES', 'CALGARY'],
+                'SAN JOSE': ['SHARKS', 'SAN JOSE'],
+                'VANCOUVER': ['CANUCKS', 'VANCOUVER'],
+                'WASHINGTON': ['CAPITALS', 'CAPS', 'WASHINGTON'],
+                'FLORIDA': ['PANTHERS', 'FLORIDA'],
+                'MINNESOTA': ['WILD', 'MINNESOTA'],
+                'WINNIPEG': ['JETS', 'WINNIPEG'],
+                'UTAH': ['MAMMOTH', 'UTAH']
+            }
+            
+            def normalize_team_name(team_name):
+                """Normalize team name to a standard key for matching"""
+                team_upper = team_name.upper().strip()
+                # Check if it matches any known team
+                for standard_name, aliases in nhl_team_nicknames.items():
+                    if team_upper in aliases or standard_name in team_upper:
+                        return standard_name
+                    # Also check if any alias is contained in the team name
+                    for alias in aliases:
+                        if alias in team_upper or team_upper in alias:
+                            return standard_name
+                return team_upper
+            
             existing_matchups = set()
             for g in games_raw:
-                # Create a normalized matchup key
-                away_norm = g['away'].upper().split()[-1]  # Last word of team name
-                home_norm = g['home'].upper().split()[-1]
+                away_norm = normalize_team_name(g['away'])
+                home_norm = normalize_team_name(g['home'])
                 existing_matchups.add(f"{away_norm}:{home_norm}")
+                logger.debug(f"Existing game: {g['away']} @ {g['home']} -> {away_norm}:{home_norm}")
+            
+            logger.info(f"NHL: {len(games_raw)} games from Plays888, checking {len(open_bets)} open bets for duplicates")
             
             added_from_bets = set()  # Track what we've added from bets to avoid duplicates
             for bet in open_bets:
                 if bet.get('sport') == 'NHL':
-                    bet_away = bet.get('away_team', '').upper()
-                    bet_home = bet.get('home_team', '').upper()
-                    # Extract last word (team name) for matching
-                    bet_away_norm = bet_away.split()[-1] if bet_away else ''
-                    bet_home_norm = bet_home.split()[-1] if bet_home else ''
-                    matchup_key = f"{bet_away_norm}:{bet_home_norm}"
+                    bet_away = bet.get('away_team', '')
+                    bet_home = bet.get('home_team', '')
                     
-                    if matchup_key not in existing_matchups and matchup_key not in added_from_bets:
-                        # This bet's game isn't in the schedule - add it
-                        # Map team names back to short form
-                        team_map = {
-                            'PENGUINS': 'Pittsburgh', 'MAPLE LEAFS': 'Toronto', 'LEAFS': 'Toronto',
-                            'STARS': 'Dallas', 'RED WINGS': 'Detroit', 'WINGS': 'Detroit',
-                            'RANGERS': 'NY Rangers', 'CAPITALS': 'Washington',
-                            'PANTHERS': 'Florida', 'HURRICANES': 'Carolina',
-                            'DEVILS': 'New Jersey', 'ISLANDERS': 'NY Islanders',
-                            'SABRES': 'Buffalo', 'SENATORS': 'Ottawa',
-                            'CANADIENS': 'Montreal', 'BRUINS': 'Boston',
-                            'PREDATORS': 'Nashville', 'WILD': 'Minnesota',
-                            'FLYERS': 'Philadelphia', 'BLACKHAWKS': 'Chicago',
-                            'MAMMOTH': 'Utah', 'AVALANCHE': 'Colorado',
-                            'FLAMES': 'Calgary', 'OILERS': 'Edmonton',
-                            'SHARKS': 'San Jose', 'KNIGHTS': 'Vegas',
-                            'KRAKEN': 'Seattle', 'KINGS': 'Los Angeles', 'DUCKS': 'Anaheim'
-                        }
-                        away_short = team_map.get(bet_away_norm, bet_away_norm.title())
-                        home_short = team_map.get(bet_home_norm, bet_home_norm.title())
-                        
-                        # Use bet line if available
-                        bet_line = bet.get('total_line', 6.0)
-                        
-                        games_raw.append({
-                            "time": "In Progress",
-                            "away": away_short,
-                            "home": home_short,
-                            "total": bet_line
-                        })
-                        added_from_bets.add(matchup_key)
-                        logger.info(f"Added missing bet game: {away_short} @ {home_short} (line: {bet_line})")
+                    away_norm = normalize_team_name(bet_away)
+                    home_norm = normalize_team_name(bet_home)
+                    matchup_key = f"{away_norm}:{home_norm}"
+                    
+                    if matchup_key in existing_matchups:
+                        logger.debug(f"Skipping duplicate bet game: {bet_away} @ {bet_home} (already in schedule)")
+                        continue
+                    
+                    if matchup_key in added_from_bets:
+                        logger.debug(f"Skipping duplicate bet: {bet_away} @ {bet_home} (already added from bets)")
+                        continue
+                    
+                    # This bet's game isn't in the schedule - add it
+                    # Map team names back to short form
+                    team_map = {
+                        'PENGUINS': 'Pittsburgh', 'MAPLE LEAFS': 'Toronto', 'LEAFS': 'Toronto',
+                        'STARS': 'Dallas', 'RED WINGS': 'Detroit', 'WINGS': 'Detroit',
+                        'RANGERS': 'NY Rangers', 'CAPITALS': 'Washington',
+                        'PANTHERS': 'Florida', 'HURRICANES': 'Carolina',
+                        'DEVILS': 'New Jersey', 'ISLANDERS': 'NY Islanders',
+                        'SABRES': 'Buffalo', 'SENATORS': 'Ottawa',
+                        'CANADIENS': 'Montreal', 'BRUINS': 'Boston',
+                        'PREDATORS': 'Nashville', 'WILD': 'Minnesota',
+                        'FLYERS': 'Philadelphia', 'BLACKHAWKS': 'Chicago',
+                        'MAMMOTH': 'Utah', 'AVALANCHE': 'Colorado',
+                        'FLAMES': 'Calgary', 'OILERS': 'Edmonton',
+                        'SHARKS': 'San Jose', 'KNIGHTS': 'Vegas', 'GOLDEN KNIGHTS': 'Vegas',
+                        'KRAKEN': 'Seattle', 'KINGS': 'Los Angeles', 'DUCKS': 'Anaheim',
+                        'BLUE JACKETS': 'Columbus', 'JACKETS': 'Columbus',
+                        'LIGHTNING': 'Tampa Bay', 'JETS': 'Winnipeg', 'CANUCKS': 'Vancouver',
+                        'BLUES': 'St. Louis'
+                    }
+                    bet_away_last = bet_away.upper().split()[-1] if bet_away else ''
+                    bet_home_last = bet_home.upper().split()[-1] if bet_home else ''
+                    away_short = team_map.get(bet_away_last, bet_away_last.title())
+                    home_short = team_map.get(bet_home_last, bet_home_last.title())
+                    
+                    # Use bet line if available
+                    bet_line = bet.get('total_line', 6.0)
+                    
+                    games_raw.append({
+                        "time": "In Progress",
+                        "away": away_short,
+                        "home": home_short,
+                        "total": bet_line
+                    })
+                    added_from_bets.add(matchup_key)
+                    logger.info(f"Added missing bet game: {away_short} @ {home_short} (line: {bet_line})")
         
         # Calculate averages and recommendations
         games = []
