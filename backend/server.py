@@ -5549,6 +5549,8 @@ async def export_to_excel(
         prev_date = None
         four_dot_wins = 0
         four_dot_losses = 0
+        betting_wins = 0
+        betting_losses = 0
         
         # Helper to get color name from dot emoji
         def get_color_from_emoji(emoji):
