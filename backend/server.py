@@ -5480,11 +5480,11 @@ async def export_to_excel(
             bottom=Side(style='thin')
         )
         
-        # Headers - simplified to match the screenshot format
+        # Headers - match the UI format with PPG Rank and Last 3 Rank for each team
         headers = [
             'Date', '#', 'Time', 
-            'Away PPG Rank', 'Away Dots', 'Away Team',
-            'Home PPG Rank', 'Home Dots', 'Home Team',
+            'Away PPG', 'Away L3', 'Away Dots', 'Away Team',
+            'Home PPG', 'Home L3', 'Home Dots', 'Home Team',
             'Line', 'Final', 'Diff', 
             'PPG Avg', 'Edge', 'Rec',
             'Result', 'Edge Hit',
@@ -5501,37 +5501,33 @@ async def export_to_excel(
         
         row_num = 2
         
-        # Helper to parse dot emoji string to colors
-        def parse_dots(dots_str):
+        # Helper to get color from dot emoji
+        def get_color_from_emoji(emoji):
+            """Get fill color from dot emoji"""
+            if emoji == '🟢':
+                return 'green'
+            elif emoji == '🟡':
+                return 'yellow'
+            elif emoji == '🔴':
+                return 'red'
+            elif emoji == '🔵':
+                return 'blue'
+            return None
+        
+        # Helper to parse dots string and get colors for each position
+        def parse_dots_to_colors(dots_str):
             """Parse dot emoji string (e.g., '🔴🔵') to list of colors"""
             colors = []
             if not dots_str:
-                return colors
+                return [None, None]
             for char in str(dots_str):
-                if char == '🟢':
-                    colors.append('green')
-                elif char == '🟡':
-                    colors.append('yellow')
-                elif char == '🔴':
-                    colors.append('red')
-                elif char == '🔵':
-                    colors.append('blue')
+                color = get_color_from_emoji(char)
+                if color:
+                    colors.append(color)
+            # Pad with None if less than 2 colors
+            while len(colors) < 2:
+                colors.append(None)
             return colors
-        
-        # Helper to get dot color from ranking
-        def get_dot_color_from_rank(rank, total_teams=30):
-            """Convert ranking to dot color"""
-            if rank is None:
-                return None
-            quarter = total_teams // 4
-            if rank <= quarter:
-                return 'green'
-            elif rank <= quarter * 2:
-                return 'yellow'
-            elif rank <= quarter * 3:
-                return 'red'
-            else:
-                return 'blue'
         
         # Process each date
         for date in dates:
@@ -5540,16 +5536,19 @@ async def export_to_excel(
                 continue
             
             games = doc['games']
-            total_teams = 30 if league == 'NBA' else 32  # NHL and NFL have 32 teams
             
             for idx, game in enumerate(games, 1):
                 # Get ranking data
                 away_ppg_rank = game.get('away_ppg_rank', '')
+                away_last3_rank = game.get('away_last3_rank', '')
                 home_ppg_rank = game.get('home_ppg_rank', '')
+                home_last3_rank = game.get('home_last3_rank', '')
                 
-                # Get dots as string
+                # Get dots as string and parse colors
                 away_dots_str = game.get('away_dots', '')
                 home_dots_str = game.get('home_dots', '')
+                away_colors = parse_dots_to_colors(away_dots_str)
+                home_colors = parse_dots_to_colors(home_dots_str)
                 
                 # Calculate diff (final - line)
                 final_score = game.get('final_score', '')
@@ -5570,15 +5569,28 @@ async def export_to_excel(
                 elif game.get('edge_hit') == False or game.get('result_hit') == False:
                     edge_hit = 'MISS'
                 
+                # Determine bet result based on user_bet_hit (most accurate)
+                bet_result = ''
+                if game.get('user_bet') or game.get('has_bet'):
+                    if game.get('user_bet_hit') == True:
+                        bet_result = 'won'
+                    elif game.get('user_bet_hit') == False:
+                        bet_result = 'lost'
+                    else:
+                        # Fall back to bet_result field
+                        bet_result = game.get('bet_result', '')
+                
                 # Write row data
                 row_data = [
                     date,
                     idx,
                     game.get('time', ''),
                     away_ppg_rank,
+                    away_last3_rank,
                     away_dots_str,
                     game.get('away_team', game.get('away', '')),
                     home_ppg_rank,
+                    home_last3_rank,
                     home_dots_str,
                     game.get('home_team', game.get('home', '')),
                     line,
@@ -5591,7 +5603,7 @@ async def export_to_excel(
                     edge_hit,
                     '💰' if game.get('user_bet') or game.get('has_bet') else '',
                     game.get('bet_type', ''),
-                    game.get('bet_result', '')
+                    bet_result
                 ]
                 
                 for col, value in enumerate(row_data, 1):
@@ -5599,25 +5611,29 @@ async def export_to_excel(
                     cell.alignment = center_align
                     cell.border = thin_border
                     
-                    # Apply PPG rank colors
-                    if col == 4 and away_ppg_rank:  # Away PPG Rank
-                        color = get_dot_color_from_rank(away_ppg_rank, total_teams)
-                        if color in dot_colors:
-                            cell.fill = dot_colors[color]
-                    elif col == 7 and home_ppg_rank:  # Home PPG Rank
-                        color = get_dot_color_from_rank(home_ppg_rank, total_teams)
-                        if color in dot_colors:
-                            cell.fill = dot_colors[color]
+                    # Apply colors to ranking columns based on dot emojis
+                    # Column 4: Away PPG Rank - use first dot color
+                    if col == 4 and away_colors[0] and away_colors[0] in dot_colors:
+                        cell.fill = dot_colors[away_colors[0]]
+                    # Column 5: Away Last 3 Rank - use second dot color
+                    elif col == 5 and len(away_colors) > 1 and away_colors[1] and away_colors[1] in dot_colors:
+                        cell.fill = dot_colors[away_colors[1]]
+                    # Column 8: Home PPG Rank - use first dot color
+                    elif col == 8 and home_colors[0] and home_colors[0] in dot_colors:
+                        cell.fill = dot_colors[home_colors[0]]
+                    # Column 9: Home Last 3 Rank - use second dot color
+                    elif col == 9 and len(home_colors) > 1 and home_colors[1] and home_colors[1] in dot_colors:
+                        cell.fill = dot_colors[home_colors[1]]
                     
                     # Apply edge hit colors
-                    if col == 17:  # Edge Hit column
+                    if col == 19:  # Edge Hit column
                         if value == 'HIT':
                             cell.fill = hit_fill
                         elif value == 'MISS':
                             cell.fill = miss_fill
                     
                     # Apply bet result colors
-                    if col == 20:  # Bet Result column
+                    if col == 22:  # Bet Result column
                         if value == 'won':
                             cell.fill = hit_fill
                         elif value == 'lost':
