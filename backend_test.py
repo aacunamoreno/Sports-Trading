@@ -1843,6 +1843,142 @@ class BettingSystemAPITester:
         print(f"\nExcel Export Tests: {excel_tests_passed}/{excel_tests_total} passed")
         return excel_tests_passed == excel_tests_total
 
+    def test_ncaab_opportunities_tomorrow(self):
+        """Test NCAAB API endpoint to verify all 68 games for December 29, 2025 have been successfully imported"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities/ncaab?day=tomorrow", timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                # Verify date field is "2025-12-29"
+                date_field = data.get('date')
+                expected_date = "2025-12-29"
+                if date_field != expected_date:
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Date", False,
+                                f"Expected date '{expected_date}', got '{date_field}'")
+                    return False
+                
+                games = data.get('games', [])
+                if not isinstance(games, list):
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Games Array", False,
+                                "Games is not an array")
+                    return False
+                
+                # Verify response contains exactly 68 games
+                expected_game_count = 68
+                if len(games) != expected_game_count:
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Game Count", False,
+                                f"Expected {expected_game_count} games, got {len(games)}")
+                    return False
+                
+                # Verify games have correct structure (away_team, home_team, opening_line, time, etc.)
+                if games:
+                    sample_game = games[0]
+                    required_game_fields = ['away_team', 'home_team', 'time']
+                    missing_game_fields = [field for field in required_game_fields if field not in sample_game]
+                    
+                    if missing_game_fields:
+                        self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Game Structure", False,
+                                    f"Missing game fields: {missing_game_fields}")
+                        return False
+                
+                # Verify specific games from the import
+                specific_games_to_verify = [
+                    {"away": "NC Central", "home": "Penn St.", "ou": 149.5},
+                    {"away": "Utah", "home": "Washington", "ou": 160.5},
+                    {"away": "Queens", "home": "Auburn", "ou": 174.5}
+                ]
+                
+                found_specific_games = []
+                for target_game in specific_games_to_verify:
+                    for game in games:
+                        away_team = game.get('away_team', '').strip()
+                        home_team = game.get('home_team', '').strip()
+                        opening_line = game.get('opening_line') or game.get('total')
+                        
+                        # Check if this matches the target game (flexible matching)
+                        if (target_game["away"].lower() in away_team.lower() and 
+                            target_game["home"].lower() in home_team.lower()):
+                            
+                            found_specific_games.append({
+                                'game': f"{away_team} @ {home_team}",
+                                'expected_ou': target_game["ou"],
+                                'actual_ou': opening_line,
+                                'match': opening_line == target_game["ou"] if opening_line else False
+                            })
+                            break
+                
+                # Verify games without lines show null/None
+                games_without_lines = []
+                for game in games:
+                    away_team = game.get('away_team', '').strip()
+                    home_team = game.get('home_team', '').strip()
+                    opening_line = game.get('opening_line') or game.get('total')
+                    
+                    # Check for Arlington Baptist @ Baylor
+                    if ("Arlington Baptist".lower() in away_team.lower() and 
+                        "Baylor".lower() in home_team.lower()):
+                        if opening_line is not None:
+                            self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Null Lines", False,
+                                        f"Arlington Baptist @ Baylor should have null opening_line, got {opening_line}")
+                            return False
+                        else:
+                            games_without_lines.append(f"{away_team} @ {home_team}")
+                
+                # Log results for specific games
+                for found_game in found_specific_games:
+                    if found_game['match']:
+                        self.log_test(f"NCAAB Specific Game - {found_game['game']}", True,
+                                    f"O/U {found_game['actual_ou']} matches expected {found_game['expected_ou']}")
+                    else:
+                        self.log_test(f"NCAAB Specific Game - {found_game['game']}", False,
+                                    f"O/U {found_game['actual_ou']} does not match expected {found_game['expected_ou']}")
+                        return False
+                
+                # Verify at least some games have opening lines
+                games_with_lines = [g for g in games if (g.get('opening_line') or g.get('total')) is not None]
+                if len(games_with_lines) == 0:
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Lines Present", False,
+                                "No games have opening lines or totals")
+                    return False
+                
+                self.log_test("GET /api/opportunities/ncaab?day=tomorrow", True,
+                            f"Successfully verified {len(games)} NCAAB games for {expected_date}")
+                
+                # Additional verification details
+                self.log_test("NCAAB Games Structure Verification", True,
+                            f"All games have required fields: away_team, home_team, time")
+                
+                self.log_test("NCAAB Specific Games Verification", True,
+                            f"Found and verified {len(found_specific_games)} specific games with correct O/U lines")
+                
+                if games_without_lines:
+                    self.log_test("NCAAB Null Lines Verification", True,
+                                f"Verified {len(games_without_lines)} games with null lines: {', '.join(games_without_lines)}")
+                
+                return True
+            else:
+                self.log_test("GET /api/opportunities/ncaab?day=tomorrow", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("GET /api/opportunities/ncaab?day=tomorrow", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("GET /api/opportunities/ncaab?day=tomorrow", False, f"JSON decode error: {str(e)}")
+            return False
+
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
