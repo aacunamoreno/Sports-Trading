@@ -2767,7 +2767,8 @@ async def scrape_scoresandodds(league: str, date_str: str) -> List[Dict[str, Any
     league_paths = {
         'NBA': 'nba',
         'NHL': 'nhl',
-        'NFL': 'nfl'
+        'NFL': 'nfl',
+        'NCAAB': 'ncaab'
     }
     league_path = league_paths.get(league.upper(), 'nba')
     url = f"https://www.scoresandodds.com/{league_path}?date={date_str}"
