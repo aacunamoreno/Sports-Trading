@@ -5275,11 +5275,19 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 
                 # Betting Record: Check if user bet hit
                 if game.get('user_bet'):
-                    bet_result = game.get('bet_result')
-                    if bet_result == 'won':
-                        results["NHL"]["betting"]["wins"] += 1
-                    elif bet_result == 'lost':
-                        results["NHL"]["betting"]["losses"] += 1
+                    # Handle games with multiple bets (e.g., Florida Panthers 12/23 had OVER and UNDER)
+                    if game.get('multiple_bets') and game.get('bet_results'):
+                        for result in game['bet_results']:
+                            if result == 'won':
+                                results["NHL"]["betting"]["wins"] += 1
+                            elif result == 'lost':
+                                results["NHL"]["betting"]["losses"] += 1
+                    else:
+                        bet_result = game.get('bet_result')
+                        if bet_result == 'won':
+                            results["NHL"]["betting"]["wins"] += 1
+                        elif bet_result == 'lost':
+                            results["NHL"]["betting"]["losses"] += 1
     
     # Process NFL records
     for date in dates:
