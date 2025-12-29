@@ -5736,10 +5736,10 @@ async def export_to_excel(
                     game.get('recommendation', ''),                          # Q - Rec
                     actual_result,                                           # R - Result
                     edge_hit,                                                # S - Edge Hit
-                    '💰' if game.get('user_bet') or game.get('has_bet') else '',  # T - Bet
+                    '💰' if has_bet else '',                                  # T - Bet
                     bet_type_display,                                        # U - Type
                     bet_result,                                              # V - Bet Result
-                    '',                                                      # W - Record (placeholder)
+                    betting_record,                                          # W - Record (cumulative betting record)
                     '',                                                      # X - spacer
                     '',                                                      # Y - Away dot 1 color
                     '',                                                      # Z - Away dot 2 color
