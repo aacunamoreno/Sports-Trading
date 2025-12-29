@@ -512,7 +512,7 @@ export default function Opportunities() {
               <tbody>
                 {data.games.map((game, index) => {
                   // Check if edge is below threshold - if so, it's a "No Bet" game
-                  const edgeThreshold = league === 'NBA' ? 5 : league === 'NFL' ? 7 : 0.5;
+                  const edgeThreshold = league === 'NBA' ? 5 : league === 'NFL' ? 7 : league === 'NCAAB' ? 9 : 0.5;
                   const isNoBet = game.edge === null || game.edge === undefined || Math.abs(game.edge) < edgeThreshold;
                   
                   // Calculate dot-based recommendation
@@ -521,12 +521,40 @@ export default function Opportunities() {
                   const homeSeasonRank = game.home_ppg_rank || game.home_gpg_rank || 15;
                   const homeLast3Rank = game.home_last3_rank || 15;
                   
-                  // Count dots by color using thresholds: 🟢(1-8) 🔵(9-16) 🟡(17-24) 🔴(25-32)
+                  // Helper function to get dot color based on league and rank
+                  // NBA/NHL/NFL: 30-32 teams split into 4 groups of 8
+                  // NCAAB: 365 teams - Green(1-92), Blue(93-184), Yellow(185-276), Red(277-365), White(unknown/null)
+                  const getDotColor = (rank) => {
+                    if (rank === null || rank === undefined) return 'bg-white/50 border border-gray-400'; // Unknown
+                    if (league === 'NCAAB') {
+                      if (rank <= 92) return 'bg-green-500';
+                      if (rank <= 184) return 'bg-blue-500';
+                      if (rank <= 276) return 'bg-yellow-500';
+                      if (rank <= 365) return 'bg-red-500';
+                      return 'bg-white/50 border border-gray-400'; // Unknown (rank > 365)
+                    } else {
+                      // NBA, NHL, NFL - 30-32 teams
+                      if (rank <= 8) return 'bg-green-500';
+                      if (rank <= 16) return 'bg-blue-500';
+                      if (rank <= 24) return 'bg-yellow-500';
+                      return 'bg-red-500';
+                    }
+                  };
+                  
+                  // Count dots by color using league-specific thresholds
                   const ranks = [awaySeasonRank, awayLast3Rank, homeSeasonRank, homeLast3Rank];
-                  const greens = ranks.filter(r => r <= 8).length;
-                  const blues = ranks.filter(r => r > 8 && r <= 16).length;
-                  const yellows = ranks.filter(r => r > 16 && r <= 24).length;
-                  const reds = ranks.filter(r => r > 24).length;
+                  let greens, blues, yellows, reds;
+                  if (league === 'NCAAB') {
+                    greens = ranks.filter(r => r !== null && r <= 92).length;
+                    blues = ranks.filter(r => r !== null && r > 92 && r <= 184).length;
+                    yellows = ranks.filter(r => r !== null && r > 184 && r <= 276).length;
+                    reds = ranks.filter(r => r !== null && r > 276 && r <= 365).length;
+                  } else {
+                    greens = ranks.filter(r => r <= 8).length;
+                    blues = ranks.filter(r => r > 8 && r <= 16).length;
+                    yellows = ranks.filter(r => r > 16 && r <= 24).length;
+                    reds = ranks.filter(r => r > 24).length;
+                  }
                   
                   // Dot-based recommendation logic - STRICT rules
                   // CLEAR OVER: 2+ Greens OR 1 Green + 2 Blues (strong offensive signal)
