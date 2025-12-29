@@ -3510,46 +3510,46 @@ async def monitor_single_account(conn: dict):
                     logger.info(f"Captured bet line: {bet_line} from bet_type: {bet_type}")
             
             # If game is still unknown, use part of description
-                if game == 'Unknown Game' and description:
-                    # Try to extract game from description
-                    game = description[:50] + '...' if len(description) > 50 else description
-                
-                # Store in database with account info for filtering
-                bet_doc = {
-                    "id": str(uuid.uuid4()),
-                    "opportunity_id": "mobile_detected",
-                    "rule_id": "mobile_detected",
-                    "wager_amount": wager,
-                    "odds": odds,
-                    "status": "placed",
-                    "placed_at": datetime.now(timezone.utc).isoformat(),
-                    "result": None,
-                    "game": game,
-                    "bet_type": bet_type,
-                    "line": bet_type,
-                    "total_line": bet_line,  # #3.75: Store the numeric line value
-                    "bet_slip_id": ticket_num,
-                    "account": username,
-                    "notes": f"Account: {username}. Auto-detected from plays888.co. Sport: {sport}"
-                }
-                await db.bet_history.insert_one(bet_doc)
-                
-                # #3.75 BET LINE CAPTURE: Update opportunities with bet info
-                await update_opportunity_with_bet(sport, game, bet_type, bet_line, ticket_num, username)
-                
-                # Send Telegram notification with actual details
-                await send_telegram_notification({
-                    "game": game,
-                    "bet_type": bet_type,
-                    "line": bet_type,
-                    "odds": odds,
-                    "wager": wager,
-                    "potential_win": to_win,
-                    "ticket_number": ticket_num,
-                    "status": "Placed",
-                    "league": f"{sport} - Detected from mobile/web"
-                }, account=username)
-                new_bets_count += 1
+            if game == 'Unknown Game' and description:
+                # Try to extract game from description
+                game = description[:50] + '...' if len(description) > 50 else description
+            
+            # Store in database with account info for filtering
+            bet_doc = {
+                "id": str(uuid.uuid4()),
+                "opportunity_id": "mobile_detected",
+                "rule_id": "mobile_detected",
+                "wager_amount": wager,
+                "odds": odds,
+                "status": "placed",
+                "placed_at": datetime.now(timezone.utc).isoformat(),
+                "result": None,
+                "game": game,
+                "bet_type": bet_type,
+                "line": bet_type,
+                "total_line": bet_line,  # #3.75: Store the numeric line value
+                "bet_slip_id": ticket_num,
+                "account": username,
+                "notes": f"Account: {username}. Auto-detected from plays888.co. Sport: {sport}"
+            }
+            await db.bet_history.insert_one(bet_doc)
+            
+            # #3.75 BET LINE CAPTURE: Update opportunities with bet info
+            await update_opportunity_with_bet(sport, game, bet_type, bet_line, ticket_num, username)
+            
+            # Send Telegram notification with actual details
+            await send_telegram_notification({
+                "game": game,
+                "bet_type": bet_type,
+                "line": bet_type,
+                "odds": odds,
+                "wager": wager,
+                "potential_win": to_win,
+                "ticket_number": ticket_num,
+                "status": "Placed",
+                "league": f"{sport} - Detected from mobile/web"
+            }, account=username)
+            new_bets_count += 1
         
         await monitor_service.close()
         logger.info(f"Bet monitoring check complete for {username}")
