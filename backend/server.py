@@ -5619,15 +5619,24 @@ async def export_to_excel(
                     # Column 4: Away PPG Rank - use first dot color
                     if col == 4 and away_colors[0] and away_colors[0] in dot_colors:
                         cell.fill = dot_colors[away_colors[0]]
+                        # White text for blue and red backgrounds
+                        if away_colors[0] in ['blue', 'red']:
+                            cell.font = white_font
                     # Column 5: Away Last 3 Rank - use second dot color
                     elif col == 5 and len(away_colors) > 1 and away_colors[1] and away_colors[1] in dot_colors:
                         cell.fill = dot_colors[away_colors[1]]
+                        if away_colors[1] in ['blue', 'red']:
+                            cell.font = white_font
                     # Column 8: Home PPG Rank - use first dot color
                     elif col == 8 and home_colors[0] and home_colors[0] in dot_colors:
                         cell.fill = dot_colors[home_colors[0]]
+                        if home_colors[0] in ['blue', 'red']:
+                            cell.font = white_font
                     # Column 9: Home Last 3 Rank - use second dot color
                     elif col == 9 and len(home_colors) > 1 and home_colors[1] and home_colors[1] in dot_colors:
                         cell.fill = dot_colors[home_colors[1]]
+                        if home_colors[1] in ['blue', 'red']:
+                            cell.font = white_font
                     
                     # Apply edge hit colors
                     if col == 19:  # Edge Hit column
