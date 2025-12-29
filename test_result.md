@@ -2,7 +2,66 @@
 
 ## Test Date: 2025-12-28
 
-## Latest Testing: NCAAB API Testing - December 29, 2025 (Testing Agent)
+## Latest Testing: NCAAB API PPG Data Testing - December 29, 2025 (Testing Agent)
+
+### Test Completed: 2025-12-28 - NCAAB API Endpoint with PPG Data and Row Numbers
+
+**Task:** Verify the NCAAB feature is fully functional with PPG data and row numbers for 68 games on 2025-12-29
+
+**Test Results:** ✅ ALL NCAAB PPG DATA TESTS PASSED
+
+#### API Endpoint Tested:
+1. ✅ `GET /api/opportunities/ncaab?day=tomorrow` - Successfully returns 68 NCAAB games for 2025-12-29 with PPG calculations
+
+#### NCAAB PPG Data Validation Results:
+
+**Response Structure:**
+- ✅ Valid response structure with required fields: games, date, success
+- ✅ Date field correctly set to "2025-12-29"
+- ✅ Games array contains exactly 68 games as expected
+- ✅ All games have required PPG structure: combined_ppg, edge, away_ppg_rank, home_ppg_rank, away_last3_rank, home_last3_rank
+
+**Specific Games with PPG Data Verification:**
+- ✅ **Game 1: NC Central @ Penn St.** - GPG Avg: 139.4, Edge: -10.1 ✓ VERIFIED
+- ✅ **Game 3: Missouri St. @ Delaware** - GPG Avg: 152.8, Edge: +16.3 (OVER) ✓ VERIFIED  
+- ✅ **Game 68: Utah @ Washington** - GPG Avg: 165.7, Edge: +5.2 (OVER) ✓ VERIFIED
+
+**Games Without PPG Data (Non-D1 Teams):**
+- ✅ **Arlington Baptist @ Baylor** - correctly has null combined_ppg ✓ VERIFIED
+- ✅ **LA Sierra @ UNLV** - correctly has null combined_ppg ✓ VERIFIED
+
+**PPG Data Analysis:**
+- ✅ **50 games** have PPG data calculated (D1 teams)
+- ✅ **18 games** have null PPG data (non-D1 teams)
+- ✅ **Edge Calculation Formula** verified: Edge = GPG Avg - Line (all games correct)
+- ✅ **NCAAB GPG Avg Formula** verified: (Team1_PPG + Team2_PPG + Team1_L3 + Team2_L3) / 2
+
+**Rank Data Verification:**
+- ✅ **50 games** have complete rank data (away_ppg_rank, home_ppg_rank, away_last3_rank, home_last3_rank)
+- ✅ Rank data properly populated for games with PPG data
+- ✅ Null rank values correctly handled for non-D1 teams
+
+#### Technical Validation:
+- ✅ API response time within acceptable limits (< 30 seconds)
+- ✅ All 68 games have proper team names and structure
+- ✅ PPG calculations accurate within 1.0 point tolerance
+- ✅ Edge calculations accurate within 1.0 point tolerance
+- ✅ Date parameter correctly processed for "tomorrow" (2025-12-29)
+- ✅ Floating point calculations handled correctly
+
+#### Test Summary:
+- **Total NCAAB PPG Tests**: 8
+- **Passed**: 8 (100% success rate)
+- **Failed**: 0
+- **NCAAB API with PPG Data**: ✅ FULLY FUNCTIONAL
+
+**Status:** NCAAB API endpoint with PPG data is working perfectly. All 68 games for December 29, 2025 have been successfully imported with correct PPG calculations, Edge values, and rank data.
+
+**Recommendation:** NCAAB API endpoint with PPG data is ready for production use.
+
+---
+
+## Previous Testing: NCAAB API Testing - December 29, 2025 (Testing Agent)
 
 ### Test Completed: 2025-12-28 - NCAAB API Endpoint Testing
 
