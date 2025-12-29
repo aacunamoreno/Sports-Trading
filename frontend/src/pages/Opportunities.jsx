@@ -510,7 +510,7 @@ export default function Opportunities() {
                 </tr>
               </thead>
               <tbody>
-                {data.games.map((game) => {
+                {data.games.map((game, index) => {
                   // Check if edge is below threshold - if so, it's a "No Bet" game
                   const edgeThreshold = league === 'NBA' ? 5 : league === 'NFL' ? 7 : 0.5;
                   const isNoBet = game.edge === null || game.edge === undefined || Math.abs(game.edge) < edgeThreshold;
@@ -605,13 +605,13 @@ export default function Opportunities() {
                       key={game.game_num}
                       className={`border-b border-border/50 ${rowStyle} ${game.has_bet ? 'ring-2 ring-yellow-500/50' : ''}`}
                     >
-                      <td className="py-3 px-2 font-mono">
+                      <td className="py-3 px-2 font-mono text-muted-foreground">
                         {(game.has_bet || game.user_bet) && (
                           <span className="mr-1" title={game.has_bet ? `Active bet: ${game.bet_type}${game.bet_count > 1 ? ` (x${game.bet_count})` : ''}` : 'You bet on this game'}>
                             💰{game.bet_count > 1 && <span className="text-xs text-yellow-400 font-bold">x{game.bet_count}</span>}
                           </span>
                         )}
-                        {game.game_num}
+                        {index + 1}
                       </td>
                       <td className="py-3 px-2 text-muted-foreground">{game.time}</td>
                       {/* Away Team with Rankings */}
