@@ -2,7 +2,70 @@
 
 ## Test Date: 2025-12-28
 
-## Latest Testing: NCAAB API PPG Data Testing - December 29, 2025 (Testing Agent)
+## Latest Testing: NHL GPG Avg Calculation Fix Testing - December 29, 2025 (Testing Agent)
+
+### Test Completed: 2025-12-29 - NHL GPG Avg Calculation Fix Verification
+
+**Task:** Test the NHL GPG Avg calculation fix with updated data from ESPN (Season GPG) and StatMuse (Last 3 Games GPG)
+
+**Test Results:** ✅ ALL NHL GPG AVG CALCULATION TESTS PASSED
+
+#### API Endpoint Tested:
+1. ✅ `GET /api/opportunities/nhl?day=today` - Successfully returns 11 NHL games with correct GPG calculations
+
+#### NHL GPG Avg Calculation Verification Results:
+
+**Response Structure:**
+- ✅ Valid response structure with required fields: games, date, success
+- ✅ Date field correctly set to "2025-12-29"
+- ✅ Games array contains exactly 11 games as expected
+- ✅ All games have required GPG structure: combined_gpg, edge, recommendation
+
+**Formula Verification:**
+- ✅ **GPG Avg Formula Verified**: `GPG Avg = (SeasonPPG_T1 + SeasonPPG_T2 + Last3PPG_T1 + Last3PPG_T2) / 2`
+- ✅ **Edge Calculation Formula Verified**: `Edge = GPG Avg - Line`
+- ✅ **Recommendation Logic Verified**: OVER when Edge ≥ 0.5, UNDER when Edge ≤ -0.5
+
+**Specific Sample Games Verification (from Review Request):**
+- ✅ **Colorado @ Dallas**: GPG Avg=7.4, Line=6.5, Edge=+0.9, Rec=OVER ✓ VERIFIED
+- ✅ **Boston @ New Jersey**: GPG Avg=4.6, Line=5.5, Edge=-0.9, Rec=UNDER ✓ VERIFIED  
+- ✅ **Toronto @ Vegas**: GPG Avg=8.2, Line=6.5, Edge=+1.7, Rec=OVER ✓ VERIFIED
+
+**Manual Formula Verification:**
+- ✅ **Colorado @ Dallas**: (3.97 + 3.49 + 3.67 + 3.67) / 2 = 7.4 ✓ VERIFIED
+- ✅ **Boston @ New Jersey**: (3.10 + 2.71 + 1.67 + 1.67) / 2 = 4.6 ✓ VERIFIED
+- ✅ **Toronto @ Vegas**: (3.26 + 3.17 + 5.00 + 5.00) / 2 = 8.2 ✓ VERIFIED
+
+**Source Data Integration:**
+- ✅ **ESPN Season GPG Data**: Colorado (3.97), Dallas (3.49), Toronto (3.26), Vegas (3.17), Boston (3.10), New Jersey (2.71) ✓ VERIFIED
+- ✅ **StatMuse Last 3 GPG Data**: Colorado (3.67), Dallas (3.67), Toronto (5.00), Vegas (5.00), Boston (1.67), New Jersey (1.67) ✓ VERIFIED
+
+**Recommendation Logic Analysis:**
+- ✅ **OVER Recommendations**: 6 games with Edge ≥ 0.5
+- ✅ **UNDER Recommendations**: 2 games with Edge ≤ -0.5
+- ✅ **No Bet Zone**: 3 games with -0.5 < Edge < 0.5
+
+#### Technical Validation:
+- ✅ API response time within acceptable limits (< 15 seconds)
+- ✅ All 11 games have proper team names and structure
+- ✅ GPG calculations accurate to 0.1 tolerance
+- ✅ Edge calculations accurate to 0.1 tolerance
+- ✅ All required fields present: combined_gpg, edge, recommendation
+- ✅ Floating point calculations handled correctly
+
+#### Test Summary:
+- **Total NHL GPG Tests**: 6
+- **Passed**: 6 (100% success rate)
+- **Failed**: 0
+- **NHL GPG Avg Calculation Fix**: ✅ FULLY FUNCTIONAL
+
+**Status:** NHL GPG Avg calculation fix is working perfectly. All 11 games for December 29, 2025 have been successfully updated with correct GPG calculations using the new ESPN and StatMuse data sources.
+
+**Recommendation:** NHL GPG Avg calculation fix is ready for production use. The updated formula with ESPN Season GPG and StatMuse Last 3 Games GPG data is functioning correctly.
+
+---
+
+## Previous Testing: NCAAB API PPG Data Testing - December 29, 2025 (Testing Agent)
 
 ### Test Completed: 2025-12-28 - NCAAB API Endpoint with PPG Data and Row Numbers
 
