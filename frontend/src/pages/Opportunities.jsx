@@ -62,11 +62,16 @@ export default function Opportunities() {
     setLoading(true);
     try {
       const dayParam = day === 'custom' && customDate ? customDate : day;
-      const endpoint = league === 'NBA' 
-        ? `/opportunities?day=${dayParam}` 
-        : league === 'NHL'
-          ? `/opportunities/nhl?day=${dayParam}`
-          : `/opportunities/nfl?day=${dayParam}`;
+      let endpoint;
+      if (league === 'NBA') {
+        endpoint = `/opportunities?day=${dayParam}`;
+      } else if (league === 'NHL') {
+        endpoint = `/opportunities/nhl?day=${dayParam}`;
+      } else if (league === 'NCAAB') {
+        endpoint = `/opportunities/ncaab?day=${dayParam}`;
+      } else {
+        endpoint = `/opportunities/nfl?day=${dayParam}`;
+      }
       const response = await axios.get(`${API}${endpoint}`);
       setData(response.data);
     } catch (error) {
