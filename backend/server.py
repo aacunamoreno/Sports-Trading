@@ -4649,15 +4649,17 @@ async def get_ncaab_opportunities():
     # Bottom 25% = rank 274-365 (Blue)
     def get_ncaab_dot_color(rank):
         if rank is None:
-            return '🔵'
-        if rank <= 91:
-            return '🟢'  # Top 25% - High scoring
-        elif rank <= 182:
-            return '🟡'  # Upper-mid
-        elif rank <= 273:
-            return '🔴'  # Lower-mid
+            return '⚪'  # Unknown - not in top 365
+        if rank <= 92:
+            return '🟢'  # Top tier (1-92)
+        elif rank <= 184:
+            return '🔵'  # Second tier (93-184)
+        elif rank <= 276:
+            return '🟡'  # Third tier (185-276)
+        elif rank <= 365:
+            return '🔴'  # Fourth tier (277-365)
         else:
-            return '🔵'  # Bottom 25% - Low scoring
+            return '⚪'  # Unknown - not in top 365
     
     for game in games:
         away_team = game.get('away', '')
@@ -4688,12 +4690,12 @@ async def get_ncaab_opportunities():
             except:
                 pass
         
-        # Generate recommendation
+        # Generate recommendation (NCAAB uses edge threshold of 9)
         recommendation = ''
         if edge is not None:
-            if edge >= 5:
+            if edge >= 9:
                 recommendation = 'OVER'
-            elif edge <= -5:
+            elif edge <= -9:
                 recommendation = 'UNDER'
         
         # Generate dot colors
