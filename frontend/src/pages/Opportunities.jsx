@@ -422,10 +422,15 @@ export default function Opportunities() {
           </CardHeader>
           <CardContent className="pt-4">
             <div className="grid gap-3">
-              {data.plays.filter(p => p.has_bet).map((play, idx) => (
+              {data.plays.filter(p => p.has_bet).map((play, idx) => {
+                // Check if this is a spread bet (not OVER/UNDER)
+                const isSpreadBet = play.bet_type && play.bet_type.includes('SPREAD');
+                const isOverUnder = play.recommendation === 'OVER' || play.recommendation === 'UNDER';
+                
+                return (
                 <div 
                   key={idx}
-                  className={`p-4 rounded-lg border ${getRowStyle(play.recommendation)}`}
+                  className={`p-4 rounded-lg border ${isSpreadBet ? 'bg-purple-500/20 border-purple-500/50' : getRowStyle(play.recommendation)}`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center gap-3">
@@ -437,7 +442,9 @@ export default function Opportunities() {
                           )}
                         </div>
                       )}
-                      {play.recommendation === 'OVER' ? (
+                      {isSpreadBet ? (
+                        <span className="text-2xl">📊</span>
+                      ) : play.recommendation === 'OVER' ? (
                         <TrendingUp className="w-6 h-6 text-blue-400" />
                       ) : (
                         <TrendingDown className="w-6 h-6 text-orange-400" />
@@ -446,40 +453,56 @@ export default function Opportunities() {
                         <div className="font-bold">{play.game}</div>
                         <div className="text-sm text-muted-foreground">
                           {/* #3.75: Show bet line and current line separately */}
-                          🎯 Bet Line: <span className="text-yellow-400 font-bold">{play.bet_line || play.total}</span>
-                          {play.total && play.bet_line && play.total !== play.bet_line && (
-                            <span className="ml-2">
-                              | Live: <span className={play.total > play.bet_line ? 'text-green-400' : 'text-red-400'}>
-                                {play.total} ({play.total > play.bet_line ? '↑' : '↓'}{Math.abs(play.total - play.bet_line).toFixed(1)})
-                              </span>
-                            </span>
+                          {isSpreadBet ? (
+                            <>🎯 Bet: <span className="text-purple-400 font-bold">{play.bet_type?.replace('SPREAD ', '')}</span></>
+                          ) : (
+                            <>
+                              🎯 Bet Line: <span className="text-yellow-400 font-bold">{play.bet_line || play.total}</span>
+                              {play.total && play.bet_line && play.total !== play.bet_line && (
+                                <span className="ml-2">
+                                  | Live: <span className={play.total > play.bet_line ? 'text-green-400' : 'text-red-400'}>
+                                    {play.total} ({play.total > play.bet_line ? '↑' : '↓'}{Math.abs(play.total - play.bet_line).toFixed(1)})
+                                  </span>
+                                </span>
+                              )}
+                              <span className="ml-2">| {config.combinedLabel}: {play.combined_ppg || play.combined_gpg || 'N/A'}</span>
+                            </>
                           )}
-                          <span className="ml-2">| {config.combinedLabel}: {play.combined_ppg || play.combined_gpg || 'N/A'}</span>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`text-xl font-bold ${getTextStyle(play.recommendation)}`}>
-                        {play.recommendation === 'OVER' ? '⬆️' : '⬇️'} {play.recommendation}
-                      </div>
+                      {isSpreadBet ? (
+                        <div className="text-xl font-bold text-purple-400">
+                          📊 SPREAD
+                        </div>
+                      ) : (
+                        <div className={`text-xl font-bold ${getTextStyle(play.recommendation)}`}>
+                          {play.recommendation === 'OVER' ? '⬆️' : '⬇️'} {play.recommendation}
+                        </div>
+                      )}
                       <div className="text-sm flex items-center justify-end gap-3">
-                        {play.live_edge !== undefined && play.edge !== play.live_edge && (
+                        {!isSpreadBet && play.live_edge !== undefined && play.edge !== play.live_edge && (
                           <span className="text-muted-foreground">
                             Diff vs Live: <span className={play.edge > play.live_edge ? 'text-green-400' : 'text-red-400'}>
                               {play.edge > play.live_edge ? '+' : ''}{(play.edge - play.live_edge).toFixed(1)}
                             </span>
                           </span>
                         )}
-                        <span>
-                          Edge: <span className={getEdgeStyle(play.edge)}>
-                            {play.edge >= 0 ? '+' : ''}{play.edge}
+                        {isSpreadBet ? (
+                          <span className="text-gray-400 italic">No edge calc</span>
+                        ) : (
+                          <span>
+                            Edge: <span className={getEdgeStyle(play.edge)}>
+                              {play.edge >= 0 ? '+' : ''}{play.edge}
+                            </span>
                           </span>
-                        </span>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </CardContent>
         </Card>
