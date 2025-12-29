@@ -3352,7 +3352,7 @@ async def monitor_single_account(conn: dict):
             if not ticket_num:
                 continue
                 
-            # Check if this ticket already exists in our database
+            # #3.5 DUPLICATE PREVENTION: Check if this ticket already exists in our database
             existing_bet = await db.bet_history.find_one({"bet_slip_id": ticket_num})
             
             if not existing_bet:
@@ -3367,6 +3367,15 @@ async def monitor_single_account(conn: dict):
                 to_win = bet_info.get('toWin', 0)
                 sport = bet_info.get('sport', '')
                 description = bet_info.get('description', '')
+                
+                # #3.75 BET LINE CAPTURE: Extract the line from bet_type (e.g., "TOTAL o228" -> 228)
+                bet_line = None
+                if bet_type:
+                    # Pattern: "TOTAL o228" or "TOTAL u6.5" or "o228" or "u6"
+                    line_match = re.search(r'[ou](\d+\.?\d*)', bet_type, re.IGNORECASE)
+                    if line_match:
+                        bet_line = float(line_match.group(1))
+                        logger.info(f"Captured bet line: {bet_line} from bet_type: {bet_type}")
                 
                 # If game is still unknown, use part of description
                 if game == 'Unknown Game' and description:
@@ -3386,11 +3395,15 @@ async def monitor_single_account(conn: dict):
                     "game": game,
                     "bet_type": bet_type,
                     "line": bet_type,
+                    "total_line": bet_line,  # #3.75: Store the numeric line value
                     "bet_slip_id": ticket_num,
                     "account": username,
                     "notes": f"Account: {username}. Auto-detected from plays888.co. Sport: {sport}"
                 }
                 await db.bet_history.insert_one(bet_doc)
+                
+                # #3.75 BET LINE CAPTURE: Update opportunities with bet info
+                await update_opportunity_with_bet(sport, game, bet_type, bet_line, ticket_num, username)
                 
                 # Send Telegram notification with actual details
                 await send_telegram_notification({
