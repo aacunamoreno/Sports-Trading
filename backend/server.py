@@ -8032,25 +8032,66 @@ async def add_nhl_manual_data(data: dict):
         
         logger.info(f"Manual NHL data entry for {target_date}: {len(gpg_list)} teams, {len(games_list)} games")
         
-        # Build GPG lookup dictionaries
-        gpg_data = {
-            'season_ranks': {},
-            'season_values': {},
-            'last3_ranks': {},
-            'last3_values': {}
+        # Build GPG lookup dictionaries - use hardcoded defaults if no gpg_data provided
+        # Default NHL GPG data from ESPN (Season) and StatMuse (Last 3) - Dec 29, 2025
+        default_season_ranks = {
+            'Colorado': 1, 'Dallas': 2, 'Edmonton': 3, 'Anaheim': 4, 'Carolina': 5,
+            'Montreal': 6, 'Tampa Bay': 7, 'Ottawa': 8, 'Toronto': 9, 'Washington': 10,
+            'Vegas': 11, 'Florida': 12, 'Pittsburgh': 13, 'Boston': 14, 'Detroit': 15,
+            'Buffalo': 16, 'Minnesota': 17, 'San Jose': 18, 'Utah': 19, 'Columbus': 20,
+            'Winnipeg': 21, 'Philadelphia': 22, 'Nashville': 23, 'Vancouver': 24, 'NY Islanders': 25,
+            'Chicago': 26, 'New Jersey': 27, 'Calgary': 28, 'Los Angeles': 29, 'Seattle': 30,
+            'NY Rangers': 31, 'St. Louis': 32
+        }
+        default_season_values = {
+            'Colorado': 3.97, 'Dallas': 3.49, 'Edmonton': 3.38, 'Anaheim': 3.32, 'Carolina': 3.30,
+            'Montreal': 3.29, 'Tampa Bay': 3.29, 'Ottawa': 3.27, 'Toronto': 3.26, 'Washington': 3.18,
+            'Vegas': 3.17, 'Florida': 3.16, 'Pittsburgh': 3.14, 'Boston': 3.10, 'Detroit': 3.08,
+            'Buffalo': 3.05, 'Minnesota': 3.03, 'San Jose': 3.00, 'Utah': 2.97, 'Columbus': 2.92,
+            'Winnipeg': 2.92, 'Philadelphia': 2.89, 'Nashville': 2.78, 'Vancouver': 2.78, 'NY Islanders': 2.77,
+            'Chicago': 2.76, 'New Jersey': 2.71, 'Calgary': 2.61, 'Los Angeles': 2.59, 'Seattle': 2.58,
+            'NY Rangers': 2.55, 'St. Louis': 2.51
+        }
+        default_last3_ranks = {
+            'Toronto': 1, 'Vegas': 2, 'Montreal': 3, 'Ottawa': 4, 'Pittsburgh': 5,
+            'Tampa Bay': 6, 'Colorado': 7, 'Dallas': 8, 'Edmonton': 9, 'Carolina': 10,
+            'Buffalo': 11, 'San Jose': 12, 'Columbus': 13, 'Calgary': 14, 'Seattle': 15,
+            'St. Louis': 16, 'Washington': 17, 'Florida': 18, 'Detroit': 19, 'Philadelphia': 20,
+            'Vancouver': 21, 'Los Angeles': 22, 'Winnipeg': 23, 'NY Rangers': 24, 'Minnesota': 25,
+            'Nashville': 26, 'Chicago': 27, 'Anaheim': 28, 'NY Islanders': 29, 'Boston': 30,
+            'Utah': 31, 'New Jersey': 32
+        }
+        default_last3_values = {
+            'Toronto': 5.00, 'Vegas': 5.00, 'Montreal': 4.33, 'Ottawa': 4.33, 'Pittsburgh': 4.33,
+            'Tampa Bay': 4.00, 'Colorado': 3.67, 'Dallas': 3.67, 'Edmonton': 3.67, 'Carolina': 3.67,
+            'Buffalo': 3.33, 'San Jose': 3.33, 'Columbus': 3.33, 'Calgary': 3.33, 'Seattle': 3.33,
+            'St. Louis': 3.33, 'Washington': 3.00, 'Florida': 3.00, 'Detroit': 3.00, 'Philadelphia': 3.00,
+            'Vancouver': 3.00, 'Los Angeles': 3.00, 'Winnipeg': 2.67, 'NY Rangers': 2.67, 'Minnesota': 2.33,
+            'Nashville': 2.33, 'Chicago': 2.33, 'Anaheim': 2.00, 'NY Islanders': 2.00, 'Boston': 1.67,
+            'Utah': 1.67, 'New Jersey': 1.67
         }
         
+        gpg_data = {
+            'season_ranks': default_season_ranks.copy(),
+            'season_values': default_season_values.copy(),
+            'last3_ranks': default_last3_ranks.copy(),
+            'last3_values': default_last3_values.copy()
+        }
+        
+        # Override with provided gpg_data if any
         for item in gpg_list:
             team = item.get('team', '')
             if team:
                 gpg_data['season_ranks'][team] = item.get('rank')
                 gpg_data['season_values'][team] = item.get('gpg')
                 gpg_data['last3_values'][team] = item.get('last3')
+                # Recalculate last3 ranks if values changed
         
-        # Create Last3 ranks based on values
-        last3_sorted = sorted(gpg_data['last3_values'].items(), key=lambda x: x[1] if x[1] else 0, reverse=True)
-        for i, (team, _) in enumerate(last3_sorted, 1):
-            gpg_data['last3_ranks'][team] = i
+        # Recalculate Last3 ranks based on values if gpg_data was provided
+        if gpg_list:
+            last3_sorted = sorted(gpg_data['last3_values'].items(), key=lambda x: x[1] if x[1] else 0, reverse=True)
+            for i, (team, _) in enumerate(last3_sorted, 1):
+                gpg_data['last3_ranks'][team] = i
         
         # NHL dot colors (32 teams, divided into 4 groups of 8)
         def get_nhl_dot_color(rank):
