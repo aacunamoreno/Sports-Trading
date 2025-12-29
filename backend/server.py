@@ -5578,6 +5578,15 @@ async def export_to_excel(
             if not doc or not doc.get('games'):
                 continue
             
+            # Add divider row between dates
+            if prev_date is not None and prev_date != date:
+                # Insert divider row
+                for col in range(1, 36):  # A to AI
+                    cell = ws.cell(row=row_num, column=col)
+                    cell.fill = divider_fill
+                row_num += 1
+            
+            prev_date = date
             games = doc['games']
             
             for idx, game in enumerate(games, 1):
