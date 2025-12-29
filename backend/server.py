@@ -5691,9 +5691,10 @@ async def export_to_excel(
                         four_dot_hit = 'MISS'
                         four_dot_losses += 1
                 
-                # 4-dot record only shown when not NO BET and has a hit/miss
+                # 4-dot record: Show current cumulative record whenever 4-Dot is NOT "NO BET"
+                # The record reflects all completed games up to this point
                 four_dot_record = ''
-                if four_dot_result != 'NO BET' and four_dot_hit:
+                if four_dot_result != 'NO BET':
                     four_dot_record = f"{four_dot_wins}-{four_dot_losses}"
                 
                 # Build row data (35 columns: A-AI)
