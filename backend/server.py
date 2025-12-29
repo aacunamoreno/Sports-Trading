@@ -3470,13 +3470,28 @@ async def monitor_single_account(conn: dict):
             # #3.5 DUPLICATE PREVENTION: Check if this ticket already exists in our database
             existing_bet = await db.bet_history.find_one({"bet_slip_id": ticket_num})
             
-            if not existing_bet:
-                # New bet detected! 
-                logger.info(f"New bet detected: Ticket#{ticket_num}")
-                logger.info(f"Bet details: {bet_info}")
+            if existing_bet:
+                # Skip - ticket already recorded
+                continue
+            
+            game = bet_info.get('game', '') or 'Unknown Game'
+            bet_type = bet_info.get('betType', '') or 'Unknown'
+            
+            # #3.5 ADDITIONAL DUPLICATE CHECK: Check for same game + bet_type + account placed today
+            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            duplicate_bet = await db.bet_history.find_one({
+                "game": {"$regex": game.replace("@", ".*"), "$options": "i"},
+                "bet_type": {"$regex": bet_type, "$options": "i"},
+                "account": username,
+                "placed_at": {"$gte": today_start.isoformat()}
+            })
+            
+            if duplicate_bet:
+                logger.warning(f"#3.5 DUPLICATE PREVENTION: Skipping duplicate bet on same game: {game} - {bet_type}")
+                continue
                 
-                game = bet_info.get('game', '') or 'Unknown Game'
-                bet_type = bet_info.get('betType', '') or 'Unknown'
+            # New bet detected! 
+            logger.info(f"New bet detected: Ticket#{ticket_num}")
                 odds = bet_info.get('odds', -110)
                 wager = bet_info.get('wager', 0)
                 to_win = bet_info.get('toWin', 0)
