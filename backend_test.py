@@ -1711,18 +1711,156 @@ class BettingSystemAPITester:
         
         return overall_success
 
+    def test_excel_export_functionality(self):
+        """Test Excel export functionality for both NBA and NHL"""
+        print("=" * 60)
+        print("EXCEL EXPORT FUNCTIONALITY TESTING")
+        print("=" * 60)
+        
+        excel_tests_passed = 0
+        excel_tests_total = 0
+        
+        # Test 1: NBA Excel Export
+        excel_tests_total += 1
+        print("Testing NBA Excel Export...")
+        try:
+            response = requests.get(
+                f"{self.api_url}/export/excel?league=NBA&start_date=2025-12-22&end_date=2025-12-27", 
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                # Verify content type
+                content_type = response.headers.get('content-type', '')
+                expected_content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                
+                if content_type == expected_content_type:
+                    # Verify Content-Disposition header
+                    content_disposition = response.headers.get('content-disposition', '')
+                    if 'attachment' in content_disposition and 'filename=' in content_disposition:
+                        # Verify file size
+                        content_length = len(response.content)
+                        if content_length > 0:
+                            self.log_test("NBA Excel Export", True, 
+                                        f"Valid Excel file: {content_length} bytes, correct headers")
+                            excel_tests_passed += 1
+                        else:
+                            self.log_test("NBA Excel Export", False, "Excel file is empty")
+                    else:
+                        self.log_test("NBA Excel Export", False, "Invalid Content-Disposition header")
+                else:
+                    self.log_test("NBA Excel Export", False, f"Wrong content type: {content_type}")
+            else:
+                self.log_test("NBA Excel Export", False, f"Status code: {response.status_code}")
+        except Exception as e:
+            self.log_test("NBA Excel Export", False, f"Error: {str(e)}")
+        
+        # Test 2: NHL Excel Export
+        excel_tests_total += 1
+        print("Testing NHL Excel Export...")
+        try:
+            response = requests.get(
+                f"{self.api_url}/export/excel?league=NHL&start_date=2025-12-22&end_date=2025-12-27", 
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                content_type = response.headers.get('content-type', '')
+                expected_content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                
+                if content_type == expected_content_type:
+                    content_length = len(response.content)
+                    if content_length > 0:
+                        self.log_test("NHL Excel Export", True, 
+                                    f"Valid Excel file: {content_length} bytes")
+                        excel_tests_passed += 1
+                    else:
+                        self.log_test("NHL Excel Export", False, "Excel file is empty")
+                else:
+                    self.log_test("NHL Excel Export", False, f"Wrong content type: {content_type}")
+            else:
+                self.log_test("NHL Excel Export", False, f"Status code: {response.status_code}")
+        except Exception as e:
+            self.log_test("NHL Excel Export", False, f"Error: {str(e)}")
+        
+        # Test 3: Excel File Structure (if openpyxl is available)
+        excel_tests_total += 1
+        print("Testing Excel File Structure...")
+        try:
+            import io
+            from openpyxl import load_workbook
+            
+            response = requests.get(
+                f"{self.api_url}/export/excel?league=NBA&start_date=2025-12-22&end_date=2025-12-27", 
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                buffer = io.BytesIO(response.content)
+                wb = load_workbook(buffer)
+                ws = wb.active
+                
+                # Verify 35 columns (A through AI)
+                if ws.max_column == 35:
+                    # Verify critical headers
+                    critical_headers = {
+                        1: 'Date', 7: 'Away Team', 11: 'Home Team', 
+                        32: '4-Dot Result', 34: '4-Dot Hit', 35: '4-Dot Record'
+                    }
+                    
+                    headers_correct = True
+                    for col_num, expected_header in critical_headers.items():
+                        actual_header = ws.cell(row=1, column=col_num).value
+                        if actual_header != expected_header:
+                            headers_correct = False
+                            break
+                    
+                    if headers_correct and ws.max_row > 1:
+                        # Check for 4-Dot logic
+                        four_dot_results_found = 0
+                        for row in range(2, min(ws.max_row + 1, 20)):
+                            four_dot_result = ws.cell(row=row, column=32).value
+                            if four_dot_result in ['OVER', 'UNDER', 'NO BET']:
+                                four_dot_results_found += 1
+                        
+                        if four_dot_results_found > 0:
+                            self.log_test("Excel File Structure", True, 
+                                        f"35 columns, correct headers, {four_dot_results_found} 4-Dot results, {ws.max_row-1} data rows")
+                            excel_tests_passed += 1
+                        else:
+                            self.log_test("Excel File Structure", False, "No 4-Dot results found")
+                    else:
+                        self.log_test("Excel File Structure", False, "Incorrect headers or no data rows")
+                else:
+                    self.log_test("Excel File Structure", False, f"Expected 35 columns, got {ws.max_column}")
+            else:
+                self.log_test("Excel File Structure", False, f"Could not get Excel file: {response.status_code}")
+        except ImportError:
+            self.log_test("Excel File Structure", False, "openpyxl not available for validation")
+        except Exception as e:
+            self.log_test("Excel File Structure", False, f"Error: {str(e)}")
+        
+        print(f"\nExcel Export Tests: {excel_tests_passed}/{excel_tests_total} passed")
+        return excel_tests_passed == excel_tests_total
+
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
-        print("BETBOT PROCESS #6 - UPDATE RECORDS TESTING")
+        print("BETBOT EXCEL EXPORT TESTING")
         print("=" * 60)
         print(f"Testing API: {self.api_url}")
         print()
         
-        # Run Process #6 Implementation Tests FIRST (primary focus)
+        # Run Excel Export Tests (primary focus for this review)
+        excel_success = self.test_excel_export_functionality()
+        
+        # Run Process #6 Implementation Tests (secondary)
+        print("\n" + "=" * 60)
+        print("PROCESS #6 - UPDATE RECORDS TESTING")
+        print("=" * 60)
         process_6_success = self.test_process_6_implementation()
         
-        # Run Historical Data Verification (secondary focus)
+        # Run Historical Data Verification (tertiary)
         print("\n" + "=" * 60)
         print("HISTORICAL DATA VERIFICATION - 12/22/2025 to 12/27/2025")
         print("=" * 60)
@@ -1739,6 +1877,7 @@ class BettingSystemAPITester:
         print(f"Success Rate: {(self.tests_passed/self.tests_run)*100:.1f}%")
         
         print("\n📊 RESULTS BY CATEGORY:")
+        print(f"Excel Export Functionality: {'✅ PASSED' if excel_success else '❌ FAILED'}")
         print(f"Process #6 Implementation: {'✅ PASSED' if process_6_success else '❌ FAILED'}")
         print(f"Historical Data Verification: {'✅ PASSED' if historical_success else '❌ FAILED'}")
         
