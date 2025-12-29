@@ -4560,6 +4560,182 @@ async def scrape_nba_ppg_rankings():
         traceback.print_exc()
         return result
 
+async def scrape_ncaab_ppg_rankings():
+    """
+    Scrape NCAAB (NCAA Basketball) Points Per Game rankings and values from teamrankings.com
+    Returns: {
+        'season_ranks': {team: rank},
+        'season_values': {team: ppg_value},
+        'last3_ranks': {team: rank},
+        'last3_values': {team: ppg_value}
+    }
+    """
+    import re
+    
+    result = {
+        'season_ranks': {},
+        'season_values': {},
+        'last3_ranks': {},
+        'last3_values': {}
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            
+            # Scrape NCAAB PPG from teamrankings
+            response = await client.get(
+                "https://www.teamrankings.com/ncaa-basketball/stat/points-per-game",
+                headers=headers
+            )
+            html = response.text
+            
+            # Parse rankings - pattern: rank, team slug, team name, 2024-25 PPG, Last 3 PPG
+            # Table columns: Rank | Team | 2024-25 | Last 3 | Last 1 | Home | Away | ...
+            row_pattern = r'<tr[^>]*>\s*<td[^>]*>(\d+)</td>\s*<td[^>]*>.*?team/([^"]+)"[^>]*>([^<]*)</a>\s*</td>\s*<td[^>]*>([\d.]+)</td>\s*<td[^>]*>([\d.]+)</td>'
+            
+            matches = re.findall(row_pattern, html, re.DOTALL)
+            
+            logger.info(f"Found {len(matches)} NCAAB teams in teamrankings.com PPG table")
+            
+            for rank, slug, display_name, season_ppg, last3_ppg in matches:
+                # Use display name as-is (clean it up)
+                team_name = display_name.strip()
+                if team_name:
+                    result['season_ranks'][team_name] = int(rank)
+                    result['season_values'][team_name] = float(season_ppg)
+                    result['last3_values'][team_name] = float(last3_ppg)
+            
+            # Create ranking based on Last 3 values
+            last3_sorted = sorted(result['last3_values'].items(), key=lambda x: x[1], reverse=True)
+            for i, (team, _) in enumerate(last3_sorted, 1):
+                result['last3_ranks'][team] = i
+            
+            logger.info(f"Scraped NCAAB PPG data: {len(result['season_values'])} teams")
+            return result
+            
+    except Exception as e:
+        logger.error(f"Error scraping NCAAB PPG rankings: {e}")
+        import traceback
+        traceback.print_exc()
+        return result
+
+async def get_ncaab_opportunities():
+    """Get NCAAB betting opportunities with PPG analysis"""
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    
+    # Check if we have cached data for today
+    cached = await db.ncaab_opportunities.find_one({"date": today})
+    if cached:
+        return cached
+    
+    # Scrape PPG rankings
+    ppg_data = await scrape_ncaab_ppg_rankings()
+    
+    # Scrape today's games from scoresandodds
+    games = await scrape_scoresandodds("NCAAB", today)
+    
+    # Process games and add PPG analysis
+    processed_games = []
+    
+    # NCAAB has ~365 teams, so ranking thresholds are different
+    # Top 25% = rank 1-91 (Green)
+    # 25-50% = rank 92-182 (Yellow) 
+    # 50-75% = rank 183-273 (Red)
+    # Bottom 25% = rank 274-365 (Blue)
+    def get_ncaab_dot_color(rank):
+        if rank is None:
+            return '🔵'
+        if rank <= 91:
+            return '🟢'  # Top 25% - High scoring
+        elif rank <= 182:
+            return '🟡'  # Upper-mid
+        elif rank <= 273:
+            return '🔴'  # Lower-mid
+        else:
+            return '🔵'  # Bottom 25% - Low scoring
+    
+    for game in games:
+        away_team = game.get('away', '')
+        home_team = game.get('home', '')
+        
+        # Get PPG data
+        away_ppg_rank = ppg_data['season_ranks'].get(away_team)
+        away_ppg_value = ppg_data['season_values'].get(away_team)
+        away_last3_rank = ppg_data['last3_ranks'].get(away_team)
+        away_last3_value = ppg_data['last3_values'].get(away_team)
+        
+        home_ppg_rank = ppg_data['season_ranks'].get(home_team)
+        home_ppg_value = ppg_data['season_values'].get(home_team)
+        home_last3_rank = ppg_data['last3_ranks'].get(home_team)
+        home_last3_value = ppg_data['last3_values'].get(home_team)
+        
+        # Calculate combined PPG
+        combined_ppg = None
+        if away_ppg_value and home_ppg_value:
+            combined_ppg = round((away_ppg_value + home_ppg_value), 1)
+        
+        # Calculate edge (same as NBA)
+        edge = None
+        line = game.get('total')
+        if combined_ppg and line:
+            try:
+                edge = round(combined_ppg - float(line), 1)
+            except:
+                pass
+        
+        # Generate recommendation
+        recommendation = ''
+        if edge is not None:
+            if edge >= 5:
+                recommendation = 'OVER'
+            elif edge <= -5:
+                recommendation = 'UNDER'
+        
+        # Generate dot colors
+        away_dots = get_ncaab_dot_color(away_ppg_rank) + get_ncaab_dot_color(away_last3_rank)
+        home_dots = get_ncaab_dot_color(home_ppg_rank) + get_ncaab_dot_color(home_last3_rank)
+        
+        processed_game = {
+            **game,
+            'away_team': away_team,
+            'home_team': home_team,
+            'away_ppg_rank': away_ppg_rank,
+            'away_ppg_value': away_ppg_value,
+            'away_last3_rank': away_last3_rank,
+            'away_last3_value': away_last3_value,
+            'home_ppg_rank': home_ppg_rank,
+            'home_ppg_value': home_ppg_value,
+            'home_last3_rank': home_last3_rank,
+            'home_last3_value': home_last3_value,
+            'combined_ppg': combined_ppg,
+            'edge': edge,
+            'recommendation': recommendation,
+            'away_dots': away_dots,
+            'home_dots': home_dots,
+            'opening_line': line
+        }
+        processed_games.append(processed_game)
+    
+    # Save to database
+    doc = {
+        "date": today,
+        "games": processed_games,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.ncaab_opportunities.replace_one(
+        {"date": today},
+        doc,
+        upsert=True
+    )
+    
+    return doc
+
 async def get_nba_opportunities():
     """Get NBA betting opportunities with PPG analysis"""
     from zoneinfo import ZoneInfo
