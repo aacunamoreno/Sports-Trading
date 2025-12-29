@@ -7288,6 +7288,230 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ================= NCAAB OPPORTUNITIES =================
+
+@api_router.get("/opportunities/ncaab")
+async def get_ncaab_opportunities_endpoint(day: str = "today"):
+    """Get NCAAB (NCAA Basketball) betting opportunities. day parameter: 'yesterday', 'today', 'tomorrow', or a specific date 'YYYY-MM-DD'"""
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        # Check if day is a specific date format (YYYY-MM-DD)
+        if len(day) == 10 and day[4] == '-' and day[7] == '-':
+            target_date = day
+        elif day == "tomorrow":
+            target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+        elif day == "yesterday":
+            target_date = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        # Get cached NCAAB opportunities
+        cached = await db.ncaab_opportunities.find_one({"date": target_date}, {"_id": 0})
+        
+        # Get compound record
+        record = await db.compound_records.find_one({"league": "NCAAB"}, {"_id": 0})
+        compound_record = {
+            "hits": record.get('hits', 0) if record else 0,
+            "misses": record.get('misses', 0) if record else 0
+        }
+        
+        if cached and cached.get('games'):
+            return {
+                "success": True,
+                "date": target_date,
+                "last_updated": cached.get('last_updated'),
+                "games": cached.get('games', []),
+                "plays": cached.get('plays', []),
+                "compound_record": compound_record,
+                "data_source": cached.get('data_source', 'scraped')
+            }
+        
+        return {
+            "success": True,
+            "date": target_date,
+            "message": "No NCAAB opportunities data yet. Click refresh to load games.",
+            "games": [],
+            "plays": [],
+            "compound_record": compound_record,
+            "data_source": None
+        }
+    except Exception as e:
+        logger.error(f"Error getting NCAAB opportunities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/opportunities/ncaab/refresh")
+async def refresh_ncaab_opportunities(day: str = "today"):
+    """Manually refresh NCAAB opportunities data. 
+    day parameter: 'yesterday', 'today' or 'tomorrow'
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        now_arizona = datetime.now(arizona_tz)
+        
+        if day == "tomorrow":
+            target_date = (now_arizona + timedelta(days=1)).strftime('%Y-%m-%d')
+        elif day == "yesterday":
+            target_date = (now_arizona - timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            target_date = now_arizona.strftime('%Y-%m-%d')
+        
+        logger.info(f"Refreshing NCAAB opportunities for {target_date}")
+        
+        # Scrape NCAAB PPG rankings from teamrankings.com
+        ppg_data = await scrape_ncaab_ppg_rankings()
+        
+        logger.info(f"Scraped NCAAB PPG data for {len(ppg_data.get('season_ranks', {}))} teams")
+        
+        # Scrape games from scoresandodds.com
+        games = await scrape_scoresandodds("NCAAB", target_date)
+        
+        logger.info(f"Scraped {len(games)} NCAAB games from scoresandodds.com")
+        
+        # Process games and add PPG analysis
+        processed_games = []
+        
+        # NCAAB has ~365 teams, so ranking thresholds are different
+        # Top 25% = rank 1-91 (Green)
+        # 25-50% = rank 92-182 (Yellow) 
+        # 50-75% = rank 183-273 (Red)
+        # Bottom 25% = rank 274-365 (Blue)
+        def get_ncaab_dot_color(rank):
+            if rank is None:
+                return '🔵'
+            if rank <= 91:
+                return '🟢'  # Top 25% - High scoring
+            elif rank <= 182:
+                return '🟡'  # Upper-mid
+            elif rank <= 273:
+                return '🔴'  # Lower-mid
+            else:
+                return '🔵'  # Bottom 25% - Low scoring
+        
+        for game in games:
+            away_team = game.get('away', '')
+            home_team = game.get('home', '')
+            
+            # Try to find team in PPG data (NCAAB teams have varied names)
+            def find_team_ppg(team_name, ppg_dict):
+                """Find team PPG using fuzzy matching"""
+                if not team_name:
+                    return None
+                # Direct match
+                if team_name in ppg_dict:
+                    return ppg_dict[team_name]
+                # Try lowercase match
+                team_lower = team_name.lower()
+                for k, v in ppg_dict.items():
+                    if k.lower() == team_lower or team_lower in k.lower() or k.lower() in team_lower:
+                        return v
+                return None
+            
+            def find_team_rank(team_name, rank_dict):
+                """Find team rank using fuzzy matching"""
+                if not team_name:
+                    return None
+                # Direct match
+                if team_name in rank_dict:
+                    return rank_dict[team_name]
+                # Try lowercase match
+                team_lower = team_name.lower()
+                for k, v in rank_dict.items():
+                    if k.lower() == team_lower or team_lower in k.lower() or k.lower() in team_lower:
+                        return v
+                return None
+            
+            # Get PPG data with fuzzy matching
+            away_ppg_rank = find_team_rank(away_team, ppg_data['season_ranks'])
+            away_ppg_value = find_team_ppg(away_team, ppg_data['season_values'])
+            away_last3_rank = find_team_rank(away_team, ppg_data['last3_ranks'])
+            away_last3_value = find_team_ppg(away_team, ppg_data['last3_values'])
+            
+            home_ppg_rank = find_team_rank(home_team, ppg_data['season_ranks'])
+            home_ppg_value = find_team_ppg(home_team, ppg_data['season_values'])
+            home_last3_rank = find_team_rank(home_team, ppg_data['last3_ranks'])
+            home_last3_value = find_team_ppg(home_team, ppg_data['last3_values'])
+            
+            # Calculate combined PPG
+            combined_ppg = None
+            if away_ppg_value and home_ppg_value:
+                combined_ppg = round((away_ppg_value + home_ppg_value), 1)
+            
+            # Calculate edge (same as NBA)
+            edge = None
+            line = game.get('total')
+            if combined_ppg and line:
+                try:
+                    edge = round(combined_ppg - float(line), 1)
+                except:
+                    pass
+            
+            # Generate recommendation
+            recommendation = ''
+            if edge is not None:
+                if edge >= 5:
+                    recommendation = 'OVER'
+                elif edge <= -5:
+                    recommendation = 'UNDER'
+            
+            # Generate dot colors
+            away_dots = get_ncaab_dot_color(away_ppg_rank) + get_ncaab_dot_color(away_last3_rank)
+            home_dots = get_ncaab_dot_color(home_ppg_rank) + get_ncaab_dot_color(home_last3_rank)
+            
+            processed_game = {
+                **game,
+                'away_team': away_team,
+                'home_team': home_team,
+                'away_ppg_rank': away_ppg_rank,
+                'away_ppg_value': away_ppg_value,
+                'away_last3_rank': away_last3_rank,
+                'away_last3_value': away_last3_value,
+                'home_ppg_rank': home_ppg_rank,
+                'home_ppg_value': home_ppg_value,
+                'home_last3_rank': home_last3_rank,
+                'home_last3_value': home_last3_value,
+                'combined_ppg': combined_ppg,
+                'edge': edge,
+                'recommendation': recommendation,
+                'away_dots': away_dots,
+                'home_dots': home_dots,
+                'opening_line': line
+            }
+            processed_games.append(processed_game)
+        
+        # Save to database
+        doc = {
+            "date": target_date,
+            "games": processed_games,
+            "plays": [],  # Will be populated when user makes bets
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+            "data_source": "scraped"
+        }
+        
+        await db.ncaab_opportunities.replace_one(
+            {"date": target_date},
+            doc,
+            upsert=True
+        )
+        
+        return {
+            "success": True,
+            "date": target_date,
+            "games_count": len(processed_games),
+            "ppg_teams_found": len(ppg_data.get('season_ranks', {})),
+            "games": processed_games,
+            "message": f"Refreshed NCAAB data for {target_date}: {len(processed_games)} games found"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error refreshing NCAAB opportunities: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ================= NFL OPPORTUNITIES =================
 
 @api_router.get("/opportunities/nfl")
