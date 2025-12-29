@@ -2180,7 +2180,7 @@ class BettingSystemAPITester:
         print()
         
         # Run NCAAB Tests (primary focus for this review)
-        ncaab_success = self.test_ncaab_opportunities_tomorrow()
+        ncaab_success = self.test_ncaab_api_tomorrow()
         
         # Run Excel Export Tests (secondary)
         print("\n" + "=" * 60)
