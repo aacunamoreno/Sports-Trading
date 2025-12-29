@@ -93,11 +93,16 @@ export default function Opportunities() {
     setRefreshing(true);
     try {
       const liveParam = day === 'today' && useLiveLines ? '&use_live_lines=true' : '';
-      const endpoint = league === 'NBA' 
-        ? `/opportunities/refresh?day=${day}${liveParam}` 
-        : league === 'NHL'
-          ? `/opportunities/nhl/refresh?day=${day}${liveParam}`
-          : `/opportunities/nfl/refresh?day=${day}${liveParam}`;
+      let endpoint;
+      if (league === 'NBA') {
+        endpoint = `/opportunities/refresh?day=${day}${liveParam}`;
+      } else if (league === 'NHL') {
+        endpoint = `/opportunities/nhl/refresh?day=${day}${liveParam}`;
+      } else if (league === 'NCAAB') {
+        endpoint = `/opportunities/ncaab/refresh?day=${day}`;
+      } else {
+        endpoint = `/opportunities/nfl/refresh?day=${day}${liveParam}`;
+      }
       const response = await axios.post(`${API}${endpoint}`);
       setData(response.data);
       const source = response.data.data_source === 'plays888.co' ? '(from plays888.co)' : '';
