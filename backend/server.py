@@ -5663,21 +5663,37 @@ async def export_to_excel(
                 elif game.get('edge_hit') == False or game.get('result_hit') == False:
                     edge_hit = 'MISS'
                 
-                # Determine bet result
+                # Determine bet result and update betting record
                 bet_result = ''
                 bet_type_display = game.get('bet_type', '')
-                if game.get('user_bet') or game.get('has_bet'):
+                has_bet = game.get('user_bet') or game.get('has_bet')
+                if has_bet:
                     if game.get('multiple_bets') and game.get('bet_results'):
                         bet_type_display = 'O+U'
                         wins = game['bet_results'].count('won')
                         losses = game['bet_results'].count('lost')
                         bet_result = f"{wins}W-{losses}L"
+                        # Update betting record for multiple bets
+                        betting_wins += wins
+                        betting_losses += losses
                     elif game.get('user_bet_hit') == True:
                         bet_result = 'won'
+                        betting_wins += 1
                     elif game.get('user_bet_hit') == False:
                         bet_result = 'lost'
+                        betting_losses += 1
                     else:
                         bet_result = game.get('bet_result', '')
+                        # Also check bet_result string for won/lost
+                        if bet_result == 'won':
+                            betting_wins += 1
+                        elif bet_result == 'lost':
+                            betting_losses += 1
+                
+                # Betting record: Show cumulative record whenever there's a bet
+                betting_record = ''
+                if has_bet:
+                    betting_record = f"{betting_wins}-{betting_losses}"
                 
                 # Calculate 4-dot result
                 four_dot_result = calculate_4dot_result(away_colors, home_colors)
