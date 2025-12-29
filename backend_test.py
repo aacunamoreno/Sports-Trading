@@ -1979,6 +1979,198 @@ class BettingSystemAPITester:
             self.log_test("GET /api/opportunities/ncaab?day=tomorrow", False, f"JSON decode error: {str(e)}")
             return False
 
+    def test_ncaab_api_tomorrow(self):
+        """Test GET /api/opportunities/ncaab?day=tomorrow - verify 68 games for 2025-12-29 with PPG data"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities/ncaab?day=tomorrow", timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'success']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                games = data.get('games', [])
+                if not isinstance(games, list):
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Games Array", False,
+                                "Games is not an array")
+                    return False
+                
+                # Expected: exactly 68 games for 2025-12-29
+                expected_game_count = 68
+                if len(games) != expected_game_count:
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Game Count", False,
+                                f"Expected exactly {expected_game_count} NCAAB games, got {len(games)}")
+                    return False
+                
+                # Verify date is correct
+                expected_date = "2025-12-29"
+                actual_date = data.get('date')
+                if actual_date != expected_date:
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Date", False,
+                                f"Expected date {expected_date}, got {actual_date}")
+                    return False
+                
+                # Test specific games with PPG data
+                test_games = [
+                    {
+                        "away_team": "NC Central",
+                        "home_team": "Penn St.",
+                        "expected_combined_ppg": 139.4,
+                        "expected_edge": -10.1,
+                        "game_num": 1
+                    },
+                    {
+                        "away_team": "Missouri St.",
+                        "home_team": "Delaware", 
+                        "expected_combined_ppg": 152.8,
+                        "expected_edge": 16.3,
+                        "game_num": 3
+                    },
+                    {
+                        "away_team": "Utah",
+                        "home_team": "Washington",
+                        "expected_combined_ppg": 165.7,
+                        "expected_edge": 5.2,
+                        "game_num": 68
+                    }
+                ]
+                
+                games_with_ppg = 0
+                games_without_ppg = 0
+                verified_test_games = 0
+                
+                for game in games:
+                    # Validate game structure
+                    required_game_fields = ['away_team', 'home_team', 'combined_ppg', 'edge', 'away_ppg_rank', 'home_ppg_rank', 'away_last3_rank', 'home_last3_rank']
+                    missing_game_fields = [field for field in required_game_fields if field not in game]
+                    
+                    if missing_game_fields:
+                        self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Game Structure", False,
+                                    f"Game missing required fields: {missing_game_fields}")
+                        return False
+                    
+                    # Count games with/without PPG data
+                    combined_ppg = game.get('combined_ppg')
+                    if combined_ppg is not None:
+                        games_with_ppg += 1
+                    else:
+                        games_without_ppg += 1
+                    
+                    # Check specific test games
+                    for test_game in test_games:
+                        if (game.get('away_team') == test_game['away_team'] and 
+                            game.get('home_team') == test_game['home_team']):
+                            
+                            actual_combined_ppg = game.get('combined_ppg')
+                            actual_edge = game.get('edge')
+                            
+                            # Allow small tolerance for floating point comparison
+                            if actual_combined_ppg is not None:
+                                ppg_diff = abs(actual_combined_ppg - test_game['expected_combined_ppg'])
+                                if ppg_diff > 1.0:  # Allow 1.0 point tolerance
+                                    self.log_test(f"NCAAB Game {test_game['game_num']} - GPG Avg", False,
+                                                f"{test_game['away_team']} @ {test_game['home_team']}: expected GPG Avg ~{test_game['expected_combined_ppg']}, got {actual_combined_ppg}")
+                                    return False
+                            
+                            if actual_edge is not None:
+                                edge_diff = abs(actual_edge - test_game['expected_edge'])
+                                if edge_diff > 1.0:  # Allow 1.0 point tolerance
+                                    self.log_test(f"NCAAB Game {test_game['game_num']} - Edge", False,
+                                                f"{test_game['away_team']} @ {test_game['home_team']}: expected Edge ~{test_game['expected_edge']}, got {actual_edge}")
+                                    return False
+                            
+                            verified_test_games += 1
+                            self.log_test(f"NCAAB Game {test_game['game_num']} - {test_game['away_team']} @ {test_game['home_team']}", True,
+                                        f"GPG Avg: {actual_combined_ppg}, Edge: {actual_edge}")
+                
+                # Verify we found all test games
+                if verified_test_games != len(test_games):
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Test Games", False,
+                                f"Expected to verify {len(test_games)} test games, only found {verified_test_games}")
+                    return False
+                
+                # Test games without PPG data (non-D1 teams)
+                non_d1_games = [
+                    ("Arlington Baptist", "Baylor"),
+                    ("LA Sierra", "UNLV")
+                ]
+                
+                verified_non_d1_games = 0
+                for game in games:
+                    for away, home in non_d1_games:
+                        if (game.get('away_team') == away and game.get('home_team') == home):
+                            combined_ppg = game.get('combined_ppg')
+                            if combined_ppg is not None:
+                                self.log_test(f"NCAAB Non-D1 Game - {away} @ {home}", False,
+                                            f"Expected null combined_ppg for non-D1 team, got {combined_ppg}")
+                                return False
+                            verified_non_d1_games += 1
+                            self.log_test(f"NCAAB Non-D1 Game - {away} @ {home}", True,
+                                        f"Correctly has null combined_ppg")
+                
+                # Verify Edge calculation formula (Edge = GPG Avg - Line)
+                edge_calculation_errors = 0
+                for game in games:
+                    combined_ppg = game.get('combined_ppg')
+                    line = game.get('total') or game.get('line')
+                    edge = game.get('edge')
+                    
+                    if combined_ppg is not None and line is not None and edge is not None:
+                        expected_edge = combined_ppg - line
+                        edge_diff = abs(edge - expected_edge)
+                        if edge_diff > 0.1:  # Allow small floating point tolerance
+                            edge_calculation_errors += 1
+                            if edge_calculation_errors <= 3:  # Only log first few errors
+                                self.log_test(f"NCAAB Edge Calculation - {game.get('away_team')} @ {game.get('home_team')}", False,
+                                            f"Edge calculation error: GPG Avg {combined_ppg} - Line {line} = {expected_edge}, but got Edge {edge}")
+                
+                if edge_calculation_errors > 0:
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Edge Calculation", False,
+                                f"Found {edge_calculation_errors} games with incorrect Edge calculation")
+                    return False
+                
+                self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Edge Calculation", True,
+                            "All games have correct Edge calculation (GPG Avg - Line)")
+                
+                # Verify rank data is present
+                games_with_ranks = 0
+                for game in games:
+                    if (game.get('away_ppg_rank') is not None and 
+                        game.get('home_ppg_rank') is not None and
+                        game.get('away_last3_rank') is not None and
+                        game.get('home_last3_rank') is not None):
+                        games_with_ranks += 1
+                
+                if games_with_ranks < (games_with_ppg * 0.8):  # At least 80% of games with PPG should have ranks
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Rank Data", False,
+                                f"Only {games_with_ranks} games have complete rank data, expected at least {int(games_with_ppg * 0.8)}")
+                    return False
+                
+                self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Rank Data", True,
+                            f"{games_with_ranks} games have complete rank data")
+                
+                self.log_test("GET /api/opportunities/ncaab?day=tomorrow", True,
+                            f"Successfully verified all {len(games)} NCAAB games: {games_with_ppg} with PPG data, {games_without_ppg} without PPG data")
+                return True
+            else:
+                self.log_test("GET /api/opportunities/ncaab?day=tomorrow", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("GET /api/opportunities/ncaab?day=tomorrow", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("GET /api/opportunities/ncaab?day=tomorrow", False, f"JSON decode error: {str(e)}")
+            return False
+
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
