@@ -5425,6 +5425,7 @@ async def export_to_excel(
 ):
     """
     Export opportunities data to Excel with colored dots and all analysis data.
+    Matches the user's custom format with 4-dot analysis.
     
     Args:
         league: NBA, NHL, or NFL
@@ -5433,7 +5434,7 @@ async def export_to_excel(
     """
     import io
     from openpyxl import Workbook
-    from openpyxl.styles import Font, Fill, PatternFill, Alignment, Border, Side
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
     from zoneinfo import ZoneInfo
     
@@ -5463,7 +5464,7 @@ async def export_to_excel(
         ws = wb.active
         ws.title = f"{league} Analysis"
         
-        # Define colors for dots - using RGB fills
+        # Define colors for dots - using RGB fills (matching user's file exactly)
         dot_colors = {
             'green': PatternFill(start_color='00FF00', end_color='00FF00', fill_type='solid'),
             'yellow': PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid'),
@@ -5471,13 +5472,13 @@ async def export_to_excel(
             'blue': PatternFill(start_color='0000FF', end_color='0000FF', fill_type='solid'),
         }
         
-        # Font colors for readability (white text on dark backgrounds)
+        # Font colors for readability
         white_font = Font(color='FFFFFF', bold=True)
-        black_font = Font(color='000000')
+        white_font_normal = Font(color='FFFFFF')
         
-        # Result colors
+        # Result colors (matching user's file)
         hit_fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')  # Light green
-        miss_fill = PatternFill(start_color='FFB6C1', end_color='FFB6C1', fill_type='solid')  # Light red
+        miss_fill = PatternFill(start_color='FFB6C1', end_color='FFB6C1', fill_type='solid')  # Light pink
         
         # Header style
         header_font = Font(bold=True, color='FFFFFF')
@@ -5492,29 +5493,29 @@ async def export_to_excel(
             bottom=Side(style='thin')
         )
         
-        # Divider row fill (dark gray)
+        # Divider row fill (dark gray - same as header)
         divider_fill = PatternFill(start_color='2F4F4F', end_color='2F4F4F', fill_type='solid')
         
-        # AF column colors for 4-dot result
+        # 4-Dot Result colors (matching user's file exactly)
         over_fill = PatternFill(start_color='00FF00', end_color='00FF00', fill_type='solid')  # Green for OVER
         under_fill = PatternFill(start_color='EAB200', end_color='EAB200', fill_type='solid')  # Orange/Gold for UNDER
         no_bet_fill = PatternFill(start_color='0000FF', end_color='0000FF', fill_type='solid')  # Blue for NO BET
         
-        # Headers - extended with new columns X-AI
+        # Headers - columns A through AI (35 columns)
         headers = [
-            'Date', '#', 'Time', 
-            'Away PPG', 'Away L3', 'Away Dots', 'Away Team',
-            'Home PPG', 'Home L3', 'Home Dots', 'Home Team',
-            'Line', 'Final', 'Diff', 
-            'PPG Avg', 'Edge', 'Rec',
-            'Result', 'Edge Hit',
-            'Bet', 'Type', 'Bet Result', 'Record',
-            '',  # X - spacer
-            '', '', 'Away Dots', 'Away Team', '', '',  # Y, Z, AA, AB, AC, AD
-            '',  # AE - spacer
-            '4-Dot Result',  # AF
-            '',  # AG - spacer
-            '4-Dot Hit', '4-Dot Record'  # AH, AI
+            'Date', '#', 'Time',                                    # A, B, C
+            'Away PPG', 'Away L3', 'Away Dots', 'Away Team',        # D, E, F, G
+            'Home PPG', 'Home L3', 'Home Dots', 'Home Team',        # H, I, J, K
+            'Line', 'Final', 'Diff',                                 # L, M, N
+            'PPG Avg', 'Edge', 'Rec',                                # O, P, Q
+            'Result', 'Edge Hit',                                    # R, S
+            'Bet', 'Type', 'Bet Result', 'Record',                   # T, U, V, W
+            '',                                                      # X - spacer
+            '', '', 'Away Dots', 'Away Team', '', '',               # Y, Z, AA, AB, AC, AD
+            '',                                                      # AE - spacer
+            '4-Dot Result',                                          # AF
+            '',                                                      # AG - spacer
+            '4-Dot Hit', '4-Dot Record'                              # AH, AI
         ]
         
         # Write headers
@@ -5525,28 +5526,32 @@ async def export_to_excel(
             cell.alignment = center_align
             cell.border = thin_border
         
-        # Set column widths for new columns
-        ws.column_dimensions['X'].width = 2.5
-        ws.column_dimensions['Y'].width = 3
-        ws.column_dimensions['Z'].width = 3
-        ws.column_dimensions['AA'].width = 10
-        ws.column_dimensions['AB'].width = 12
-        ws.column_dimensions['AC'].width = 3
-        ws.column_dimensions['AD'].width = 3
-        ws.column_dimensions['AE'].width = 2.5
-        ws.column_dimensions['AF'].width = 12
-        ws.column_dimensions['AG'].width = 2.5
-        ws.column_dimensions['AH'].width = 10
-        ws.column_dimensions['AI'].width = 10
+        # Set column widths
+        col_widths = {
+            'A': 12, 'B': 4, 'C': 10,
+            'D': 10, 'E': 10, 'F': 8, 'G': 14,
+            'H': 10, 'I': 10, 'J': 8, 'K': 14,
+            'L': 8, 'M': 8, 'N': 8,
+            'O': 10, 'P': 8, 'Q': 10,
+            'R': 10, 'S': 10,
+            'T': 6, 'U': 10, 'V': 12, 'W': 10,
+            'X': 2.5,
+            'Y': 3, 'Z': 3, 'AA': 10, 'AB': 14, 'AC': 3, 'AD': 3,
+            'AE': 2.5,
+            'AF': 12,
+            'AG': 2.5,
+            'AH': 10, 'AI': 12
+        }
+        for col_letter, width in col_widths.items():
+            ws.column_dimensions[col_letter].width = width
         
         row_num = 2
         prev_date = None
         four_dot_wins = 0
         four_dot_losses = 0
         
-        # Helper to get color from dot emoji
+        # Helper to get color name from dot emoji
         def get_color_from_emoji(emoji):
-            """Get fill color from dot emoji"""
             if emoji == '🟢':
                 return 'green'
             elif emoji == '🟡':
@@ -5557,9 +5562,8 @@ async def export_to_excel(
                 return 'blue'
             return None
         
-        # Helper to parse dots string and get colors for each position
+        # Helper to parse dots string
         def parse_dots_to_colors(dots_str):
-            """Parse dot emoji string (e.g., '🔴🔵') to list of colors"""
             colors = []
             if not dots_str:
                 return [None, None]
@@ -5567,10 +5571,48 @@ async def export_to_excel(
                 color = get_color_from_emoji(char)
                 if color:
                     colors.append(color)
-            # Pad with None if less than 2 colors
             while len(colors) < 2:
                 colors.append(None)
             return colors
+        
+        # 4-DOT LOGIC (verified against user's Excel file):
+        # 1. If GREEN + BLUE >= 3: OVER
+        # 2. If RED + YELLOW >= 3: UNDER
+        # 3. In exact 2-2 ties:
+        #    a. If GREEN >= 2 AND at least one GREEN on AWAY team: OVER
+        #    b. If YELLOW >= 2 AND BLUE >= 2 (no GREEN, no RED): UNDER
+        #    c. Otherwise: NO BET
+        def calculate_4dot_result(away_colors, home_colors):
+            """Calculate 4-dot result using verified logic from user's Excel"""
+            all_colors = away_colors + home_colors
+            
+            green_count = all_colors.count('green')
+            blue_count = all_colors.count('blue')
+            red_count = all_colors.count('red')
+            yellow_count = all_colors.count('yellow')
+            
+            over_score = green_count + blue_count
+            under_score = red_count + yellow_count
+            
+            # Rule 1: >= 3 in either direction wins
+            if over_score >= 3:
+                return 'OVER'
+            if under_score >= 3:
+                return 'UNDER'
+            
+            # Rule 2: Handle 2-2 ties
+            away_green = away_colors.count('green')
+            
+            # 2a: GREEN >= 2 AND at least one on away team = OVER
+            if green_count >= 2 and away_green >= 1:
+                return 'OVER'
+            
+            # 2b: YELLOW >= 2 AND BLUE >= 2 with no GREEN and no RED = UNDER
+            if yellow_count >= 2 and blue_count >= 2 and green_count == 0 and red_count == 0:
+                return 'UNDER'
+            
+            # 2c: Everything else is NO BET
+            return 'NO BET'
         
         # Process each date
         for date in dates:
@@ -5580,8 +5622,7 @@ async def export_to_excel(
             
             # Add divider row between dates
             if prev_date is not None and prev_date != date:
-                # Insert divider row
-                for col in range(1, 36):  # A to AI
+                for col in range(1, 36):  # A to AI (35 columns)
                     cell = ws.cell(row=row_num, column=col)
                     cell.fill = divider_fill
                 row_num += 1
@@ -5596,7 +5637,7 @@ async def export_to_excel(
                 home_ppg_rank = game.get('home_ppg_rank', '')
                 home_last3_rank = game.get('home_last3_rank', '')
                 
-                # Get dots as string and parse colors
+                # Get dots and parse colors
                 away_dots_str = game.get('away_dots', '')
                 home_dots_str = game.get('home_dots', '')
                 away_colors = parse_dots_to_colors(away_dots_str)
@@ -5608,9 +5649,8 @@ async def export_to_excel(
                 diff = ''
                 if final_score and line:
                     try:
-                        diff = round(float(final_score) - float(line), 1)
-                        if diff > 0:
-                            diff = f"+{diff}"
+                        diff_val = round(float(final_score) - float(line), 1)
+                        diff = f"+{diff_val}" if diff_val > 0 else str(diff_val)
                     except:
                         pass
                 
@@ -5621,13 +5661,12 @@ async def export_to_excel(
                 elif game.get('edge_hit') == False or game.get('result_hit') == False:
                     edge_hit = 'MISS'
                 
-                # Determine bet result based on user_bet_hit (most accurate)
+                # Determine bet result
                 bet_result = ''
                 bet_type_display = game.get('bet_type', '')
                 if game.get('user_bet') or game.get('has_bet'):
-                    # Handle multiple bets on same game
                     if game.get('multiple_bets') and game.get('bet_results'):
-                        bet_type_display = 'O+U'  # Both OVER and UNDER
+                        bet_type_display = 'O+U'
                         wins = game['bet_results'].count('won')
                         losses = game['bet_results'].count('lost')
                         bet_result = f"{wins}W-{losses}L"
@@ -5636,40 +5675,12 @@ async def export_to_excel(
                     elif game.get('user_bet_hit') == False:
                         bet_result = 'lost'
                     else:
-                        # Fall back to bet_result field
                         bet_result = game.get('bet_result', '')
                 
-                # Calculate 4-dot result (personalized bet recommendation based on all 4 dots)
-                def calculate_4dot_result(away_c, home_c):
-                    """
-                    Calculate bet recommendation based on 4 dots:
-                    - Green/Blue (good offense or bad defense) = OVER tendency
-                    - Red/Yellow (bad offense or good defense) = UNDER tendency
-                    - Count total and decide
-                    """
-                    over_count = 0
-                    under_count = 0
-                    for c in [away_c[0], away_c[1] if len(away_c) > 1 else None, 
-                              home_c[0], home_c[1] if len(home_c) > 1 else None]:
-                        if c == 'green':
-                            over_count += 1
-                        elif c == 'blue':
-                            over_count += 0.5  # Blue is weak over
-                        elif c == 'red':
-                            under_count += 0.5  # Red is weak under
-                        elif c == 'yellow':
-                            under_count += 1
-                    
-                    if over_count > under_count + 0.5:
-                        return 'OVER'
-                    elif under_count > over_count + 0.5:
-                        return 'UNDER'
-                    else:
-                        return 'NO BET'
-                
+                # Calculate 4-dot result
                 four_dot_result = calculate_4dot_result(away_colors, home_colors)
                 
-                # Calculate 4-dot hit (does the 4-dot recommendation match the actual result?)
+                # Calculate 4-dot hit
                 four_dot_hit = ''
                 actual_result = game.get('actual_result', '')
                 if four_dot_result in ['OVER', 'UNDER'] and actual_result:
@@ -5680,136 +5691,116 @@ async def export_to_excel(
                         four_dot_hit = 'MISS'
                         four_dot_losses += 1
                 
-                four_dot_record = f"{four_dot_wins}-{four_dot_losses}" if four_dot_result != 'NO BET' else ''
+                # 4-dot record only shown when not NO BET and has a hit/miss
+                four_dot_record = ''
+                if four_dot_result != 'NO BET' and four_dot_hit:
+                    four_dot_record = f"{four_dot_wins}-{four_dot_losses}"
                 
-                # Write row data (columns A-W + X-AI)
+                # Build row data (35 columns: A-AI)
                 row_data = [
-                    date,
-                    idx,
-                    game.get('time', ''),
-                    away_ppg_rank,
-                    away_last3_rank,
-                    away_dots_str,
-                    game.get('away_team', game.get('away', '')),
-                    home_ppg_rank,
-                    home_last3_rank,
-                    home_dots_str,
-                    game.get('home_team', game.get('home', '')),
-                    line,
-                    final_score,
-                    diff,
-                    game.get('combined_ppg', game.get('ppg_avg', '')),
-                    game.get('edge', ''),
-                    game.get('recommendation', ''),
-                    actual_result,
-                    edge_hit,
-                    '💰💰' if game.get('multiple_bets') else ('💰' if game.get('user_bet') or game.get('has_bet') else ''),
-                    bet_type_display,
-                    bet_result,
-                    '',  # W - Record placeholder
-                    '',  # X - spacer
-                    '',  # Y - Away dot 1 (colored cell)
-                    '',  # Z - Away dot 2 (colored cell)
-                    away_dots_str,  # AA - Away Dots
-                    game.get('away_team', game.get('away', '')),  # AB - Away Team
-                    '',  # AC - Home dot 1 (colored cell)
-                    '',  # AD - Home dot 2 (colored cell)
-                    '',  # AE - spacer
-                    four_dot_result,  # AF - 4-Dot Result
-                    '',  # AG - spacer
-                    four_dot_hit,  # AH - 4-Dot Hit
-                    four_dot_record  # AI - 4-Dot Record
+                    date,                                                    # A - Date
+                    idx,                                                     # B - #
+                    game.get('time', ''),                                    # C - Time
+                    away_ppg_rank,                                           # D - Away PPG
+                    away_last3_rank,                                         # E - Away L3
+                    away_dots_str,                                           # F - Away Dots
+                    game.get('away_team', game.get('away', '')),             # G - Away Team
+                    home_ppg_rank,                                           # H - Home PPG
+                    home_last3_rank,                                         # I - Home L3
+                    home_dots_str,                                           # J - Home Dots
+                    game.get('home_team', game.get('home', '')),             # K - Home Team
+                    line,                                                    # L - Line
+                    final_score,                                             # M - Final
+                    diff,                                                    # N - Diff
+                    game.get('combined_ppg', game.get('ppg_avg', '')),       # O - PPG Avg
+                    game.get('edge', ''),                                    # P - Edge
+                    game.get('recommendation', ''),                          # Q - Rec
+                    actual_result,                                           # R - Result
+                    edge_hit,                                                # S - Edge Hit
+                    '💰' if game.get('user_bet') or game.get('has_bet') else '',  # T - Bet
+                    bet_type_display,                                        # U - Type
+                    bet_result,                                              # V - Bet Result
+                    '',                                                      # W - Record (placeholder)
+                    '',                                                      # X - spacer
+                    '',                                                      # Y - Away dot 1 color
+                    '',                                                      # Z - Away dot 2 color
+                    away_dots_str,                                           # AA - Away Dots
+                    game.get('away_team', game.get('away', '')),             # AB - Away Team
+                    '',                                                      # AC - Home dot 1 color
+                    '',                                                      # AD - Home dot 2 color
+                    '',                                                      # AE - spacer
+                    four_dot_result,                                         # AF - 4-Dot Result
+                    '',                                                      # AG - spacer
+                    four_dot_hit,                                            # AH - 4-Dot Hit
+                    four_dot_record                                          # AI - 4-Dot Record
                 ]
                 
+                # Write row data
                 for col, value in enumerate(row_data, 1):
                     cell = ws.cell(row=row_num, column=col, value=value)
                     cell.alignment = center_align
                     cell.border = thin_border
                     
-                    # Apply colors to ranking columns based on dot emojis
-                    # Column 4: Away PPG Rank - use first dot color
-                    if col == 4 and away_colors[0] and away_colors[0] in dot_colors:
+                    # Apply colors to ranking columns (D, E, H, I)
+                    if col == 4 and away_colors[0] in dot_colors:  # D - Away PPG
                         cell.fill = dot_colors[away_colors[0]]
-                        # White text for blue and red backgrounds
                         if away_colors[0] in ['blue', 'red']:
                             cell.font = white_font
-                    # Column 5: Away Last 3 Rank - use second dot color
-                    elif col == 5 and len(away_colors) > 1 and away_colors[1] and away_colors[1] in dot_colors:
+                    elif col == 5 and away_colors[1] and away_colors[1] in dot_colors:  # E - Away L3
                         cell.fill = dot_colors[away_colors[1]]
                         if away_colors[1] in ['blue', 'red']:
                             cell.font = white_font
-                    # Column 8: Home PPG Rank - use first dot color
-                    elif col == 8 and home_colors[0] and home_colors[0] in dot_colors:
+                    elif col == 8 and home_colors[0] in dot_colors:  # H - Home PPG
                         cell.fill = dot_colors[home_colors[0]]
                         if home_colors[0] in ['blue', 'red']:
                             cell.font = white_font
-                    # Column 9: Home Last 3 Rank - use second dot color
-                    elif col == 9 and len(home_colors) > 1 and home_colors[1] and home_colors[1] in dot_colors:
+                    elif col == 9 and home_colors[1] and home_colors[1] in dot_colors:  # I - Home L3
                         cell.fill = dot_colors[home_colors[1]]
                         if home_colors[1] in ['blue', 'red']:
                             cell.font = white_font
                     
-                    # Apply edge hit colors
-                    if col == 19:  # Edge Hit column
+                    # Edge Hit colors (S - col 19)
+                    elif col == 19:
                         if value == 'HIT':
                             cell.fill = hit_fill
                         elif value == 'MISS':
                             cell.fill = miss_fill
                     
-                    # Apply bet result colors
-                    if col == 22:  # Bet Result column
+                    # Bet Result colors (V - col 22)
+                    elif col == 22:
                         if value == 'won':
                             cell.fill = hit_fill
                         elif value == 'lost':
                             cell.fill = miss_fill
                     
-                    # Column Y (25): Away dot 1 color
-                    if col == 25 and away_colors[0] and away_colors[0] in dot_colors:
+                    # Color cells for dot visualization (Y, Z, AC, AD)
+                    elif col == 25 and away_colors[0] in dot_colors:  # Y - Away dot 1
                         cell.fill = dot_colors[away_colors[0]]
-                    # Column Z (26): Away dot 2 color
-                    elif col == 26 and len(away_colors) > 1 and away_colors[1] and away_colors[1] in dot_colors:
+                    elif col == 26 and away_colors[1] and away_colors[1] in dot_colors:  # Z - Away dot 2
                         cell.fill = dot_colors[away_colors[1]]
-                    # Column AC (29): Home dot 1 color
-                    elif col == 29 and home_colors[0] and home_colors[0] in dot_colors:
+                    elif col == 29 and home_colors[0] in dot_colors:  # AC - Home dot 1
                         cell.fill = dot_colors[home_colors[0]]
-                    # Column AD (30): Home dot 2 color
-                    elif col == 30 and len(home_colors) > 1 and home_colors[1] and home_colors[1] in dot_colors:
+                    elif col == 30 and home_colors[1] and home_colors[1] in dot_colors:  # AD - Home dot 2
                         cell.fill = dot_colors[home_colors[1]]
                     
-                    # Column AF (32): 4-Dot Result color
-                    if col == 32:
+                    # 4-Dot Result colors (AF - col 32)
+                    elif col == 32:
                         if value == 'OVER':
                             cell.fill = over_fill
                         elif value == 'UNDER':
                             cell.fill = under_fill
                         elif value == 'NO BET':
                             cell.fill = no_bet_fill
-                            cell.font = white_font
+                            cell.font = white_font_normal
                     
-                    # Column AH (34): 4-Dot Hit color
-                    if col == 34:
+                    # 4-Dot Hit colors (AH - col 34)
+                    elif col == 34:
                         if value == 'HIT':
                             cell.fill = hit_fill
                         elif value == 'MISS':
                             cell.fill = miss_fill
                 
                 row_num += 1
-        
-        # Add divider rows between dates
-        # (We need to do this after writing all data, so let's skip for now and just auto-adjust widths)
-        
-        # Auto-adjust column widths
-        for col in range(1, len(headers) + 1):
-            max_length = 0
-            column = get_column_letter(col)
-            for cell in ws[column]:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = min(max_length + 2, 20)
-            ws.column_dimensions[column].width = adjusted_width
         
         # Save to buffer
         buffer = io.BytesIO()
