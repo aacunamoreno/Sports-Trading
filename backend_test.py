@@ -1982,21 +1982,27 @@ class BettingSystemAPITester:
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
-        print("BETBOT EXCEL EXPORT TESTING")
+        print("NCAAB API TESTING - December 29, 2025")
         print("=" * 60)
         print(f"Testing API: {self.api_url}")
         print()
         
-        # Run Excel Export Tests (primary focus for this review)
+        # Run NCAAB Tests (primary focus for this review)
+        ncaab_success = self.test_ncaab_opportunities_tomorrow()
+        
+        # Run Excel Export Tests (secondary)
+        print("\n" + "=" * 60)
+        print("EXCEL EXPORT FUNCTIONALITY TESTING")
+        print("=" * 60)
         excel_success = self.test_excel_export_functionality()
         
-        # Run Process #6 Implementation Tests (secondary)
+        # Run Process #6 Implementation Tests (tertiary)
         print("\n" + "=" * 60)
         print("PROCESS #6 - UPDATE RECORDS TESTING")
         print("=" * 60)
         process_6_success = self.test_process_6_implementation()
         
-        # Run Historical Data Verification (tertiary)
+        # Run Historical Data Verification (quaternary)
         print("\n" + "=" * 60)
         print("HISTORICAL DATA VERIFICATION - 12/22/2025 to 12/27/2025")
         print("=" * 60)
@@ -2013,6 +2019,7 @@ class BettingSystemAPITester:
         print(f"Success Rate: {(self.tests_passed/self.tests_run)*100:.1f}%")
         
         print("\n📊 RESULTS BY CATEGORY:")
+        print(f"NCAAB API Testing: {'✅ PASSED' if ncaab_success else '❌ FAILED'}")
         print(f"Excel Export Functionality: {'✅ PASSED' if excel_success else '❌ FAILED'}")
         print(f"Process #6 Implementation: {'✅ PASSED' if process_6_success else '❌ FAILED'}")
         print(f"Historical Data Verification: {'✅ PASSED' if historical_success else '❌ FAILED'}")
