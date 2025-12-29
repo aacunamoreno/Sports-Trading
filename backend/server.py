@@ -5492,7 +5492,15 @@ async def export_to_excel(
             bottom=Side(style='thin')
         )
         
-        # Headers - match the UI format with PPG Rank and Last 3 Rank for each team
+        # Divider row fill (dark gray)
+        divider_fill = PatternFill(start_color='2F4F4F', end_color='2F4F4F', fill_type='solid')
+        
+        # AF column colors for 4-dot result
+        over_fill = PatternFill(start_color='00FF00', end_color='00FF00', fill_type='solid')  # Green for OVER
+        under_fill = PatternFill(start_color='EAB200', end_color='EAB200', fill_type='solid')  # Orange/Gold for UNDER
+        no_bet_fill = PatternFill(start_color='0000FF', end_color='0000FF', fill_type='solid')  # Blue for NO BET
+        
+        # Headers - extended with new columns X-AI
         headers = [
             'Date', '#', 'Time', 
             'Away PPG', 'Away L3', 'Away Dots', 'Away Team',
@@ -5500,7 +5508,13 @@ async def export_to_excel(
             'Line', 'Final', 'Diff', 
             'PPG Avg', 'Edge', 'Rec',
             'Result', 'Edge Hit',
-            'Bet', 'Type', 'Bet Result'
+            'Bet', 'Type', 'Bet Result', 'Record',
+            '',  # X - spacer
+            '', '', 'Away Dots', 'Away Team', '', '',  # Y, Z, AA, AB, AC, AD
+            '',  # AE - spacer
+            '4-Dot Result',  # AF
+            '',  # AG - spacer
+            '4-Dot Hit', '4-Dot Record'  # AH, AI
         ]
         
         # Write headers
@@ -5511,7 +5525,24 @@ async def export_to_excel(
             cell.alignment = center_align
             cell.border = thin_border
         
+        # Set column widths for new columns
+        ws.column_dimensions['X'].width = 2.5
+        ws.column_dimensions['Y'].width = 3
+        ws.column_dimensions['Z'].width = 3
+        ws.column_dimensions['AA'].width = 10
+        ws.column_dimensions['AB'].width = 12
+        ws.column_dimensions['AC'].width = 3
+        ws.column_dimensions['AD'].width = 3
+        ws.column_dimensions['AE'].width = 2.5
+        ws.column_dimensions['AF'].width = 12
+        ws.column_dimensions['AG'].width = 2.5
+        ws.column_dimensions['AH'].width = 10
+        ws.column_dimensions['AI'].width = 10
+        
         row_num = 2
+        prev_date = None
+        four_dot_wins = 0
+        four_dot_losses = 0
         
         # Helper to get color from dot emoji
         def get_color_from_emoji(emoji):
