@@ -11,7 +11,7 @@ from datetime import datetime
 
 def test_nhl_opportunities_tomorrow():
     """Test GET /api/opportunities/nhl?day=tomorrow - verify all 13 NHL games have correct totals for Dec 27, 2025"""
-    base_url = "https://betedge-14.preview.emergentagent.com"
+    base_url = "https://gameday-edge-3.preview.emergentagent.com"
     api_url = f"{base_url}/api"
     
     print("🏒 Testing NHL Opportunities API for Tomorrow (December 27, 2025)")

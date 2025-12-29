@@ -109,7 +109,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     
     // Get the API URL from storage and send to backend
     chrome.storage.local.get(['apiUrl'], function(result) {
-      var apiUrl = result.apiUrl || 'https://betedge-14.preview.emergentagent.com';
+      var apiUrl = result.apiUrl || 'https://gameday-edge-3.preview.emergentagent.com';
       console.log('Using API URL:', apiUrl);
       
       var payload = {
