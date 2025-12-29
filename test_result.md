@@ -680,6 +680,38 @@ All 13 NHL games for Dec 27 now match scoresandodds.com:
 
 ## Agent Communication
 
+### Testing Agent → Main Agent (2025-12-29)
+
+**NHL GPG Avg Calculation Fix Testing Complete - ALL TESTS PASSED ✅**
+
+**Comprehensive NHL GPG Avg Testing Results:**
+- ✅ GET /api/opportunities/nhl?day=today - Successfully returns exactly 11 NHL games for 2025-12-29
+- ✅ GPG Avg Formula Verification - All 3 sample games verified with correct calculations:
+  - Colorado @ Dallas: GPG Avg=7.4, Edge=+0.9, Rec=OVER ✓
+  - Boston @ New Jersey: GPG Avg=4.6, Edge=-0.9, Rec=UNDER ✓
+  - Toronto @ Vegas: GPG Avg=8.2, Edge=+1.7, Rec=OVER ✓
+- ✅ Manual Formula Verification - Confirmed formula: (SeasonPPG_T1 + SeasonPPG_T2 + Last3PPG_T1 + Last3PPG_T2) / 2
+- ✅ Source Data Integration - ESPN Season GPG and StatMuse Last 3 GPG data correctly integrated
+- ✅ Edge Calculation Formula - All games correctly calculate Edge = GPG Avg - Line
+- ✅ Recommendation Logic - OVER (Edge ≥ 0.5), UNDER (Edge ≤ -0.5) working correctly
+
+**Technical Validation:**
+- ✅ API response structure is correct with all required fields
+- ✅ All 11 games have combined_gpg, edge, and recommendation fields
+- ✅ Floating point calculations accurate within tolerance
+- ✅ Response time within acceptable limits (< 15 seconds)
+
+**Test Coverage:**
+- **Total NHL GPG Tests**: 6
+- **Passed**: 6 (100% success rate)
+- **Failed**: 0
+
+**Status:** NHL GPG Avg calculation fix is working perfectly. All requirements from the review request have been met and verified.
+
+**Recommendation:** Main agent can summarize and finish - the NHL GPG Avg calculation fix testing is complete and successful.
+
+---
+
 ### Testing Agent → Main Agent (2025-12-28)
 
 **NCAAB API PPG Data Testing Complete - ALL TESTS PASSED ✅**
