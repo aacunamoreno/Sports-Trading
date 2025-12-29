@@ -670,23 +670,42 @@ export default function Opportunities() {
                           <span className="font-medium">{game.home_team}</span>
                         </div>
                       </td>
+                      {/* Opening Line column - only for non-historical */}
+                      {!isHistorical && (
+                        <td className={`py-3 px-2 text-center font-mono text-muted-foreground`}>
+                          {game.opening_line || game.total || '-'}
+                        </td>
+                      )}
+                      {/* Current/Live Line column */}
                       <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
-                        {game.total ? (
-                          <div className="flex flex-col">
-                            {/* Current line */}
-                            <span>{game.total}</span>
-                            {/* Opening line in gray (if available) */}
-                            {game.opening_line && game.opening_line !== game.total && (
-                              <span className="text-xs text-gray-500">({game.opening_line})</span>
-                            )}
-                            {/* Show bet-time line if user bet on this game */}
-                            {game.user_bet && game.bet_line && (
-                              <span className="text-xs text-yellow-400 font-bold" title="Line when bet was placed">
-                                🎯 {game.bet_line}
+                        {(() => {
+                          // For non-historical: show live_line if available, otherwise total/opening_line
+                          const currentLine = game.live_line || game.total || game.opening_line;
+                          const openingLine = game.opening_line || game.total;
+                          const lineMovement = currentLine && openingLine ? currentLine - openingLine : 0;
+                          
+                          if (!currentLine) return <span className="text-gray-500 text-xs">NO LINE</span>;
+                          
+                          return (
+                            <div className="flex flex-col">
+                              {/* Current line with movement indicator */}
+                              <span className={lineMovement !== 0 ? (lineMovement > 0 ? 'text-green-400' : 'text-red-400') : ''}>
+                                {currentLine}
+                                {!isHistorical && lineMovement !== 0 && (
+                                  <span className="text-xs ml-1">
+                                    {lineMovement > 0 ? '↑' : '↓'}
+                                  </span>
+                                )}
                               </span>
-                            )}
-                          </div>
-                        ) : <span className="text-gray-500 text-xs">NO LINE</span>}
+                              {/* Show bet-time line if user bet on this game */}
+                              {game.user_bet && game.bet_line && (
+                                <span className="text-xs text-yellow-400 font-bold" title="Line when bet was placed">
+                                  🎯 {game.bet_line}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       {isHistorical && (
                         <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
