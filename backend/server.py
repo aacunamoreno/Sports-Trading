@@ -3120,6 +3120,121 @@ async def watchdog_check():
         last_check_time = datetime.now(timezone.utc)
 
 
+
+async def update_opportunity_with_bet(sport: str, game: str, bet_type: str, bet_line: float, ticket_num: str, account: str):
+    """
+    #3.75 BET LINE CAPTURE: Update opportunities collection when a bet is placed.
+    This ensures the bet_line is stored with the game for display in 'Today's Plays'.
+    """
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    
+    try:
+        # Determine league from sport code
+        league_map = {
+            'NBA': 'nba_opportunities',
+            'NHL': 'nhl_opportunities',
+            'NFL': 'nfl_opportunities',
+            'CBB': 'ncaab_opportunities',
+            'NCAAB': 'ncaab_opportunities',
+        }
+        
+        # Try to match sport to collection
+        collection_name = None
+        for key, value in league_map.items():
+            if key.upper() in sport.upper():
+                collection_name = value
+                break
+        
+        if not collection_name:
+            logger.warning(f"Could not determine league for sport: {sport}")
+            return
+        
+        collection = db[collection_name]
+        
+        # Get today's document
+        doc = await collection.find_one({"date": today})
+        if not doc or not doc.get('games'):
+            logger.warning(f"No {collection_name} data for {today}")
+            return
+        
+        games = doc.get('games', [])
+        plays = doc.get('plays', [])
+        updated = False
+        
+        # Normalize game name for matching (e.g., "Milwaukee @ Charlotte" or "MILWAUKEE")
+        game_lower = game.lower()
+        
+        # Find the matching game
+        for g in games:
+            away = g.get('away_team', g.get('away', '')).lower()
+            home = g.get('home_team', g.get('home', '')).lower()
+            
+            # Check if game matches (partial match is ok)
+            if away in game_lower or home in game_lower or game_lower in f"{away} @ {home}":
+                # Update game with bet info
+                g['has_bet'] = True
+                g['bet_slip_id'] = ticket_num
+                g['bet_account'] = account
+                
+                # #3.75: Store the bet line (line at which bet was placed)
+                if bet_line:
+                    g['bet_line'] = bet_line
+                    logger.info(f"Stored bet_line={bet_line} for {away} @ {home}")
+                
+                # Determine bet type (OVER/UNDER)
+                if 'over' in bet_type.lower() or bet_type.lower().startswith('o'):
+                    g['bet_type'] = 'OVER'
+                elif 'under' in bet_type.lower() or bet_type.lower().startswith('u'):
+                    g['bet_type'] = 'UNDER'
+                else:
+                    g['bet_type'] = bet_type
+                
+                updated = True
+                logger.info(f"Updated opportunity {away} @ {home} with bet info: has_bet=True, bet_line={bet_line}")
+                
+                # Also update/add to plays list
+                play_exists = False
+                for p in plays:
+                    if away in p.get('game', '').lower() or home in p.get('game', '').lower():
+                        p['has_bet'] = True
+                        p['bet_line'] = bet_line
+                        p['bet_type'] = g['bet_type']
+                        play_exists = True
+                        break
+                
+                if not play_exists:
+                    # Add new play entry
+                    plays.append({
+                        "game": f"{g.get('away_team', g.get('away'))} @ {g.get('home_team', g.get('home'))}",
+                        "total": g.get('total', g.get('live_line', g.get('opening_line'))),
+                        "bet_line": bet_line,
+                        "combined_ppg": g.get('combined_ppg', g.get('gpg_avg')),
+                        "edge": g.get('edge'),
+                        "recommendation": g.get('recommendation', g['bet_type']),
+                        "has_bet": True,
+                        "bet_type": g['bet_type'],
+                        "bet_count": 1
+                    })
+                
+                break
+        
+        if updated:
+            # Save back to database
+            await collection.update_one(
+                {"date": today},
+                {"$set": {"games": games, "plays": plays}}
+            )
+            logger.info(f"Saved bet info to {collection_name} for {today}")
+        else:
+            logger.warning(f"Could not find matching game for: {game}")
+            
+    except Exception as e:
+        logger.error(f"Error updating opportunity with bet: {str(e)}")
+
+
+
 async def monitor_open_bets():
     """Background job to monitor plays888.co for new bets"""
     global monitoring_enabled
