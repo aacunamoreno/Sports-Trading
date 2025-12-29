@@ -7679,6 +7679,344 @@ async def add_ncaab_manual_data(data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/opportunities/nba/manual")
+async def add_nba_manual_data(data: dict):
+    """
+    Manually add NBA games data when scraping is blocked.
+    
+    Expected payload:
+    {
+        "date": "2025-12-29",
+        "ppg_data": [
+            {"rank": 1, "team": "Denver Nuggets", "ppg": 125.8, "last3": 132.7},
+            ...
+        ],
+        "games": [
+            {"away": "Team A", "home": "Team B", "total": 227.5, "time": "7:00 PM"},
+            ...
+        ]
+    }
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        target_date = data.get('date') or datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        ppg_list = data.get('ppg_data', [])
+        games_list = data.get('games', [])
+        
+        logger.info(f"Manual NBA data entry for {target_date}: {len(ppg_list)} teams, {len(games_list)} games")
+        
+        # Build PPG lookup dictionaries
+        ppg_data = {
+            'season_ranks': {},
+            'season_values': {},
+            'last3_ranks': {},
+            'last3_values': {}
+        }
+        
+        for item in ppg_list:
+            team = item.get('team', '')
+            if team:
+                ppg_data['season_ranks'][team] = item.get('rank')
+                ppg_data['season_values'][team] = item.get('ppg')
+                ppg_data['last3_values'][team] = item.get('last3')
+        
+        # Create Last3 ranks based on values
+        last3_sorted = sorted(ppg_data['last3_values'].items(), key=lambda x: x[1] if x[1] else 0, reverse=True)
+        for i, (team, _) in enumerate(last3_sorted, 1):
+            ppg_data['last3_ranks'][team] = i
+        
+        # NBA dot colors (30 teams, divided into 4 groups of ~8)
+        def get_nba_dot_color(rank):
+            if rank is None:
+                return '🔵'
+            if rank <= 8:
+                return '🟢'
+            elif rank <= 16:
+                return '🔵'
+            elif rank <= 24:
+                return '🟡'
+            else:
+                return '🔴'
+        
+        # Process games
+        processed_games = []
+        
+        for game in games_list:
+            away_team = game.get('away', '')
+            home_team = game.get('home', '')
+            line = game.get('total')
+            
+            # Get PPG data (with fuzzy matching)
+            def find_team(team_name, data_dict):
+                if not team_name:
+                    return None
+                if team_name in data_dict:
+                    return data_dict[team_name]
+                team_lower = team_name.lower()
+                for k, v in data_dict.items():
+                    if k.lower() == team_lower or team_lower in k.lower() or k.lower() in team_lower:
+                        return v
+                return None
+            
+            away_ppg_rank = find_team(away_team, ppg_data['season_ranks'])
+            away_ppg_value = find_team(away_team, ppg_data['season_values'])
+            away_last3_rank = find_team(away_team, ppg_data['last3_ranks'])
+            away_last3_value = find_team(away_team, ppg_data['last3_values'])
+            
+            home_ppg_rank = find_team(home_team, ppg_data['season_ranks'])
+            home_ppg_value = find_team(home_team, ppg_data['season_values'])
+            home_last3_rank = find_team(home_team, ppg_data['last3_ranks'])
+            home_last3_value = find_team(home_team, ppg_data['last3_values'])
+            
+            # Calculate combined PPG (NBA formula: avg of all 4 values / 2)
+            combined_ppg = None
+            if away_ppg_value and home_ppg_value and away_last3_value and home_last3_value:
+                combined_ppg = round((away_ppg_value + home_ppg_value + away_last3_value + home_last3_value) / 2, 1)
+            elif away_ppg_value and home_ppg_value:
+                combined_ppg = round(away_ppg_value + home_ppg_value, 1)
+            
+            edge = None
+            if combined_ppg and line:
+                try:
+                    edge = round(combined_ppg - float(line), 1)
+                except:
+                    pass
+            
+            recommendation = ''
+            if edge is not None:
+                if edge >= 5:
+                    recommendation = 'OVER'
+                elif edge <= -5:
+                    recommendation = 'UNDER'
+            
+            away_dots = get_nba_dot_color(away_ppg_rank) + get_nba_dot_color(away_last3_rank)
+            home_dots = get_nba_dot_color(home_ppg_rank) + get_nba_dot_color(home_last3_rank)
+            
+            processed_games.append({
+                'away': away_team,
+                'home': home_team,
+                'away_team': away_team,
+                'home_team': home_team,
+                'time': game.get('time', ''),
+                'total': line,
+                'opening_line': line,
+                'away_ppg_rank': away_ppg_rank,
+                'away_ppg_value': away_ppg_value,
+                'away_last3_rank': away_last3_rank,
+                'away_last3_value': away_last3_value,
+                'home_ppg_rank': home_ppg_rank,
+                'home_ppg_value': home_ppg_value,
+                'home_last3_rank': home_last3_rank,
+                'home_last3_value': home_last3_value,
+                'combined_ppg': combined_ppg,
+                'edge': edge,
+                'recommendation': recommendation,
+                'away_dots': away_dots,
+                'home_dots': home_dots
+            })
+        
+        # Save to database
+        doc = {
+            "date": target_date,
+            "games": processed_games,
+            "plays": [],
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+            "data_source": "manual"
+        }
+        
+        await db.nba_opportunities.replace_one(
+            {"date": target_date},
+            doc,
+            upsert=True
+        )
+        
+        return {
+            "success": True,
+            "date": target_date,
+            "games_count": len(processed_games),
+            "ppg_teams": len(ppg_data['season_values']),
+            "games": processed_games,
+            "message": f"Manually added {len(processed_games)} NBA games for {target_date}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error adding manual NBA data: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/opportunities/nhl/manual")
+async def add_nhl_manual_data(data: dict):
+    """
+    Manually add NHL games data when scraping is blocked.
+    
+    Expected payload:
+    {
+        "date": "2025-12-29",
+        "gpg_data": [
+            {"rank": 1, "team": "New Jersey Devils", "gpg": 3.97, "last3": 4.0},
+            ...
+        ],
+        "games": [
+            {"away": "Team A", "home": "Team B", "total": 6.5, "time": "7:00 PM"},
+            ...
+        ]
+    }
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        target_date = data.get('date') or datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        gpg_list = data.get('gpg_data', [])
+        games_list = data.get('games', [])
+        
+        logger.info(f"Manual NHL data entry for {target_date}: {len(gpg_list)} teams, {len(games_list)} games")
+        
+        # Build GPG lookup dictionaries
+        gpg_data = {
+            'season_ranks': {},
+            'season_values': {},
+            'last3_ranks': {},
+            'last3_values': {}
+        }
+        
+        for item in gpg_list:
+            team = item.get('team', '')
+            if team:
+                gpg_data['season_ranks'][team] = item.get('rank')
+                gpg_data['season_values'][team] = item.get('gpg')
+                gpg_data['last3_values'][team] = item.get('last3')
+        
+        # Create Last3 ranks based on values
+        last3_sorted = sorted(gpg_data['last3_values'].items(), key=lambda x: x[1] if x[1] else 0, reverse=True)
+        for i, (team, _) in enumerate(last3_sorted, 1):
+            gpg_data['last3_ranks'][team] = i
+        
+        # NHL dot colors (32 teams, divided into 4 groups of 8)
+        def get_nhl_dot_color(rank):
+            if rank is None:
+                return '🔵'
+            if rank <= 8:
+                return '🟢'
+            elif rank <= 16:
+                return '🔵'
+            elif rank <= 24:
+                return '🟡'
+            else:
+                return '🔴'
+        
+        # Process games
+        processed_games = []
+        
+        for game in games_list:
+            away_team = game.get('away', '')
+            home_team = game.get('home', '')
+            line = game.get('total')
+            
+            # Get GPG data (with fuzzy matching)
+            def find_team(team_name, data_dict):
+                if not team_name:
+                    return None
+                if team_name in data_dict:
+                    return data_dict[team_name]
+                team_lower = team_name.lower()
+                for k, v in data_dict.items():
+                    if k.lower() == team_lower or team_lower in k.lower() or k.lower() in team_lower:
+                        return v
+                return None
+            
+            away_gpg_rank = find_team(away_team, gpg_data['season_ranks'])
+            away_gpg_value = find_team(away_team, gpg_data['season_values'])
+            away_last3_rank = find_team(away_team, gpg_data['last3_ranks'])
+            away_last3_value = find_team(away_team, gpg_data['last3_values'])
+            
+            home_gpg_rank = find_team(home_team, gpg_data['season_ranks'])
+            home_gpg_value = find_team(home_team, gpg_data['season_values'])
+            home_last3_rank = find_team(home_team, gpg_data['last3_ranks'])
+            home_last3_value = find_team(home_team, gpg_data['last3_values'])
+            
+            # Calculate combined GPG (NHL formula: avg of all 4 values / 2)
+            combined_gpg = None
+            if away_gpg_value and home_gpg_value and away_last3_value and home_last3_value:
+                combined_gpg = round((away_gpg_value + home_gpg_value + away_last3_value + home_last3_value) / 2, 1)
+            elif away_gpg_value and home_gpg_value:
+                combined_gpg = round(away_gpg_value + home_gpg_value, 1)
+            
+            edge = None
+            if combined_gpg and line:
+                try:
+                    edge = round(combined_gpg - float(line), 1)
+                except:
+                    pass
+            
+            recommendation = ''
+            if edge is not None:
+                if edge >= 0.5:
+                    recommendation = 'OVER'
+                elif edge <= -0.5:
+                    recommendation = 'UNDER'
+            
+            away_dots = get_nhl_dot_color(away_gpg_rank) + get_nhl_dot_color(away_last3_rank)
+            home_dots = get_nhl_dot_color(home_gpg_rank) + get_nhl_dot_color(home_last3_rank)
+            
+            processed_games.append({
+                'away': away_team,
+                'home': home_team,
+                'away_team': away_team,
+                'home_team': home_team,
+                'time': game.get('time', ''),
+                'total': line,
+                'opening_line': line,
+                'away_gpg_rank': away_gpg_rank,
+                'away_gpg_value': away_gpg_value,
+                'away_last3_rank': away_last3_rank,
+                'away_last3_value': away_last3_value,
+                'home_gpg_rank': home_gpg_rank,
+                'home_gpg_value': home_gpg_value,
+                'home_last3_rank': home_last3_rank,
+                'home_last3_value': home_last3_value,
+                'combined_gpg': combined_gpg,
+                'edge': edge,
+                'recommendation': recommendation,
+                'away_dots': away_dots,
+                'home_dots': home_dots
+            })
+        
+        # Save to database
+        doc = {
+            "date": target_date,
+            "games": processed_games,
+            "plays": [],
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+            "data_source": "manual"
+        }
+        
+        await db.nhl_opportunities.replace_one(
+            {"date": target_date},
+            doc,
+            upsert=True
+        )
+        
+        return {
+            "success": True,
+            "date": target_date,
+            "games_count": len(processed_games),
+            "gpg_teams": len(gpg_data['season_values']),
+            "games": processed_games,
+            "message": f"Manually added {len(processed_games)} NHL games for {target_date}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error adding manual NHL data: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ================= NFL OPPORTUNITIES =================
 
 @api_router.get("/opportunities/nfl")
