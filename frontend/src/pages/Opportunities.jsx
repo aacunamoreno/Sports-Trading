@@ -445,7 +445,16 @@ export default function Opportunities() {
                       <div>
                         <div className="font-bold">{play.game}</div>
                         <div className="text-sm text-muted-foreground">
-                          Line: {play.bet_line || play.total} | {config.combinedLabel}: {play.combined_ppg || play.combined_gpg || 'N/A'}
+                          {/* #3.75: Show bet line and current line separately */}
+                          🎯 Bet Line: <span className="text-yellow-400 font-bold">{play.bet_line || play.total}</span>
+                          {play.total && play.bet_line && play.total !== play.bet_line && (
+                            <span className="ml-2">
+                              | Live: <span className={play.total > play.bet_line ? 'text-green-400' : 'text-red-400'}>
+                                {play.total} ({play.total > play.bet_line ? '↑' : '↓'}{Math.abs(play.total - play.bet_line).toFixed(1)})
+                              </span>
+                            </span>
+                          )}
+                          <span className="ml-2">| {config.combinedLabel}: {play.combined_ppg || play.combined_gpg || 'N/A'}</span>
                         </div>
                       </div>
                     </div>
