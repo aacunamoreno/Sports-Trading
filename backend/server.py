@@ -5630,7 +5630,50 @@ async def export_to_excel(
                         # Fall back to bet_result field
                         bet_result = game.get('bet_result', '')
                 
-                # Write row data
+                # Calculate 4-dot result (personalized bet recommendation based on all 4 dots)
+                def calculate_4dot_result(away_c, home_c):
+                    """
+                    Calculate bet recommendation based on 4 dots:
+                    - Green/Blue (good offense or bad defense) = OVER tendency
+                    - Red/Yellow (bad offense or good defense) = UNDER tendency
+                    - Count total and decide
+                    """
+                    over_count = 0
+                    under_count = 0
+                    for c in [away_c[0], away_c[1] if len(away_c) > 1 else None, 
+                              home_c[0], home_c[1] if len(home_c) > 1 else None]:
+                        if c == 'green':
+                            over_count += 1
+                        elif c == 'blue':
+                            over_count += 0.5  # Blue is weak over
+                        elif c == 'red':
+                            under_count += 0.5  # Red is weak under
+                        elif c == 'yellow':
+                            under_count += 1
+                    
+                    if over_count > under_count + 0.5:
+                        return 'OVER'
+                    elif under_count > over_count + 0.5:
+                        return 'UNDER'
+                    else:
+                        return 'NO BET'
+                
+                four_dot_result = calculate_4dot_result(away_colors, home_colors)
+                
+                # Calculate 4-dot hit (does the 4-dot recommendation match the actual result?)
+                four_dot_hit = ''
+                actual_result = game.get('actual_result', '')
+                if four_dot_result in ['OVER', 'UNDER'] and actual_result:
+                    if four_dot_result == actual_result:
+                        four_dot_hit = 'HIT'
+                        four_dot_wins += 1
+                    else:
+                        four_dot_hit = 'MISS'
+                        four_dot_losses += 1
+                
+                four_dot_record = f"{four_dot_wins}-{four_dot_losses}" if four_dot_result != 'NO BET' else ''
+                
+                # Write row data (columns A-W + X-AI)
                 row_data = [
                     date,
                     idx,
@@ -5649,11 +5692,24 @@ async def export_to_excel(
                     game.get('combined_ppg', game.get('ppg_avg', '')),
                     game.get('edge', ''),
                     game.get('recommendation', ''),
-                    game.get('actual_result', ''),
+                    actual_result,
                     edge_hit,
                     '💰💰' if game.get('multiple_bets') else ('💰' if game.get('user_bet') or game.get('has_bet') else ''),
                     bet_type_display,
-                    bet_result
+                    bet_result,
+                    '',  # W - Record placeholder
+                    '',  # X - spacer
+                    '',  # Y - Away dot 1 (colored cell)
+                    '',  # Z - Away dot 2 (colored cell)
+                    away_dots_str,  # AA - Away Dots
+                    game.get('away_team', game.get('away', '')),  # AB - Away Team
+                    '',  # AC - Home dot 1 (colored cell)
+                    '',  # AD - Home dot 2 (colored cell)
+                    '',  # AE - spacer
+                    four_dot_result,  # AF - 4-Dot Result
+                    '',  # AG - spacer
+                    four_dot_hit,  # AH - 4-Dot Hit
+                    four_dot_record  # AI - 4-Dot Record
                 ]
                 
                 for col, value in enumerate(row_data, 1):
@@ -5697,8 +5753,41 @@ async def export_to_excel(
                             cell.fill = hit_fill
                         elif value == 'lost':
                             cell.fill = miss_fill
+                    
+                    # Column Y (25): Away dot 1 color
+                    if col == 25 and away_colors[0] and away_colors[0] in dot_colors:
+                        cell.fill = dot_colors[away_colors[0]]
+                    # Column Z (26): Away dot 2 color
+                    elif col == 26 and len(away_colors) > 1 and away_colors[1] and away_colors[1] in dot_colors:
+                        cell.fill = dot_colors[away_colors[1]]
+                    # Column AC (29): Home dot 1 color
+                    elif col == 29 and home_colors[0] and home_colors[0] in dot_colors:
+                        cell.fill = dot_colors[home_colors[0]]
+                    # Column AD (30): Home dot 2 color
+                    elif col == 30 and len(home_colors) > 1 and home_colors[1] and home_colors[1] in dot_colors:
+                        cell.fill = dot_colors[home_colors[1]]
+                    
+                    # Column AF (32): 4-Dot Result color
+                    if col == 32:
+                        if value == 'OVER':
+                            cell.fill = over_fill
+                        elif value == 'UNDER':
+                            cell.fill = under_fill
+                        elif value == 'NO BET':
+                            cell.fill = no_bet_fill
+                            cell.font = white_font
+                    
+                    # Column AH (34): 4-Dot Hit color
+                    if col == 34:
+                        if value == 'HIT':
+                            cell.fill = hit_fill
+                        elif value == 'MISS':
+                            cell.fill = miss_fill
                 
                 row_num += 1
+        
+        # Add divider rows between dates
+        # (We need to do this after writing all data, so let's skip for now and just auto-adjust widths)
         
         # Auto-adjust column widths
         for col in range(1, len(headers) + 1):
