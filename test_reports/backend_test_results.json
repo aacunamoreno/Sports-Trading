@@ -1,86 +1,104 @@
 {
-  "timestamp": "2025-12-28T23:14:16.042770",
-  "total_tests": 13,
-  "passed_tests": 13,
-  "success_rate": 100.0,
+  "timestamp": "2025-12-29T02:48:22.036582",
+  "total_tests": 16,
+  "passed_tests": 9,
+  "success_rate": 56.25,
   "results": [
     {
-      "test": "POST /api/process/update-records",
+      "test": "NBA Excel Export",
       "success": true,
-      "details": "Successfully calculated records: NBA(11-10/23-16), NHL(7-5/11-5), NFL(0-0/0-0)",
-      "timestamp": "2025-12-28T23:14:15.480015"
+      "details": "Valid Excel file: 13376 bytes, correct headers",
+      "timestamp": "2025-12-29T02:48:21.163024"
     },
     {
-      "test": "GET /api/records/summary",
+      "test": "NHL Excel Export",
       "success": true,
-      "details": "Successfully retrieved records summary: NBA(23-16/11-10), NHL(11-5/7-5), NFL(0-0/0-0), start_date=2025-12-22",
-      "timestamp": "2025-12-28T23:14:15.558781"
+      "details": "Valid Excel file: 10832 bytes",
+      "timestamp": "2025-12-29T02:48:21.243201"
+    },
+    {
+      "test": "Excel File Structure",
+      "success": true,
+      "details": "35 columns, correct headers, 17 4-Dot results, 47 data rows",
+      "timestamp": "2025-12-29T02:48:21.483522"
+    },
+    {
+      "test": "POST /api/process/update-records - NBA Edge Hits",
+      "success": false,
+      "details": "Expected NBA edge hits 23, got 24",
+      "timestamp": "2025-12-29T02:48:21.540312"
+    },
+    {
+      "test": "GET /api/records/summary - NBA Edge Record",
+      "success": false,
+      "details": "Expected NBA edge record 23-16, got 24-15",
+      "timestamp": "2025-12-29T02:48:21.581806"
     },
     {
       "test": "Records Database Storage",
       "success": true,
       "details": "Records properly stored and retrieved from database collections (compound_records and edge_records)",
-      "timestamp": "2025-12-28T23:14:15.717986"
+      "timestamp": "2025-12-29T02:48:21.706265"
     },
     {
       "test": "Process #6 Implementation",
-      "success": true,
-      "details": "Update: \u2705, Summary: \u2705, Storage: \u2705",
-      "timestamp": "2025-12-28T23:14:15.719215"
+      "success": false,
+      "details": "Update: \u274c, Summary: \u274c, Storage: \u2705",
+      "timestamp": "2025-12-29T02:48:21.707604"
     },
     {
       "test": "NBA Historical Data 2025-12-22",
       "success": true,
       "details": "Found 7 games, 3 with user bets, all final scores populated",
-      "timestamp": "2025-12-28T23:14:15.757589"
+      "timestamp": "2025-12-29T02:48:21.750591"
     },
     {
-      "test": "NBA Historical Data 2025-12-23",
-      "success": true,
-      "details": "Found 13 games, 7 with user bets, all final scores populated",
-      "timestamp": "2025-12-28T23:14:15.799267"
+      "test": "NBA Historical Data 2025-12-23 - Record",
+      "success": false,
+      "details": "Expected record 4-3, got 5-2",
+      "timestamp": "2025-12-29T02:48:21.793461"
     },
     {
-      "test": "NBA Historical Data 2025-12-25",
-      "success": true,
-      "details": "Found 5 games, 2 with user bets, all final scores populated",
-      "timestamp": "2025-12-28T23:14:15.842609"
+      "test": "NBA Historical Data 2025-12-25 - Record",
+      "success": false,
+      "details": "Expected record 1-1, got 0-2",
+      "timestamp": "2025-12-29T02:48:21.837036"
     },
     {
       "test": "NBA Historical Data 2025-12-26",
       "success": true,
       "details": "Found 9 games, 5 with user bets, all final scores populated",
-      "timestamp": "2025-12-28T23:14:15.881582"
+      "timestamp": "2025-12-29T02:48:21.881204"
     },
     {
       "test": "NBA Historical Data 2025-12-27",
       "success": true,
       "details": "Found 9 games, 4 with user bets, all final scores populated",
-      "timestamp": "2025-12-28T23:14:15.920937"
+      "timestamp": "2025-12-29T02:48:21.919331"
     },
     {
-      "test": "NHL Historical Data 2025-12-22",
-      "success": true,
-      "details": "Found 4 games, 1 with user bets, all final scores populated",
-      "timestamp": "2025-12-28T23:14:15.958210"
+      "test": "NHL Historical Data 2025-12-22 - Record",
+      "success": false,
+      "details": "Expected record 0-1, got 1-0",
+      "timestamp": "2025-12-29T02:48:21.957202"
     },
     {
       "test": "NHL Historical Data 2025-12-23",
       "success": true,
       "details": "Found 13 games, 6 with user bets, all final scores populated",
-      "timestamp": "2025-12-28T23:14:16.003122"
+      "timestamp": "2025-12-29T02:48:21.995580"
     },
     {
       "test": "NHL Historical Data 2025-12-27",
       "success": true,
       "details": "Found 13 games, 5 with user bets, all final scores populated",
-      "timestamp": "2025-12-28T23:14:16.041849"
+      "timestamp": "2025-12-29T02:48:22.035431"
     },
     {
       "test": "Historical Data Verification (12/22-12/27)",
-      "success": true,
-      "details": "NBA: \u2705, NHL: \u2705",
-      "timestamp": "2025-12-28T23:14:16.042478"
+      "success": false,
+      "details": "NBA: \u274c, NHL: \u274c",
+      "timestamp": "2025-12-29T02:48:22.036213"
     }
   ]
 }
