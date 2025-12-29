@@ -5463,6 +5463,10 @@ async def export_to_excel(
             'blue': PatternFill(start_color='0000FF', end_color='0000FF', fill_type='solid'),
         }
         
+        # Font colors for readability (white text on dark backgrounds)
+        white_font = Font(color='FFFFFF', bold=True)
+        black_font = Font(color='000000')
+        
         # Result colors
         hit_fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')  # Light green
         miss_fill = PatternFill(start_color='FFB6C1', end_color='FFB6C1', fill_type='solid')  # Light red
