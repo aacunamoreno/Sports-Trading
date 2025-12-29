@@ -7910,11 +7910,57 @@ async def add_ncaab_manual_data(data: dict):
                 'home_dots': home_dots
             })
         
+        # #3.85 / #3.90: Preserve existing plays and merge games
+        existing = await db.ncaab_opportunities.find_one({"date": target_date}, {"_id": 0})
+        existing_plays = existing.get('plays', []) if existing else []
+        existing_games = existing.get('games', []) if existing else []
+        
+        # Create lookup of new games
+        new_matchups = set()
+        for g in processed_games:
+            key = f"{g.get('away', g.get('away_team', '')).upper()}_{g.get('home', g.get('home_team', '')).upper()}"
+            new_matchups.add(key)
+        
+        # #3.85/#3.90: Add existing games that are NOT in the new list (started games)
+        added_started = 0
+        for existing_game in existing_games:
+            away = existing_game.get('away', existing_game.get('away_team', ''))
+            home = existing_game.get('home', existing_game.get('home_team', ''))
+            key = f"{away.upper()}_{home.upper()}"
+            
+            if key not in new_matchups:
+                # This game has started or isn't in new data - keep it from cache
+                existing_game['started'] = True
+                processed_games.append(existing_game)
+                added_started += 1
+        
+        if added_started > 0:
+            logger.info(f"[#3.85/#3.90] Preserved {added_started} started NCAAB games in manual entry (total: {len(processed_games)})")
+        
+        # Preserve bet info on games
+        for play in existing_plays:
+            play_game = play.get('game', '')
+            if ' @ ' not in play_game:
+                continue
+            play_away = play_game.split(' @ ')[0].lower()
+            play_home = play_game.split(' @ ')[1].lower()
+            
+            for g in processed_games:
+                g_away = (g.get('away', g.get('away_team', ''))).lower()
+                g_home = (g.get('home', g.get('home_team', ''))).lower()
+                if (play_away in g_away or g_away in play_away) and \
+                   (play_home in g_home or g_home in play_home):
+                    g['has_bet'] = True
+                    g['bet_type'] = play.get('bet_type')
+                    g['bet_count'] = play.get('bet_count', 1)
+                    g['bet_line'] = play.get('bet_line')
+                    break
+        
         # Save to database
         doc = {
             "date": target_date,
             "games": processed_games,
-            "plays": [],
+            "plays": existing_plays,  # #3.85: Preserve existing plays
             "last_updated": datetime.now(timezone.utc).isoformat(),
             "data_source": "manual"
         }
@@ -7925,13 +7971,16 @@ async def add_ncaab_manual_data(data: dict):
             upsert=True
         )
         
+        logger.info(f"[#3.85/#3.90] Manual NCAAB save: {len(processed_games)} games, {len(existing_plays)} plays preserved")
+        
         return {
             "success": True,
             "date": target_date,
             "games_count": len(processed_games),
+            "plays_preserved": len(existing_plays),
             "ppg_teams": len(ppg_data['season_values']),
             "games": processed_games,
-            "message": f"Manually added {len(processed_games)} NCAAB games for {target_date}"
+            "message": f"Manually added {len(processed_games)} NCAAB games for {target_date} ({len(existing_plays)} plays preserved)"
         }
         
     except Exception as e:
