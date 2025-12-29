@@ -926,3 +926,52 @@ Updated all NHL GPG data in `server.py` with freshly scraped values using Playwr
 
 **Recommendation:** NHL GPG Avg calculation is now working correctly with updated data from ESPN and StatMuse.
 
+
+---
+
+## NCAAB TODAY'S PLAYS Fix - December 29, 2025
+
+### Issue:
+User placed 16 NCAAB bets but only 11 were showing. Additionally, spread bets (like "Merrimack +2", "Detroit +11") were not being displayed at all.
+
+### Root Causes:
+1. The `scrape_open_bets` function was only looking for TOTAL (Over/Under) bets, not spread bets
+2. Spread bets were filtered out because they didn't match the TOTAL pattern
+3. The frontend only handled OVER/UNDER bet types
+
+### Solution:
+1. **Backend Update (`server.py`):** Added spread bet pattern detection in `scrape_open_bets` function
+   - Added regex pattern for spread bets: `\[\d+\]\s*([A-Z\s\.]+?)\s*([+-]\d+\.?\d*)(½)?[-+]\d+`
+   - For non-NHL/NBA/NFL teams, default sport to NCAAB
+
+2. **Frontend Update (`Opportunities.jsx`):** Modified TODAY'S PLAYS section to handle spread bets
+   - Added purple background styling for spread bets
+   - Added 📊 icon instead of trending arrows
+   - Shows "No edge calc" instead of edge value for spread bets
+   - Shows bet info as "🎯 Bet: +2" format for spreads
+
+### Test Results:
+
+#### All 14 unique plays now visible (16 total bet units):
+| # | Game | Bet Type | Count |
+|---|------|----------|-------|
+| 1 | Towson @ William & Mary | OVER 156 | 1 |
+| 2 | Kent State @ Purdue | UNDER 157 | 1 |
+| 3 | California Baptist @ Utah Valley | OVER 146 | 1 |
+| 4 | Southern Miss @ LSU | UNDER 154 | 2 |
+| 5 | Valparaiso @ Northern Iowa | OVER 128 | 1 |
+| 6 | Missouri State @ Delaware | UNDER 133 | 1 |
+| 7 | Stony Brook @ Hampton | UNDER 140 | 2 |
+| 8 | Yale @ Alabama | UNDER 175 | 1 |
+| 9 | Tarleton St @ UT Arlington | UNDER 138 | 1 |
+| 10 | Middle Tenn St @ Houston | OVER 136 | 1 |
+| 11 | Western Kentucky @ Jacksonville State | UNDER 143 | 1 |
+| 12 | Oakland @ Detroit | SPREAD +2 | 1 |
+| 13 | Oakland @ Detroit | SPREAD +11 | 1 |
+| 14 | Merrimack @ Sacred Heart | SPREAD +2 | 1 |
+
+### Note:
+PPG Avg shows "N/A" because no PPG data was provided for the NCAAB teams in this manual entry. The GPG/PPG edge calculation only applies to Over/Under bets.
+
+### Status: ✅ COMPLETE
+
