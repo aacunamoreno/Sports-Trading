@@ -7862,9 +7862,12 @@ async def add_ncaab_manual_data(data: dict):
             home_last3_rank = find_team(home_team, ppg_data['last3_ranks'])
             home_last3_value = find_team(home_team, ppg_data['last3_values'])
             
-            # Calculate combined PPG and edge
+            # Calculate combined PPG using the correct formula: (Season_A + Season_H + Last3_A + Last3_H) / 2
             combined_ppg = None
-            if away_ppg_value and home_ppg_value:
+            if away_ppg_value and home_ppg_value and away_last3_value and home_last3_value:
+                combined_ppg = round((away_ppg_value + home_ppg_value + away_last3_value + home_last3_value) / 2, 1)
+            elif away_ppg_value and home_ppg_value:
+                # Fallback to just season values if last3 not available
                 combined_ppg = round(away_ppg_value + home_ppg_value, 1)
             
             edge = None
