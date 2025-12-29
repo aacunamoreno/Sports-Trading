@@ -182,6 +182,15 @@ export default function Opportunities() {
       totalTeams: 32,
       edgeThreshold: 0.5
     },
+    NCAAB: {
+      statLabel: 'PPG',
+      combinedLabel: 'PPG Avg',
+      overRange: '1-91',
+      noEdgeRange: '92-273',
+      underRange: '274-365',
+      totalTeams: 365,
+      edgeThreshold: 5
+    },
     NFL: {
       statLabel: 'PPG',
       combinedLabel: 'PPG Avg',
