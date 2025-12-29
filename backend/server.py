@@ -2517,8 +2517,11 @@ class Plays888Service:
             while i < len(lines):
                 line = lines[i].strip()
                 
-                # Look for TOTAL lines with o/u
+                # Look for TOTAL lines with o/u (Over/Under bets)
                 total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)(½)?[-+]\d+', line, re.IGNORECASE)
+                # Look for SPREAD bets like "[837] OAKLAND +2-110" or "[811] DETROIT +11-110"
+                spread_match = re.search(r'\[\d+\]\s*([A-Z\s\.]+?)\s*([+-]\d+\.?\d*)(½)?[-+]\d+', line, re.IGNORECASE)
+                
                 if total_match:
                     bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
                     total_line = float(total_match.group(2))
@@ -2539,7 +2542,7 @@ class Plays888Service:
                         away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
                         home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
                         
-                        # Determine sport based on team names (more reliable than context)
+                        # Determine sport based on team names and context
                         sport = None
                         if is_nhl_team(away_team) and is_nhl_team(home_team):
                             sport = 'NHL'
@@ -2547,26 +2550,78 @@ class Plays888Service:
                             sport = 'NBA'
                         elif is_nfl_team(away_team) and is_nfl_team(home_team):
                             sport = 'NFL'
+                        else:
+                            # Assume NCAAB/CBB for college basketball
+                            sport = 'NCAAB'
                         
-                        # Only add bets for recognized leagues (NHL/NBA/NFL)
-                        if sport:
-                            # Look for risk amount
-                            risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
-                            risk_amount = 0
-                            win_amount = 0
-                            if risk_match:
-                                risk_amount = float(risk_match.group(1).replace(',', ''))
-                                win_amount = float(risk_match.group(2).replace(',', ''))
-                            
-                            raw_bets.append({
-                                "sport": sport,
-                                "away_team": away_team,
-                                "home_team": home_team,
-                                "bet_type": bet_type,
-                                "total_line": total_line,
-                                "risk": risk_amount,
-                                "to_win": win_amount
-                            })
+                        # Look for risk amount
+                        risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
+                        risk_amount = 0
+                        win_amount = 0
+                        if risk_match:
+                            risk_amount = float(risk_match.group(1).replace(',', ''))
+                            win_amount = float(risk_match.group(2).replace(',', ''))
+                        
+                        raw_bets.append({
+                            "sport": sport,
+                            "away_team": away_team,
+                            "home_team": home_team,
+                            "bet_type": bet_type,
+                            "total_line": total_line,
+                            "risk": risk_amount,
+                            "to_win": win_amount
+                        })
+                
+                elif spread_match:
+                    # Handle spread bets (e.g., "DETROIT +11", "MERRIMACK +2")
+                    team_name = spread_match.group(1).strip()
+                    spread_line = spread_match.group(2)
+                    if spread_match.group(3) == '½':
+                        spread_line = str(float(spread_line) + 0.5 if float(spread_line) > 0 else float(spread_line) - 0.5)
+                    
+                    bet_type = f"SPREAD {spread_line}"
+                    
+                    # Look for team names in nearby lines
+                    teams_text = ""
+                    for j in range(max(0, i-2), min(len(lines), i+3)):
+                        if 'vrs' in lines[j].lower():
+                            teams_text = lines[j]
+                            break
+                    
+                    # Extract team names
+                    teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
+                    if teams_match:
+                        away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
+                        home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                        
+                        # Determine sport
+                        sport = None
+                        if is_nhl_team(away_team) and is_nhl_team(home_team):
+                            sport = 'NHL'
+                        elif is_nba_team(away_team) and is_nba_team(home_team):
+                            sport = 'NBA'
+                        elif is_nfl_team(away_team) and is_nfl_team(home_team):
+                            sport = 'NFL'
+                        else:
+                            sport = 'NCAAB'
+                        
+                        # Look for risk amount
+                        risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
+                        risk_amount = 0
+                        win_amount = 0
+                        if risk_match:
+                            risk_amount = float(risk_match.group(1).replace(',', ''))
+                            win_amount = float(risk_match.group(2).replace(',', ''))
+                        
+                        raw_bets.append({
+                            "sport": sport,
+                            "away_team": away_team,
+                            "home_team": home_team,
+                            "bet_type": bet_type,
+                            "spread_line": spread_line,
+                            "risk": risk_amount,
+                            "to_win": win_amount
+                        })
                 
                 i += 1
             
