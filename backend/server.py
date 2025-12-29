@@ -5583,8 +5583,15 @@ async def export_to_excel(
                 
                 # Determine bet result based on user_bet_hit (most accurate)
                 bet_result = ''
+                bet_type_display = game.get('bet_type', '')
                 if game.get('user_bet') or game.get('has_bet'):
-                    if game.get('user_bet_hit') == True:
+                    # Handle multiple bets on same game
+                    if game.get('multiple_bets') and game.get('bet_results'):
+                        bet_type_display = 'O+U'  # Both OVER and UNDER
+                        wins = game['bet_results'].count('won')
+                        losses = game['bet_results'].count('lost')
+                        bet_result = f"{wins}W-{losses}L"
+                    elif game.get('user_bet_hit') == True:
                         bet_result = 'won'
                     elif game.get('user_bet_hit') == False:
                         bet_result = 'lost'
@@ -5613,8 +5620,8 @@ async def export_to_excel(
                     game.get('recommendation', ''),
                     game.get('actual_result', ''),
                     edge_hit,
-                    '💰' if game.get('user_bet') or game.get('has_bet') else '',
-                    game.get('bet_type', ''),
+                    '💰💰' if game.get('multiple_bets') else ('💰' if game.get('user_bet') or game.get('has_bet') else ''),
+                    bet_type_display,
                     bet_result
                 ]
                 
