@@ -776,3 +776,58 @@ All 13 NHL games for Dec 27 now match scoresandodds.com:
 **Status:** Process #3 (Switch to Live Odds) is now COMPLETE for all leagues (NBA, NHL, NFL, NCAAB).
 
 **Ready for user testing before proceeding to Process #3.5**
+
+---
+
+## NHL GPG Avg Fix - December 29, 2025
+
+### Issue:
+The NHL GPG (Goals Per Game) Averages were using outdated data from `teamrankings.com`. The user requested updated data from:
+- **ESPN** (`espn.com/nhl/stats/team`) for Season PPG
+- **StatMuse** (`statmuse.com`) for Last 3 Games PPG
+
+### Solution:
+Updated all NHL GPG data in `server.py` with freshly scraped values using Playwright:
+
+**Season GPG (from ESPN):**
+- Colorado: 3.97 (Rank 1)
+- Dallas: 3.49 (Rank 2)
+- Edmonton: 3.38 (Rank 3)
+- ... through to St. Louis: 2.51 (Rank 32)
+
+**Last 3 Games GPG (from StatMuse):**
+- Toronto: 5.00 (Rank 1)
+- Vegas: 5.00 (Rank 2)
+- Montreal: 4.33 (Rank 3)
+- ... through to New Jersey: 1.67 (Rank 32)
+
+### Formula Verified:
+`GPG Avg = (SeasonPPG_T1 + SeasonPPG_T2 + Last3PPG_T1 + Last3PPG_T2) / 2`
+
+### Test Results:
+
+#### Sample Calculations Verified:
+| Game | Line | GPG Avg | Edge | Rec |
+|------|------|---------|------|-----|
+| Colorado @ Dallas | 6.5 | 7.4 | +0.9 | OVER |
+| Boston @ New Jersey | 5.5 | 4.6 | -0.9 | UNDER |
+| Toronto @ Vegas | 6.5 | 8.2 | +1.7 | OVER |
+| Tampa Bay @ Florida | 6.0 | 6.7 | +0.7 | OVER |
+| Pittsburgh @ Carolina | 6.0 | 7.2 | +1.2 | OVER |
+| Ottawa @ Montreal | 6.5 | 7.6 | +1.1 | OVER |
+
+#### Manual Verification:
+- **Colorado @ Dallas**: (3.97 + 3.49 + 3.67 + 3.67) / 2 = 7.4 ✓
+- **Toronto @ Vegas**: (3.26 + 3.17 + 5.00 + 5.00) / 2 = 8.2 ✓
+- **Boston @ New Jersey**: (3.10 + 2.71 + 1.67 + 1.67) / 2 = 4.6 ✓
+
+### Files Modified:
+- `/app/backend/server.py`:
+  - Updated NHL GPG data at line ~5120 (8pm job function)
+  - Updated NHL GPG data at line ~6948 (refresh_nhl_opportunities function)
+  - Updated add_nhl_manual_data function to use default GPG values when no gpg_data provided
+
+### Status: ✅ COMPLETE
+
+**Recommendation:** NHL GPG Avg calculation is now working correctly with updated data from ESPN and StatMuse.
+
