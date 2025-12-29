@@ -3492,22 +3492,24 @@ async def monitor_single_account(conn: dict):
                 
             # New bet detected! 
             logger.info(f"New bet detected: Ticket#{ticket_num}")
-                odds = bet_info.get('odds', -110)
-                wager = bet_info.get('wager', 0)
-                to_win = bet_info.get('toWin', 0)
-                sport = bet_info.get('sport', '')
-                description = bet_info.get('description', '')
-                
-                # #3.75 BET LINE CAPTURE: Extract the line from bet_type (e.g., "TOTAL o228" -> 228)
-                bet_line = None
-                if bet_type:
-                    # Pattern: "TOTAL o228" or "TOTAL u6.5" or "o228" or "u6"
-                    line_match = re.search(r'[ou](\d+\.?\d*)', bet_type, re.IGNORECASE)
-                    if line_match:
-                        bet_line = float(line_match.group(1))
-                        logger.info(f"Captured bet line: {bet_line} from bet_type: {bet_type}")
-                
-                # If game is still unknown, use part of description
+            logger.info(f"Bet details: {bet_info}")
+            
+            odds = bet_info.get('odds', -110)
+            wager = bet_info.get('wager', 0)
+            to_win = bet_info.get('toWin', 0)
+            sport = bet_info.get('sport', '')
+            description = bet_info.get('description', '')
+            
+            # #3.75 BET LINE CAPTURE: Extract the line from bet_type (e.g., "TOTAL o228" -> 228)
+            bet_line = None
+            if bet_type:
+                # Pattern: "TOTAL o228" or "TOTAL u6.5" or "o228" or "u6"
+                line_match = re.search(r'[ou](\d+\.?\d*)', bet_type, re.IGNORECASE)
+                if line_match:
+                    bet_line = float(line_match.group(1))
+                    logger.info(f"Captured bet line: {bet_line} from bet_type: {bet_type}")
+            
+            # If game is still unknown, use part of description
                 if game == 'Unknown Game' and description:
                     # Try to extract game from description
                     game = description[:50] + '...' if len(description) > 50 else description
