@@ -7567,15 +7567,17 @@ async def add_ncaab_manual_data(data: dict):
         # NCAAB dot colors (same thresholds)
         def get_ncaab_dot_color(rank):
             if rank is None:
-                return '🔵'
-            if rank <= 91:
-                return '🟢'
-            elif rank <= 182:
-                return '🟡'
-            elif rank <= 273:
-                return '🔴'
+                return '⚪'  # Unknown - not in top 365
+            if rank <= 92:
+                return '🟢'  # Top tier (1-92)
+            elif rank <= 184:
+                return '🔵'  # Second tier (93-184)
+            elif rank <= 276:
+                return '🟡'  # Third tier (185-276)
+            elif rank <= 365:
+                return '🔴'  # Fourth tier (277-365)
             else:
-                return '🔵'
+                return '⚪'  # Unknown - not in top 365
         
         # Process games
         processed_games = []
@@ -7621,9 +7623,9 @@ async def add_ncaab_manual_data(data: dict):
             
             recommendation = ''
             if edge is not None:
-                if edge >= 5:
+                if edge >= 9:
                     recommendation = 'OVER'
-                elif edge <= -5:
+                elif edge <= -9:
                     recommendation = 'UNDER'
             
             away_dots = get_ncaab_dot_color(away_ppg_rank) + get_ncaab_dot_color(away_last3_rank)
