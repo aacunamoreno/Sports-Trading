@@ -387,11 +387,11 @@ export default function Opportunities() {
             {(day === 'yesterday' || day === 'custom') && data.games?.length > 0 && (
               <>
                 <div><span className="text-muted-foreground">Hits:</span> <span className="font-mono text-green-400">{data.games.filter(g => {
-                  const edgeThreshold = league === 'NBA' ? 5 : league === 'NFL' ? 7 : 0.5;
+                  const edgeThreshold = league === 'NBA' ? 5 : league === 'NCAAB' ? 9 : 0.5;
                   return g.result_hit === true && g.edge !== null && g.edge !== undefined && Math.abs(g.edge) >= edgeThreshold;
                 }).length}</span></div>
                 <div><span className="text-muted-foreground">Misses:</span> <span className="font-mono text-red-400">{data.games.filter(g => {
-                  const edgeThreshold = league === 'NBA' ? 5 : league === 'NFL' ? 7 : 0.5;
+                  const edgeThreshold = league === 'NBA' ? 5 : league === 'NCAAB' ? 9 : 0.5;
                   return g.result_hit === false && g.edge !== null && g.edge !== undefined && Math.abs(g.edge) >= edgeThreshold;
                 }).length}</span></div>
                 <div className="border-l border-border pl-4 ml-2">
@@ -411,10 +411,7 @@ export default function Opportunities() {
         <Card className="glass-card neon-border">
           <CardHeader className="border-b border-border pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
-              🎯 {league === 'NFL' 
-                ? (day === 'tomorrow' ? "WEEK 18" : "WEEK 17") + " PLAYS"
-                : (day === 'tomorrow' ? "TOMORROW'S" : "TODAY'S") + " PLAYS"
-              }
+              🎯 {day === 'tomorrow' ? "TOMORROW'S" : "TODAY'S"} PLAYS
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
