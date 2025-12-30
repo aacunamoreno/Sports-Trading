@@ -5611,17 +5611,49 @@ async def populate_ppg_and_dots_for_tomorrow():
                     """Try to find team in PPG data with fuzzy matching"""
                     if not team_name:
                         return None
+                    
+                    # Normalize team name: remove common suffixes, standardize abbreviations
+                    def normalize(name):
+                        name = name.strip()
+                        # Remove common suffixes
+                        name = name.replace(' St.', '').replace(' St', '')
+                        name = name.replace(' State', '').replace('-Fort Kent', '')
+                        # Handle common abbreviations
+                        name = name.replace('N. ', 'North ').replace('S. ', 'South ')
+                        name = name.replace('E. ', 'East ').replace('W. ', 'West ')
+                        name = name.replace('C. ', 'Central ')
+                        return name.lower().strip()
+                    
+                    search_name = normalize(team_name)
+                    
                     # Direct match
                     if team_name in ppg_dict:
                         return ppg_dict[team_name]
+                    
                     # Try lowercase
                     for key, val in ppg_dict.items():
                         if key.lower() == team_name.lower():
                             return val
-                    # Try partial match
+                    
+                    # Try normalized match
                     for key, val in ppg_dict.items():
-                        if team_name.lower() in key.lower() or key.lower() in team_name.lower():
+                        if normalize(key) == search_name:
                             return val
+                    
+                    # Try partial match (either contains the other)
+                    for key, val in ppg_dict.items():
+                        key_norm = normalize(key)
+                        if search_name in key_norm or key_norm in search_name:
+                            return val
+                    
+                    # Last resort: first word match (school name without suffix)
+                    first_word = search_name.split()[0] if search_name else ''
+                    if first_word and len(first_word) > 3:
+                        for key, val in ppg_dict.items():
+                            key_first = normalize(key).split()[0] if key else ''
+                            if first_word == key_first:
+                                return val
+                    
                     return None
                 
                 # Get PPG values and ranks
