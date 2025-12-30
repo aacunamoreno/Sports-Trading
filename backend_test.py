@@ -2351,6 +2351,322 @@ class BettingSystemAPITester:
             self.log_test("NHL GPG Avg Calculation Fix", False, f"JSON decode error: {str(e)}")
             return False
 
+    def test_ncaab_opportunities_tomorrow(self):
+        """Test GET /api/opportunities/ncaab?day=tomorrow - NCAAB 8pm Job feature"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities/ncaab?day=tomorrow", timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Validate response structure
+                required_fields = ['games', 'date', 'data_source']
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Structure", False,
+                                f"Missing fields: {missing_fields}")
+                    return False
+                
+                games = data.get('games', [])
+                if not isinstance(games, list):
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Games Array", False,
+                                "Games is not an array")
+                    return False
+                
+                # Expected: 39+ games from CBS Sports for tomorrow (2025-12-30)
+                expected_min_games = 30  # Allow some flexibility
+                if len(games) < expected_min_games:
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Game Count", False,
+                                f"Expected at least {expected_min_games} NCAAB games, got {len(games)}")
+                    return False
+                
+                # Validate game structure
+                if games:
+                    game = games[0]
+                    required_game_fields = ['away_team', 'home_team', 'total', 'opening_line']
+                    missing_game_fields = [field for field in required_game_fields if field not in game]
+                    
+                    if missing_game_fields:
+                        self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Game Structure", False,
+                                    f"Missing game fields: {missing_game_fields}")
+                        return False
+                
+                # Check data source
+                data_source = data.get('data_source')
+                if 'CBS Sports' not in str(data_source):
+                    self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Data Source", False,
+                                f"Expected CBS Sports data source, got '{data_source}'")
+                    return False
+                
+                self.log_test("GET /api/opportunities/ncaab?day=tomorrow", True,
+                            f"Found {len(games)} NCAAB games from {data_source}")
+                return True
+            else:
+                self.log_test("GET /api/opportunities/ncaab?day=tomorrow", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.log_test("GET /api/opportunities/ncaab?day=tomorrow", False, f"Request error: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            self.log_test("GET /api/opportunities/ncaab?day=tomorrow", False, f"JSON decode error: {str(e)}")
+            return False
+
+    def test_ncaab_ppg_data_verification(self):
+        """Test NCAAB PPG data structure and calculations"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities/ncaab?day=tomorrow", timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                games = data.get('games', [])
+                
+                if not games:
+                    self.log_test("NCAAB PPG Data Verification", False, "No games to test")
+                    return False
+                
+                # Find games with PPG data
+                games_with_ppg = []
+                games_without_ppg = []
+                
+                for game in games:
+                    ppg_fields = ['away_season_ppg', 'home_season_ppg', 'away_last3_ppg', 'home_last3_ppg']
+                    has_ppg_data = all(game.get(field) is not None for field in ppg_fields)
+                    
+                    if has_ppg_data:
+                        games_with_ppg.append(game)
+                    else:
+                        games_without_ppg.append(game)
+                
+                if not games_with_ppg:
+                    self.log_test("NCAAB PPG Data Verification - PPG Games", False,
+                                "No games with complete PPG data found")
+                    return False
+                
+                # Test PPG calculation formula on sample games
+                formula_tests_passed = 0
+                for i, game in enumerate(games_with_ppg[:3]):  # Test first 3 games
+                    away_season = game.get('away_season_ppg')
+                    home_season = game.get('home_season_ppg')
+                    away_last3 = game.get('away_last3_ppg')
+                    home_last3 = game.get('home_last3_ppg')
+                    combined_ppg = game.get('combined_ppg')
+                    
+                    # Formula: combined_ppg = (away_season_ppg + home_season_ppg + away_last3_ppg + home_last3_ppg) / 2
+                    expected_combined = (away_season + home_season + away_last3 + home_last3) / 2
+                    
+                    # Allow small floating point tolerance
+                    if abs(combined_ppg - expected_combined) <= 1.0:
+                        formula_tests_passed += 1
+                        self.log_test(f"NCAAB PPG Formula - Game {i+1}", True,
+                                    f"{game.get('away_team')} @ {game.get('home_team')}: {combined_ppg} ≈ {expected_combined:.1f}")
+                    else:
+                        self.log_test(f"NCAAB PPG Formula - Game {i+1}", False,
+                                    f"{game.get('away_team')} @ {game.get('home_team')}: expected {expected_combined:.1f}, got {combined_ppg}")
+                        return False
+                
+                # Test edge and recommendation logic
+                edge_tests_passed = 0
+                over_recommendations = 0
+                under_recommendations = 0
+                
+                for game in games_with_ppg[:5]:  # Test first 5 games
+                    combined_ppg = game.get('combined_ppg')
+                    total = game.get('total')
+                    edge = game.get('edge')
+                    recommendation = game.get('recommendation')
+                    
+                    if combined_ppg is not None and total is not None:
+                        expected_edge = combined_ppg - total
+                        
+                        # Test edge calculation
+                        if abs(edge - expected_edge) <= 1.0:
+                            edge_tests_passed += 1
+                        else:
+                            self.log_test("NCAAB Edge Calculation", False,
+                                        f"Edge calculation error: expected {expected_edge:.1f}, got {edge}")
+                            return False
+                        
+                        # Test recommendation logic (NCAAB uses edge >= 9 for OVER, edge <= -9 for UNDER)
+                        if edge >= 9:
+                            if recommendation == 'OVER':
+                                over_recommendations += 1
+                            else:
+                                self.log_test("NCAAB Recommendation Logic - OVER", False,
+                                            f"Edge {edge} >= 9 should be OVER, got {recommendation}")
+                                return False
+                        elif edge <= -9:
+                            if recommendation == 'UNDER':
+                                under_recommendations += 1
+                            else:
+                                self.log_test("NCAAB Recommendation Logic - UNDER", False,
+                                            f"Edge {edge} <= -9 should be UNDER, got {recommendation}")
+                                return False
+                        else:
+                            # No recommendation expected for -9 < edge < 9
+                            if recommendation not in [None, '', 'NO BET']:
+                                self.log_test("NCAAB Recommendation Logic - No Bet", False,
+                                            f"Edge {edge} should have no recommendation, got {recommendation}")
+                                return False
+                
+                # Test dot color logic for NCAAB (365 teams)
+                dot_tests_passed = 0
+                for game in games_with_ppg[:3]:
+                    away_dots = game.get('away_dots', '')
+                    home_dots = game.get('home_dots', '')
+                    
+                    # Check that dots contain valid NCAAB colors
+                    valid_dots = ['🟢', '🔵', '🟡', '🔴', '⚪']
+                    away_valid = any(dot in away_dots for dot in valid_dots)
+                    home_valid = any(dot in home_dots for dot in valid_dots)
+                    
+                    if away_valid and home_valid:
+                        dot_tests_passed += 1
+                    else:
+                        self.log_test("NCAAB Dot Colors", False,
+                                    f"Invalid dot colors: away='{away_dots}', home='{home_dots}'")
+                        return False
+                
+                self.log_test("NCAAB PPG Data Verification", True,
+                            f"PPG games: {len(games_with_ppg)}, Non-PPG: {len(games_without_ppg)}, Formula tests: {formula_tests_passed}, Edge tests: {edge_tests_passed}, OVER recs: {over_recommendations}, UNDER recs: {under_recommendations}")
+                return True
+            else:
+                self.log_test("NCAAB PPG Data Verification", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_test("NCAAB PPG Data Verification", False, f"Error: {str(e)}")
+            return False
+
+    def test_ncaab_edge_thresholds(self):
+        """Test NCAAB-specific edge thresholds (9 for OVER/UNDER vs other sports)"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities/ncaab?day=tomorrow", timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                games = data.get('games', [])
+                
+                # Find games with recommendations
+                over_games = [g for g in games if g.get('recommendation') == 'OVER']
+                under_games = [g for g in games if g.get('recommendation') == 'UNDER']
+                
+                # Verify OVER games have edge >= 9
+                for game in over_games:
+                    edge = game.get('edge')
+                    if edge is None or edge < 9:
+                        self.log_test("NCAAB Edge Thresholds - OVER", False,
+                                    f"OVER game has edge {edge}, should be >= 9")
+                        return False
+                
+                # Verify UNDER games have edge <= -9
+                for game in under_games:
+                    edge = game.get('edge')
+                    if edge is None or edge > -9:
+                        self.log_test("NCAAB Edge Thresholds - UNDER", False,
+                                    f"UNDER game has edge {edge}, should be <= -9")
+                        return False
+                
+                self.log_test("NCAAB Edge Thresholds", True,
+                            f"OVER games: {len(over_games)} (all edge >= 9), UNDER games: {len(under_games)} (all edge <= -9)")
+                return True
+            else:
+                self.log_test("NCAAB Edge Thresholds", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_test("NCAAB Edge Thresholds", False, f"Error: {str(e)}")
+            return False
+
+    def test_ncaab_dot_color_percentiles(self):
+        """Test NCAAB dot color logic based on 365-team percentiles"""
+        try:
+            response = requests.get(f"{self.api_url}/opportunities/ncaab?day=tomorrow", timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                games = data.get('games', [])
+                
+                # Find games with ranking data
+                games_with_ranks = []
+                for game in games:
+                    rank_fields = ['away_ppg_rank', 'home_ppg_rank', 'away_last3_rank', 'home_last3_rank']
+                    if all(game.get(field) is not None for field in rank_fields):
+                        games_with_ranks.append(game)
+                
+                if not games_with_ranks:
+                    self.log_test("NCAAB Dot Color Percentiles", False,
+                                "No games with ranking data found")
+                    return False
+                
+                # Test dot color logic for NCAAB percentiles
+                # 🟢 Top 25% (Rank 1-92)
+                # 🔵 25-50% (Rank 93-184)  
+                # 🟡 50-75% (Rank 185-276)
+                # 🔴 Bottom 25% (Rank 277-365)
+                # ⚪ Unknown teams
+                
+                color_tests_passed = 0
+                for game in games_with_ranks[:3]:  # Test first 3 games
+                    away_rank = game.get('away_ppg_rank')
+                    home_rank = game.get('home_ppg_rank')
+                    away_dots = game.get('away_dots', '')
+                    home_dots = game.get('home_dots', '')
+                    
+                    # Test away team dot color
+                    if 1 <= away_rank <= 92:
+                        expected_color = '🟢'
+                    elif 93 <= away_rank <= 184:
+                        expected_color = '🔵'
+                    elif 185 <= away_rank <= 276:
+                        expected_color = '🟡'
+                    elif 277 <= away_rank <= 365:
+                        expected_color = '🔴'
+                    else:
+                        expected_color = '⚪'
+                    
+                    if expected_color in away_dots:
+                        color_tests_passed += 1
+                    else:
+                        self.log_test("NCAAB Dot Color Percentiles - Away", False,
+                                    f"Away team rank {away_rank} should have {expected_color}, got '{away_dots}'")
+                        return False
+                    
+                    # Test home team dot color
+                    if 1 <= home_rank <= 92:
+                        expected_color = '🟢'
+                    elif 93 <= home_rank <= 184:
+                        expected_color = '🔵'
+                    elif 185 <= home_rank <= 276:
+                        expected_color = '🟡'
+                    elif 277 <= home_rank <= 365:
+                        expected_color = '🔴'
+                    else:
+                        expected_color = '⚪'
+                    
+                    if expected_color in home_dots:
+                        color_tests_passed += 1
+                    else:
+                        self.log_test("NCAAB Dot Color Percentiles - Home", False,
+                                    f"Home team rank {home_rank} should have {expected_color}, got '{home_dots}'")
+                        return False
+                
+                self.log_test("NCAAB Dot Color Percentiles", True,
+                            f"Tested {len(games_with_ranks)} games with ranking data, {color_tests_passed} color tests passed")
+                return True
+            else:
+                self.log_test("NCAAB Dot Color Percentiles", False,
+                            f"Status code: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_test("NCAAB Dot Color Percentiles", False, f"Error: {str(e)}")
+            return False
+
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
