@@ -2670,31 +2670,20 @@ class BettingSystemAPITester:
     def run_all_tests(self):
         """Run all API tests"""
         print("=" * 60)
-        print("NCAAB API TESTING - December 29, 2025")
+        print("NCAAB 8PM JOB FEATURE TESTING - December 30, 2025")
         print("=" * 60)
         print(f"Testing API: {self.api_url}")
         print()
         
-        # Run NCAAB Tests (primary focus for this review)
-        ncaab_success = self.test_ncaab_api_tomorrow()
+        # Run NCAAB 8pm Job Tests (primary focus for this review)
+        print("🏀 NCAAB 8PM JOB TESTS")
+        print("-" * 30)
+        ncaab_api_success = self.test_ncaab_opportunities_tomorrow()
+        ncaab_ppg_success = self.test_ncaab_ppg_data_verification()
+        ncaab_edge_success = self.test_ncaab_edge_thresholds()
+        ncaab_dots_success = self.test_ncaab_dot_color_percentiles()
         
-        # Run Excel Export Tests (secondary)
-        print("\n" + "=" * 60)
-        print("EXCEL EXPORT FUNCTIONALITY TESTING")
-        print("=" * 60)
-        excel_success = self.test_excel_export_functionality()
-        
-        # Run Process #6 Implementation Tests (tertiary)
-        print("\n" + "=" * 60)
-        print("PROCESS #6 - UPDATE RECORDS TESTING")
-        print("=" * 60)
-        process_6_success = self.test_process_6_implementation()
-        
-        # Run Historical Data Verification (quaternary)
-        print("\n" + "=" * 60)
-        print("HISTORICAL DATA VERIFICATION - 12/22/2025 to 12/27/2025")
-        print("=" * 60)
-        historical_success = self.test_historical_data_verification()
+        ncaab_success = all([ncaab_api_success, ncaab_ppg_success, ncaab_edge_success, ncaab_dots_success])
         
         # Print summary
         print()
@@ -2706,11 +2695,18 @@ class BettingSystemAPITester:
         print(f"Tests Failed: {self.tests_run - self.tests_passed}")
         print(f"Success Rate: {(self.tests_passed/self.tests_run)*100:.1f}%")
         
-        print("\n📊 RESULTS BY CATEGORY:")
-        print(f"NCAAB API Testing: {'✅ PASSED' if ncaab_success else '❌ FAILED'}")
-        print(f"Excel Export Functionality: {'✅ PASSED' if excel_success else '❌ FAILED'}")
-        print(f"Process #6 Implementation: {'✅ PASSED' if process_6_success else '❌ FAILED'}")
-        print(f"Historical Data Verification: {'✅ PASSED' if historical_success else '❌ FAILED'}")
+        print("\n📊 NCAAB 8PM JOB TEST RESULTS:")
+        print(f"API Endpoint: {'✅ PASSED' if ncaab_api_success else '❌ FAILED'}")
+        print(f"PPG Data Verification: {'✅ PASSED' if ncaab_ppg_success else '❌ FAILED'}")
+        print(f"Edge Thresholds: {'✅ PASSED' if ncaab_edge_success else '❌ FAILED'}")
+        print(f"Dot Color Percentiles: {'✅ PASSED' if ncaab_dots_success else '❌ FAILED'}")
+        print(f"Overall NCAAB Feature: {'✅ PASSED' if ncaab_success else '❌ FAILED'}")
+        
+        if not ncaab_success:
+            print("\n❌ FAILED TESTS:")
+            for result in self.test_results:
+                if not result["success"]:
+                    print(f"  - {result['test']}: {result['details']}")
         
         return self.tests_passed == self.tests_run
 
