@@ -2394,7 +2394,7 @@ class BettingSystemAPITester:
                 
                 # Check data source
                 data_source = data.get('data_source')
-                if 'CBS Sports' not in str(data_source):
+                if 'cbssports' not in str(data_source).lower():
                     self.log_test("GET /api/opportunities/ncaab?day=tomorrow - Data Source", False,
                                 f"Expected CBS Sports data source, got '{data_source}'")
                     return False
