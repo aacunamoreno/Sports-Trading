@@ -8427,15 +8427,17 @@ async def refresh_ncaab_opportunities(day: str = "today"):
             upsert=True
         )
         
-        logger.info(f"[#3.85/#3.90] Saved NCAAB data with {len(processed_games)} games and {len(existing_plays)} plays preserved")
+        logger.info(f"[#3.85/#3.90] Saved NCAAB data with {len(processed_games)} games and {len(merged_plays)} plays")
         
         return {
             "success": True,
             "date": target_date,
             "games_count": len(processed_games),
+            "plays_count": len(merged_plays),
             "ppg_teams_found": len(ppg_data.get('season_ranks', {})),
             "games": processed_games,
-            "message": f"Refreshed NCAAB data for {target_date}: {len(processed_games)} games found"
+            "plays": merged_plays,  # Include plays in response!
+            "message": f"Refreshed NCAAB data for {target_date}: {len(processed_games)} games, {len(merged_plays)} plays"
         }
         
     except Exception as e:
