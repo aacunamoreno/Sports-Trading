@@ -8927,6 +8927,237 @@ async def add_nba_manual_data(data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Team name aliases for matching scores
+NBA_TEAM_ALIASES = {
+    'Bucks': 'Milwaukee', 'Hornets': 'Charlotte', 'Suns': 'Phoenix', 'Wizards': 'Washington',
+    'Warriors': 'Golden State', 'Nets': 'Brooklyn', 'Magic': 'Orlando', 'Raptors': 'Toronto',
+    'Nuggets': 'Denver', 'Heat': 'Miami', 'Knicks': 'New York', 'Pelicans': 'New Orleans',
+    'Pacers': 'Indiana', 'Rockets': 'Houston', 'Hawks': 'Atlanta', 'Thunder': 'Okla City',
+    'Timberwolves': 'Minnesota', 'Bulls': 'Chicago', 'Cavaliers': 'Cleveland', 'Spurs': 'San Antonio',
+    'Mavericks': 'Dallas', 'Trail Blazers': 'Portland', 'Lakers': 'Los Angeles', 'Clippers': 'LA Clippers',
+    'Celtics': 'Boston', 'Kings': 'Sacramento', 'Jazz': 'Utah', 'Grizzlies': 'Memphis',
+    '76ers': 'Philadelphia', 'Pistons': 'Detroit'
+}
+
+NHL_TEAM_ALIASES = {
+    'Hurricanes': 'Carolina', 'Penguins': 'Pittsburgh', 'Devils': 'New Jersey', 'Maple Leafs': 'Toronto',
+    'Canadiens': 'Montreal', 'Panthers': 'Florida', 'Islanders': 'NY Islanders', 'Blackhawks': 'Chicago',
+    'Flyers': 'Philadelphia', 'Canucks': 'Vancouver', 'Bruins': 'Boston', 'Sabres': 'Buffalo',
+    'Red Wings': 'Detroit', 'Lightning': 'Tampa Bay', 'Senators': 'Ottawa', 'Blue Jackets': 'Columbus',
+    'Rangers': 'NY Rangers', 'Capitals': 'Washington', 'Jets': 'Winnipeg', 'Wild': 'Minnesota',
+    'Predators': 'Nashville', 'Blues': 'St. Louis', 'Stars': 'Dallas', 'Avalanche': 'Colorado',
+    'Coyotes': 'Utah', 'Golden Knights': 'Vegas', 'Kraken': 'Seattle', 'Ducks': 'Anaheim',
+    'Kings': 'Los Angeles', 'Sharks': 'San Jose', 'Flames': 'Calgary', 'Oilers': 'Edmonton'
+}
+
+
+@api_router.post("/scores/nba/update")
+async def update_nba_scores(date: str = None):
+    """
+    Update NBA scores from ScoresAndOdds.com for a specific date.
+    Marks edge recommendations as HIT or MISS based on final scores.
+    
+    Args:
+        date: Date in YYYY-MM-DD format. Defaults to yesterday.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import timedelta
+        
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        # Default to yesterday if no date provided
+        if not date:
+            yesterday = datetime.now(arizona_tz) - timedelta(days=1)
+            date = yesterday.strftime('%Y-%m-%d')
+        
+        logger.info(f"[NBA Scores] Updating scores for {date}")
+        
+        # Scrape scores from ScoresAndOdds.com
+        url = f"https://www.scoresandodds.com/nba?date={date}"
+        logger.info(f"[NBA Scores] Scraping from {url}")
+        
+        scraped_games = []
+        
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            await page.goto(url, timeout=30000)
+            await page.wait_for_load_state("domcontentloaded")
+            await page.wait_for_timeout(3000)
+            
+            # Parse game data from page
+            scraped_games = await page.evaluate("""() => {
+                const games = [];
+                const text = document.body.innerText;
+                const lines = text.split('\\n');
+                
+                let currentGame = {};
+                let lastTeam = '';
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    
+                    // Check if this is a score (2-3 digit number between 80-200)
+                    if (/^\\d{2,3}$/.test(line)) {
+                        const score = parseInt(line);
+                        if (score >= 80 && score <= 200) {
+                            // Look back for team name (skip record like "14-19")
+                            for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
+                                const prevLine = lines[j].trim();
+                                if (prevLine && !/^\\d+-\\d+$/.test(prevLine) && !/^\\d+$/.test(prevLine) && prevLine.length > 2) {
+                                    lastTeam = prevLine;
+                                    break;
+                                }
+                            }
+                            
+                            if (lastTeam) {
+                                if (!currentGame.away_team) {
+                                    currentGame.away_team = lastTeam;
+                                    currentGame.away_score = score;
+                                } else if (!currentGame.home_team) {
+                                    currentGame.home_team = lastTeam;
+                                    currentGame.home_score = score;
+                                    currentGame.final_score = currentGame.away_score + score;
+                                    games.push({...currentGame});
+                                    currentGame = {};
+                                }
+                                lastTeam = '';
+                            }
+                        }
+                    }
+                }
+                
+                return games;
+            }""")
+            
+            await browser.close()
+        
+        logger.info(f"[NBA Scores] Scraped {len(scraped_games)} games")
+        
+        # Get database games
+        db_data = await db.nba_opportunities.find_one({"date": date}, {"_id": 0})
+        if not db_data:
+            raise HTTPException(status_code=404, detail=f"No NBA data found for {date}")
+        
+        db_games = db_data.get('games', [])
+        logger.info(f"[NBA Scores] Found {len(db_games)} games in database")
+        
+        # Helper function to normalize team names
+        def normalize_team(team_name):
+            if not team_name:
+                return ''
+            team_name = team_name.strip()
+            for alias, full_name in NBA_TEAM_ALIASES.items():
+                if alias.lower() in team_name.lower() or team_name.lower() in alias.lower():
+                    return full_name
+            return team_name
+        
+        # Helper function to match games
+        def match_game(db_game, scraped):
+            db_away = normalize_team(db_game.get('away_team', ''))
+            db_home = normalize_team(db_game.get('home_team', ''))
+            
+            for sg in scraped:
+                scraped_away = normalize_team(sg.get('away_team', ''))
+                scraped_home = normalize_team(sg.get('home_team', ''))
+                
+                if (db_away.lower() in scraped_away.lower() or scraped_away.lower() in db_away.lower()) and \
+                   (db_home.lower() in scraped_home.lower() or scraped_home.lower() in db_home.lower()):
+                    return sg
+                if (db_away.lower() in scraped_home.lower() or scraped_home.lower() in db_away.lower()) and \
+                   (db_home.lower() in scraped_away.lower() or scraped_away.lower() in db_home.lower()):
+                    return sg
+            return None
+        
+        # Update games with scores
+        updated_count = 0
+        hits = 0
+        misses = 0
+        results = []
+        
+        for game in db_games:
+            matched = match_game(game, scraped_games)
+            if matched:
+                final_score = matched.get('final_score')
+                game['final_score'] = final_score
+                game['away_score'] = matched.get('away_score')
+                game['home_score'] = matched.get('home_score')
+                
+                line = game.get('total') or game.get('opening_line')
+                recommendation = game.get('recommendation')
+                edge = game.get('edge', 0) or 0
+                
+                if final_score and line:
+                    # Determine result
+                    if final_score > line:
+                        game['result'] = 'OVER'
+                    elif final_score < line:
+                        game['result'] = 'UNDER'
+                    else:
+                        game['result'] = 'PUSH'
+                    
+                    # Check if recommendation hit (only for games with edge >= 5)
+                    if edge >= 5:
+                        if recommendation == 'OVER':
+                            game['result_hit'] = final_score > line
+                        elif recommendation == 'UNDER':
+                            game['result_hit'] = final_score < line
+                        else:
+                            game['result_hit'] = None
+                        
+                        if game['result_hit'] == True:
+                            hits += 1
+                        elif game['result_hit'] == False:
+                            misses += 1
+                    else:
+                        game['result_hit'] = None
+                
+                updated_count += 1
+                status = "HIT" if game.get('result_hit') == True else "MISS" if game.get('result_hit') == False else "NO_REC"
+                results.append({
+                    "game": f"{game.get('away_team')} @ {game.get('home_team')}",
+                    "final_score": final_score,
+                    "line": line,
+                    "edge": edge,
+                    "recommendation": recommendation,
+                    "result": status
+                })
+                logger.info(f"[NBA Scores] {game.get('away_team')} @ {game.get('home_team')}: {final_score} vs {line} | {status}")
+        
+        # Save to database
+        await db.nba_opportunities.update_one(
+            {"date": date},
+            {"$set": {
+                "games": db_games,
+                "scores_updated": datetime.now(arizona_tz).isoformat()
+            }}
+        )
+        
+        logger.info(f"[NBA Scores] Updated {updated_count}/{len(db_games)} games")
+        
+        return {
+            "success": True,
+            "date": date,
+            "message": f"Updated {updated_count} of {len(db_games)} NBA games with final scores",
+            "games_updated": updated_count,
+            "games_total": len(db_games),
+            "edge_hits": hits,
+            "edge_misses": misses,
+            "hit_rate": f"{hits/(hits+misses)*100:.1f}%" if hits + misses > 0 else "N/A",
+            "results": results
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating NBA scores: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/opportunities/nhl/manual")
 async def add_nhl_manual_data(data: dict):
     """
