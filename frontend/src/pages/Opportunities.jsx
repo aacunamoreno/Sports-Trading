@@ -21,6 +21,7 @@ export default function Opportunities() {
   const [exporting, setExporting] = useState(false);
   const [edgeRecord, setEdgeRecord] = useState({ hits: 0, misses: 0 });
   const [updatingPPG, setUpdatingPPG] = useState(false);
+  const [updatingScores, setUpdatingScores] = useState(false);
 
   useEffect(() => {
     loadOpportunities();
