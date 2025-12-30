@@ -112,6 +112,31 @@ export default function Opportunities() {
     }
   };
 
+  // Handle NCAAB PPG Update from CBS Sports Last 3 scores
+  const handleNCAABPPGUpdate = async () => {
+    setUpdatingPPG(true);
+    toast.info('Updating NCAAB PPG from CBS Sports... This may take a few minutes.');
+    try {
+      const response = await axios.post(`${API}/opportunities/ncaab/update-ppg`, {}, { timeout: 300000 });
+      if (response.data.success) {
+        toast.success(`Updated PPG for ${response.data.games_count} games (${response.data.teams_scraped} teams scraped)`);
+        // Reload data to show updated PPG
+        await loadOpportunities();
+      } else {
+        toast.error('Failed to update NCAAB PPG');
+      }
+    } catch (error) {
+      console.error('Error updating NCAAB PPG:', error);
+      if (error.code === 'ECONNABORTED') {
+        toast.warning('PPG update is still running in background. Refresh in a few minutes.');
+      } else {
+        toast.error('Failed to update NCAAB PPG');
+      }
+    } finally {
+      setUpdatingPPG(false);
+    }
+  };
+
   // Export to Excel - using anchor element for reliable direct download
   const handleExport = async () => {
     setExporting(true);
