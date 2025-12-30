@@ -9627,6 +9627,220 @@ async def update_ncaab_scores(date: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/bets/nba/update-results")
+async def update_nba_bet_results(date: str = None):
+    """
+    Update NBA bet results from plays888.co History page.
+    Marks games with user bets and their win/loss status.
+    Shows the exact line the bet was placed at (bet_line).
+    
+    Args:
+        date: Date in YYYY-MM-DD format. Defaults to yesterday.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import timedelta
+        import re
+        
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        # Default to yesterday if no date provided
+        if not date:
+            yesterday = datetime.now(arizona_tz) - timedelta(days=1)
+            date = yesterday.strftime('%Y-%m-%d')
+        
+        logger.info(f"[NBA Bet Results] Updating bet results for {date}")
+        
+        # Get database games for that date
+        db_data = await db.nba_opportunities.find_one({"date": date}, {"_id": 0})
+        if not db_data:
+            raise HTTPException(status_code=404, detail=f"No NBA data found for {date}")
+        
+        db_games = db_data.get('games', [])
+        logger.info(f"[NBA Bet Results] Found {len(db_games)} games in database")
+        
+        # Scrape bet history from plays888.co
+        settled_bets = []
+        
+        # Initialize Plays888 service
+        service = Plays888Service()
+        await service.init_browser()
+        
+        try:
+            # Login with account jac075
+            login_result = await service.login("jac075", "acuna2025!")
+            if not login_result.get('success'):
+                raise HTTPException(status_code=401, detail="Failed to login to plays888")
+            
+            logger.info("[NBA Bet Results] Logged in to plays888.co")
+            
+            # Navigate to History page
+            await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
+            await service.page.wait_for_load_state('domcontentloaded')
+            await service.page.wait_for_timeout(3000)
+            
+            # Get page text
+            page_text = await service.page.inner_text('body')
+            logger.info(f"[NBA Bet Results] Got history page ({len(page_text)} chars)")
+            
+            # Parse settled bets
+            lines = page_text.split('\n')
+            
+            # NBA team mapping for matching
+            NBA_TEAMS = {
+                'ATLANTA': 'Atlanta', 'HAWKS': 'Atlanta', 'BOSTON': 'Boston', 'CELTICS': 'Boston',
+                'BROOKLYN': 'Brooklyn', 'NETS': 'Brooklyn', 'CHARLOTTE': 'Charlotte', 'HORNETS': 'Charlotte',
+                'CHICAGO': 'Chicago', 'BULLS': 'Chicago', 'CLEVELAND': 'Cleveland', 'CAVALIERS': 'Cleveland',
+                'DALLAS': 'Dallas', 'MAVERICKS': 'Dallas', 'DENVER': 'Denver', 'NUGGETS': 'Denver',
+                'DETROIT': 'Detroit', 'PISTONS': 'Detroit', 'GOLDEN STATE': 'Golden State', 'WARRIORS': 'Golden State',
+                'HOUSTON': 'Houston', 'ROCKETS': 'Houston', 'INDIANA': 'Indiana', 'PACERS': 'Indiana',
+                'LA CLIPPERS': 'LA Clippers', 'CLIPPERS': 'LA Clippers', 'LOS ANGELES CLIPPERS': 'LA Clippers',
+                'LA LAKERS': 'Los Angeles', 'LAKERS': 'Los Angeles', 'LOS ANGELES LAKERS': 'Los Angeles',
+                'MEMPHIS': 'Memphis', 'GRIZZLIES': 'Memphis', 'MIAMI': 'Miami', 'HEAT': 'Miami',
+                'MILWAUKEE': 'Milwaukee', 'BUCKS': 'Milwaukee', 'MINNESOTA': 'Minnesota', 'TIMBERWOLVES': 'Minnesota',
+                'NEW ORLEANS': 'New Orleans', 'PELICANS': 'New Orleans', 'NEW YORK': 'New York', 'KNICKS': 'New York',
+                'OKLAHOMA CITY': 'Okla City', 'THUNDER': 'Okla City', 'OKC': 'Okla City',
+                'ORLANDO': 'Orlando', 'MAGIC': 'Orlando', 'PHILADELPHIA': 'Philadelphia', '76ERS': 'Philadelphia',
+                'PHOENIX': 'Phoenix', 'SUNS': 'Phoenix', 'PORTLAND': 'Portland', 'TRAIL BLAZERS': 'Portland',
+                'SACRAMENTO': 'Sacramento', 'KINGS': 'Sacramento', 'SAN ANTONIO': 'San Antonio', 'SPURS': 'San Antonio',
+                'TORONTO': 'Toronto', 'RAPTORS': 'Toronto', 'UTAH': 'Utah', 'JAZZ': 'Utah',
+                'WASHINGTON': 'Washington', 'WIZARDS': 'Washington'
+            }
+            
+            def normalize_team(team_str):
+                if not team_str:
+                    return None
+                team_upper = team_str.upper().strip()
+                for key, value in NBA_TEAMS.items():
+                    if key in team_upper:
+                        return value
+                return team_str.strip()
+            
+            # Convert date format from YYYY-MM-DD to M/DD/YYYY for matching
+            date_parts = date.split('-')
+            search_date = f"{int(date_parts[1])}/{int(date_parts[2])}/{date_parts[0]}"
+            search_date_alt = f"{date_parts[1]}/{date_parts[2]}/{date_parts[0]}"
+            
+            logger.info(f"[NBA Bet Results] Looking for bets on {search_date} or {search_date_alt}")
+            
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+                
+                # Look for NBA TOTAL bets with specific date
+                if 'NBA' in line.upper() and 'TOTAL' in line.upper():
+                    # Check if this bet is for the target date
+                    context = ' '.join(lines[max(0, i-10):min(len(lines), i+10)])
+                    
+                    if search_date in context or search_date_alt in context:
+                        # Extract the bet line (e.g., "TOTAL o233-110")
+                        total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)[½]?', context, re.IGNORECASE)
+                        
+                        # Extract teams (e.g., "ATLANTA HAWKS vrs BOSTON CELTICS")
+                        teams_match = re.search(r'([A-Z\s]+)\s+vrs\s+([A-Z\s]+)', context, re.IGNORECASE)
+                        
+                        # Extract result (WIN/LOSE)
+                        result = None
+                        if 'WINWIN' in context.upper() or 'WIN' in context.upper().split()[-5:]:
+                            result = 'won'
+                        elif 'LOSELOSE' in context.upper() or 'LOSE' in context.upper().split()[-5:] or 'LOSS' in context.upper():
+                            result = 'lost'
+                        elif 'PUSH' in context.upper():
+                            result = 'push'
+                        
+                        if total_match and teams_match:
+                            bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
+                            bet_line = float(total_match.group(2).replace('½', '.5'))
+                            away_team = normalize_team(teams_match.group(1))
+                            home_team = normalize_team(teams_match.group(2))
+                            
+                            settled_bets.append({
+                                'away_team': away_team,
+                                'home_team': home_team,
+                                'bet_type': bet_type,
+                                'bet_line': bet_line,
+                                'result': result
+                            })
+                            logger.info(f"[NBA Bet Results] Found: {away_team} @ {home_team} {bet_type} {bet_line} -> {result}")
+                
+                i += 1
+            
+        finally:
+            await service.close_browser()
+        
+        logger.info(f"[NBA Bet Results] Found {len(settled_bets)} settled NBA bets for {date}")
+        
+        # Match bets to games and update
+        bets_matched = 0
+        wins = 0
+        losses = 0
+        
+        def match_teams(db_game, bet):
+            db_away = db_game.get('away_team', '').lower()
+            db_home = db_game.get('home_team', '').lower()
+            bet_away = (bet.get('away_team') or '').lower()
+            bet_home = (bet.get('home_team') or '').lower()
+            
+            # Match by team names
+            if (bet_away in db_away or db_away in bet_away) and \
+               (bet_home in db_home or db_home in bet_home):
+                return True
+            return False
+        
+        for game in db_games:
+            # Find matching bet
+            for bet in settled_bets:
+                if match_teams(game, bet):
+                    game['user_bet'] = True
+                    game['bet_line'] = bet['bet_line']
+                    game['bet_type'] = bet['bet_type']
+                    game['has_bet'] = True
+                    
+                    # Determine if bet hit
+                    if bet['result'] == 'won':
+                        game['user_bet_hit'] = True
+                        wins += 1
+                    elif bet['result'] == 'lost':
+                        game['user_bet_hit'] = False
+                        losses += 1
+                    else:
+                        game['user_bet_hit'] = None  # Push
+                    
+                    bets_matched += 1
+                    logger.info(f"[NBA Bet Results] Matched: {game.get('away_team')} @ {game.get('home_team')} -> {bet['result']}")
+                    break
+        
+        # Save to database
+        await db.nba_opportunities.update_one(
+            {"date": date},
+            {"$set": {
+                "games": db_games,
+                "bet_results_updated": datetime.now(arizona_tz).isoformat()
+            }}
+        )
+        
+        logger.info(f"[NBA Bet Results] Updated {bets_matched} games with bet results")
+        
+        return {
+            "success": True,
+            "date": date,
+            "message": f"Updated {bets_matched} NBA games with bet results",
+            "bets_found": len(settled_bets),
+            "bets_matched": bets_matched,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": f"{wins/(wins+losses)*100:.1f}%" if wins + losses > 0 else "N/A"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating NBA bet results: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/opportunities/nhl/manual")
 async def add_nhl_manual_data(data: dict):
     """
