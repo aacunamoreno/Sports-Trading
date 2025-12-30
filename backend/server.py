@@ -8614,7 +8614,7 @@ async def add_ncaab_manual_data(data: dict):
             logger.info(f"[#3.85/#3.90] Preserved {added_started} started NCAAB games in manual entry (total: {len(processed_games)})")
         
         # Preserve bet info on games
-        for play in existing_plays:
+        for play in merged_plays:
             play_game = play.get('game', '')
             if ' @ ' not in play_game:
                 continue
