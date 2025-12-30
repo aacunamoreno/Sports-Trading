@@ -9237,16 +9237,6 @@ async def update_nhl_scores(date: str = None):
                 }
                 
                 return games;
-            }""");
-                                    currentGame = {};
-                                }
-                                lastTeam = '';
-                            }
-                        }
-                    }
-                }
-                
-                return games;
             }""")
             
             await browser.close()
