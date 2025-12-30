@@ -301,10 +301,10 @@ export default function Opportunities() {
         </div>
       </div>
 
-      {/* League Tabs */}
+      {/* League Tabs - NFL eliminated */}
       <div className="flex flex-wrap gap-4 items-center">
         <div className="flex gap-2">
-          {['NBA', 'NHL', 'NCAAB', 'NFL'].map((l) => (
+          {['NBA', 'NHL', 'NCAAB'].map((l) => (
             <button
               key={l}
               onClick={() => setLeague(l)}
@@ -314,7 +314,7 @@ export default function Opportunities() {
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
             >
-              {l === 'NBA' ? '🏀' : l === 'NHL' ? '🏒' : l === 'NCAAB' ? '🎓' : '🏈'} {l}
+              {l === 'NBA' ? '🏀' : l === 'NHL' ? '🏒' : '🎓'} {l}
             </button>
           ))}
         </div>
@@ -351,33 +351,21 @@ export default function Opportunities() {
             )}
           </div>
           
-          {/* NFL uses Week labels, NBA/NHL use day labels */}
-          {league === 'NFL' ? (
-            // NFL Week selector
-            <>
-              {['yesterday', 'today', 'tomorrow'].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => { setDay(d); setCustomDate(''); }}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                    day === d
-                      ? d === 'yesterday' ? 'bg-purple-600 text-white shadow-lg' : 'bg-blue-600 text-white shadow-lg'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {d === 'yesterday' ? '📊 Week 16' : d === 'today' ? '🏈 Week 17' : '📆 Week 18'}
-                </button>
-              ))}
-            </>
-          ) : (
-            // NBA/NHL day selector
-            <>
-              {['yesterday', 'today', 'tomorrow'].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => { setDay(d); setCustomDate(''); }}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                    day === d
+          {/* Day selector for all leagues */}
+          {['yesterday', 'today', 'tomorrow'].map((d) => (
+            <button
+              key={d}
+              onClick={() => { setDay(d); setCustomDate(''); }}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                day === d
+                  ? d === 'yesterday' ? 'bg-purple-600 text-white shadow-lg' : 
+                    d === 'today' ? 'bg-blue-600 text-white shadow-lg' : 'bg-green-600 text-white shadow-lg'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {d === 'yesterday' ? '📊 Yesterday' : d === 'today' ? '📅 Today' : '📆 Tomorrow'}
+            </button>
+          ))}
                       ? d === 'yesterday' ? 'bg-purple-600 text-white shadow-lg' : 'bg-blue-600 text-white shadow-lg'
                       : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   }`}
