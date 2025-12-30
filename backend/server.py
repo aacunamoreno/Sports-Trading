@@ -6591,11 +6591,24 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             except Exception as e:
                 logger.error(f"Error scraping tomorrow from scoresandodds.com: {e}")
         
-        # For YESTERDAY/HISTORICAL: Use scoresandodds.com for final scores + plays888 for bet lines
+        # For YESTERDAY/HISTORICAL: Return cached data from database with final scores
         elif day == "yesterday" or (len(day) == 10 and day[4] == '-'):
-            # For now, use hardcoded data for yesterday since scraper isn't getting scores properly
-            # TODO: Fix scoresandodds scraper to get actual scores
-            pass
+            # Query database for the specific date
+            if day == "yesterday":
+                target_date = (now_arizona - timedelta(days=1)).strftime('%Y-%m-%d')
+            else:
+                target_date = day
+            
+            cached = await db.nba_opportunities.find_one({"date": target_date}, {"_id": 0})
+            if cached and cached.get('games'):
+                logger.info(f"Returning cached NBA data for {target_date} with {len(cached['games'])} games")
+                return {
+                    "date": target_date,
+                    "games": cached.get('games', []),
+                    "plays": cached.get('plays', []),
+                    "last_updated": cached.get('last_updated'),
+                    "data_source": "cached"
+                }
         
         # Fallback to hardcoded data if scraping failed or returned empty data
         if not games_raw:
