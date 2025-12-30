@@ -7701,25 +7701,20 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
         if (use_live_lines or auto_use_live) and day == "today":
             logger.info(f"[#3 Process] NHL: After 5am Arizona ({datetime.now(arizona_tz).strftime('%I:%M %p')}), using Plays888 for live lines")
             try:
-                # Get connection credentials
-                conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
-                if conn and conn.get("is_connected"):
-                    username = conn["username"]
-                    password = decrypt_password(conn["password_encrypted"])
+                # Use ENANO (jac075) account for scraping - this is the primary betting account
+                enano_conn = await db.connections.find_one({"username": "jac075"}, {"_id": 0})
+                if enano_conn and enano_conn.get("is_connected"):
+                    username = enano_conn["username"]
+                    password = decrypt_password(enano_conn["password_encrypted"])
                     
                     # Create new scraper instance
                     scraper = Plays888Service()
                     await scraper.login(username, password)
                     live_games = await scraper.scrape_totals("NHL")
                     
-                    # Also fetch open bets for ENANO account
+                    # Also fetch open bets
+                    open_bets = await scraper.scrape_open_bets()
                     await scraper.close()
-                    scraper = Plays888Service()
-                    enano_conn = await db.connections.find_one({"username": "jac075"}, {"_id": 0})
-                    if enano_conn:
-                        await scraper.login("jac075", decrypt_password(enano_conn["password_encrypted"]))
-                        open_bets = await scraper.scrape_open_bets()
-                        await scraper.close()
                     
                     if live_games:
                         # Convert plays888 data to our format
