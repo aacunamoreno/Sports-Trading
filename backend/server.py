@@ -7693,25 +7693,26 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
         }
         
         # Actual GPG values (Season) - from ESPN (Dec 29, 2025)
+        # GPG Season values - from ESPN (Dec 30, 2025) https://www.espn.com/nhl/stats/team
         gpg_season_values = {
-            'Colorado': 3.97, 'Dallas': 3.49, 'Edmonton': 3.38, 'Anaheim': 3.32, 'Carolina': 3.30,
-            'Montreal': 3.29, 'Tampa Bay': 3.29, 'Ottawa': 3.27, 'Toronto': 3.26, 'Washington': 3.18,
-            'Vegas': 3.17, 'Florida': 3.16, 'Pittsburgh': 3.14, 'Boston': 3.10, 'Detroit': 3.08,
-            'Buffalo': 3.05, 'Minnesota': 3.03, 'San Jose': 3.00, 'Utah': 2.97, 'Columbus': 2.92,
-            'Winnipeg': 2.92, 'Philadelphia': 2.89, 'Nashville': 2.78, 'Vancouver': 2.78, 'NY Islanders': 2.77,
-            'Chicago': 2.76, 'New Jersey': 2.71, 'Calgary': 2.61, 'Los Angeles': 2.59, 'Seattle': 2.58,
-            'NY Rangers': 2.55, 'St. Louis': 2.51
+            'Colorado': 4.00, 'Dallas': 3.49, 'Edmonton': 3.38, 'Anaheim': 3.33, 'Carolina': 3.29,
+            'Montreal': 3.29, 'Tampa Bay': 3.29, 'Toronto': 3.25, 'Ottawa': 3.21, 'Florida': 3.21,
+            'Washington': 3.18, 'Pittsburgh': 3.14, 'Vegas': 3.14, 'Buffalo': 3.08, 'Detroit': 3.08,
+            'Minnesota': 3.08, 'San Jose': 3.05, 'Boston': 3.05, 'Utah': 2.98, 'Columbus': 2.95,
+            'Philadelphia': 2.89, 'Winnipeg': 2.86, 'Nashville': 2.82, 'NY Islanders': 2.77,
+            'Chicago': 2.76, 'Vancouver': 2.76, 'New Jersey': 2.71, 'Calgary': 2.59, 'Los Angeles': 2.58,
+            'Seattle': 2.57, 'NY Rangers': 2.54, 'St. Louis': 2.50
         }
         
-        # GPG Last 3 Games values - from StatMuse (Dec 29, 2025)
+        # GPG Last 3 Games values - from StatMuse (Dec 30, 2025) https://www.statmuse.com/nhl/ask/nhl-most-team-goals-per-game-last-three-games
         gpg_last3_values = {
-            'Toronto': 5.00, 'Vegas': 5.00, 'Montreal': 4.33, 'Ottawa': 4.33, 'Pittsburgh': 4.33,
-            'Tampa Bay': 4.00, 'Colorado': 3.67, 'Dallas': 3.67, 'Edmonton': 3.67, 'Carolina': 3.67,
-            'Buffalo': 3.33, 'San Jose': 3.33, 'Columbus': 3.33, 'Calgary': 3.33, 'Seattle': 3.33,
-            'St. Louis': 3.33, 'Washington': 3.00, 'Florida': 3.00, 'Detroit': 3.00, 'Philadelphia': 3.00,
-            'Vancouver': 3.00, 'Los Angeles': 3.00, 'Winnipeg': 2.67, 'NY Rangers': 2.67, 'Minnesota': 2.33,
-            'Nashville': 2.33, 'Chicago': 2.33, 'Anaheim': 2.00, 'NY Islanders': 2.00, 'Boston': 1.67,
-            'Utah': 1.67, 'New Jersey': 1.67
+            'Toronto': 5.00, 'Vegas': 4.67, 'San Jose': 4.33, 'Montreal': 4.33, 'Pittsburgh': 4.33,
+            'Florida': 4.00, 'Tampa Bay': 4.00, 'Buffalo': 3.67, 'Colorado': 3.67, 'Minnesota': 3.67,
+            'Columbus': 3.67, 'Dallas': 3.67, 'NY Islanders': 3.67, 'Los Angeles': 3.33, 'Washington': 3.33,
+            'Edmonton': 3.33, 'Carolina': 3.33, 'NY Rangers': 3.00, 'Philadelphia': 2.94, 'Vancouver': 2.89,
+            'New Jersey': 2.20, 'Chicago': 2.00, 'Anaheim': 2.00, 'Nashville': 2.00, 'Boston': 2.00,
+            'Utah': 2.00, 'Ottawa': 2.00, 'Winnipeg': 2.00, 'Calgary': 2.00, 'Seattle': 2.00,
+            'Detroit': 2.00, 'St. Louis': 2.00
         }
         
         games_raw = []
