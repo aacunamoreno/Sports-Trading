@@ -336,6 +336,17 @@ export default function Opportunities() {
                 {updatingPPG ? 'Updating PPG...' : 'Update PPG (L3)'}
               </Button>
             )}
+            {day === 'yesterday' && league === 'NBA' && (
+              <Button 
+                onClick={handleUpdateScores} 
+                disabled={updatingScores}
+                variant="secondary"
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                <TrendingUp className={`w-4 h-4 ${updatingScores ? 'animate-pulse' : ''}`} />
+                {updatingScores ? 'Updating Scores...' : 'Update Scores'}
+              </Button>
+            )}
             <Button 
               onClick={handleExport} 
               disabled={exporting}
