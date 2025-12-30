@@ -5972,7 +5972,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
     results = {
         "NBA": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}},
         "NHL": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}},
-        "NFL": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}},
+        "NCAAB": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}},
     }
     
     # Generate list of dates from start_date to yesterday
