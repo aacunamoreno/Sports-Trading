@@ -9194,40 +9194,50 @@ async def update_nhl_scores(date: str = None):
             await page.wait_for_load_state("domcontentloaded")
             await page.wait_for_timeout(3000)
             
-            # Parse NHL game data - scores are typically 0-10 range
+            # Parse NHL game data using improved pattern matching
+            # Format: RANK\nTEAM\nRECORD\nSCORE (e.g., "39\nRangers\n19-17\n2")
             scraped_games = await page.evaluate("""() => {
                 const games = [];
                 const text = document.body.innerText;
-                const lines = text.split('\\n');
+                const lines = text.split('\\n').map(l => l.trim());
                 
+                let i = 0;
                 let currentGame = {};
-                let lastTeam = '';
                 
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
+                while (i < lines.length - 3) {
+                    const rankLine = lines[i];
+                    const teamLine = lines[i + 1];
+                    const recordLine = lines[i + 2];
+                    const scoreLine = lines[i + 3];
                     
-                    // NHL scores are typically 0-12
-                    if (/^\\d{1,2}$/.test(line)) {
-                        const score = parseInt(line);
-                        if (score >= 0 && score <= 15) {
-                            // Look back for team name
-                            for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
-                                const prevLine = lines[j].trim();
-                                if (prevLine && !/^\\d+-\\d+$/.test(prevLine) && !/^\\d+$/.test(prevLine) && prevLine.length > 2) {
-                                    lastTeam = prevLine;
-                                    break;
-                                }
-                            }
-                            
-                            if (lastTeam) {
-                                if (!currentGame.away_team) {
-                                    currentGame.away_team = lastTeam;
-                                    currentGame.away_score = score;
-                                } else if (!currentGame.home_team) {
-                                    currentGame.home_team = lastTeam;
-                                    currentGame.home_score = score;
-                                    currentGame.final_score = currentGame.away_score + score;
-                                    games.push({...currentGame});
+                    // Check if this matches the pattern: number, team name, record (X-Y), score
+                    if (/^\\d+$/.test(rankLine) && 
+                        parseInt(rankLine) >= 20 && parseInt(rankLine) <= 80 &&
+                        teamLine && teamLine.length > 2 && !/^\\d/.test(teamLine) &&
+                        /^\\d+-\\d+$/.test(recordLine) &&
+                        /^\\d{1,2}$/.test(scoreLine) && parseInt(scoreLine) <= 15) {
+                        
+                        const score = parseInt(scoreLine);
+                        
+                        if (!currentGame.away_team) {
+                            currentGame.away_team = teamLine;
+                            currentGame.away_score = score;
+                            i += 4;
+                        } else {
+                            currentGame.home_team = teamLine;
+                            currentGame.home_score = score;
+                            currentGame.final_score = currentGame.away_score + score;
+                            games.push({...currentGame});
+                            currentGame = {};
+                            i += 4;
+                        }
+                    } else {
+                        i++;
+                    }
+                }
+                
+                return games;
+            }""");
                                     currentGame = {};
                                 }
                                 lastTeam = '';
