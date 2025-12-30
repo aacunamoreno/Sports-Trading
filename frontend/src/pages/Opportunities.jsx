@@ -377,6 +377,17 @@ export default function Opportunities() {
                 {updatingScores ? 'Updating Scores...' : 'Update Scores'}
               </Button>
             )}
+            {day === 'yesterday' && league === 'NBA' && (
+              <Button 
+                onClick={handleUpdateBetResults} 
+                disabled={updatingBetResults}
+                variant="secondary"
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <span className={updatingBetResults ? 'animate-pulse' : ''}>💰</span>
+                {updatingBetResults ? 'Updating Bets...' : 'Update Bet Results'}
+              </Button>
+            )}
             <Button 
               onClick={handleExport} 
               disabled={exporting}
