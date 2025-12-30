@@ -1022,3 +1022,45 @@ User reported placing 3 NBA bets on December 28, 2025 that were not showing in t
 
 ---
 
+
+---
+
+## Process #4, #5, #6 NHL Dec 28 - Results Implementation (2025-12-30)
+
+### What was done:
+Implemented Yesterday's Results workflow for NHL (Dec 28, 2025):
+
+1. **Process #4 - Final Scores:** Scraped final scores from ESPN NHL scoreboard
+2. **Process #5 - Bet Results:** Found 5 NHL bets from plays888.co History page
+3. **Process #6 - Updated Records:** Recalculated NHL records
+
+### NHL Dec 28 Bets Found:
+| Game | Bet | Line | Final | Result |
+|------|-----|------|-------|--------|
+| Montreal @ Tampa Bay | OVER | 6 | 9 | **WIN** ✅ |
+| NY Islanders @ Columbus | UNDER | 6 | 6 | **PUSH** ⚪ |
+| Toronto @ Detroit | UNDER | 6.5 | 5 | **WIN** ✅ |
+| Pittsburgh @ Chicago | UNDER | 6 | 10 | **LOSE** ❌ |
+| Philadelphia @ Seattle | OVER | 5.5 | 5 | **LOSE** ❌ |
+
+**NHL Dec 28 Betting: 2-2 (1 push)**
+
+### UI Fix:
+- Added PUSH handling to the Result column display
+- Now shows "⚪ PUSH" instead of "⏳ PENDING" for push results
+
+### Updated Records (since 12/22):
+- **NHL Betting Record:** 10-7 (was 8-5)
+- **NHL Edge Record:** 13-8 (was 11-5)
+
+### Verification:
+- ✅ All 5 NHL games show with final scores
+- ✅ All 5 bets marked with 💰 icon
+- ✅ Bet-time lines (🎯) displayed correctly
+- ✅ PUSH result displays properly for NY Islanders game
+- ✅ "My Bets: 2-2" header correctly updated
+
+### Status: ✅ COMPLETE
+
+---
+
