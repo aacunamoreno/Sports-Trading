@@ -1064,3 +1064,63 @@ Implemented Yesterday's Results workflow for NHL (Dec 28, 2025):
 
 ---
 
+
+---
+
+## Latest Testing: NCAAB 8pm Job Implementation - December 30, 2025
+
+### Test Completed: 2025-12-30 - NCAAB CBS Sports Scraping & PPG Analysis
+
+**Task:** Implement the 8pm Job (Processes #1 & #2) for NCAAB using CBS Sports for games/lines and TeamRankings for PPG stats.
+
+**Test Results:** ✅ NCAAB 8PM JOB IMPLEMENTATION COMPLETE
+
+#### Implementation Summary:
+1. ✅ Created `scrape_cbssports_ncaab()` function to scrape NCAAB games from CBS Sports
+2. ✅ Updated `scrape_tomorrows_opening_lines()` to use CBS Sports for NCAAB
+3. ✅ Updated `populate_ppg_and_dots_for_tomorrow()` to include NCAAB PPG processing
+4. ✅ Improved team name matching with fuzzy matching for NCAAB's 365+ teams
+
+#### API Endpoint Tested:
+- ✅ `GET /api/opportunities/ncaab?day=tomorrow` - Successfully returns 39 NCAAB games
+
+#### Data Verification Results:
+- **Total Games Scraped:** 39 games from CBS Sports
+- **Games with Lines:** 32 games (82%)
+- **Games with PPG Data:** 25 games (64% match rate)
+- **Games with Recommendations:** 9 games (all OVER due to Edge >= 9)
+
+#### Edge Recommendations:
+| Away Team | Home Team | Edge | Recommendation |
+|-----------|-----------|------|----------------|
+| Ohio | C. Michigan | +27.3 | OVER |
+| W. Michigan | Toledo | +16.4 | OVER |
+| Florida St. | N. Carolina | +10.6 | OVER |
+| Miami (Ohio) | Bowling Green | +17.0 | OVER |
+| Pittsburgh | Miami | +26.1 | OVER |
+| Butler | Creighton | +11.6 | OVER |
+| Louisville | California | +11.6 | OVER |
+| Saint Mary's | Pepperdine | +23.9 | OVER |
+| Notre Dame | Stanford | +12.4 | OVER |
+
+#### NCAAB-Specific Configuration:
+- **Edge Threshold:** 9 (higher than NBA's 5, NHL's 0.5, NFL's 7)
+- **Dot Color Thresholds:** Percentile-based for 365 teams
+  - 🟢 Top 25% (Rank 1-92)
+  - 🔵 25-50% (Rank 93-184)
+  - 🟡 50-75% (Rank 185-276)
+  - 🔴 Bottom 25% (Rank 277-365)
+  - ⚪ Unknown teams
+
+#### Data Sources Verified:
+- ✅ **CBS Sports:** cbssports.com/college-basketball/scoreboard/FBS/YYYYMMDD/
+- ✅ **TeamRankings:** teamrankings.com/ncaa-basketball/stat/points-per-game?date=YYYY-MM-DD
+
+#### UI Verification:
+- ✅ NCAAB tab displays correctly
+- ✅ Tomorrow view shows 39 games
+- ✅ PPG values, dots, and edge recommendations visible
+- ✅ "NO LINE" displayed for games without betting lines
+- ✅ OVER recommendations highlighted correctly
+
+---
