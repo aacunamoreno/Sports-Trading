@@ -2598,8 +2598,15 @@ class Plays888Service:
                         away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
                         home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
                     
+                    # Check for international/European basketball (not NCAAB)
+                    # Romanian, European teams often have patterns like "CSM", "BC", "KK", etc.
+                    intl_patterns = ['CSM ', 'BC ', 'KK ', 'TARGU', 'PLOIESTI', 'BUCHAREST', 'CLUJ', 
+                                    'SIBIU', 'ORADEA', 'STEAUA', 'DINAMO', 'RAPID', 'FCSB']
+                    is_international = any(pattern in team_name.upper() or pattern in away_team.upper() or pattern in home_team.upper() 
+                                          for pattern in intl_patterns)
+                    
                     # Determine sport based on context (look for CBB, NHL, NBA, NFL labels)
-                    sport = 'NCAAB'  # Default to NCAAB for college basketball
+                    sport = 'INTL_BASKETBALL' if is_international else 'NCAAB'  # Mark international separately
                     for j in range(max(0, i-5), min(len(lines), i+1)):
                         context_line = lines[j].upper()
                         if 'NHL' in context_line:
