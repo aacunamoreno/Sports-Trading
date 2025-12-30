@@ -792,7 +792,16 @@ export default function Opportunities() {
                           ) : '-'}
                         </td>
                       )}
-                      <td className={`py-3 px-2 text-center font-bold ${textStyle}`}>{game.combined_ppg || game.combined_gpg || game.game_avg}</td>
+                      <td className={`py-3 px-2 text-center font-bold ${textStyle}`}>
+                        {/* For NCAAB, only show PPG if BOTH teams have data */}
+                        {league === 'NCAAB' ? (
+                          (game.away_ppg_value && game.home_ppg_value) 
+                            ? game.combined_ppg 
+                            : <span className="text-muted-foreground text-xs">-</span>
+                        ) : (
+                          game.combined_ppg || game.combined_gpg || game.game_avg || '-'
+                        )}
+                      </td>
                       <td className="py-3 px-2 text-center">
                         {game.edge !== null && game.edge !== undefined ? (
                           <div className="flex flex-col">
