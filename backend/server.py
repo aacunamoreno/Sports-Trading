@@ -5235,7 +5235,8 @@ async def scrape_tomorrows_opening_lines():
     logger.info(f"[8PM Job] Scraping tomorrow's opening lines for {tomorrow}")
     
     try:
-        leagues = ['NBA', 'NHL', 'NFL', 'NCAAB']
+        # NFL eliminated - only process NBA, NHL, NCAAB
+        leagues = ['NBA', 'NHL', 'NCAAB']
         
         for league in leagues:
             try:
@@ -5243,7 +5244,7 @@ async def scrape_tomorrows_opening_lines():
                 if league == 'NCAAB':
                     games = await scrape_cbssports_ncaab(tomorrow)
                 else:
-                    games = await scrape_scoresandodds(league.lower(), tomorrow)
+                    games = await scrape_scoresandodds(league.upper(), tomorrow)
                 
                 if games:
                     # Create full game documents for the opportunities collection
