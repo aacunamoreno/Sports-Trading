@@ -782,7 +782,7 @@ export default function Opportunities() {
                                   ? 'bg-red-500/30 text-red-400'
                                   : 'bg-gray-500/30 text-gray-400'
                             }`}>
-                              {game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : '⏳ PENDING'}
+                              {game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : game.bet_result === 'push' ? '⚪ PUSH' : '⏳ PENDING'}
                             </span>
                           ) : isNoBet ? (
                             // For historical dates without user bet and low edge: show NO BET
@@ -798,7 +798,7 @@ export default function Opportunities() {
                                   ? 'bg-red-500/30 text-red-400'
                                   : 'bg-gray-500/30 text-gray-400'
                             }`}>
-                              {game.result_hit === true ? '✅ HIT' : game.result_hit === false ? '❌ MISS' : '⏳ PENDING'}
+                              {game.result_hit === true ? '✅ HIT' : game.result_hit === false ? '❌ MISS' : game.result === 'PUSH' ? '⚪ PUSH' : '⏳ PENDING'}
                             </span>
                           ) : (
                             <span className="text-muted-foreground">-</span>
