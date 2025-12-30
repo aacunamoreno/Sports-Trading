@@ -6102,8 +6102,8 @@ async def update_records_from_start_date(start_date: str = "2025-12-22"):
         )
         logger.info(f"[#6] Updated {league} betting record: {betting['wins']}-{betting['losses']}")
     
-    # Update edge_records (Edge/Recommendation Record)
-    for league in ["NBA", "NHL", "NFL"]:
+    # Update edge_records (Edge/Recommendation Record) - NFL eliminated
+    for league in ["NBA", "NHL", "NCAAB"]:
         edge = records[league]["edge"]
         await db.edge_records.update_one(
             {"league": league},
