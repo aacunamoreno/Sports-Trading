@@ -3050,6 +3050,136 @@ async def scrape_scoresandodds(league: str, date_str: str) -> List[Dict[str, Any
         return []
 
 
+async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
+    """
+    Scrape NCAAB games and lines from CBS Sports.
+    This is more reliable than scoresandodds for NCAAB.
+    
+    Args:
+        target_date: Date in 'YYYY-MM-DD' format
+    
+    Returns:
+        List of games with teams, totals, spreads, times
+    """
+    from playwright.async_api import async_playwright
+    
+    # Convert date format from YYYY-MM-DD to YYYYMMDD for CBS URL
+    date_for_url = target_date.replace("-", "")
+    url = f"https://www.cbssports.com/college-basketball/scoreboard/FBS/{date_for_url}/?layout=compact"
+    
+    logger.info(f"Scraping CBS Sports NCAAB: {url}")
+    
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            await page.goto(url, timeout=30000)
+            await page.wait_for_load_state("networkidle")
+            await page.wait_for_timeout(3000)
+            
+            # Extract games
+            games = await page.evaluate("""() => {
+                const games = [];
+                const cards = document.querySelectorAll('.single-score-card');
+                
+                cards.forEach((card) => {
+                    try {
+                        // Get raw text
+                        const rawText = card.innerText;
+                        const lines = rawText.split('\\n').filter(l => l.trim());
+                        
+                        // Find team names
+                        const teamLines = [];
+                        const timePattern = /^(\\d+:\\d+|WED|THU|FRI|SAT|SUN|MON|TUE)/;
+                        const networkPattern = /^(ESPN|ESPN2|BTN|SECN|ACCN|FS1|ESP|CBS|YTTV)/i;
+                        const skipPattern = /^(Preview|Expert|StubHub|o\\d|[+-]\\d)/i;
+                        
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed.length > 1 && 
+                                trimmed.length < 30 &&
+                                !timePattern.test(trimmed) &&
+                                !networkPattern.test(trimmed) &&
+                                !skipPattern.test(trimmed) &&
+                                !/^\\d+$/.test(trimmed)) {
+                                // Clean rank numbers
+                                const cleaned = trimmed.replace(/^\\d+\\s*/, '').trim();
+                                if (cleaned.length > 1 && !teamLines.includes(cleaned)) {
+                                    teamLines.push(cleaned);
+                                }
+                            }
+                        }
+                        
+                        if (teamLines.length < 2) return;
+                        
+                        const awayTeam = teamLines[0];
+                        const homeTeam = teamLines.length > 1 ? teamLines[teamLines.length - 1] : teamLines[1];
+                        
+                        // Get time
+                        let time = '';
+                        for (const line of lines) {
+                            if (/^\\d+:\\d+\\s*(AM|PM)?/i.test(line.trim()) || /^(WED|THU|FRI|SAT|SUN|MON|TUE)/.test(line.trim())) {
+                                time = line.trim();
+                                break;
+                            }
+                        }
+                        
+                        // Get total
+                        let total = null;
+                        const totalMatch = rawText.match(/o(\\d+\\.?\\d*)/);
+                        if (totalMatch) total = parseFloat(totalMatch[1]);
+                        
+                        // Get spread
+                        let spread = null;
+                        const spreadMatches = rawText.match(/([+-]\\d+\\.?\\d*)/g);
+                        if (spreadMatches && spreadMatches.length > 0) {
+                            spread = parseFloat(spreadMatches[spreadMatches.length - 1]);
+                        }
+                        
+                        // Get scores if game is finished
+                        const scoreEls = card.querySelectorAll('.total-score');
+                        const scores = [];
+                        scoreEls.forEach(s => {
+                            const num = parseInt(s.innerText.trim());
+                            if (!isNaN(num)) scores.push(num);
+                        });
+                        
+                        const game = {
+                            away_team: awayTeam,
+                            home_team: homeTeam,
+                            time: time,
+                            total: total,
+                            opening_line: total,
+                            spread: spread
+                        };
+                        
+                        // Add scores if available
+                        if (scores.length >= 2) {
+                            game.away_score = scores[0];
+                            game.home_score = scores[1];
+                            game.final_score = scores[0] + scores[1];
+                        }
+                        
+                        games.push(game);
+                    } catch(e) {}
+                });
+                
+                return games;
+            }""")
+            
+            await browser.close()
+            
+            logger.info(f"Scraped {len(games)} NCAAB games from CBS Sports for {target_date}")
+            return games
+            
+    except Exception as e:
+        logger.error(f"Error scraping CBS Sports NCAAB: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
 plays888_service = Plays888Service()
 
 # Bet monitoring scheduler
