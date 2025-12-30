@@ -733,6 +733,11 @@ export default function Opportunities() {
                               {game.user_bet && game.bet_line && (
                                 <span className="text-xs text-yellow-400 font-bold" title="Line when bet was placed">
                                   🎯 {game.bet_line}
+                                  {currentLine && game.bet_line !== currentLine && (
+                                    <span className={currentLine > game.bet_line ? 'text-green-400 ml-1' : 'text-red-400 ml-1'}>
+                                      {currentLine > game.bet_line ? '↑' : '↓'}
+                                    </span>
+                                  )}
                                 </span>
                               )}
                             </div>
