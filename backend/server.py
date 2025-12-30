@@ -6086,8 +6086,8 @@ async def update_records_from_start_date(start_date: str = "2025-12-22"):
     records = await calculate_records_from_start_date(start_date)
     now = datetime.now(arizona_tz).strftime('%Y-%m-%d %I:%M %p')
     
-    # Update compound_records (Betting Record)
-    for league in ["NBA", "NHL", "NFL"]:
+    # Update compound_records (Betting Record) - NFL eliminated
+    for league in ["NBA", "NHL", "NCAAB"]:
         betting = records[league]["betting"]
         await db.compound_records.update_one(
             {"league": league},
