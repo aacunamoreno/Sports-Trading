@@ -758,7 +758,47 @@ All 13 NHL games for Dec 27 now match scoresandodds.com:
 
 ## Agent Communication
 
-### Testing Agent → Main Agent (2025-12-29)
+### Testing Agent → Main Agent (2025-12-30)
+
+**NCAAB 8pm Job Feature Testing Complete - ALL TESTS PASSED ✅**
+
+**Comprehensive NCAAB 8pm Job Testing Results:**
+- ✅ GET /api/opportunities/ncaab?day=tomorrow - Successfully returns exactly 39 NCAAB games for 2025-12-30
+- ✅ Data Source Verification - CBS Sports data source correctly identified as "cbssports.com opening lines"
+- ✅ PPG Data Verification - 25 games with complete PPG data, 14 games without PPG data (non-D1 teams)
+- ✅ PPG Formula Verification - All 3 sample games verified with correct calculations:
+  - Ohio @ C. Michigan: Combined PPG=176.8, Edge=+27.3, Rec=OVER ✓
+  - Vermont @ Princeton: Combined PPG=139.2, Edge=+1.7, No Rec ✓
+  - Maine-Fort Kent @ Maine: Combined PPG=114.4, calculated correctly ✓
+- ✅ Manual Formula Verification - Confirmed formula: (away_season_ppg + home_season_ppg + away_last3_ppg + home_last3_ppg) / 2
+- ✅ Edge Calculation Formula - All games correctly calculate Edge = combined_ppg - total
+- ✅ NCAAB-Specific Edge Thresholds - OVER (Edge >= 9), UNDER (Edge <= -9) working correctly
+- ✅ Dot Color Logic - 365-team percentile system working correctly (🟢🔵🟡🔴⚪)
+
+**Sample OVER Recommendations Verified:**
+- ✅ Ohio @ C. Michigan: Edge +27.3, Rec=OVER
+- ✅ W. Michigan @ Toledo: Edge +16.4, Rec=OVER
+- ✅ Florida St. @ N. Carolina: Edge +10.6, Rec=OVER
+- ✅ Miami (Ohio) @ Bowling Green: Edge +17.0, Rec=OVER
+- ✅ Pittsburgh @ Miami: Edge +26.1, Rec=OVER
+
+**Technical Validation:**
+- ✅ API response structure is correct with all required fields
+- ✅ All 39 games have proper team names and structure
+- ✅ PPG calculations accurate within tolerance
+- ✅ Edge calculations accurate within tolerance
+- ✅ Response time within acceptable limits (< 30 seconds)
+
+**Test Coverage:**
+- **Total NCAAB 8pm Job Tests**: 7
+- **Passed**: 7 (100% success rate)
+- **Failed**: 0
+
+**Status:** NCAAB 8pm Job feature is working perfectly. All requirements from the review request have been met and verified.
+
+**Recommendation:** Main agent can summarize and finish - the NCAAB 8pm Job feature testing is complete and successful.
+
+---
 
 **NHL GPG Avg Calculation Fix Testing Complete - ALL TESTS PASSED ✅**
 
