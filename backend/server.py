@@ -6047,31 +6047,28 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                         elif bet_result == 'lost':
                             results["NHL"]["betting"]["losses"] += 1
     
-    # Process NFL records
+    # Process NCAAB records
     for date in dates:
-        doc = await db.nfl_opportunities.find_one({"date": date})
+        doc = await db.ncaab_opportunities.find_one({"date": date})
         if doc and doc.get('games'):
             for game in doc['games']:
-                # Check if game has final score (completed)
                 if game.get('final_score') is None:
                     continue
                 
-                # Edge Record: Check if system recommendation hit
                 recommendation = game.get('recommendation')
                 actual_result = game.get('actual_result')
                 if recommendation and actual_result:
                     if recommendation == actual_result:
-                        results["NFL"]["edge"]["hits"] += 1
+                        results["NCAAB"]["edge"]["hits"] += 1
                     else:
-                        results["NFL"]["edge"]["misses"] += 1
+                        results["NCAAB"]["edge"]["misses"] += 1
                 
-                # Betting Record: Check if user bet hit
                 if game.get('user_bet'):
                     bet_result = game.get('bet_result')
                     if bet_result == 'won':
-                        results["NFL"]["betting"]["wins"] += 1
+                        results["NCAAB"]["betting"]["wins"] += 1
                     elif bet_result == 'lost':
-                        results["NFL"]["betting"]["losses"] += 1
+                        results["NCAAB"]["betting"]["losses"] += 1
     
     logger.info(f"[#6] Calculated records: {results}")
     return results
