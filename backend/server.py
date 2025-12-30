@@ -9158,6 +9158,439 @@ async def update_nba_scores(date: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/scores/nhl/update")
+async def update_nhl_scores(date: str = None):
+    """
+    Update NHL scores from ScoresAndOdds.com for a specific date.
+    Marks edge recommendations as HIT or MISS based on final scores.
+    
+    Args:
+        date: Date in YYYY-MM-DD format. Defaults to yesterday.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import timedelta
+        
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        # Default to yesterday if no date provided
+        if not date:
+            yesterday = datetime.now(arizona_tz) - timedelta(days=1)
+            date = yesterday.strftime('%Y-%m-%d')
+        
+        logger.info(f"[NHL Scores] Updating scores for {date}")
+        
+        # Scrape scores from ScoresAndOdds.com
+        url = f"https://www.scoresandodds.com/nhl?date={date}"
+        logger.info(f"[NHL Scores] Scraping from {url}")
+        
+        scraped_games = []
+        
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            await page.goto(url, timeout=30000)
+            await page.wait_for_load_state("domcontentloaded")
+            await page.wait_for_timeout(3000)
+            
+            # Parse NHL game data - scores are typically 0-10 range
+            scraped_games = await page.evaluate("""() => {
+                const games = [];
+                const text = document.body.innerText;
+                const lines = text.split('\\n');
+                
+                let currentGame = {};
+                let lastTeam = '';
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    
+                    // NHL scores are typically 0-12
+                    if (/^\\d{1,2}$/.test(line)) {
+                        const score = parseInt(line);
+                        if (score >= 0 && score <= 15) {
+                            // Look back for team name
+                            for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
+                                const prevLine = lines[j].trim();
+                                if (prevLine && !/^\\d+-\\d+$/.test(prevLine) && !/^\\d+$/.test(prevLine) && prevLine.length > 2) {
+                                    lastTeam = prevLine;
+                                    break;
+                                }
+                            }
+                            
+                            if (lastTeam) {
+                                if (!currentGame.away_team) {
+                                    currentGame.away_team = lastTeam;
+                                    currentGame.away_score = score;
+                                } else if (!currentGame.home_team) {
+                                    currentGame.home_team = lastTeam;
+                                    currentGame.home_score = score;
+                                    currentGame.final_score = currentGame.away_score + score;
+                                    games.push({...currentGame});
+                                    currentGame = {};
+                                }
+                                lastTeam = '';
+                            }
+                        }
+                    }
+                }
+                
+                return games;
+            }""")
+            
+            await browser.close()
+        
+        logger.info(f"[NHL Scores] Scraped {len(scraped_games)} games")
+        
+        # Get database games
+        db_data = await db.nhl_opportunities.find_one({"date": date}, {"_id": 0})
+        if not db_data:
+            raise HTTPException(status_code=404, detail=f"No NHL data found for {date}")
+        
+        db_games = db_data.get('games', [])
+        logger.info(f"[NHL Scores] Found {len(db_games)} games in database")
+        
+        # Helper function to normalize team names
+        def normalize_team(team_name):
+            if not team_name:
+                return ''
+            team_name = team_name.strip()
+            for alias, full_name in NHL_TEAM_ALIASES.items():
+                if alias.lower() in team_name.lower() or team_name.lower() in alias.lower():
+                    return full_name
+            return team_name
+        
+        # Helper function to match games
+        def match_game(db_game, scraped):
+            db_away = normalize_team(db_game.get('away_team', ''))
+            db_home = normalize_team(db_game.get('home_team', ''))
+            
+            for sg in scraped:
+                scraped_away = normalize_team(sg.get('away_team', ''))
+                scraped_home = normalize_team(sg.get('home_team', ''))
+                
+                if (db_away.lower() in scraped_away.lower() or scraped_away.lower() in db_away.lower()) and \
+                   (db_home.lower() in scraped_home.lower() or scraped_home.lower() in db_home.lower()):
+                    return sg
+                if (db_away.lower() in scraped_home.lower() or scraped_home.lower() in db_away.lower()) and \
+                   (db_home.lower() in scraped_away.lower() or scraped_away.lower() in db_home.lower()):
+                    return sg
+            return None
+        
+        # Update games with scores
+        updated_count = 0
+        hits = 0
+        misses = 0
+        results = []
+        
+        # NHL edge threshold is 0.5
+        edge_threshold = 0.5
+        
+        for game in db_games:
+            matched = match_game(game, scraped_games)
+            if matched:
+                final_score = matched.get('final_score')
+                game['final_score'] = final_score
+                game['away_score'] = matched.get('away_score')
+                game['home_score'] = matched.get('home_score')
+                
+                line = game.get('total') or game.get('opening_line')
+                recommendation = game.get('recommendation')
+                edge = game.get('edge', 0) or 0
+                
+                if final_score is not None and line:
+                    # Determine result
+                    if final_score > line:
+                        game['result'] = 'OVER'
+                    elif final_score < line:
+                        game['result'] = 'UNDER'
+                    else:
+                        game['result'] = 'PUSH'
+                    
+                    # Check if recommendation hit
+                    if abs(edge) >= edge_threshold and recommendation:
+                        if recommendation == 'OVER':
+                            game['result_hit'] = final_score > line
+                        elif recommendation == 'UNDER':
+                            game['result_hit'] = final_score < line
+                        else:
+                            game['result_hit'] = None
+                        
+                        if game['result_hit'] == True:
+                            hits += 1
+                        elif game['result_hit'] == False:
+                            misses += 1
+                    else:
+                        game['result_hit'] = None
+                
+                updated_count += 1
+                status = "HIT" if game.get('result_hit') == True else "MISS" if game.get('result_hit') == False else "NO_REC"
+                results.append({
+                    "game": f"{game.get('away_team')} @ {game.get('home_team')}",
+                    "final_score": final_score,
+                    "line": line,
+                    "edge": edge,
+                    "recommendation": recommendation,
+                    "result": status
+                })
+                logger.info(f"[NHL Scores] {game.get('away_team')} @ {game.get('home_team')}: {final_score} vs {line} | {status}")
+        
+        # Save to database
+        await db.nhl_opportunities.update_one(
+            {"date": date},
+            {"$set": {
+                "games": db_games,
+                "scores_updated": datetime.now(arizona_tz).isoformat()
+            }}
+        )
+        
+        logger.info(f"[NHL Scores] Updated {updated_count}/{len(db_games)} games")
+        
+        return {
+            "success": True,
+            "date": date,
+            "message": f"Updated {updated_count} of {len(db_games)} NHL games with final scores",
+            "games_updated": updated_count,
+            "games_total": len(db_games),
+            "edge_hits": hits,
+            "edge_misses": misses,
+            "hit_rate": f"{hits/(hits+misses)*100:.1f}%" if hits + misses > 0 else "N/A",
+            "results": results
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating NHL scores: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/scores/ncaab/update")
+async def update_ncaab_scores(date: str = None):
+    """
+    Update NCAAB scores from ScoresAndOdds.com for a specific date.
+    Marks edge recommendations as HIT or MISS based on final scores.
+    
+    Args:
+        date: Date in YYYY-MM-DD format. Defaults to yesterday.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import timedelta
+        
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        # Default to yesterday if no date provided
+        if not date:
+            yesterday = datetime.now(arizona_tz) - timedelta(days=1)
+            date = yesterday.strftime('%Y-%m-%d')
+        
+        logger.info(f"[NCAAB Scores] Updating scores for {date}")
+        
+        # Scrape scores from ScoresAndOdds.com
+        url = f"https://www.scoresandodds.com/ncaab?date={date}"
+        logger.info(f"[NCAAB Scores] Scraping from {url}")
+        
+        scraped_games = []
+        
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            await page.goto(url, timeout=30000)
+            await page.wait_for_load_state("domcontentloaded")
+            await page.wait_for_timeout(3000)
+            
+            # Parse NCAAB game data - scores are typically 40-120 range
+            scraped_games = await page.evaluate("""() => {
+                const games = [];
+                const text = document.body.innerText;
+                const lines = text.split('\\n');
+                
+                let currentGame = {};
+                let lastTeam = '';
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    
+                    // NCAAB scores are typically 40-120
+                    if (/^\\d{2,3}$/.test(line)) {
+                        const score = parseInt(line);
+                        if (score >= 40 && score <= 150) {
+                            // Look back for team name
+                            for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
+                                const prevLine = lines[j].trim();
+                                if (prevLine && !/^\\d+-\\d+$/.test(prevLine) && !/^\\d+$/.test(prevLine) && prevLine.length > 2) {
+                                    lastTeam = prevLine;
+                                    break;
+                                }
+                            }
+                            
+                            if (lastTeam) {
+                                if (!currentGame.away_team) {
+                                    currentGame.away_team = lastTeam;
+                                    currentGame.away_score = score;
+                                } else if (!currentGame.home_team) {
+                                    currentGame.home_team = lastTeam;
+                                    currentGame.home_score = score;
+                                    currentGame.final_score = currentGame.away_score + score;
+                                    games.push({...currentGame});
+                                    currentGame = {};
+                                }
+                                lastTeam = '';
+                            }
+                        }
+                    }
+                }
+                
+                return games;
+            }""")
+            
+            await browser.close()
+        
+        logger.info(f"[NCAAB Scores] Scraped {len(scraped_games)} games")
+        
+        # Get database games
+        db_data = await db.ncaab_opportunities.find_one({"date": date}, {"_id": 0})
+        if not db_data:
+            raise HTTPException(status_code=404, detail=f"No NCAAB data found for {date}")
+        
+        db_games = db_data.get('games', [])
+        logger.info(f"[NCAAB Scores] Found {len(db_games)} games in database")
+        
+        # Helper function to normalize NCAAB team names
+        def normalize_team(team_name):
+            if not team_name:
+                return ''
+            team_name = team_name.strip()
+            # Remove common prefixes/suffixes
+            team_name = team_name.replace('State', 'St.').replace('University', '')
+            return team_name
+        
+        # Helper function to match games (fuzzy matching for NCAAB)
+        def match_game(db_game, scraped):
+            db_away = normalize_team(db_game.get('away_team', '')).lower()
+            db_home = normalize_team(db_game.get('home_team', '')).lower()
+            
+            for sg in scraped:
+                scraped_away = normalize_team(sg.get('away_team', '')).lower()
+                scraped_home = normalize_team(sg.get('home_team', '')).lower()
+                
+                # Try to match by key words in team names
+                db_away_words = set(db_away.split())
+                db_home_words = set(db_home.split())
+                scraped_away_words = set(scraped_away.split())
+                scraped_home_words = set(scraped_home.split())
+                
+                # Match if significant overlap in team name words
+                away_match = len(db_away_words & scraped_away_words) >= 1 or db_away in scraped_away or scraped_away in db_away
+                home_match = len(db_home_words & scraped_home_words) >= 1 or db_home in scraped_home or scraped_home in db_home
+                
+                if away_match and home_match:
+                    return sg
+                    
+                # Try reverse order
+                away_match_rev = len(db_away_words & scraped_home_words) >= 1 or db_away in scraped_home or scraped_home in db_away
+                home_match_rev = len(db_home_words & scraped_away_words) >= 1 or db_home in scraped_away or scraped_away in db_home
+                
+                if away_match_rev and home_match_rev:
+                    return sg
+            
+            return None
+        
+        # Update games with scores
+        updated_count = 0
+        hits = 0
+        misses = 0
+        results = []
+        
+        # NCAAB edge threshold is 9
+        edge_threshold = 9
+        
+        for game in db_games:
+            matched = match_game(game, scraped_games)
+            if matched:
+                final_score = matched.get('final_score')
+                game['final_score'] = final_score
+                game['away_score'] = matched.get('away_score')
+                game['home_score'] = matched.get('home_score')
+                
+                line = game.get('total') or game.get('opening_line')
+                recommendation = game.get('recommendation')
+                edge = game.get('edge', 0) or 0
+                
+                if final_score is not None and line:
+                    # Determine result
+                    if final_score > line:
+                        game['result'] = 'OVER'
+                    elif final_score < line:
+                        game['result'] = 'UNDER'
+                    else:
+                        game['result'] = 'PUSH'
+                    
+                    # Check if recommendation hit (edge threshold 9 for NCAAB)
+                    if abs(edge) >= edge_threshold and recommendation:
+                        if recommendation == 'OVER':
+                            game['result_hit'] = final_score > line
+                        elif recommendation == 'UNDER':
+                            game['result_hit'] = final_score < line
+                        else:
+                            game['result_hit'] = None
+                        
+                        if game['result_hit'] == True:
+                            hits += 1
+                        elif game['result_hit'] == False:
+                            misses += 1
+                    else:
+                        game['result_hit'] = None
+                
+                updated_count += 1
+                status = "HIT" if game.get('result_hit') == True else "MISS" if game.get('result_hit') == False else "NO_REC"
+                results.append({
+                    "game": f"{game.get('away_team')} @ {game.get('home_team')}",
+                    "final_score": final_score,
+                    "line": line,
+                    "edge": edge,
+                    "recommendation": recommendation,
+                    "result": status
+                })
+                logger.info(f"[NCAAB Scores] {game.get('away_team')} @ {game.get('home_team')}: {final_score} vs {line} | {status}")
+        
+        # Save to database
+        await db.ncaab_opportunities.update_one(
+            {"date": date},
+            {"$set": {
+                "games": db_games,
+                "scores_updated": datetime.now(arizona_tz).isoformat()
+            }}
+        )
+        
+        logger.info(f"[NCAAB Scores] Updated {updated_count}/{len(db_games)} games")
+        
+        return {
+            "success": True,
+            "date": date,
+            "message": f"Updated {updated_count} of {len(db_games)} NCAAB games with final scores",
+            "games_updated": updated_count,
+            "games_total": len(db_games),
+            "edge_hits": hits,
+            "edge_misses": misses,
+            "hit_rate": f"{hits/(hits+misses)*100:.1f}%" if hits + misses > 0 else "N/A",
+            "results": results
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating NCAAB scores: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/opportunities/nhl/manual")
 async def add_nhl_manual_data(data: dict):
     """
