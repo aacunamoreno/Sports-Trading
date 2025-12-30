@@ -4767,9 +4767,15 @@ async def scrape_nba_ppg_rankings(target_date: str = None):
         traceback.print_exc()
         return result
 
-async def scrape_ncaab_ppg_rankings():
+async def scrape_ncaab_ppg_rankings(target_date: str = None):
     """
     Scrape NCAAB (NCAA Basketball) Points Per Game rankings and values from teamrankings.com
+    
+    Args:
+        target_date: The date string (YYYY-MM-DD) for which to get PPG data.
+                    This should be the date of the games being analyzed.
+                    The teamrankings data for a given date reflects stats BEFORE that day's games.
+    
     Returns: {
         'season_ranks': {team: rank},
         'season_values': {team: ppg_value},
@@ -4792,15 +4798,20 @@ async def scrape_ncaab_ppg_rankings():
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
-            # IMPORTANT: Use yesterday's date to get PPG values BEFORE today's games
-            # This ensures we're analyzing with pre-game stats, not post-game updated stats
+            # Determine the date to use for scraping
             from zoneinfo import ZoneInfo
             arizona_tz = ZoneInfo('America/Phoenix')
-            yesterday = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
             
-            # Scrape NCAAB PPG from teamrankings with yesterday's date
-            ppg_url = f"https://www.teamrankings.com/ncaa-basketball/stat/points-per-game?date={yesterday}"
-            logger.info(f"Scraping NCAAB PPG from teamrankings.com with date={yesterday}")
+            if target_date:
+                scrape_date = target_date
+            else:
+                # Default to today's date (Arizona time)
+                scrape_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+            
+            # Scrape NCAAB PPG from teamrankings with the target date
+            # The data for a given date shows stats BEFORE that day's games
+            ppg_url = f"https://www.teamrankings.com/ncaa-basketball/stat/points-per-game?date={scrape_date}"
+            logger.info(f"Scraping NCAAB PPG from teamrankings.com with date={scrape_date}")
             
             response = await client.get(ppg_url, headers=headers)
             html = response.text
@@ -4811,7 +4822,7 @@ async def scrape_ncaab_ppg_rankings():
             
             matches = re.findall(row_pattern, html, re.DOTALL)
             
-            logger.info(f"Found {len(matches)} NCAAB teams in teamrankings.com PPG table (date={yesterday})")
+            logger.info(f"Found {len(matches)} NCAAB teams in teamrankings.com PPG table (date={scrape_date})")
             
             for rank, slug, display_name, season_ppg, last3_ppg in matches:
                 # Use display name as-is (clean it up)
