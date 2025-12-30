@@ -4668,9 +4668,15 @@ async def scrape_nba_odds():
         
         return games
 
-async def scrape_nba_ppg_rankings():
+async def scrape_nba_ppg_rankings(target_date: str = None):
     """
     Scrape NBA Points Per Game rankings and values from teamrankings.com
+    
+    Args:
+        target_date: The date string (YYYY-MM-DD) for which to get PPG data.
+                    This should be the date of the games being analyzed.
+                    The teamrankings data for a given date reflects stats BEFORE that day's games.
+    
     Returns: {
         'season_ranks': {team: rank},
         'season_values': {team: ppg_value},
@@ -4707,20 +4713,25 @@ async def scrape_nba_ppg_rankings():
     
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            # Scrape Season PPG (2024-25 column)
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
-            # IMPORTANT: Use yesterday's date to get PPG values BEFORE today's games
-            # This ensures we're analyzing with pre-game stats, not post-game updated stats
+            # Determine the date to use for scraping
+            # If target_date provided, use it; otherwise use today's Arizona date
             from zoneinfo import ZoneInfo
             arizona_tz = ZoneInfo('America/Phoenix')
-            yesterday = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
             
-            # Season PPG with yesterday's date (pre-game values)
-            ppg_url = f"https://www.teamrankings.com/nba/stat/points-per-game?date={yesterday}"
-            logger.info(f"Scraping NBA PPG from teamrankings.com with date={yesterday}")
+            if target_date:
+                scrape_date = target_date
+            else:
+                # Default to today's date (Arizona time)
+                scrape_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+            
+            # The teamrankings data for a given date shows stats AS OF that date
+            # (i.e., BEFORE that day's games have been played)
+            ppg_url = f"https://www.teamrankings.com/nba/stat/points-per-game?date={scrape_date}"
+            logger.info(f"Scraping NBA PPG from teamrankings.com with date={scrape_date}")
             
             season_response = await client.get(ppg_url, headers=headers)
             season_html = season_response.text
@@ -4731,7 +4742,7 @@ async def scrape_nba_ppg_rankings():
             
             matches = re.findall(row_pattern, season_html, re.DOTALL)
             
-            logger.info(f"Found {len(matches)} teams in teamrankings.com PPG table (date={yesterday})")
+            logger.info(f"Found {len(matches)} teams in teamrankings.com PPG table (date={scrape_date})")
             
             for rank, slug, season_ppg, last3_ppg in matches:
                 team_name = team_map.get(slug)
