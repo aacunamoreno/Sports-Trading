@@ -2573,55 +2573,74 @@ class Plays888Service:
                         })
                 
                 elif spread_match:
-                    # Handle spread bets (e.g., "DETROIT +11", "MERRIMACK +2")
+                    # Handle spread bets (e.g., "CALIFORNIA +9-130", "MARQUETTE +2-130")
+                    # These bets don't have "(TEAM vrs TEAM)" format - only show the team being bet on
                     team_name = spread_match.group(1).strip()
-                    spread_line = spread_match.group(2)
+                    spread_value = spread_match.group(2)
                     if spread_match.group(3) == '½':
-                        spread_line = str(float(spread_line) + 0.5 if float(spread_line) > 0 else float(spread_line) - 0.5)
+                        spread_value = str(float(spread_value) + 0.5 if float(spread_value) > 0 else float(spread_value) - 0.5)
                     
-                    bet_type = f"SPREAD {spread_line}"
+                    bet_type = f"{team_name} {spread_value}"  # e.g., "CALIFORNIA +9"
                     
-                    # Look for team names in nearby lines
+                    # Look for team names in nearby lines - might not find "(vrs)" for spread bets
                     teams_text = ""
                     for j in range(max(0, i-2), min(len(lines), i+3)):
                         if 'vrs' in lines[j].lower():
                             teams_text = lines[j]
                             break
                     
-                    # Extract team names
+                    # Extract team names if found
+                    away_team = team_name  # Default: bet team is the team
+                    home_team = "OPPONENT"  # Placeholder if we can't find matchup
+                    
                     teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
                     if teams_match:
                         away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
                         home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
-                        
-                        # Determine sport
-                        sport = None
-                        if is_nhl_team(away_team) and is_nhl_team(home_team):
+                    
+                    # Determine sport based on context (look for CBB, NHL, NBA, NFL labels)
+                    sport = 'NCAAB'  # Default to NCAAB for college basketball
+                    for j in range(max(0, i-5), min(len(lines), i+1)):
+                        context_line = lines[j].upper()
+                        if 'NHL' in context_line:
                             sport = 'NHL'
-                        elif is_nba_team(away_team) and is_nba_team(home_team):
+                            break
+                        elif 'NBA' in context_line:
                             sport = 'NBA'
-                        elif is_nfl_team(away_team) and is_nfl_team(home_team):
+                            break
+                        elif 'NFL' in context_line:
                             sport = 'NFL'
-                        else:
+                            break
+                        elif 'CBB' in context_line or 'COLLEGE' in context_line:
                             sport = 'NCAAB'
-                        
-                        # Look for risk amount
-                        risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
-                        risk_amount = 0
-                        win_amount = 0
-                        if risk_match:
-                            risk_amount = float(risk_match.group(1).replace(',', ''))
-                            win_amount = float(risk_match.group(2).replace(',', ''))
-                        
-                        raw_bets.append({
-                            "sport": sport,
-                            "away_team": away_team,
-                            "home_team": home_team,
-                            "bet_type": bet_type,
-                            "spread_line": spread_line,
-                            "risk": risk_amount,
-                            "to_win": win_amount
-                        })
+                            break
+                    
+                    # Also check if it's an NHL/NBA/NFL team
+                    if is_nhl_team(team_name):
+                        sport = 'NHL'
+                    elif is_nba_team(team_name):
+                        sport = 'NBA'
+                    elif is_nfl_team(team_name):
+                        sport = 'NFL'
+                    
+                    # Look for risk amount in the next line
+                    risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
+                    risk_amount = 0
+                    win_amount = 0
+                    if risk_match:
+                        risk_amount = float(risk_match.group(1).replace(',', ''))
+                        win_amount = float(risk_match.group(2).replace(',', ''))
+                    
+                    raw_bets.append({
+                        "sport": sport,
+                        "away_team": away_team,
+                        "home_team": home_team,
+                        "bet_type": bet_type,  # e.g., "CALIFORNIA +9"
+                        "spread_line": spread_value,
+                        "risk": risk_amount,
+                        "to_win": win_amount,
+                        "is_spread": True  # Flag for spread bets
+                    })
                 
                 i += 1
             
