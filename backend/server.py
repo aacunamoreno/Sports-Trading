@@ -8636,7 +8636,7 @@ async def add_ncaab_manual_data(data: dict):
         doc = {
             "date": target_date,
             "games": processed_games,
-            "plays": existing_plays,  # #3.85: Preserve existing plays
+            "plays": merged_plays,  # #3.85: Preserve existing plays + new open bets
             "last_updated": datetime.now(timezone.utc).isoformat(),
             "data_source": "manual"
         }
