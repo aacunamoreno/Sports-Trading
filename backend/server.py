@@ -3180,6 +3180,207 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
         return []
 
 
+async def scrape_cbssports_ncaab_with_team_urls(target_date: str) -> Tuple[List[Dict], Dict[str, str]]:
+    """
+    Scrape NCAAB games from CBS Sports including team URLs for Last 3 PPG lookup.
+    
+    Returns:
+        Tuple of (games list, team_urls dict)
+    """
+    from playwright.async_api import async_playwright
+    
+    date_for_url = target_date.replace("-", "")
+    url = f"https://www.cbssports.com/college-basketball/scoreboard/FBS/{date_for_url}/?layout=compact"
+    
+    logger.info(f"Scraping CBS Sports NCAAB with team URLs: {url}")
+    
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            await page.goto(url, timeout=30000)
+            await page.wait_for_load_state("networkidle")
+            await page.wait_for_timeout(3000)
+            
+            # Extract games with team URLs
+            data = await page.evaluate("""() => {
+                const games = [];
+                const teamUrls = {};
+                const cards = document.querySelectorAll('.single-score-card');
+                
+                cards.forEach((card) => {
+                    try {
+                        // Get team links
+                        const teamLinks = card.querySelectorAll('a[href*="/college-basketball/teams/"]');
+                        const teams = [];
+                        
+                        teamLinks.forEach(a => {
+                            const href = a.getAttribute('href');
+                            const teamSpan = a.querySelector('.team-location-name, .team');
+                            let name = teamSpan ? teamSpan.innerText.trim() : a.innerText.trim();
+                            name = name.replace(/^\\d+\\s*/, '').split('\\n')[0].trim();
+                            
+                            if (name && name.length > 1 && name.length < 30 && href && href.includes('/teams/')) {
+                                teams.push({ name: name, url: href });
+                                teamUrls[name] = href;
+                            }
+                        });
+                        
+                        if (teams.length >= 2) {
+                            const rawText = card.innerText;
+                            
+                            // Get total line
+                            let total = null;
+                            const totalMatch = rawText.match(/o(\\d+\\.?\\d*)/);
+                            if (totalMatch) total = parseFloat(totalMatch[1]);
+                            
+                            // Get time
+                            let time = '';
+                            const lines = rawText.split('\\n');
+                            for (const line of lines) {
+                                if (/^\\d+:\\d+\\s*(AM|PM)?/i.test(line.trim()) || /^(WED|THU|FRI|SAT|SUN|MON|TUE)/.test(line.trim())) {
+                                    time = line.trim();
+                                    break;
+                                }
+                            }
+                            
+                            // Get spread
+                            let spread = null;
+                            const spreadMatches = rawText.match(/([+-]\\d+\\.?\\d*)/g);
+                            if (spreadMatches && spreadMatches.length > 0) {
+                                spread = parseFloat(spreadMatches[spreadMatches.length - 1]);
+                            }
+                            
+                            games.push({
+                                away_team: teams[0].name,
+                                away_url: teams[0].url,
+                                home_team: teams[teams.length - 1].name,
+                                home_url: teams[teams.length - 1].url,
+                                total: total,
+                                opening_line: total,
+                                time: time,
+                                spread: spread
+                            });
+                        }
+                    } catch(e) {}
+                });
+                
+                return { games: games, teamUrls: teamUrls };
+            }""")
+            
+            await browser.close()
+            
+            logger.info(f"Scraped {len(data['games'])} games with {len(data['teamUrls'])} team URLs")
+            return data['games'], data['teamUrls']
+            
+    except Exception as e:
+        logger.error(f"Error scraping CBS Sports NCAAB with team URLs: {e}")
+        import traceback
+        traceback.print_exc()
+        return [], {}
+
+
+async def scrape_ncaab_team_last3_ppg(team_urls: Dict[str, str], max_concurrent: int = 5) -> Dict[str, Dict]:
+    """
+    Scrape Last 3 game scores for NCAAB teams from CBS Sports team pages.
+    
+    Args:
+        team_urls: Dict mapping team names to their CBS Sports URLs
+        max_concurrent: Maximum concurrent browser pages
+        
+    Returns:
+        Dict mapping team names to their Last 3 stats
+    """
+    from playwright.async_api import async_playwright
+    import re
+    
+    logger.info(f"Scraping Last 3 PPG for {len(team_urls)} NCAAB teams...")
+    
+    team_stats = {}
+    semaphore = asyncio.Semaphore(max_concurrent)
+    
+    async def scrape_single_team(browser, team_name: str, team_url: str):
+        """Scrape a single team's Last 3 scores"""
+        async with semaphore:
+            try:
+                full_url = f"https://www.cbssports.com{team_url}"
+                page = await browser.new_page()
+                await page.goto(full_url, timeout=15000)
+                await page.wait_for_load_state("domcontentloaded")
+                await page.wait_for_timeout(500)
+                
+                # Get schedule section text
+                schedule_text = await page.evaluate("""() => {
+                    const body = document.body.innerText;
+                    const scheduleStart = body.indexOf('Schedule');
+                    const scheduleEnd = body.indexOf('Full Schedule');
+                    if (scheduleStart > -1 && scheduleEnd > -1) {
+                        return body.substring(scheduleStart, scheduleEnd);
+                    }
+                    return body.substring(0, 2000);
+                }""")
+                
+                await page.close()
+                
+                # Parse completed games
+                # Format: "W 83-69" (team won, scored 83) or "L 80-58" (team lost, scored 58)
+                completed_scores = []
+                for line in schedule_text.split('\n'):
+                    match = re.search(r'\b([WL])\s+(\d+)-(\d+)\b', line)
+                    if match:
+                        result = match.group(1)
+                        score1 = int(match.group(2))
+                        score2 = int(match.group(3))
+                        # W = team won, their score is LEFT (score1)
+                        # L = team lost, their score is RIGHT (score2)
+                        team_score = score1 if result == 'W' else score2
+                        completed_scores.append(team_score)
+                
+                # Get last 3 scores (reverse since schedule is chronological)
+                if completed_scores:
+                    last3 = completed_scores[-3:] if len(completed_scores) >= 3 else completed_scores
+                    last3.reverse()  # Most recent first
+                    
+                    return team_name, {
+                        'last3_scores': last3,
+                        'last3_total': sum(last3),
+                        'last3_avg': round(sum(last3) / len(last3), 1),
+                        'games_played': len(completed_scores)
+                    }
+            except Exception as e:
+                logger.debug(f"Error scraping {team_name}: {e}")
+            return team_name, None
+    
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            
+            # Process teams in batches
+            teams_list = list(team_urls.items())
+            batch_size = 10
+            
+            for i in range(0, len(teams_list), batch_size):
+                batch = teams_list[i:i+batch_size]
+                tasks = [scrape_single_team(browser, name, url) for name, url in batch]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                for result in results:
+                    if isinstance(result, tuple) and result[1] is not None:
+                        team_name, stats = result
+                        team_stats[team_name] = stats
+                
+                logger.info(f"  Scraped {min(i+batch_size, len(teams_list))}/{len(teams_list)} teams...")
+            
+            await browser.close()
+            
+    except Exception as e:
+        logger.error(f"Error in batch scraping: {e}")
+    
+    logger.info(f"Got Last 3 PPG for {len(team_stats)}/{len(team_urls)} teams")
+    return team_stats
+
+
 plays888_service = Plays888Service()
 
 # Bet monitoring scheduler
