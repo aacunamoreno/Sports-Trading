@@ -2542,6 +2542,12 @@ class Plays888Service:
                         away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
                         home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
                         
+                        # Check for international/European basketball (not NCAAB)
+                        intl_patterns = ['CSM ', 'BC ', 'KK ', 'TARGU', 'PLOIESTI', 'BUCHAREST', 'CLUJ', 
+                                        'SIBIU', 'ORADEA', 'STEAUA', 'DINAMO', 'RAPID', 'FCSB']
+                        is_international = any(pattern in away_team.upper() or pattern in home_team.upper() 
+                                              for pattern in intl_patterns)
+                        
                         # Determine sport based on team names and context
                         sport = None
                         if is_nhl_team(away_team) and is_nhl_team(home_team):
@@ -2550,6 +2556,8 @@ class Plays888Service:
                             sport = 'NBA'
                         elif is_nfl_team(away_team) and is_nfl_team(home_team):
                             sport = 'NFL'
+                        elif is_international:
+                            sport = 'INTL_BASKETBALL'  # Romanian/European basketball
                         else:
                             # Assume NCAAB/CBB for college basketball
                             sport = 'NCAAB'
