@@ -153,13 +153,13 @@ export default function Opportunities() {
   // Edge color based on league
   // NBA: Red < 5, Green >= 5
   // NHL: Red < 0.5, Green >= 0.5
-  // NFL: Red < 3, Green >= 3
+  // NCAAB: Red < 9, Green >= 9
   const getEdgeStyle = (edge, currentLeague = league) => {
     if (currentLeague === 'NBA') {
       if (edge >= 5) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
-    } else if (currentLeague === 'NFL') {
-      if (edge >= 7) return 'text-green-400 font-bold';
+    } else if (currentLeague === 'NCAAB') {
+      if (edge >= 9) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
     } else {
       // NHL
@@ -168,7 +168,7 @@ export default function Opportunities() {
     }
   };
 
-  // League-specific config
+  // League-specific config (NFL eliminated)
   const leagueConfig = {
     NBA: {
       statLabel: 'PPG',
@@ -195,16 +195,7 @@ export default function Opportunities() {
       noEdgeRange: '92-273',
       underRange: '274-365',
       totalTeams: 365,
-      edgeThreshold: 5
-    },
-    NFL: {
-      statLabel: 'PPG',
-      combinedLabel: 'PPG Avg',
-      overRange: '1-16',
-      noEdgeRange: '17-20',
-      underRange: '21-32',
-      totalTeams: 32,
-      edgeThreshold: 7
+      edgeThreshold: 9
     }
   };
 
