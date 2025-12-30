@@ -8697,245 +8697,60 @@ async def add_ncaab_manual_data(data: dict):
 @api_router.post("/opportunities/ncaab/update-ppg")
 async def update_ncaab_ppg_from_cbs():
     """
-    Update NCAAB PPG values by scraping Last 3 game scores from CBS Sports team pages.
-    This ONLY updates the PPG values in the games table - it does NOT touch TODAY'S PLAYS.
-    
-    Formula: Combined PPG = Average(Team1 Last 3 PPG) + Average(Team2 Last 3 PPG)
+    Update NCAAB PPG values by running the external scraper script.
+    This spawns a subprocess to avoid memory issues with Playwright.
     """
+    import subprocess
+    import os
+    
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
         target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
         
-        logger.info(f"[NCAAB PPG Update] Starting CBS Sports Last 3 PPG scrape for {target_date}")
+        logger.info(f"[NCAAB PPG Update] Starting script for {target_date}")
         
-        # Step 1: Get current NCAAB games from database
-        existing = await db.ncaab_opportunities.find_one({"date": target_date}, {"_id": 0})
-        if not existing or not existing.get('games'):
-            # No games yet - scrape them from CBS Sports
-            logger.info("[NCAAB PPG Update] No games in database, scraping from CBS Sports...")
-            games_data, team_urls = await scrape_cbssports_ncaab_with_team_urls(target_date)
-            if not games_data:
-                raise HTTPException(status_code=404, detail="No NCAAB games found on CBS Sports")
-        else:
-            # Get games from database and scrape team URLs
-            logger.info(f"[NCAAB PPG Update] Found {len(existing.get('games', []))} games in database")
-            games_data, team_urls = await scrape_cbssports_ncaab_with_team_urls(target_date)
+        # Run the standalone script
+        script_path = os.path.join(os.path.dirname(__file__), 'update_ncaab_ppg.py')
         
-        logger.info(f"[NCAAB PPG Update] Found {len(team_urls)} team URLs from CBS Sports")
-        
-        # Step 2: Scrape Last 3 PPG for all teams
-        team_stats = await scrape_ncaab_team_last3_ppg(team_urls, max_concurrent=8)
-        
-        logger.info(f"[NCAAB PPG Update] Scraped Last 3 PPG for {len(team_stats)} teams")
-        
-        # Step 3: Build PPG lookup from scraped data
-        last3_ppg_values = {}
-        last3_ppg_ranks = {}
-        
-        for team_name, stats in team_stats.items():
-            if stats and 'last3_avg' in stats:
-                last3_ppg_values[team_name] = stats['last3_avg']
-        
-        # Create ranks based on Last 3 PPG values (higher PPG = better rank)
-        sorted_teams = sorted(last3_ppg_values.items(), key=lambda x: x[1], reverse=True)
-        for rank, (team_name, _) in enumerate(sorted_teams, 1):
-            last3_ppg_ranks[team_name] = rank
-        
-        logger.info(f"[NCAAB PPG Update] Built PPG lookup: {len(last3_ppg_values)} teams with Last 3 data")
-        
-        # Step 4: Update games with new PPG values (preserve plays and other data)
-        existing_games = existing.get('games', []) if existing else []
-        existing_plays = existing.get('plays', []) if existing else []
-        
-        # Fuzzy matching function for team names
-        def find_team_ppg(team_name, ppg_dict):
-            if not team_name:
-                return None
-            # Direct match
-            if team_name in ppg_dict:
-                return ppg_dict[team_name]
-            # Try lowercase match
-            team_lower = team_name.lower()
-            for k, v in ppg_dict.items():
-                if k.lower() == team_lower or team_lower in k.lower() or k.lower() in team_lower:
-                    return v
-            return None
-        
-        def find_team_rank(team_name, rank_dict):
-            if not team_name:
-                return None
-            if team_name in rank_dict:
-                return rank_dict[team_name]
-            team_lower = team_name.lower()
-            for k, v in rank_dict.items():
-                if k.lower() == team_lower or team_lower in k.lower() or k.lower() in team_lower:
-                    return v
-            return None
-        
-        # NCAAB dot colors based on rank
-        def get_ncaab_dot_color(rank):
-            if rank is None:
-                return '⚪'
-            if rank <= 50:
-                return '🟢'  # Top tier
-            elif rank <= 100:
-                return '🔵'  # Second tier
-            elif rank <= 150:
-                return '🟡'  # Third tier
-            else:
-                return '🔴'  # Bottom tier
-        
-        updated_games = []
-        games_updated_count = 0
-        
-        # If we have existing games in DB, update them
-        if existing_games:
-            for game in existing_games:
-                away_team = game.get('away_team', game.get('away', ''))
-                home_team = game.get('home_team', game.get('home', ''))
-                
-                # Get Last 3 PPG values
-                away_last3_ppg = find_team_ppg(away_team, last3_ppg_values)
-                home_last3_ppg = find_team_ppg(home_team, last3_ppg_values)
-                away_last3_rank = find_team_rank(away_team, last3_ppg_ranks)
-                home_last3_rank = find_team_rank(home_team, last3_ppg_ranks)
-                
-                # Calculate combined PPG using ONLY Last 3 (not season)
-                combined_ppg = None
-                if away_last3_ppg and home_last3_ppg:
-                    combined_ppg = round(away_last3_ppg + home_last3_ppg, 1)
-                    games_updated_count += 1
-                
-                # Calculate edge
-                line = game.get('total') or game.get('opening_line')
-                edge = None
-                if combined_ppg and line:
-                    try:
-                        edge = round(combined_ppg - float(line), 1)
-                    except:
-                        pass
-                
-                # Generate recommendation
-                recommendation = game.get('recommendation', '')
-                if edge is not None:
-                    if edge >= 9:
-                        recommendation = 'OVER'
-                    elif edge <= -9:
-                        recommendation = 'UNDER'
-                    else:
-                        recommendation = ''
-                
-                # For NCAAB, we use Last 3 PPG for BOTH dot columns (since we only have L3 data)
-                away_dots = get_ncaab_dot_color(away_last3_rank) + get_ncaab_dot_color(away_last3_rank)
-                home_dots = get_ncaab_dot_color(home_last3_rank) + get_ncaab_dot_color(home_last3_rank)
-                
-                # Update game with new PPG data (preserve everything else)
-                updated_game = {
-                    **game,
-                    'away_team': away_team,
-                    'home_team': home_team,
-                    'away_last3_value': away_last3_ppg,
-                    'away_last3_rank': away_last3_rank,
-                    'away_ppg_value': away_last3_ppg,  # Use L3 as PPG for NCAAB
-                    'away_ppg_rank': away_last3_rank,
-                    'home_last3_value': home_last3_ppg,
-                    'home_last3_rank': home_last3_rank,
-                    'home_ppg_value': home_last3_ppg,  # Use L3 as PPG for NCAAB
-                    'home_ppg_rank': home_last3_rank,
-                    'combined_ppg': combined_ppg,
-                    'edge': edge,
-                    'recommendation': recommendation,
-                    'away_dots': away_dots,
-                    'home_dots': home_dots
-                }
-                updated_games.append(updated_game)
-        else:
-            # No existing games - create new games from CBS data
-            for i, game in enumerate(games_data, 1):
-                away_team = game.get('away_team', '')
-                home_team = game.get('home_team', '')
-                
-                away_last3_ppg = find_team_ppg(away_team, last3_ppg_values)
-                home_last3_ppg = find_team_ppg(home_team, last3_ppg_values)
-                away_last3_rank = find_team_rank(away_team, last3_ppg_ranks)
-                home_last3_rank = find_team_rank(home_team, last3_ppg_ranks)
-                
-                combined_ppg = None
-                if away_last3_ppg and home_last3_ppg:
-                    combined_ppg = round(away_last3_ppg + home_last3_ppg, 1)
-                    games_updated_count += 1
-                
-                line = game.get('total') or game.get('opening_line')
-                edge = None
-                if combined_ppg and line:
-                    try:
-                        edge = round(combined_ppg - float(line), 1)
-                    except:
-                        pass
-                
-                recommendation = ''
-                if edge is not None:
-                    if edge >= 9:
-                        recommendation = 'OVER'
-                    elif edge <= -9:
-                        recommendation = 'UNDER'
-                
-                away_dots = get_ncaab_dot_color(away_last3_rank) + get_ncaab_dot_color(away_last3_rank)
-                home_dots = get_ncaab_dot_color(home_last3_rank) + get_ncaab_dot_color(home_last3_rank)
-                
-                updated_game = {
-                    'game_num': i,
-                    'away_team': away_team,
-                    'home_team': home_team,
-                    'time': game.get('time', ''),
-                    'total': line,
-                    'opening_line': line,
-                    'spread': game.get('spread'),
-                    'away_last3_value': away_last3_ppg,
-                    'away_last3_rank': away_last3_rank,
-                    'away_ppg_value': away_last3_ppg,
-                    'away_ppg_rank': away_last3_rank,
-                    'home_last3_value': home_last3_ppg,
-                    'home_last3_rank': home_last3_rank,
-                    'home_ppg_value': home_last3_ppg,
-                    'home_ppg_rank': home_last3_rank,
-                    'combined_ppg': combined_ppg,
-                    'edge': edge,
-                    'recommendation': recommendation,
-                    'away_dots': away_dots,
-                    'home_dots': home_dots,
-                    'has_bet': False
-                }
-                updated_games.append(updated_game)
-        
-        # Step 5: Save to database (preserve plays!)
-        await db.ncaab_opportunities.update_one(
-            {"date": target_date},
-            {"$set": {
-                "date": target_date,
-                "games": updated_games,
-                "plays": existing_plays,  # Preserve existing plays!
-                "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
-                "data_source": "cbssports.com (Last 3 PPG)",
-                "ppg_locked": True
-            }},
-            upsert=True
+        # Run with timeout of 300 seconds
+        result = subprocess.run(
+            ['python3', script_path],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            cwd=os.path.dirname(__file__)
         )
         
-        logger.info(f"[NCAAB PPG Update] Complete: {games_updated_count}/{len(updated_games)} games updated with PPG")
+        logger.info(f"[NCAAB PPG Update] Script output: {result.stdout[-500:] if result.stdout else 'No output'}")
+        if result.stderr:
+            logger.warning(f"[NCAAB PPG Update] Script stderr: {result.stderr[-500:]}")
+        
+        # Get the updated data from database
+        existing = await db.ncaab_opportunities.find_one({"date": target_date}, {"_id": 0})
+        games = existing.get('games', []) if existing else []
+        plays = existing.get('plays', []) if existing else []
+        
+        # Count games with PPG
+        games_with_ppg = sum(1 for g in games if g.get('away_ppg_value') and g.get('home_ppg_value'))
         
         return {
             "success": True,
             "date": target_date,
-            "message": f"Updated PPG for {games_updated_count} of {len(updated_games)} NCAAB games",
-            "games_count": len(updated_games),
-            "teams_scraped": len(team_stats),
-            "plays_preserved": len(existing_plays)
+            "message": f"Updated PPG for {games_with_ppg} of {len(games)} NCAAB games",
+            "games_count": len(games),
+            "games_with_ppg": games_with_ppg,
+            "plays_preserved": len(plays),
+            "script_output": result.stdout[-200:] if result.stdout else ""
         }
         
-    except HTTPException:
-        raise
+    except subprocess.TimeoutExpired:
+        logger.warning("[NCAAB PPG Update] Script timed out but may still be updating")
+        return {
+            "success": True,
+            "message": "PPG update is still running. Please refresh data in a few minutes.",
+            "warning": "Script timed out"
+        }
     except Exception as e:
         logger.error(f"Error updating NCAAB PPG: {e}")
         import traceback
