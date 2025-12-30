@@ -3306,9 +3306,9 @@ async def scrape_ncaab_team_last3_ppg(team_urls: Dict[str, str], max_concurrent:
             try:
                 full_url = f"https://www.cbssports.com{team_url}"
                 page = await browser.new_page()
-                await page.goto(full_url, timeout=15000)
+                await page.goto(full_url, timeout=20000)
                 await page.wait_for_load_state("domcontentloaded")
-                await page.wait_for_timeout(500)
+                await page.wait_for_timeout(800)
                 
                 # Get schedule section text
                 schedule_text = await page.evaluate("""() => {
