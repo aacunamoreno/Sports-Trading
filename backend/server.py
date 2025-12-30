@@ -5156,20 +5156,24 @@ async def populate_ppg_and_dots_for_tomorrow():
         'Chicago': 26, 'Utah': 27, 'Charlotte': 28, 'Orlando': 29, 'Miami': 30
     }
     nba_ppg_season_values = {
-        'Boston': 121.5, 'Okla City': 120.8, 'Indiana': 119.2, 'Milwaukee': 117.5, 'Golden State': 117.2,
-        'Denver': 116.8, 'Minnesota': 115.9, 'Sacramento': 115.3, 'New York': 114.7, 'Dallas': 114.5,
-        'Memphis': 113.2, 'Cleveland': 112.8, 'Houston': 112.5, 'LA Lakers': 112.1, 'Detroit': 111.8,
-        'Phoenix': 111.5, 'San Antonio': 111.0, 'Atlanta': 110.7, 'New Orleans': 110.3, 'Brooklyn': 109.8,
-        'LA Clippers': 109.5, 'Toronto': 109.1, 'Philadelphia': 108.8, 'Portland': 108.2, 'Washington': 107.9,
-        'Chicago': 107.5, 'Utah': 106.8, 'Orlando': 106.2, 'Charlotte': 105.5, 'Miami': 104.8
+        'Denver': 125.8, 'Okla City': 121.5, 'New York': 120.6, 'Utah': 120.5,
+        'Houston': 120.3, 'Miami': 120.2, 'San Antonio': 119.9, 'Cleveland': 119.5,
+        'Detroit': 118.8, 'Chicago': 118.8, 'Atlanta': 118.8, 'Minnesota': 118.8,
+        'LA Lakers': 117.2, 'Orlando': 117.1, 'Portland': 116.6, 'Boston': 116.5,
+        'Philadelphia': 115.7, 'Charlotte': 115.6, 'Memphis': 115.3, 'New Orleans': 115.2,
+        'Phoenix': 115.1, 'Golden State': 114.9, 'Toronto': 114.4, 'Washington': 113.6,
+        'Dallas': 113.5, 'Milwaukee': 112.7, 'Sacramento': 111.7, 'LA Clippers': 111.5,
+        'Brooklyn': 109.3, 'Indiana': 109.2
     }
     nba_ppg_last3_values = {
-        'Indiana': 128.3, 'Boston': 125.7, 'Memphis': 124.0, 'Golden State': 122.7, 'Detroit': 121.3,
-        'Washington': 120.0, 'New York': 119.3, 'Milwaukee': 118.7, 'Houston': 118.0, 'Phoenix': 117.3,
-        'Denver': 116.7, 'LA Lakers': 116.0, 'Sacramento': 115.3, 'Okla City': 114.7, 'Minnesota': 114.0,
-        'Dallas': 113.3, 'San Antonio': 112.7, 'Cleveland': 112.0, 'Brooklyn': 111.3, 'Toronto': 110.7,
-        'Atlanta': 110.0, 'New Orleans': 109.3, 'LA Clippers': 108.7, 'Portland': 108.0, 'Philadelphia': 107.3,
-        'Chicago': 106.7, 'Utah': 106.0, 'Charlotte': 105.3, 'Orlando': 104.7, 'Miami': 104.0
+        'Denver': 132.7, 'Okla City': 113.7, 'New York': 119.3, 'Utah': 128.7,
+        'Houston': 114.7, 'Miami': 119.7, 'San Antonio': 120.3, 'Cleveland': 121.7,
+        'Detroit': 121.3, 'Chicago': 112.7, 'Atlanta': 119.7, 'Minnesota': 120.0,
+        'LA Lakers': 109.7, 'Orlando': 114.0, 'Portland': 107.7, 'Boston': 117.0,
+        'Philadelphia': 104.0, 'Charlotte': 126.0, 'Memphis': 124.7, 'New Orleans': 113.3,
+        'Phoenix': 123.3, 'Golden State': 124.3, 'Toronto': 123.3, 'Washington': 121.0,
+        'Dallas': 118.0, 'Milwaukee': 109.0, 'Sacramento': 113.7, 'LA Clippers': 119.7,
+        'Brooklyn': 101.7, 'Indiana': 99.3
     }
     
     # ==================== NHL GPG DATA ====================
