@@ -1,152 +1,50 @@
 {
-  "timestamp": "2025-12-29T04:03:10.366190",
-  "total_tests": 24,
-  "passed_tests": 17,
-  "success_rate": 70.83333333333334,
+  "timestamp": "2025-12-30T05:34:53.777941",
+  "total_tests": 7,
+  "passed_tests": 6,
+  "success_rate": 85.71428571428571,
   "results": [
     {
-      "test": "NCAAB Game 1 - NC Central @ Penn St.",
-      "success": true,
-      "details": "GPG Avg: 139.4, Edge: -10.1",
-      "timestamp": "2025-12-29T04:03:09.466371"
-    },
-    {
-      "test": "NCAAB Game 3 - Missouri St. @ Delaware",
-      "success": true,
-      "details": "GPG Avg: 152.8, Edge: 16.3",
-      "timestamp": "2025-12-29T04:03:09.466409"
-    },
-    {
-      "test": "NCAAB Game 68 - Utah @ Washington",
-      "success": true,
-      "details": "GPG Avg: 165.7, Edge: 5.2",
-      "timestamp": "2025-12-29T04:03:09.466455"
-    },
-    {
-      "test": "NCAAB Non-D1 Game - Arlington Baptist @ Baylor",
-      "success": true,
-      "details": "Correctly has null combined_ppg",
-      "timestamp": "2025-12-29T04:03:09.466464"
-    },
-    {
-      "test": "NCAAB Non-D1 Game - LA Sierra @ UNLV",
-      "success": true,
-      "details": "Correctly has null combined_ppg",
-      "timestamp": "2025-12-29T04:03:09.466576"
-    },
-    {
-      "test": "GET /api/opportunities/ncaab?day=tomorrow - Edge Calculation",
-      "success": true,
-      "details": "All games have correct Edge calculation (GPG Avg - Line)",
-      "timestamp": "2025-12-29T04:03:09.466591"
-    },
-    {
-      "test": "GET /api/opportunities/ncaab?day=tomorrow - Rank Data",
-      "success": true,
-      "details": "50 games have complete rank data",
-      "timestamp": "2025-12-29T04:03:09.466605"
-    },
-    {
-      "test": "GET /api/opportunities/ncaab?day=tomorrow",
-      "success": true,
-      "details": "Successfully verified all 68 NCAAB games: 50 with PPG data, 18 without PPG data",
-      "timestamp": "2025-12-29T04:03:09.466612"
-    },
-    {
-      "test": "NBA Excel Export",
-      "success": true,
-      "details": "Valid Excel file: 13445 bytes, correct headers",
-      "timestamp": "2025-12-29T04:03:09.555337"
-    },
-    {
-      "test": "NHL Excel Export",
-      "success": true,
-      "details": "Valid Excel file: 10880 bytes",
-      "timestamp": "2025-12-29T04:03:09.626100"
-    },
-    {
-      "test": "Excel File Structure",
-      "success": true,
-      "details": "35 columns, correct headers, 17 4-Dot results, 47 data rows",
-      "timestamp": "2025-12-29T04:03:09.872335"
-    },
-    {
-      "test": "POST /api/process/update-records - NBA Edge Hits",
+      "test": "GET /api/opportunities/ncaab?day=tomorrow - Data Source",
       "success": false,
-      "details": "Expected NBA edge hits 23, got 24",
-      "timestamp": "2025-12-29T04:03:09.922494"
+      "details": "Expected CBS Sports data source, got 'cbssports.com opening lines'",
+      "timestamp": "2025-12-30T05:34:53.659805"
     },
     {
-      "test": "GET /api/records/summary - NBA Edge Record",
-      "success": false,
-      "details": "Expected NBA edge record 23-16, got 24-15",
-      "timestamp": "2025-12-29T04:03:09.962375"
-    },
-    {
-      "test": "Records Database Storage",
+      "test": "NCAAB PPG Formula - Game 1",
       "success": true,
-      "details": "Records properly stored and retrieved from database collections (compound_records and edge_records)",
-      "timestamp": "2025-12-29T04:03:10.053528"
+      "details": "Vermont @ Princeton: 139.2 \u2248 139.2",
+      "timestamp": "2025-12-30T05:34:53.701747"
     },
     {
-      "test": "Process #6 Implementation",
-      "success": false,
-      "details": "Update: \u274c, Summary: \u274c, Storage: \u2705",
-      "timestamp": "2025-12-29T04:03:10.054737"
-    },
-    {
-      "test": "NBA Historical Data 2025-12-22",
+      "test": "NCAAB PPG Formula - Game 2",
       "success": true,
-      "details": "Found 7 games, 3 with user bets, all final scores populated",
-      "timestamp": "2025-12-29T04:03:10.092615"
+      "details": "Maine-Fort Kent @ Maine: 114.4 \u2248 114.4",
+      "timestamp": "2025-12-30T05:34:53.701777"
     },
     {
-      "test": "NBA Historical Data 2025-12-23 - Record",
-      "success": false,
-      "details": "Expected record 4-3, got 5-2",
-      "timestamp": "2025-12-29T04:03:10.128179"
-    },
-    {
-      "test": "NBA Historical Data 2025-12-25 - Record",
-      "success": false,
-      "details": "Expected record 1-1, got 0-2",
-      "timestamp": "2025-12-29T04:03:10.167577"
-    },
-    {
-      "test": "NBA Historical Data 2025-12-26",
+      "test": "NCAAB PPG Formula - Game 3",
       "success": true,
-      "details": "Found 9 games, 5 with user bets, all final scores populated",
-      "timestamp": "2025-12-29T04:03:10.206399"
+      "details": "Ohio @ C. Michigan: 176.8 \u2248 176.8",
+      "timestamp": "2025-12-30T05:34:53.701783"
     },
     {
-      "test": "NBA Historical Data 2025-12-27",
+      "test": "NCAAB PPG Data Verification",
       "success": true,
-      "details": "Found 9 games, 4 with user bets, all final scores populated",
-      "timestamp": "2025-12-29T04:03:10.245529"
+      "details": "PPG games: 25, Non-PPG: 14, Formula tests: 3, Edge tests: 4, OVER recs: 1, UNDER recs: 0",
+      "timestamp": "2025-12-30T05:34:53.701799"
     },
     {
-      "test": "NHL Historical Data 2025-12-22 - Record",
-      "success": false,
-      "details": "Expected record 0-1, got 1-0",
-      "timestamp": "2025-12-29T04:03:10.285604"
-    },
-    {
-      "test": "NHL Historical Data 2025-12-23",
+      "test": "NCAAB Edge Thresholds",
       "success": true,
-      "details": "Found 13 games, 6 with user bets, all final scores populated",
-      "timestamp": "2025-12-29T04:03:10.325374"
+      "details": "OVER games: 9 (all edge >= 9), UNDER games: 0 (all edge <= -9)",
+      "timestamp": "2025-12-30T05:34:53.741221"
     },
     {
-      "test": "NHL Historical Data 2025-12-27",
+      "test": "NCAAB Dot Color Percentiles",
       "success": true,
-      "details": "Found 13 games, 5 with user bets, all final scores populated",
-      "timestamp": "2025-12-29T04:03:10.365206"
-    },
-    {
-      "test": "Historical Data Verification (12/22-12/27)",
-      "success": false,
-      "details": "NBA: \u274c, NHL: \u274c",
-      "timestamp": "2025-12-29T04:03:10.365854"
+      "details": "Tested 25 games with ranking data, 6 color tests passed",
+      "timestamp": "2025-12-30T05:34:53.777176"
     }
   ]
 }
