@@ -5461,10 +5461,10 @@ async def populate_ppg_and_dots_for_tomorrow():
         'Las Vegas': 12.7, 'NY Jets': 12.0, 'Kansas City': 11.7
     }
     
-    # Edge thresholds by league
-    edge_thresholds = {'NBA': 5, 'NHL': 0.5, 'NFL': 7}
+    # Edge thresholds by league (NFL eliminated)
+    edge_thresholds = {'NBA': 5, 'NHL': 0.5}
     
-    for league in ['NBA', 'NHL', 'NFL']:
+    for league in ['NBA', 'NHL']:
         try:
             collection_name = f"{league.lower()}_opportunities"
             collection = db[collection_name]
