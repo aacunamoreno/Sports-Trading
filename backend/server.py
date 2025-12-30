@@ -9251,14 +9251,22 @@ async def update_nhl_scores(date: str = None):
         db_games = db_data.get('games', [])
         logger.info(f"[NHL Scores] Found {len(db_games)} games in database")
         
-        # Helper function to normalize team names
+        # Create reverse mapping for NHL teams (city name -> team name)
+        NHL_CITY_TO_TEAM = {v: k for k, v in NHL_TEAM_ALIASES.items()}
+        
+        # Helper function to normalize team names (converts to city name)
         def normalize_team(team_name):
             if not team_name:
                 return ''
             team_name = team_name.strip()
-            for alias, full_name in NHL_TEAM_ALIASES.items():
+            # First check if it's already a city name
+            for city in NHL_TEAM_ALIASES.values():
+                if city.lower() in team_name.lower() or team_name.lower() in city.lower():
+                    return city
+            # Then check if it's a team nickname
+            for alias, city in NHL_TEAM_ALIASES.items():
                 if alias.lower() in team_name.lower() or team_name.lower() in alias.lower():
-                    return full_name
+                    return city
             return team_name
         
         # Helper function to match games
@@ -9270,11 +9278,16 @@ async def update_nhl_scores(date: str = None):
                 scraped_away = normalize_team(sg.get('away_team', ''))
                 scraped_home = normalize_team(sg.get('home_team', ''))
                 
+                logger.debug(f"[NHL Match] Comparing DB: {db_away}@{db_home} vs Scraped: {scraped_away}@{scraped_home}")
+                
+                if (db_away.lower() == scraped_away.lower() and db_home.lower() == scraped_home.lower()):
+                    return sg
+                # Check reverse order
+                if (db_away.lower() == scraped_home.lower() and db_home.lower() == scraped_away.lower()):
+                    return sg
+                # Fuzzy match
                 if (db_away.lower() in scraped_away.lower() or scraped_away.lower() in db_away.lower()) and \
                    (db_home.lower() in scraped_home.lower() or scraped_home.lower() in db_home.lower()):
-                    return sg
-                if (db_away.lower() in scraped_home.lower() or scraped_home.lower() in db_away.lower()) and \
-                   (db_home.lower() in scraped_away.lower() or scraped_away.lower() in db_home.lower()):
                     return sg
             return None
         
