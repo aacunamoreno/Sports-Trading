@@ -170,6 +170,35 @@ export default function Opportunities() {
     }
   };
 
+  // Update bet results from plays888.co History
+  const handleUpdateBetResults = async () => {
+    setUpdatingBetResults(true);
+    toast.info('Fetching bet results from plays888.co History...');
+    try {
+      // Get yesterday's date
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const dateStr = yesterday.toISOString().split('T')[0];
+      
+      const endpoint = `/bets/${league.toLowerCase()}/update-results?date=${dateStr}`;
+      
+      const response = await axios.post(`${API}${endpoint}`, {}, { timeout: 120000 });
+      
+      if (response.data.success) {
+        toast.success(`Updated ${response.data.bets_matched} bets. Record: ${response.data.wins}W-${response.data.losses}L`);
+        // Reload data to show updated bet results
+        await loadOpportunities();
+      } else {
+        toast.error('Failed to update bet results');
+      }
+    } catch (error) {
+      console.error('Error updating bet results:', error);
+      toast.error('Failed to update bet results from plays888');
+    } finally {
+      setUpdatingBetResults(false);
+    }
+  };
+
   // Export to Excel - using anchor element for reliable direct download
   const handleExport = async () => {
     setExporting(true);
