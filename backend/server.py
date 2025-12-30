@@ -6438,27 +6438,27 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 'Toronto': 26, 'Indiana': 27, 'Minnesota': 28, 'LA Clippers': 29, 'Milwaukee': 30
             }
             
-            # Fallback Actual PPG values (Season 2025) - SCRAPED from teamrankings.com on 2025-12-26
+            # Fallback Actual PPG values (Season 2025) - SCRAPED from teamrankings.com on 2025-12-29
             ppg_season_values = {
-                'Denver': 125.8, 'Okla City': 121.3, 'Houston': 120.5, 'New York': 120.4,
-                'Cleveland': 120.2, 'San Antonio': 120.1, 'Utah': 119.9, 'Chicago': 119.7,
-                'Miami': 119.2, 'Detroit': 119.2, 'Minnesota': 119.1, 'Atlanta': 118.8,
-                'Orlando': 117.2, 'Portland': 117.1, 'LA Lakers': 116.9, 'Philadelphia': 116.6,
-                'Boston': 116.0, 'New Orleans': 115.5, 'Charlotte': 115.4, 'Memphis': 115.0,
-                'Phoenix': 114.9, 'Golden State': 114.5, 'Dallas': 113.7, 'Toronto': 113.4,
-                'Milwaukee': 113.0, 'Washington': 112.6, 'Sacramento': 112.0, 'LA Clippers': 111.2,
+                'Denver': 125.8, 'Okla City': 121.5, 'New York': 120.6, 'Utah': 120.5,
+                'Houston': 120.3, 'Miami': 120.2, 'San Antonio': 119.9, 'Cleveland': 119.5,
+                'Detroit': 118.8, 'Chicago': 118.8, 'Atlanta': 118.8, 'Minnesota': 118.8,
+                'LA Lakers': 117.2, 'Orlando': 117.1, 'Portland': 116.6, 'Boston': 116.5,
+                'Philadelphia': 115.7, 'Charlotte': 115.6, 'Memphis': 115.3, 'New Orleans': 115.2,
+                'Phoenix': 115.1, 'Golden State': 114.9, 'Toronto': 114.4, 'Washington': 113.6,
+                'Dallas': 113.5, 'Milwaukee': 112.7, 'Sacramento': 111.7, 'LA Clippers': 111.5,
                 'Brooklyn': 109.3, 'Indiana': 109.2
             }
             
-            # Fallback Actual PPG values (Last 3 games) - SCRAPED from teamrankings.com on 2025-12-26
+            # Fallback Actual PPG values (Last 3 games) - SCRAPED from teamrankings.com on 2025-12-29
             ppg_last3_values = {
-                'Denver': 135.7, 'Okla City': 110.3, 'Houston': 117.0, 'New York': 120.7,
-                'Cleveland': 134.7, 'San Antonio': 123.7, 'Utah': 122.3, 'Chicago': 138.0,
-                'Miami': 110.7, 'Detroit': 119.3, 'Minnesota': 118.7, 'Atlanta': 123.7,
-                'Orlando': 111.7, 'Portland': 102.0, 'LA Lakers': 97.3, 'Philadelphia': 114.3,
-                'Boston': 114.7, 'New Orleans': 121.7, 'Charlotte': 114.7, 'Memphis': 120.7,
-                'Phoenix': 115.7, 'Golden State': 121.7, 'Dallas': 120.0, 'Toronto': 96.3,
-                'Milwaukee': 105.3, 'Washington': 117.3, 'Sacramento': 115.0, 'LA Clippers': 110.7,
+                'Denver': 132.7, 'Okla City': 113.7, 'New York': 119.3, 'Utah': 128.7,
+                'Houston': 114.7, 'Miami': 119.7, 'San Antonio': 120.3, 'Cleveland': 121.7,
+                'Detroit': 121.3, 'Chicago': 112.7, 'Atlanta': 119.7, 'Minnesota': 120.0,
+                'LA Lakers': 109.7, 'Orlando': 114.0, 'Portland': 107.7, 'Boston': 117.0,
+                'Philadelphia': 104.0, 'Charlotte': 126.0, 'Memphis': 124.7, 'New Orleans': 113.3,
+                'Phoenix': 123.3, 'Golden State': 124.3, 'Toronto': 123.3, 'Washington': 121.0,
+                'Dallas': 118.0, 'Milwaukee': 109.0, 'Sacramento': 113.7, 'LA Clippers': 119.7,
                 'Brooklyn': 101.7, 'Indiana': 99.3
             }
         
