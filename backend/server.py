@@ -8316,6 +8316,61 @@ async def refresh_ncaab_opportunities(day: str = "today"):
         existing_plays = existing.get('plays', []) if existing else []
         existing_games = existing.get('games', []) if existing else []
         
+        # #3 PROCESS: Fetch open bets from Plays888 for NCAAB
+        open_bets = []
+        if day == "today":
+            try:
+                enano_conn = await db.connections.find_one({"username": "jac075"}, {"_id": 0})
+                if enano_conn and enano_conn.get("is_connected"):
+                    scraper = Plays888Service()
+                    await scraper.initialize()
+                    await scraper.login("jac075", decrypt_password(enano_conn["password_encrypted"]))
+                    all_bets = await scraper.scrape_open_bets()
+                    await scraper.close()
+                    
+                    open_bets = [b for b in all_bets if b.get('sport') == 'NCAAB']
+                    logger.info(f"[#3 Process] Found {len(open_bets)} NCAAB open bets from Plays888")
+            except Exception as e:
+                logger.error(f"Error fetching NCAAB open bets: {e}")
+        
+        # Process open bets into plays
+        new_plays = []
+        for bet in open_bets:
+            away_team = bet.get('away_team', '')
+            home_team = bet.get('home_team', '')
+            bet_type = bet.get('bet_type', '')
+            
+            # For spread bets, the bet_type is like "CALIFORNIA +9"
+            # For total bets, the bet_type is like "OVER" or "UNDER"
+            is_spread = bet.get('is_spread', False)
+            
+            play = {
+                'game': f"{away_team} @ {home_team}",
+                'away_team': away_team,
+                'home_team': home_team,
+                'bet_type': bet_type,
+                'bet_line': bet.get('spread_line') if is_spread else bet.get('total_line'),
+                'bet_count': 1,
+                'is_spread': is_spread,
+                'has_bet': True
+            }
+            new_plays.append(play)
+        
+        # Merge new plays with existing plays (avoid duplicates)
+        merged_plays = existing_plays.copy()
+        for new_play in new_plays:
+            # Check if this bet already exists
+            is_dup = False
+            for existing_play in merged_plays:
+                if (existing_play.get('bet_type') == new_play.get('bet_type') and 
+                    existing_play.get('game') == new_play.get('game')):
+                    is_dup = True
+                    break
+            if not is_dup:
+                merged_plays.append(new_play)
+        
+        logger.info(f"[#3.5] NCAAB: {len(existing_plays)} existing plays + {len(new_plays)} new plays = {len(merged_plays)} total plays (after dedup)")
+        
         # Create lookup of new games
         new_matchups = set()
         for g in processed_games:
