@@ -975,3 +975,50 @@ PPG Avg shows "N/A" because no PPG data was provided for the NCAAB teams in this
 
 ### Status: ✅ COMPLETE
 
+
+---
+
+## Process #5 NBA Dec 28 - Bet Results Implementation (2025-12-30)
+
+### Issue Resolved:
+User reported placing 3 NBA bets on December 28, 2025 that were not showing in the UI. The `plays888.co` History page scraper was only showing current week's data.
+
+### Solution:
+1. **Debugged the History Scraper** - The scraper was only fetching the current week (Dec 29 - Jan 4). Fixed by changing the date range to Dec 22-28 using the week picker date filter.
+
+2. **Found the 3 Missing NBA Bets:**
+   | Ticket | Game | Bet | Line | Result |
+   |--------|------|-----|------|--------|
+   | 338586263 | Memphis @ Washington | UNDER | 241 | **WIN** |
+   | 338590152 | Detroit @ LA Clippers | OVER | 224 | **LOSE** |
+   | 338590153 | Sacramento @ LA Lakers | UNDER | 232 | **WIN** |
+
+3. **Updated Database:**
+   - Updated `nba_opportunities` collection for 2025-12-28 with:
+     - `user_bet: true`
+     - `bet_type: OVER/UNDER`
+     - `bet_line: <original bet line>`
+     - `bet_result: won/lost`
+     - `user_bet_hit: true/false`
+     - `bet_edge: <calculated edge at bet time>`
+   - Added bet records to `bet_history` collection
+
+4. **Recalculated Records:**
+   - NBA Betting Record: **13-11** (updated from 11-10)
+   - NBA Edge Record: **28-17** (updated from 23-16)
+   - NHL Betting Record: **8-5** (updated from 7-5)
+   - NHL Edge Record: **11-5** (unchanged)
+
+### Verification:
+- ✅ API returns correct bet data for Dec 28
+- ✅ UI shows 💰 icon for games with user bets
+- ✅ UI shows bet-time line (🎯241) alongside closing line (240.5)
+- ✅ UI shows bet-time edge (🎯+5.7) alongside closing edge (+5.2)
+- ✅ Result column shows HIT/MISS based on user's bet
+- ✅ "My Bets: 2-1" displays correctly in header
+- ✅ Overall Betting Record updated to 13-11
+
+### Status: ✅ COMPLETE
+
+---
+
