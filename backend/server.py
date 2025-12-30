@@ -5789,27 +5789,27 @@ async def morning_data_refresh():
     
     try:
         # #4 - Get yesterday's scores from ScoresAndOdds and mark edge HITs/MISSes
-        leagues = ['NBA', 'NHL', 'NFL']
+        # NFL eliminated - only process NBA, NHL, NCAAB
+        leagues = ['NBA', 'NHL', 'NCAAB']
         edge_results = {}  # Track edge performance by league
         
         for league in leagues:
             try:
-                # Scrape yesterday's results from ScoresAndOdds
+                # Scrape yesterday's results from ScoresAndOdds (or CBS for NCAAB)
                 logger.info(f"[#4 Process] Scraping {league} results for {yesterday}")
-                results = await scrape_scoresandodds(league.upper(), yesterday)
+                if league == 'NCAAB':
+                    results = await scrape_cbssports_ncaab(yesterday)
+                else:
+                    results = await scrape_scoresandodds(league.upper(), yesterday)
                 
                 if results:
-                    logger.info(f"[#4 Process] Got {len(results)} {league} games from ScoresAndOdds")
+                    logger.info(f"[#4 Process] Got {len(results)} {league} games")
                     
                     # Update the opportunities collection with final scores
                     collection_name = f"{league.lower()}_opportunities"
                     collection = db[collection_name]
                     
-                    # For NFL, also check the previous day (games span multiple days)
                     dates_to_check = [yesterday]
-                    if league == 'NFL':
-                        two_days_ago = (datetime.now(arizona_tz) - timedelta(days=2)).strftime('%Y-%m-%d')
-                        dates_to_check.append(two_days_ago)
                     
                     edge_hits = 0
                     edge_misses = 0
