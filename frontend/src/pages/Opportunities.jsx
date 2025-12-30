@@ -291,6 +291,27 @@ export default function Opportunities() {
             </Button>
           </div>
         </div>
+        
+        {/* Direct Download Links */}
+        <div className="flex gap-4 text-xs text-muted-foreground mt-2">
+          <span>Direct Excel Links:</span>
+          <a 
+            href={`${BACKEND_URL}/api/export/excel?league=NBA&start_date=2025-12-22`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:underline"
+          >
+            📊 NBA Excel
+          </a>
+          <a 
+            href={`${BACKEND_URL}/api/export/excel?league=NHL&start_date=2025-12-22`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:underline"
+          >
+            📊 NHL Excel
+          </a>
+        </div>
       </div>
 
       {/* League Tabs */}
