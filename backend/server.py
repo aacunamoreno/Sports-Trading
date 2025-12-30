@@ -6423,14 +6423,16 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             target_date = now_arizona.strftime('%Y-%m-%d')
         
         # Try to scrape live PPG data from teamrankings.com
+        # IMPORTANT: Use the target_date to get pre-game PPG values
+        # The teamrankings data for a given date shows stats BEFORE that day's games
         try:
-            ppg_data = await scrape_nba_ppg_rankings()
+            ppg_data = await scrape_nba_ppg_rankings(target_date)
             if ppg_data['season_values']:
                 ppg_season = ppg_data['season_ranks']
                 ppg_last3 = ppg_data['last3_ranks']
                 ppg_season_values = ppg_data['season_values']
                 ppg_last3_values = ppg_data['last3_values']
-                logger.info(f"Using live PPG data from teamrankings.com: {len(ppg_season_values)} teams")
+                logger.info(f"Using live PPG data from teamrankings.com (date={target_date}): {len(ppg_season_values)} teams")
             else:
                 raise Exception("No PPG data scraped")
         except Exception as e:
