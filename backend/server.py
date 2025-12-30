@@ -4781,11 +4781,17 @@ async def scrape_ncaab_ppg_rankings():
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
-            # Scrape NCAAB PPG from teamrankings
-            response = await client.get(
-                "https://www.teamrankings.com/ncaa-basketball/stat/points-per-game",
-                headers=headers
-            )
+            # IMPORTANT: Use yesterday's date to get PPG values BEFORE today's games
+            # This ensures we're analyzing with pre-game stats, not post-game updated stats
+            from zoneinfo import ZoneInfo
+            arizona_tz = ZoneInfo('America/Phoenix')
+            yesterday = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+            
+            # Scrape NCAAB PPG from teamrankings with yesterday's date
+            ppg_url = f"https://www.teamrankings.com/ncaa-basketball/stat/points-per-game?date={yesterday}"
+            logger.info(f"Scraping NCAAB PPG from teamrankings.com with date={yesterday}")
+            
+            response = await client.get(ppg_url, headers=headers)
             html = response.text
             
             # Parse rankings - pattern: rank, team slug, team name, 2024-25 PPG, Last 3 PPG
@@ -4794,7 +4800,7 @@ async def scrape_ncaab_ppg_rankings():
             
             matches = re.findall(row_pattern, html, re.DOTALL)
             
-            logger.info(f"Found {len(matches)} NCAAB teams in teamrankings.com PPG table")
+            logger.info(f"Found {len(matches)} NCAAB teams in teamrankings.com PPG table (date={yesterday})")
             
             for rank, slug, display_name, season_ppg, last3_ppg in matches:
                 # Use display name as-is (clean it up)
