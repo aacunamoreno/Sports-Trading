@@ -5239,8 +5239,11 @@ async def scrape_tomorrows_opening_lines():
         
         for league in leagues:
             try:
-                # Use the existing scrape_scoresandodds function
-                games = await scrape_scoresandodds(league.lower(), tomorrow)
+                # Use CBS Sports for NCAAB (more reliable), scoresandodds for others
+                if league == 'NCAAB':
+                    games = await scrape_cbssports_ncaab(tomorrow)
+                else:
+                    games = await scrape_scoresandodds(league.lower(), tomorrow)
                 
                 if games:
                     # Create full game documents for the opportunities collection
