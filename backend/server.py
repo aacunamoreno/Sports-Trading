@@ -5772,9 +5772,9 @@ async def populate_ppg_and_dots_for_tomorrow():
             traceback.print_exc()
     
     # ==================== NCAAB PPG PROCESSING ====================
-    # NCAAB requires dynamic scraping from teamrankings.com due to 365+ teams
+    # NCAAB: Scrape Last 3 PPG directly from CBS Sports team pages
     try:
-        logger.info(f"[8PM Job #2] Processing NCAAB PPG and dots...")
+        logger.info(f"[8PM Job #2] Processing NCAAB PPG using CBS Sports Last 3 scores...")
         
         collection = db.ncaab_opportunities
         cached = await collection.find_one({"date": tomorrow}, {"_id": 0})
@@ -5783,11 +5783,19 @@ async def populate_ppg_and_dots_for_tomorrow():
             games = cached['games']
             logger.info(f"[8PM Job #2] Found {len(games)} NCAAB games for {tomorrow}")
             
-            # Scrape live PPG data from teamrankings.com
+            # Method 1: Get season PPG from TeamRankings (for rankings/dots)
             ppg_data = await scrape_ncaab_ppg_rankings(tomorrow)
-            logger.info(f"[8PM Job #2] Scraped PPG data for {len(ppg_data.get('season_values', {}))} NCAAB teams")
+            logger.info(f"[8PM Job #2] Scraped season PPG for {len(ppg_data.get('season_values', {}))} teams from TeamRankings")
             
-            # NCAAB has ~365 teams, dot thresholds are different (percentile-based)
+            # Method 2: Scrape games with team URLs to get Last 3 from CBS Sports
+            _, team_urls = await scrape_cbssports_ncaab_with_team_urls(tomorrow)
+            logger.info(f"[8PM Job #2] Got {len(team_urls)} team URLs from CBS Sports")
+            
+            # Scrape Last 3 PPG for each team from CBS Sports
+            team_last3_stats = await scrape_ncaab_team_last3_ppg(team_urls, max_concurrent=5)
+            logger.info(f"[8PM Job #2] Scraped Last 3 PPG for {len(team_last3_stats)} teams from CBS Sports")
+            
+            # NCAAB has ~365 teams, dot thresholds are percentile-based
             def get_ncaab_dot_color(rank):
                 if rank is None:
                     return '⚪'  # Unknown
@@ -5800,82 +5808,76 @@ async def populate_ppg_and_dots_for_tomorrow():
                 else:  # Bottom 25%
                     return '🔴'
             
-            # NCAAB edge threshold is 9 (user-specified)
+            # NCAAB edge threshold is 9
             ncaab_edge_threshold = 9
+            
+            # Helper function to find team in PPG data with fuzzy matching
+            def find_team_data(team_name, data_dict):
+                if not team_name:
+                    return None
+                    
+                def normalize(name):
+                    name = name.strip()
+                    name = name.replace(' St.', '').replace(' St', '')
+                    name = name.replace(' State', '').replace('-Fort Kent', '')
+                    name = name.replace('N. ', 'North ').replace('S. ', 'South ')
+                    name = name.replace('E. ', 'East ').replace('W. ', 'West ')
+                    name = name.replace('C. ', 'Central ')
+                    return name.lower().strip()
+                
+                search_name = normalize(team_name)
+                
+                # Direct match
+                if team_name in data_dict:
+                    return data_dict[team_name]
+                
+                # Try lowercase
+                for key, val in data_dict.items():
+                    if key.lower() == team_name.lower():
+                        return val
+                
+                # Try normalized match
+                for key, val in data_dict.items():
+                    if normalize(key) == search_name:
+                        return val
+                
+                # Try partial match
+                for key, val in data_dict.items():
+                    key_norm = normalize(key)
+                    if search_name in key_norm or key_norm in search_name:
+                        return val
+                
+                return None
             
             for game in games:
                 away = game.get('away_team') or game.get('away', '')
                 home = game.get('home_team') or game.get('home', '')
                 total = game.get('total')
                 
-                # Try to match team names (NCAAB has many variations)
-                def find_team_ppg(team_name, ppg_dict):
-                    """Try to find team in PPG data with fuzzy matching"""
-                    if not team_name:
-                        return None
-                    
-                    # Normalize team name: remove common suffixes, standardize abbreviations
-                    def normalize(name):
-                        name = name.strip()
-                        # Remove common suffixes
-                        name = name.replace(' St.', '').replace(' St', '')
-                        name = name.replace(' State', '').replace('-Fort Kent', '')
-                        # Handle common abbreviations
-                        name = name.replace('N. ', 'North ').replace('S. ', 'South ')
-                        name = name.replace('E. ', 'East ').replace('W. ', 'West ')
-                        name = name.replace('C. ', 'Central ')
-                        return name.lower().strip()
-                    
-                    search_name = normalize(team_name)
-                    
-                    # Direct match
-                    if team_name in ppg_dict:
-                        return ppg_dict[team_name]
-                    
-                    # Try lowercase
-                    for key, val in ppg_dict.items():
-                        if key.lower() == team_name.lower():
-                            return val
-                    
-                    # Try normalized match
-                    for key, val in ppg_dict.items():
-                        if normalize(key) == search_name:
-                            return val
-                    
-                    # Try partial match (either contains the other)
-                    for key, val in ppg_dict.items():
-                        key_norm = normalize(key)
-                        if search_name in key_norm or key_norm in search_name:
-                            return val
-                    
-                    # Last resort: first word match (school name without suffix)
-                    first_word = search_name.split()[0] if search_name else ''
-                    if first_word and len(first_word) > 3:
-                        for key, val in ppg_dict.items():
-                            key_first = normalize(key).split()[0] if key else ''
-                            if first_word == key_first:
-                                return val
-                    
-                    return None
+                # Get season PPG and ranks from TeamRankings
+                away_season_ppg = find_team_data(away, ppg_data.get('season_values', {}))
+                away_season_rank = find_team_data(away, ppg_data.get('season_ranks', {}))
+                home_season_ppg = find_team_data(home, ppg_data.get('season_values', {}))
+                home_season_rank = find_team_data(home, ppg_data.get('season_ranks', {}))
                 
-                # Get PPG values and ranks
-                away_season_ppg = find_team_ppg(away, ppg_data.get('season_values', {}))
-                away_season_rank = find_team_ppg(away, ppg_data.get('season_ranks', {}))
-                away_last3_ppg = find_team_ppg(away, ppg_data.get('last3_values', {}))
-                away_last3_rank = find_team_ppg(away, ppg_data.get('last3_ranks', {}))
+                # Get Last 3 PPG from CBS Sports scrape
+                away_last3_stats = find_team_data(away, team_last3_stats)
+                home_last3_stats = find_team_data(home, team_last3_stats)
                 
-                home_season_ppg = find_team_ppg(home, ppg_data.get('season_values', {}))
-                home_season_rank = find_team_ppg(home, ppg_data.get('season_ranks', {}))
-                home_last3_ppg = find_team_ppg(home, ppg_data.get('last3_values', {}))
-                home_last3_rank = find_team_ppg(home, ppg_data.get('last3_ranks', {}))
+                away_last3_ppg = away_last3_stats['last3_avg'] if away_last3_stats else None
+                home_last3_ppg = home_last3_stats['last3_avg'] if home_last3_stats else None
                 
-                # Calculate combined PPG (same formula as NBA)
-                # (Team1 Season PPG + Team2 Season PPG + Team1 L3 PPG + Team2 L3 PPG) / 2
+                # Calculate Last 3 ranks (based on season rank for now - could improve later)
+                away_last3_rank = away_season_rank  # Use season rank as proxy
+                home_last3_rank = home_season_rank
+                
+                # Calculate combined PPG
+                # Formula: (Team1 Season PPG + Team2 Season PPG + Team1 L3 PPG + Team2 L3 PPG) / 2
                 combined_ppg = None
                 if away_season_ppg and home_season_ppg and away_last3_ppg and home_last3_ppg:
                     combined_ppg = round((away_season_ppg + home_season_ppg + away_last3_ppg + home_last3_ppg) / 2, 1)
                 elif away_season_ppg and home_season_ppg:
-                    # Fallback: just use season PPG
+                    # Fallback: just use season PPG x 2
                     combined_ppg = round(away_season_ppg + home_season_ppg, 1)
                 
                 # Calculate edge
@@ -5907,14 +5909,12 @@ async def populate_ppg_and_dots_for_tomorrow():
                 game['away_last3_rank'] = away_last3_rank
                 game['away_season_ppg'] = away_season_ppg
                 game['away_last3_ppg'] = away_last3_ppg
-                game['away_ppg_value'] = away_season_ppg  # For compatibility
-                game['away_last3_value'] = away_last3_ppg
+                game['away_last3_scores'] = away_last3_stats['last3_scores'] if away_last3_stats else None
                 game['home_ppg_rank'] = home_season_rank
                 game['home_last3_rank'] = home_last3_rank
                 game['home_season_ppg'] = home_season_ppg
                 game['home_last3_ppg'] = home_last3_ppg
-                game['home_ppg_value'] = home_season_ppg
-                game['home_last3_value'] = home_last3_ppg
+                game['home_last3_scores'] = home_last3_stats['last3_scores'] if home_last3_stats else None
                 game['combined_ppg'] = combined_ppg
                 game['edge'] = edge
                 game['recommendation'] = recommendation
@@ -5926,16 +5926,22 @@ async def populate_ppg_and_dots_for_tomorrow():
             # Save updated data
             await collection.update_one(
                 {"date": tomorrow},
-                {"$set": {"games": games, "ppg_populated": True, "ppg_updated_at": datetime.now(timezone.utc).isoformat()}},
+                {"$set": {"games": games, "ppg_populated": True, "ppg_source": "cbs_sports_last3", "ppg_updated_at": datetime.now(timezone.utc).isoformat()}},
                 upsert=True
             )
             
             # Count games with valid PPG data
             games_with_ppg = sum(1 for g in games if g.get('combined_ppg') is not None)
+            games_with_last3 = sum(1 for g in games if g.get('away_last3_ppg') and g.get('home_last3_ppg'))
             games_with_rec = sum(1 for g in games if g.get('recommendation'))
-            logger.info(f"[8PM Job #2] ✅ NCAAB: Updated {len(games)} games ({games_with_ppg} with PPG, {games_with_rec} with recommendations)")
+            logger.info(f"[8PM Job #2] ✅ NCAAB: Updated {len(games)} games ({games_with_ppg} with PPG, {games_with_last3} with Last 3, {games_with_rec} with recommendations)")
         else:
             logger.warning(f"[8PM Job #2] No NCAAB games found for {tomorrow}")
+            
+    except Exception as e:
+        logger.error(f"[8PM Job #2] Error processing NCAAB: {e}")
+        import traceback
+        traceback.print_exc()
             
     except Exception as e:
         logger.error(f"[8PM Job #2] Error processing NCAAB: {e}")
