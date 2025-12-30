@@ -98,8 +98,6 @@ export default function Opportunities() {
         endpoint = `/opportunities/nhl/refresh?day=${day}${liveParam}`;
       } else if (league === 'NCAAB') {
         endpoint = `/opportunities/ncaab/refresh?day=${day}`;
-      } else {
-        endpoint = `/opportunities/nfl/refresh?day=${day}${liveParam}`;
       }
       const response = await axios.post(`${API}${endpoint}`);
       setData(response.data);
