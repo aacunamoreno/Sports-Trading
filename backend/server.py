@@ -7099,8 +7099,14 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             games_raw = []
             data_source = "plays888.co"
             
-            # #3 PROCESS: After 5am, use Plays888 as PRIMARY source for today's games
-            if use_live_lines:
+            # #3 PROCESS: After 5am Arizona time, AUTOMATICALLY use Plays888 for live lines
+            # This happens regardless of the use_live_lines parameter
+            arizona_tz = ZoneInfo('America/Phoenix')
+            current_hour = datetime.now(arizona_tz).hour
+            auto_use_live = current_hour >= 5  # After 5am Arizona
+            
+            if use_live_lines or auto_use_live:
+                logger.info(f"[#3 Process] After 5am Arizona ({datetime.now(arizona_tz).strftime('%I:%M %p')}), using Plays888 for live lines")
                 try:
                     conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
                     if conn and conn.get("is_connected"):
