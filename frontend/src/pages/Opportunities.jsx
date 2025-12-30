@@ -115,19 +115,29 @@ export default function Opportunities() {
     }
   };
 
-  // Export to Excel - using location.assign for direct download
-  const handleExport = () => {
+  // Export to Excel - using anchor element for reliable direct download
+  const handleExport = async () => {
     setExporting(true);
     
-    const downloadUrl = `${BACKEND_URL}/api/export/excel?league=${league}&start_date=2025-12-22`;
-    
-    // Use location.assign which forces the browser to navigate/download
-    // Since Content-Disposition is "attachment", it should trigger download
-    window.location.assign(downloadUrl);
-    
-    toast.success(`${league} analysis downloading...`);
-    
-    setTimeout(() => setExporting(false), 2000);
+    try {
+      const downloadUrl = `${BACKEND_URL}/api/export/excel?league=${league}&start_date=2025-12-22`;
+      
+      // Create a hidden anchor element and trigger download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${league}_Analysis.xlsx`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success(`${league} analysis downloading...`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export. Please try again.');
+    } finally {
+      setTimeout(() => setExporting(false), 2000);
+    }
   };
 
   // Row styles: Orange for UNDER, Blue for OVER
