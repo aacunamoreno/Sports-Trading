@@ -293,6 +293,17 @@ export default function Opportunities() {
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh Data
             </Button>
+            {league === 'NCAAB' && day === 'today' && (
+              <Button 
+                onClick={handleNCAABPPGUpdate} 
+                disabled={updatingPPG}
+                variant="secondary"
+                className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white"
+              >
+                <Target className={`w-4 h-4 ${updatingPPG ? 'animate-pulse' : ''}`} />
+                {updatingPPG ? 'Updating PPG...' : 'Update PPG (L3)'}
+              </Button>
+            )}
             <Button 
               onClick={handleExport} 
               disabled={exporting}
