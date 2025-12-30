@@ -5569,6 +5569,145 @@ async def populate_ppg_and_dots_for_tomorrow():
             import traceback
             traceback.print_exc()
     
+    # ==================== NCAAB PPG PROCESSING ====================
+    # NCAAB requires dynamic scraping from teamrankings.com due to 365+ teams
+    try:
+        logger.info(f"[8PM Job #2] Processing NCAAB PPG and dots...")
+        
+        collection = db.ncaab_opportunities
+        cached = await collection.find_one({"date": tomorrow}, {"_id": 0})
+        
+        if cached and cached.get('games'):
+            games = cached['games']
+            logger.info(f"[8PM Job #2] Found {len(games)} NCAAB games for {tomorrow}")
+            
+            # Scrape live PPG data from teamrankings.com
+            ppg_data = await scrape_ncaab_ppg_rankings(tomorrow)
+            logger.info(f"[8PM Job #2] Scraped PPG data for {len(ppg_data.get('season_values', {}))} NCAAB teams")
+            
+            # NCAAB has ~365 teams, dot thresholds are different (percentile-based)
+            def get_ncaab_dot_color(rank):
+                if rank is None:
+                    return '⚪'  # Unknown
+                if rank <= 92:  # Top 25%
+                    return '🟢'
+                elif rank <= 184:  # 25-50%
+                    return '🔵'
+                elif rank <= 276:  # 50-75%
+                    return '🟡'
+                else:  # Bottom 25%
+                    return '🔴'
+            
+            # NCAAB edge threshold is 9 (user-specified)
+            ncaab_edge_threshold = 9
+            
+            for game in games:
+                away = game.get('away_team') or game.get('away', '')
+                home = game.get('home_team') or game.get('home', '')
+                total = game.get('total')
+                
+                # Try to match team names (NCAAB has many variations)
+                def find_team_ppg(team_name, ppg_dict):
+                    """Try to find team in PPG data with fuzzy matching"""
+                    if not team_name:
+                        return None
+                    # Direct match
+                    if team_name in ppg_dict:
+                        return ppg_dict[team_name]
+                    # Try lowercase
+                    for key, val in ppg_dict.items():
+                        if key.lower() == team_name.lower():
+                            return val
+                    # Try partial match
+                    for key, val in ppg_dict.items():
+                        if team_name.lower() in key.lower() or key.lower() in team_name.lower():
+                            return val
+                    return None
+                
+                # Get PPG values and ranks
+                away_season_ppg = find_team_ppg(away, ppg_data.get('season_values', {}))
+                away_season_rank = find_team_ppg(away, ppg_data.get('season_ranks', {}))
+                away_last3_ppg = find_team_ppg(away, ppg_data.get('last3_values', {}))
+                away_last3_rank = find_team_ppg(away, ppg_data.get('last3_ranks', {}))
+                
+                home_season_ppg = find_team_ppg(home, ppg_data.get('season_values', {}))
+                home_season_rank = find_team_ppg(home, ppg_data.get('season_ranks', {}))
+                home_last3_ppg = find_team_ppg(home, ppg_data.get('last3_values', {}))
+                home_last3_rank = find_team_ppg(home, ppg_data.get('last3_ranks', {}))
+                
+                # Calculate combined PPG (same formula as NBA)
+                # (Team1 Season PPG + Team2 Season PPG + Team1 L3 PPG + Team2 L3 PPG) / 2
+                combined_ppg = None
+                if away_season_ppg and home_season_ppg and away_last3_ppg and home_last3_ppg:
+                    combined_ppg = round((away_season_ppg + home_season_ppg + away_last3_ppg + home_last3_ppg) / 2, 1)
+                elif away_season_ppg and home_season_ppg:
+                    # Fallback: just use season PPG
+                    combined_ppg = round(away_season_ppg + home_season_ppg, 1)
+                
+                # Calculate edge
+                edge = None
+                if combined_ppg and total:
+                    try:
+                        edge = round(combined_ppg - float(total), 1)
+                    except:
+                        pass
+                
+                # Determine recommendation
+                recommendation = None
+                color = "neutral"
+                if edge is not None:
+                    if edge >= ncaab_edge_threshold:
+                        recommendation = "OVER"
+                        color = "green"
+                    elif edge <= -ncaab_edge_threshold:
+                        recommendation = "UNDER"
+                        color = "red"
+                
+                # Generate dots
+                away_dots = f"{get_ncaab_dot_color(away_season_rank)}{get_ncaab_dot_color(away_last3_rank)}"
+                home_dots = f"{get_ncaab_dot_color(home_season_rank)}{get_ncaab_dot_color(home_last3_rank)}"
+                dots = f"{away_dots}{home_dots}"
+                
+                # Update game data
+                game['away_ppg_rank'] = away_season_rank
+                game['away_last3_rank'] = away_last3_rank
+                game['away_season_ppg'] = away_season_ppg
+                game['away_last3_ppg'] = away_last3_ppg
+                game['away_ppg_value'] = away_season_ppg  # For compatibility
+                game['away_last3_value'] = away_last3_ppg
+                game['home_ppg_rank'] = home_season_rank
+                game['home_last3_rank'] = home_last3_rank
+                game['home_season_ppg'] = home_season_ppg
+                game['home_last3_ppg'] = home_last3_ppg
+                game['home_ppg_value'] = home_season_ppg
+                game['home_last3_value'] = home_last3_ppg
+                game['combined_ppg'] = combined_ppg
+                game['edge'] = edge
+                game['recommendation'] = recommendation
+                game['color'] = color
+                game['dots'] = dots
+                game['away_dots'] = away_dots
+                game['home_dots'] = home_dots
+            
+            # Save updated data
+            await collection.update_one(
+                {"date": tomorrow},
+                {"$set": {"games": games, "ppg_populated": True, "ppg_updated_at": datetime.now(timezone.utc).isoformat()}},
+                upsert=True
+            )
+            
+            # Count games with valid PPG data
+            games_with_ppg = sum(1 for g in games if g.get('combined_ppg') is not None)
+            games_with_rec = sum(1 for g in games if g.get('recommendation'))
+            logger.info(f"[8PM Job #2] ✅ NCAAB: Updated {len(games)} games ({games_with_ppg} with PPG, {games_with_rec} with recommendations)")
+        else:
+            logger.warning(f"[8PM Job #2] No NCAAB games found for {tomorrow}")
+            
+    except Exception as e:
+        logger.error(f"[8PM Job #2] Error processing NCAAB: {e}")
+        import traceback
+        traceback.print_exc()
+    
     logger.info(f"[8PM Job #2] Completed PPG and dots population for tomorrow ({tomorrow})")
 
 
