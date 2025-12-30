@@ -7674,8 +7674,13 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
         data_source = "hardcoded"
         open_bets = []
         
-        # Try to fetch live lines from plays888.co if requested and for today's games
-        if use_live_lines and day == "today":
+        # #3 PROCESS: After 5am Arizona time, AUTOMATICALLY use Plays888 for live lines
+        arizona_tz = ZoneInfo('America/Phoenix')
+        current_hour = datetime.now(arizona_tz).hour
+        auto_use_live = current_hour >= 5 and day == "today"
+        
+        if (use_live_lines or auto_use_live) and day == "today":
+            logger.info(f"[#3 Process] NHL: After 5am Arizona ({datetime.now(arizona_tz).strftime('%I:%M %p')}), using Plays888 for live lines")
             try:
                 # Get connection credentials
                 conn = await db.connections.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
