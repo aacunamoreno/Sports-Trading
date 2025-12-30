@@ -138,6 +138,37 @@ export default function Opportunities() {
     }
   };
 
+  // Update yesterday's scores from ScoresAndOdds.com
+  const handleUpdateScores = async () => {
+    setUpdatingScores(true);
+    toast.info('Fetching scores from ScoresAndOdds.com...');
+    try {
+      // Get yesterday's date
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const dateStr = yesterday.toISOString().split('T')[0];
+      
+      const endpoint = league === 'NBA' ? `/scores/nba/update?date=${dateStr}` 
+                     : league === 'NHL' ? `/scores/nhl/update?date=${dateStr}`
+                     : `/scores/ncaab/update?date=${dateStr}`;
+      
+      const response = await axios.post(`${API}${endpoint}`, {}, { timeout: 120000 });
+      
+      if (response.data.success) {
+        toast.success(`Updated ${response.data.games_updated} games. Hit Rate: ${response.data.hit_rate}`);
+        // Reload data to show updated scores
+        await loadOpportunities();
+      } else {
+        toast.error('Failed to update scores');
+      }
+    } catch (error) {
+      console.error('Error updating scores:', error);
+      toast.error('Failed to update scores. Check if scores are available.');
+    } finally {
+      setUpdatingScores(false);
+    }
+  };
+
   // Export to Excel - using anchor element for reliable direct download
   const handleExport = async () => {
     setExporting(true);
