@@ -69,8 +69,6 @@ export default function Opportunities() {
         endpoint = `/opportunities/nhl?day=${dayParam}`;
       } else if (league === 'NCAAB') {
         endpoint = `/opportunities/ncaab?day=${dayParam}`;
-      } else {
-        endpoint = `/opportunities/nfl?day=${dayParam}`;
       }
       const response = await axios.get(`${API}${endpoint}`);
       setData(response.data);
