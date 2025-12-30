@@ -507,9 +507,7 @@ export default function Opportunities() {
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-lg">
             {league} Games Analysis - {
-              league === 'NFL' 
-                ? (day === 'custom' && customDate ? customDate : day === 'yesterday' ? 'Week 16 (Results)' : day === 'tomorrow' ? 'Week 18' : 'Week 17')
-                : (day === 'custom' && customDate ? customDate : day === 'yesterday' ? 'Yesterday (Results)' : day === 'tomorrow' ? 'Tomorrow' : 'Today')
+              day === 'custom' && customDate ? customDate : day === 'yesterday' ? 'Yesterday (Results)' : day === 'tomorrow' ? 'Tomorrow' : 'Today'
             }
           </CardTitle>
         </CardHeader>
@@ -539,7 +537,7 @@ export default function Opportunities() {
               <tbody>
                 {data.games.map((game, index) => {
                   // Check if edge is below threshold - if so, it's a "No Bet" game
-                  const edgeThreshold = league === 'NBA' ? 5 : league === 'NFL' ? 7 : league === 'NCAAB' ? 9 : 0.5;
+                  const edgeThreshold = league === 'NBA' ? 5 : league === 'NCAAB' ? 9 : 0.5;
                   const isNoBet = game.edge === null || game.edge === undefined || Math.abs(game.edge) < edgeThreshold;
                   
                   // Calculate dot-based recommendation
@@ -549,7 +547,7 @@ export default function Opportunities() {
                   const homeLast3Rank = game.home_last3_rank || 15;
                   
                   // Helper function to get dot color based on league and rank
-                  // NBA/NHL/NFL: 30-32 teams split into 4 groups of 8
+                  // NBA/NHL: 30-32 teams split into 4 groups of 8
                   // NCAAB: 365 teams - Green(1-92), Blue(93-184), Yellow(185-276), Red(277-365), White(unknown/null)
                   const getDotColor = (rank) => {
                     if (rank === null || rank === undefined) return 'bg-white/50 border border-gray-400'; // Unknown
@@ -560,7 +558,7 @@ export default function Opportunities() {
                       if (rank <= 365) return 'bg-red-500';
                       return 'bg-white/50 border border-gray-400'; // Unknown (rank > 365)
                     } else {
-                      // NBA, NHL, NFL - 30-32 teams
+                      // NBA, NHL - 30-32 teams
                       if (rank <= 8) return 'bg-green-500';
                       if (rank <= 16) return 'bg-blue-500';
                       if (rank <= 24) return 'bg-yellow-500';
