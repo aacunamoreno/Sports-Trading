@@ -336,7 +336,7 @@ export default function Opportunities() {
                 {updatingPPG ? 'Updating PPG...' : 'Update PPG (L3)'}
               </Button>
             )}
-            {day === 'yesterday' && league === 'NBA' && (
+            {day === 'yesterday' && (
               <Button 
                 onClick={handleUpdateScores} 
                 disabled={updatingScores}
