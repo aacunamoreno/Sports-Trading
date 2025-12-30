@@ -1,50 +1,50 @@
 {
-  "timestamp": "2025-12-30T05:34:53.777941",
+  "timestamp": "2025-12-30T05:35:10.139030",
   "total_tests": 7,
-  "passed_tests": 6,
-  "success_rate": 85.71428571428571,
+  "passed_tests": 7,
+  "success_rate": 100.0,
   "results": [
     {
-      "test": "GET /api/opportunities/ncaab?day=tomorrow - Data Source",
-      "success": false,
-      "details": "Expected CBS Sports data source, got 'cbssports.com opening lines'",
-      "timestamp": "2025-12-30T05:34:53.659805"
+      "test": "GET /api/opportunities/ncaab?day=tomorrow",
+      "success": true,
+      "details": "Found 39 NCAAB games from cbssports.com opening lines",
+      "timestamp": "2025-12-30T05:35:10.011793"
     },
     {
       "test": "NCAAB PPG Formula - Game 1",
       "success": true,
       "details": "Vermont @ Princeton: 139.2 \u2248 139.2",
-      "timestamp": "2025-12-30T05:34:53.701747"
+      "timestamp": "2025-12-30T05:35:10.055226"
     },
     {
       "test": "NCAAB PPG Formula - Game 2",
       "success": true,
       "details": "Maine-Fort Kent @ Maine: 114.4 \u2248 114.4",
-      "timestamp": "2025-12-30T05:34:53.701777"
+      "timestamp": "2025-12-30T05:35:10.055257"
     },
     {
       "test": "NCAAB PPG Formula - Game 3",
       "success": true,
       "details": "Ohio @ C. Michigan: 176.8 \u2248 176.8",
-      "timestamp": "2025-12-30T05:34:53.701783"
+      "timestamp": "2025-12-30T05:35:10.055264"
     },
     {
       "test": "NCAAB PPG Data Verification",
       "success": true,
       "details": "PPG games: 25, Non-PPG: 14, Formula tests: 3, Edge tests: 4, OVER recs: 1, UNDER recs: 0",
-      "timestamp": "2025-12-30T05:34:53.701799"
+      "timestamp": "2025-12-30T05:35:10.055280"
     },
     {
       "test": "NCAAB Edge Thresholds",
       "success": true,
       "details": "OVER games: 9 (all edge >= 9), UNDER games: 0 (all edge <= -9)",
-      "timestamp": "2025-12-30T05:34:53.741221"
+      "timestamp": "2025-12-30T05:35:10.099649"
     },
     {
       "test": "NCAAB Dot Color Percentiles",
       "success": true,
       "details": "Tested 25 games with ranking data, 6 color tests passed",
-      "timestamp": "2025-12-30T05:34:53.777176"
+      "timestamp": "2025-12-30T05:35:10.138213"
     }
   ]
 }
