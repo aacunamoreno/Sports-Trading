@@ -5275,6 +5275,9 @@ async def scrape_tomorrows_opening_lines():
                                 await store_opening_line(league, tomorrow, away, home, total)
                     
                     if processed_games:
+                        # Determine data source based on league
+                        data_source = "cbssports.com opening lines" if league == 'NCAAB' else "scoresandodds.com opening lines"
+                        
                         # Create or update the opportunities document
                         await collection.update_one(
                             {"date": tomorrow},
@@ -5283,7 +5286,7 @@ async def scrape_tomorrows_opening_lines():
                                     "date": tomorrow,
                                     "games": processed_games,
                                     "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
-                                    "data_source": "scoresandodds.com opening lines"
+                                    "data_source": data_source
                                 }
                             },
                             upsert=True
