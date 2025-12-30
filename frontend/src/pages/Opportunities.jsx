@@ -803,7 +803,10 @@ export default function Opportunities() {
                         )}
                       </td>
                       <td className="py-3 px-2 text-center">
-                        {game.edge !== null && game.edge !== undefined ? (
+                        {/* For NCAAB, only show edge if both teams have PPG data */}
+                        {league === 'NCAAB' && !(game.away_ppg_value && game.home_ppg_value) ? (
+                          <span className="text-muted-foreground">-</span>
+                        ) : game.edge !== null && game.edge !== undefined ? (
                           <div className="flex flex-col">
                             {/* Show bet-time edge if user bet on this game */}
                             {game.user_bet && game.bet_edge && (
