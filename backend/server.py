@@ -5096,6 +5096,7 @@ async def scrape_tomorrows_opening_lines():
     """
     #1 - 8:00 PM Arizona: Scrape tomorrow's games from ScoresAndOdds
     These are the opening lines for each game.
+    Creates full game documents in the opportunities collection.
     """
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
@@ -5104,7 +5105,7 @@ async def scrape_tomorrows_opening_lines():
     logger.info(f"[8PM Job] Scraping tomorrow's opening lines for {tomorrow}")
     
     try:
-        leagues = ['NBA', 'NHL', 'NFL']
+        leagues = ['NBA', 'NHL', 'NFL', 'NCAAB']
         
         for league in leagues:
             try:
@@ -5112,21 +5113,58 @@ async def scrape_tomorrows_opening_lines():
                 games = await scrape_scoresandodds(league.lower(), tomorrow)
                 
                 if games:
-                    # Store opening lines for each game
+                    # Create full game documents for the opportunities collection
+                    collection_name = f"{league.lower()}_opportunities"
+                    collection = db[collection_name]
+                    
+                    processed_games = []
                     for game in games:
                         away = game.get('away_team') or game.get('away')
                         home = game.get('home_team') or game.get('home')
                         total = game.get('total')
+                        time = game.get('time', 'TBD')
+                        spread = game.get('spread')
                         
-                        if away and home and total:
-                            await store_opening_line(league, tomorrow, away, home, total)
+                        if away and home:
+                            game_doc = {
+                                'away_team': away,
+                                'home_team': home,
+                                'total': total,
+                                'opening_line': total,  # Store as opening line
+                                'time': time,
+                                'spread': spread,
+                                'date': tomorrow
+                            }
+                            processed_games.append(game_doc)
+                            
+                            # Also store in opening_lines collection for tracking
+                            if total:
+                                await store_opening_line(league, tomorrow, away, home, total)
                     
-                    logger.info(f"[8PM Job] Stored {len(games)} {league} opening lines for {tomorrow}")
+                    if processed_games:
+                        # Create or update the opportunities document
+                        await collection.update_one(
+                            {"date": tomorrow},
+                            {
+                                "$set": {
+                                    "date": tomorrow,
+                                    "games": processed_games,
+                                    "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+                                    "data_source": "scoresandodds.com opening lines"
+                                }
+                            },
+                            upsert=True
+                        )
+                        logger.info(f"[8PM Job] Created {len(processed_games)} {league} games for {tomorrow}")
+                    else:
+                        logger.warning(f"[8PM Job] No valid {league} games to store for {tomorrow}")
                 else:
                     logger.warning(f"[8PM Job] No {league} games found for {tomorrow}")
                     
             except Exception as e:
                 logger.error(f"[8PM Job] Error scraping {league}: {e}")
+                import traceback
+                traceback.print_exc()
                 
     except Exception as e:
         logger.error(f"[8PM Job] Error in scrape_tomorrows_opening_lines: {e}")
