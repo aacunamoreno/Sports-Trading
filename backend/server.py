@@ -4857,8 +4857,8 @@ async def get_ncaab_opportunities():
     if cached:
         return cached
     
-    # Scrape PPG rankings
-    ppg_data = await scrape_ncaab_ppg_rankings()
+    # Scrape PPG rankings with today's date (pre-game values)
+    ppg_data = await scrape_ncaab_ppg_rankings(today)
     
     # Scrape today's games from scoresandodds
     games = await scrape_scoresandodds("NCAAB", today)
@@ -7610,8 +7610,8 @@ async def refresh_ncaab_opportunities(day: str = "today"):
         
         logger.info(f"Refreshing NCAAB opportunities for {target_date}")
         
-        # Scrape NCAAB PPG rankings from teamrankings.com
-        ppg_data = await scrape_ncaab_ppg_rankings()
+        # Scrape NCAAB PPG rankings from teamrankings.com with target date (pre-game values)
+        ppg_data = await scrape_ncaab_ppg_rankings(target_date)
         
         logger.info(f"Scraped NCAAB PPG data for {len(ppg_data.get('season_ranks', {}))} teams")
         
