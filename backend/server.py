@@ -4712,11 +4712,17 @@ async def scrape_nba_ppg_rankings():
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
-            # Season PPG
-            season_response = await client.get(
-                "https://www.teamrankings.com/nba/stat/points-per-game",
-                headers=headers
-            )
+            # IMPORTANT: Use yesterday's date to get PPG values BEFORE today's games
+            # This ensures we're analyzing with pre-game stats, not post-game updated stats
+            from zoneinfo import ZoneInfo
+            arizona_tz = ZoneInfo('America/Phoenix')
+            yesterday = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+            
+            # Season PPG with yesterday's date (pre-game values)
+            ppg_url = f"https://www.teamrankings.com/nba/stat/points-per-game?date={yesterday}"
+            logger.info(f"Scraping NBA PPG from teamrankings.com with date={yesterday}")
+            
+            season_response = await client.get(ppg_url, headers=headers)
             season_html = season_response.text
             
             # Parse season rankings - pattern: rank, team slug, team name, 2024-25 PPG, Last 3 PPG
@@ -4725,28 +4731,18 @@ async def scrape_nba_ppg_rankings():
             
             matches = re.findall(row_pattern, season_html, re.DOTALL)
             
-            logger.info(f"Found {len(matches)} teams in teamrankings.com PPG table")
+            logger.info(f"Found {len(matches)} teams in teamrankings.com PPG table (date={yesterday})")
             
             for rank, slug, season_ppg, last3_ppg in matches:
                 team_name = team_map.get(slug)
                 if team_name:
                     result['season_ranks'][team_name] = int(rank)
                     result['season_values'][team_name] = float(season_ppg)
-                    result['last3_ranks'][team_name] = int(rank)  # Will update from Last 3 page
+                    result['last3_ranks'][team_name] = int(rank)  # Will update based on Last 3 values
                     result['last3_values'][team_name] = float(last3_ppg)
             
-            # If we got data, also get Last 3 specific rankings
-            if result['season_ranks']:
-                last3_response = await client.get(
-                    "https://www.teamrankings.com/nba/stat/points-per-game?date=2025-12-26",
-                    headers=headers
-                )
-                last3_html = last3_response.text
-                
-                # Re-parse for Last 3 specific rankings
-                matches = re.findall(row_pattern, last3_html, re.DOTALL)
-                
-                # Create ranking based on Last 3 values
+            # Create ranking based on Last 3 values (sorted descending)
+            if result['last3_values']:
                 last3_sorted = sorted(result['last3_values'].items(), key=lambda x: x[1], reverse=True)
                 for i, (team, _) in enumerate(last3_sorted, 1):
                     result['last3_ranks'][team] = i
