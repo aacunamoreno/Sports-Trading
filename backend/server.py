@@ -8946,7 +8946,7 @@ NHL_TEAM_ALIASES = {
     'Red Wings': 'Detroit', 'Lightning': 'Tampa Bay', 'Senators': 'Ottawa', 'Blue Jackets': 'Columbus',
     'Rangers': 'NY Rangers', 'Capitals': 'Washington', 'Jets': 'Winnipeg', 'Wild': 'Minnesota',
     'Predators': 'Nashville', 'Blues': 'St. Louis', 'Stars': 'Dallas', 'Avalanche': 'Colorado',
-    'Coyotes': 'Utah', 'Golden Knights': 'Vegas', 'Kraken': 'Seattle', 'Ducks': 'Anaheim',
+    'Coyotes': 'Utah', 'Mammoth': 'Utah', 'Utah Hockey Club': 'Utah', 'Golden Knights': 'Vegas', 'Kraken': 'Seattle', 'Ducks': 'Anaheim',
     'Kings': 'Los Angeles', 'Sharks': 'San Jose', 'Flames': 'Calgary', 'Oilers': 'Edmonton'
 }
 
