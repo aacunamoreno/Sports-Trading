@@ -718,12 +718,22 @@ export default function Opportunities() {
                           
                           if (!currentLine) return <span className="text-gray-500 text-xs">NO LINE</span>;
                           
+                          // Calculate bet line movement (if user bet, compare closing to bet line)
+                          const betLineMovement = game.user_bet && game.bet_line ? currentLine - game.bet_line : 0;
+                          
                           return (
                             <div className="flex flex-col">
-                              {/* Current line with movement indicator */}
-                              <span className={lineMovement !== 0 ? (lineMovement > 0 ? 'text-green-400' : 'text-red-400') : ''}>
+                              {/* Current/closing line with movement indicator from bet line */}
+                              <span className={betLineMovement !== 0 ? (betLineMovement > 0 ? 'text-green-400' : 'text-red-400') : (lineMovement !== 0 ? (lineMovement > 0 ? 'text-green-400' : 'text-red-400') : '')}>
                                 {currentLine}
-                                {!isHistorical && lineMovement !== 0 && (
+                                {/* Arrow for bet line movement (historical) */}
+                                {game.user_bet && game.bet_line && betLineMovement !== 0 && (
+                                  <span className="text-xs ml-1">
+                                    {betLineMovement > 0 ? '↑' : '↓'}
+                                  </span>
+                                )}
+                                {/* Arrow for opening line movement (today/tomorrow) */}
+                                {!isHistorical && !game.user_bet && lineMovement !== 0 && (
                                   <span className="text-xs ml-1">
                                     {lineMovement > 0 ? '↑' : '↓'}
                                   </span>
@@ -733,11 +743,6 @@ export default function Opportunities() {
                               {game.user_bet && game.bet_line && (
                                 <span className="text-xs text-yellow-400 font-bold" title="Line when bet was placed">
                                   🎯 {game.bet_line}
-                                  {currentLine && game.bet_line !== currentLine && (
-                                    <span className={currentLine > game.bet_line ? 'text-green-400 ml-1' : 'text-red-400 ml-1'}>
-                                      {currentLine > game.bet_line ? '↑' : '↓'}
-                                    </span>
-                                  )}
                                 </span>
                               )}
                             </div>
