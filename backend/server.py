@@ -9453,6 +9453,302 @@ async def update_ncaab_ppg_from_cbs(target_date: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/ppg/upload-excel")
+async def upload_ppg_excel(league: str, target_date: str = None):
+    """
+    Process PPG data from uploaded Excel file for a specific league.
+    The Excel file should already be at /tmp/PPG.xlsx
+    
+    Args:
+        league: 'NBA', 'NHL', or 'NCAAB'
+        target_date: Target date in 'YYYY-MM-DD' format. Defaults to tomorrow.
+    """
+    import pandas as pd
+    
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        if not target_date:
+            target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        logger.info(f"[PPG Excel] Processing {league} PPG for {target_date}")
+        
+        # Read Excel file
+        xlsx = pd.ExcelFile('/tmp/PPG.xlsx')
+        
+        ppg_data = []
+        
+        if league == 'NBA':
+            df = pd.read_excel(xlsx, sheet_name='NBA - PPG SEASON AND PPGL3', header=None)
+            for i, row in df.iterrows():
+                vals = row.values
+                try:
+                    rank = int(vals[0]) if pd.notna(vals[0]) else None
+                    if rank and rank <= 30:
+                        team = str(vals[1]).strip() if pd.notna(vals[1]) else None
+                        season_ppg = float(vals[2]) if pd.notna(vals[2]) else None
+                        last3_ppg = float(vals[3]) if pd.notna(vals[3]) else None
+                        if team and season_ppg:
+                            ppg_data.append({
+                                'rank': rank,
+                                'team': team,
+                                'season_ppg': season_ppg,
+                                'last3_ppg': last3_ppg
+                            })
+                except:
+                    continue
+                    
+        elif league == 'NHL':
+            # NHL Season PPG
+            df_season = pd.read_excel(xlsx, sheet_name='NHL - PPG SEASON', header=None)
+            season_data = {}
+            for i, row in df_season.iterrows():
+                vals = row.values
+                try:
+                    rank = int(vals[0]) if pd.notna(vals[0]) else None
+                    if rank and rank <= 32:
+                        team_full = str(vals[1]).strip() if pd.notna(vals[1]) else None
+                        gpg = float(vals[15]) if pd.notna(vals[15]) else None  # PPG SEASON column
+                        if team_full and gpg:
+                            # Normalize team name
+                            team = team_full.replace(' Avalanche', '').replace(' Stars', '').replace(' Oilers', '')
+                            team = team.replace(' Ducks', '').replace(' Lightning', '').replace(' Canadiens', '')
+                            team = team.replace(' Maple Leafs', '').replace(' Hurricanes', '').replace(' Senators', '')
+                            team = team.replace(' Penguins', '').replace(' Bruins', '').replace(' Rangers', '')
+                            team = team.replace(' Islanders', '').replace(' Flyers', '').replace(' Devils', '')
+                            team = team.replace(' Blue Jackets', '').replace(' Panthers', '').replace(' Sabres', '')
+                            team = team.replace(' Red Wings', '').replace(' Blackhawks', '').replace(' Blues', '')
+                            team = team.replace(' Predators', '').replace(' Wild', '').replace(' Jets', '')
+                            team = team.replace(' Golden Knights', '').replace(' Kraken', '').replace(' Sharks', '')
+                            team = team.replace(' Kings', '').replace(' Flames', '').replace(' Canucks', '')
+                            team = team.replace('Montréal', 'Montreal').replace('Utah HC', 'Utah')
+                            season_data[team.strip()] = {'rank': rank, 'season_gpg': gpg}
+                except:
+                    continue
+            
+            # NHL Last 3 GPG
+            df_l3 = pd.read_excel(xlsx, sheet_name='NHL - PPGL3', header=None)
+            last3_data = {}
+            current_rank = None
+            current_gpg = None
+            for i, row in df_l3.iterrows():
+                vals = row.values
+                try:
+                    # Check for rank and GPG
+                    if pd.notna(vals[0]):
+                        rank = int(vals[0])
+                        current_rank = rank
+                        current_gpg = float(vals[3]) if pd.notna(vals[3]) else None  # G/GP column
+                    # Check for team name
+                    team_col = vals[2] if pd.notna(vals[2]) else None
+                    if team_col and isinstance(team_col, str) and len(team_col) > 2:
+                        team = team_col.strip()
+                        # Normalize NHL team names
+                        nhl_map = {
+                            'Penguins': 'Pittsburgh', 'Golden Knights': 'Vegas', 'Maple Leafs': 'Toronto',
+                            'Avalanche': 'Colorado', 'Stars': 'Dallas', 'Oilers': 'Edmonton',
+                            'Ducks': 'Anaheim', 'Lightning': 'Tampa Bay', 'Canadiens': 'Montreal',
+                            'Hurricanes': 'Carolina', 'Senators': 'Ottawa', 'Bruins': 'Boston',
+                            'Rangers': 'NY Rangers', 'Islanders': 'NY Islanders', 'Flyers': 'Philadelphia',
+                            'Devils': 'New Jersey', 'Blue Jackets': 'Columbus', 'Panthers': 'Florida',
+                            'Sabres': 'Buffalo', 'Red Wings': 'Detroit', 'Blackhawks': 'Chicago',
+                            'Blues': 'St. Louis', 'Predators': 'Nashville', 'Wild': 'Minnesota',
+                            'Jets': 'Winnipeg', 'Kraken': 'Seattle', 'Sharks': 'San Jose',
+                            'Kings': 'LA Kings', 'Flames': 'Calgary', 'Canucks': 'Vancouver',
+                            'Capitals': 'Washington', 'Utah HC': 'Utah'
+                        }
+                        normalized = nhl_map.get(team, team)
+                        if current_rank and current_gpg:
+                            last3_data[normalized] = {'rank': current_rank, 'last3_gpg': current_gpg}
+                except:
+                    continue
+            
+            # Combine season and last3 data
+            all_teams = set(season_data.keys()) | set(last3_data.keys())
+            for team in all_teams:
+                s = season_data.get(team, {})
+                l3 = last3_data.get(team, {})
+                ppg_data.append({
+                    'team': team,
+                    'rank': s.get('rank') or l3.get('rank'),
+                    'season_gpg': s.get('season_gpg'),
+                    'last3_gpg': l3.get('last3_gpg')
+                })
+                    
+        elif league == 'NCAAB':
+            df = pd.read_excel(xlsx, sheet_name='NCAAB - PPG SEASON AND PPGL3', header=None)
+            for i, row in df.iterrows():
+                vals = row.values
+                try:
+                    rank = int(vals[0]) if pd.notna(vals[0]) else None
+                    if rank and rank <= 400:
+                        team = str(vals[1]).strip() if pd.notna(vals[1]) else None
+                        season_ppg = float(vals[2]) if pd.notna(vals[2]) else None
+                        last3_ppg = float(vals[3]) if pd.notna(vals[3]) else None
+                        if team and season_ppg:
+                            ppg_data.append({
+                                'rank': rank,
+                                'team': team,
+                                'season_ppg': season_ppg,
+                                'last3_ppg': last3_ppg
+                            })
+                except:
+                    continue
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown league: {league}")
+        
+        logger.info(f"[PPG Excel] Parsed {len(ppg_data)} teams for {league}")
+        
+        # Build lookup dictionaries
+        ppg_by_team = {}
+        for item in ppg_data:
+            team = item['team']
+            ppg_by_team[team] = item
+        
+        # Sort by Last3 PPG/GPG to create ranks
+        if league == 'NHL':
+            sorted_by_l3 = sorted([t for t in ppg_data if t.get('last3_gpg')], 
+                                  key=lambda x: x['last3_gpg'], reverse=True)
+        else:
+            sorted_by_l3 = sorted([t for t in ppg_data if t.get('last3_ppg')], 
+                                  key=lambda x: x['last3_ppg'], reverse=True)
+        
+        last3_ranks = {t['team']: i+1 for i, t in enumerate(sorted_by_l3)}
+        
+        # Get existing games
+        collection_name = f"{league.lower()}_opportunities"
+        existing = await db[collection_name].find_one({"date": target_date}, {"_id": 0})
+        
+        if not existing:
+            return {
+                "success": False,
+                "error": f"No {league} games found for {target_date}. Run scrape-openers first."
+            }
+        
+        existing_games = existing.get('games', [])
+        existing_plays = existing.get('plays', [])
+        
+        # Helper to find team in PPG data
+        def find_ppg(team_name):
+            if not team_name:
+                return None
+            if team_name in ppg_by_team:
+                return ppg_by_team[team_name]
+            # Fuzzy match
+            team_lower = team_name.lower()
+            for t, data in ppg_by_team.items():
+                if t.lower() == team_lower or t.lower() in team_lower or team_lower in t.lower():
+                    return data
+            return None
+        
+        # Dot color helper
+        def get_dot(rank, total):
+            if rank is None:
+                return '⚪'
+            pct = rank / total
+            if pct <= 0.25:
+                return '🟢'
+            elif pct <= 0.50:
+                return '🔵'
+            elif pct <= 0.75:
+                return '🟡'
+            return '🔴'
+        
+        total_teams = len(ppg_data)
+        
+        # Update games
+        updated_games = []
+        games_with_ppg = 0
+        
+        for i, game in enumerate(existing_games, 1):
+            away = game.get('away_team', '')
+            home = game.get('home_team', '')
+            
+            away_data = find_ppg(away)
+            home_data = find_ppg(home)
+            
+            if league == 'NHL':
+                away_ppg = away_data.get('last3_gpg') if away_data else None
+                home_ppg = home_data.get('last3_gpg') if home_data else None
+                away_season = away_data.get('season_gpg') if away_data else None
+                home_season = home_data.get('season_gpg') if home_data else None
+            else:
+                away_ppg = away_data.get('last3_ppg') if away_data else None
+                home_ppg = home_data.get('last3_ppg') if home_data else None
+                away_season = away_data.get('season_ppg') if away_data else None
+                home_season = home_data.get('season_ppg') if home_data else None
+            
+            away_rank = last3_ranks.get(away_data['team']) if away_data and away_data.get('team') in last3_ranks else None
+            home_rank = last3_ranks.get(home_data['team']) if home_data and home_data.get('team') in last3_ranks else None
+            
+            combined = round(away_ppg + home_ppg, 1) if away_ppg and home_ppg else None
+            if away_ppg and home_ppg:
+                games_with_ppg += 1
+            
+            line = game.get('total') or game.get('opening_line')
+            edge = round(combined - float(line), 1) if combined and line else None
+            
+            rec = ''
+            if edge:
+                if edge >= 9:
+                    rec = 'OVER'
+                elif edge <= -9:
+                    rec = 'UNDER'
+            
+            updated_game = {
+                **game,
+                'game_num': i,
+                'away_ppg_value': away_ppg,
+                'away_last3_value': away_ppg,
+                'away_season_ppg': away_season,
+                'away_ppg_rank': away_rank,
+                'away_last3_rank': away_rank,
+                'home_ppg_value': home_ppg,
+                'home_last3_value': home_ppg,
+                'home_season_ppg': home_season,
+                'home_ppg_rank': home_rank,
+                'home_last3_rank': home_rank,
+                'combined_ppg': combined,
+                'edge': edge,
+                'recommendation': rec,
+                'away_dots': get_dot(away_rank, total_teams),
+                'home_dots': get_dot(home_rank, total_teams)
+            }
+            updated_games.append(updated_game)
+        
+        # Save updated games
+        await db[collection_name].update_one(
+            {"date": target_date},
+            {"$set": {
+                "games": updated_games,
+                "plays": existing_plays,
+                "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+                "data_source": "PPG.xlsx",
+                "ppg_locked": True
+            }},
+            upsert=True
+        )
+        
+        logger.info(f"[PPG Excel] Updated {games_with_ppg}/{len(updated_games)} {league} games with PPG")
+        
+        return {
+            "success": True,
+            "league": league,
+            "date": target_date,
+            "teams_in_excel": len(ppg_data),
+            "games_count": len(updated_games),
+            "games_with_ppg": games_with_ppg,
+            "plays_preserved": len(existing_plays)
+        }
+        
+    except Exception as e:
+        logger.error(f"[PPG Excel] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/opportunities/nba/manual")
 async def add_nba_manual_data(data: dict):
     """
