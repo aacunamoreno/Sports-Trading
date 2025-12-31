@@ -10395,9 +10395,14 @@ async def update_ncaab_bet_results(date: str = None):
         spread_bets = len([b for b in settled_bets if b.get('is_spread')])
         total_bet_count = total_bets - spread_bets
         
-        logger.info(f"[NCAAB Bet Results] Found {total_bets} settled NCAAB bets for {date} ({total_bet_count} totals, {spread_bets} spreads)")
+        # Calculate wins/losses directly from parsed bets (includes duplicates for correct count)
+        all_wins = len([b for b in settled_bets if b.get('result') == 'won'])
+        all_losses = len([b for b in settled_bets if b.get('result') == 'lost'])
         
-        # Match bets to games and update
+        logger.info(f"[NCAAB Bet Results] Found {total_bets} settled NCAAB bets for {date} ({total_bet_count} totals, {spread_bets} spreads)")
+        logger.info(f"[NCAAB Bet Results] Direct record from History: {all_wins}-{all_losses}")
+        
+        # Match bets to games and update (for display purposes)
         bets_matched = 0
         wins = 0
         losses = 0
