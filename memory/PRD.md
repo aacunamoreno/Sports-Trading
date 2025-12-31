@@ -36,7 +36,7 @@ Scrape user's bet results (Win/Loss) from `plays888.co` History page.
 - Display exact bet line
 - Show outcome (HIT/MISS)
 - **NBA: COMPLETED** (Dec 31, 2025)
-- NHL: NOT STARTED
+- **NHL: COMPLETED** (Dec 31, 2025) - Supports both OT Included and Regulation Time bets
 - NCAAB: NOT STARTED
 
 ### 6. NCAAB Spread Bet Highlighting (NOT STARTED)
