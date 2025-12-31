@@ -109,6 +109,15 @@ Display spread bets with purple highlighting in UI.
   - Found and matched 6 bets for Dec 29 (4-2 record)
   - UI displays bet tracking same as NBA
 
+- **NCAAB Bet Results Feature COMPLETED**
+  - Extended bet results to NCAAB (College Basketball)
+  - Supports both bet types:
+    - TOTAL bets (over/under) - requires both team names
+    - SPREAD bets (single team with point spread)
+  - College team name matching with fuzzy word overlap
+  - Found and matched 16 bets for Dec 29 (7-9 record: 9 totals, 7 spreads)
+  - UI displays bet tracking with spread indicator
+
 ### Dec 29-30, 2025
 - NCAAB Last 3 PPG feature
 - Yesterday scores feature for all leagues
