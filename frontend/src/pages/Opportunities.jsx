@@ -93,15 +93,30 @@ export default function Opportunities() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    toast.info('Refreshing lines & bets from plays888.co...');
     try {
-      // Use the new "refresh lines only" endpoint that preserves PPG values
-      const response = await axios.post(`${API}/opportunities/refresh-lines?league=${league}`);
-      setData(response.data);
+      // Use the "refresh lines & bets" endpoint that preserves PPG values and opening lines
+      const response = await axios.post(`${API}/opportunities/refresh-lines?league=${league}`, {}, { timeout: 60000 });
+      
+      // Reload data to show updates
+      await loadOpportunities();
+      
       const linesUpdated = response.data.lines_updated || 0;
-      toast.success(`${league} lines refreshed! ${linesUpdated} line(s) updated from plays888.co`);
+      const betsAdded = response.data.bets_added || 0;
+      const betsSkipped = response.data.bets_skipped_duplicates || 0;
+      
+      let message = `${league} refreshed! ${linesUpdated} line(s) updated`;
+      if (betsAdded > 0) {
+        message += `, ${betsAdded} bet(s) added`;
+      }
+      if (betsSkipped > 0) {
+        message += ` (${betsSkipped} duplicates skipped)`;
+      }
+      
+      toast.success(message);
     } catch (error) {
-      console.error('Error refreshing lines:', error);
-      toast.error('Failed to refresh lines');
+      console.error('Error refreshing lines & bets:', error);
+      toast.error('Failed to refresh lines & bets');
     } finally {
       setRefreshing(false);
     }
