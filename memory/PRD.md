@@ -39,8 +39,15 @@ Scrape user's bet results (Win/Loss) from `plays888.co` History page.
 - **NHL: COMPLETED** (Dec 31, 2025) - Supports both OT Included and Regulation Time bets
 - **NCAAB: COMPLETED** (Dec 31, 2025) - Supports both TOTAL and SPREAD bets
 
-### 6. NCAAB Spread Bet Highlighting (NOT STARTED)
+### 6. NCAAB Spread Bet Highlighting (COMPLETED)
 Display spread bets with purple highlighting in UI.
+- 🎰 icon for spread bets (vs 💰 for total bets)
+- Purple ring around row
+- Purple background tint
+- 📊 spread value indicator (vs 🎯 for total lines)
+- Purple-styled result badges (SPREAD HIT / SPREAD MISS)
+- Legend updated to explain spread bet styling
+- **COMPLETED** (Dec 31, 2025)
 
 ### 7. Excel Export (BROKEN)
 "Export Excel" button needs fixing.
