@@ -9,15 +9,20 @@ Create a system that can automatically log into accounts on the betting website 
 
 ## Core Requirements
 
-### 1. 8pm Job (DONE)
+### 1. 8pm Job - Scrape Tomorrow's Opening Lines (COMPLETED ✅)
 Scrape and analyze tomorrow's opening lines for NBA, NHL, and NCAAB.
-- Uses PPG (Points Per Game) rankings for NBA/NCAAB
-- Uses GPG (Goals Per Game) rankings for NHL
-- Status: **COMPLETED** (with data integrity workarounds)
+- **API Endpoint:** `POST /api/process/scrape-openers?target_date=YYYY-MM-DD`
+- **Data Sources:** CBS Sports (primary for all leagues), ScoresAndOdds (fallback)
+- **UI Button:** "Scrape Tomorrow (8pm Job)" - cyan colored button
+- Status: **COMPLETED** (Dec 31, 2025)
+  - NBA: 9 games scraped
+  - NHL: 10 games scraped
+  - NCAAB: 49 games scraped
 
-### 2. Today Workflow (IN PROGRESS)
+### 2. Today Workflow (COMPLETED)
 After 5am Arizona time, switch to using `plays888.co` for live odds.
 - UI shows both opening and live lines
+- "Refresh Lines" button for safe updates
 - Status: **COMPLETED**
 
 ### 3. NCAAB Data Integrity (DONE)
@@ -50,7 +55,12 @@ Display spread bets with purple highlighting in UI.
 - Legend updated to explain spread bet styling
 - **COMPLETED** (Dec 31, 2025)
 
-### 7. Excel Export (BROKEN)
+### 7. Cumulative Records Feature (COMPLETED)
+Calculate and display cumulative betting and edge records from 12/22/25.
+- "Update Records" button in UI
+- Status: **COMPLETED** (Dec 31, 2025)
+
+### 8. Excel Export (BROKEN)
 "Export Excel" button needs fixing.
 
 ## Known Issues
@@ -58,17 +68,15 @@ Display spread bets with purple highlighting in UI.
 ### Issue 1: Stat Scrapers Unreliable (P0)
 - `teamrankings.com` returns 403 Forbidden
 - `statmuse.com` returns 403 Forbidden
-- **Workaround:** Hardcoded/locked PPG and GPG values
+- `scoresandodds.com` returns 403 Forbidden
+- **Solution Implemented:** CBS Sports scrapers as primary source for all leagues
+- **Pending:** Process #2 - Manual input UI for PPG/GPG stats
 
-### Issue 2: NCAAB Spread Bets UI (P1)
-- Single-team spread bets can't be matched to games
-- Purple highlighting not implemented
-
-### Issue 3: server.py Monolith (P2)
-- 9,600+ lines in single file
+### Issue 2: server.py Monolith (P2)
+- 11,000+ lines in single file
 - Needs modular refactoring
 
-### Issue 4: Excel Export Broken (P2)
+### Issue 3: Excel Export Broken (P2)
 - Download doesn't trigger properly
 
 ## Architecture
@@ -76,7 +84,7 @@ Display spread bets with purple highlighting in UI.
 ```
 /app/
 ├── backend/
-│   ├── server.py             # Main backend (monolith)
+│   ├── server.py             # Main backend (monolith, 11,000+ lines)
 │   ├── update_ncaab_ppg.py   # NCAAB PPG scraper
 │   └── requirements.txt
 ├── frontend/
@@ -87,70 +95,56 @@ Display spread bets with purple highlighting in UI.
 ```
 
 ## Key API Endpoints
-- `GET /api/opportunities?league={NBA|NHL|NCAAB}&day={today|yesterday|tomorrow}`
+- `GET /api/opportunities?league={NBA|NHL|NCAAB}&day={today|yesterday|tomorrow|YYYY-MM-DD}`
+- `GET /api/opportunities/nhl?day={today|yesterday|tomorrow|YYYY-MM-DD}`
+- `GET /api/opportunities/ncaab?day={today|yesterday|tomorrow|YYYY-MM-DD}`
+- `POST /api/process/scrape-openers?target_date=YYYY-MM-DD` - 8pm Job to scrape opening lines
+- `POST /api/process/update-records?start_date=YYYY-MM-DD` - Recalculate cumulative records
+- `POST /api/opportunities/refresh-lines` - Refresh live lines from plays888.co
 - `POST /api/opportunities/ncaab/update-ppg` - Update NCAAB Last 3 PPG
 - `POST /api/scores/{league}/update` - Update final scores
-- `POST /api/bets/nba/update-results` - Update NBA bet results from History
-- `POST /api/bets/nhl/update-results` - Update NHL bet results from History
-- `POST /api/bets/ncaab/update-results` - Update NCAAB bet results from History
+- `POST /api/bets/{league}/update-results` - Update bet results from History
 
 ## Database Collections
 - `nba_opportunities`, `nhl_opportunities`, `ncaab_opportunities`
   - Games with analysis, lines, scores, bet tracking
+- `opening_lines` - Stores opening lines for tracking
+- `compound_records`, `edge_records` - Cumulative record tracking
 - `connections` - Account credentials (encrypted)
 - `daily_compilations` - Telegram message tracking
 
 ## What's Been Implemented (Recent)
 
-### Dec 31, 2025
+### Dec 31, 2025 - Process #1 (8pm Job) COMPLETED
+- **CBS Sports Scrapers Implemented**
+  - `scrape_cbssports_nba()` - Scrapes NBA games from CBS Sports
+  - `scrape_cbssports_nhl()` - Scrapes NHL games from CBS Sports
+  - `scrape_cbssports_ncaab()` - Already existed, verified working
+  - All include team name normalization
+- **New API Endpoint:** `/api/process/scrape-openers`
+  - Orchestrates scraping for all three leagues
+  - Stores games with opening lines in opportunities collections
+  - Also stores in `opening_lines` collection for tracking
+  - Uses CBS Sports as primary (scoresandodds.com blocked with 403)
+- **New UI Button:** "Scrape Tomorrow (8pm Job)"
+  - Cyan colored button in the control bar
+  - Shows toast notification during scraping
+  - Auto-refreshes if viewing tomorrow's data
+- **Results for Dec 31, 2025:**
+  - NBA: 9 games (Golden State @ Brooklyn, Minnesota @ Atlanta, etc.)
+  - NHL: 10 games (NY Rangers @ Washington, Toronto @ Vegas, etc.)
+  - NCAAB: 49 games (Army @ Lehigh, Lamar @ East Texas A&M, etc.)
+
+### Dec 31, 2025 - Previous Session
 - **Records Update Feature (#6) COMPLETED**
-  - Fixed `calculate_records_from_start_date` to use correct field names (`result_hit`, `user_bet_hit`)
-  - Now uses `actual_bet_record` when available for accurate duplicate bet counting
-  - Records calculated from 12/22 to yesterday for all leagues
-  - Results:
-    - NBA: Betting 15-13 (53.6%), Edge 32-21 (60.4%)
-    - NHL: Betting 14-8 (63.6%), Edge 17-10 (63.0%)
-    - NCAAB: Betting 10-12 (45.5%), Edge 14-11 (56.0%)
-
-- **NCAAB Bet Record Fix**
-  - Fixed duplicate bet counting (Stony Brook x2, Alabama State x2, Southern Miss x3)
-  - Now stores `actual_bet_record` directly from History page
-  - Correct record: 10-12 instead of 7-9
-
-- **NBA Bet Results Feature COMPLETED**
-  - Fixed History page parser to correctly extract bet data
-  - Parser now looks forward from NBA marker to find results AFTER team names
-  - Correctly identifies WIN/LOSE for each bet
-  - UI displays 💰 icon, bet line, and HIT/MISS status
-  - "My Bets: X-Y" counter in header
-
-- **NHL Bet Results Feature COMPLETED**
-  - Extended bet results to NHL with support for both bet types:
-    - Standard NHL bets (OT Included)
-    - Regulation Time Only bets (marked as "SOC" sport in plays888)
-  - Handles team name variations and REG.TIME suffixes
-  - Found and matched 6 bets for Dec 29 (4-2 record)
-  - UI displays bet tracking same as NBA
-
-- **NCAAB Bet Results Feature COMPLETED**
-  - Extended bet results to NCAAB (College Basketball)
-  - Supports both bet types:
-    - TOTAL bets (over/under) - requires both team names
-    - SPREAD bets (single team with point spread)
-  - College team name matching with fuzzy word overlap
-  - Found and matched 16 bets for Dec 29 (7-9 record: 9 totals, 7 spreads)
-  - UI displays bet tracking with spread indicator
-
-### Dec 29-30, 2025
-- NCAAB Last 3 PPG feature
-- Yesterday scores feature for all leagues
-- NHL GPG data integrity fix
-- Bet data cleanup (removed duplicates)
+- **NCAAB Bet Record Fix** - Correct duplicate counting
+- **NBA/NHL/NCAAB Bet Results Feature COMPLETED**
 
 ## Upcoming Tasks (Priority Order)
-1. (P0) Find permanent solution for blocked stat scrapers
+1. (P0) **Process #2:** Build manual input UI for PPG/GPG stats (blocked scrapers workaround)
 2. (P1) Fix Excel export button
-3. (P2) Add automated daily jobs for score/bet updates
+3. (P1) Implement remaining daily processes (#3-7)
+4. (P2) Fix NCAAB Spread Bet matching logic
 
 ## Future/Backlog
 - Refactor server.py into modular architecture
