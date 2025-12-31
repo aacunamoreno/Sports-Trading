@@ -7728,29 +7728,63 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 game['has_bet'] = True
                 game['user_bet'] = True
                 if bet_ticket:
-                    game['bet_slip_id'] = bet_ticket
                     existing_bet_tickets.add(bet_ticket)  # Add to set to prevent future duplicates
                 
-                # #3.75 - Capture the bet line
+                # #3.75 - Capture the bet line and type
                 bet_line = bet.get('total_line') or bet.get('line') or bet.get('total')
+                bet_type_raw = bet.get('bet_type', '')
+                
+                # Determine if this is a spread bet or total bet
+                is_spread_bet = False
+                is_total_bet = False
+                bet_type_display = bet_type_raw
+                
+                if 'total' in bet_type_raw.lower() or 'over' in bet_type_raw.lower() or 'under' in bet_type_raw.lower():
+                    is_total_bet = True
+                    if 'over' in bet_type_raw.lower() or bet_type_raw.lower().startswith('o'):
+                        bet_type_display = 'OVER'
+                    elif 'under' in bet_type_raw.lower() or bet_type_raw.lower().startswith('u'):
+                        bet_type_display = 'UNDER'
+                else:
+                    # It's a spread bet (like "DUKE -26" or "LEHIGH -5")
+                    is_spread_bet = True
+                    bet_type_display = bet_type_raw.upper()
+                
+                # Initialize bet tracking arrays if not present
+                if 'bet_types' not in game:
+                    game['bet_types'] = []
+                if 'bet_lines' not in game:
+                    game['bet_lines'] = []
+                if 'bet_count' not in game:
+                    game['bet_count'] = 0
+                
+                # Add this bet to the arrays
+                game['bet_types'].append(bet_type_display)
                 if bet_line:
                     try:
-                        game['bet_line'] = float(bet_line) if isinstance(bet_line, str) else bet_line
+                        game['bet_lines'].append(float(bet_line) if isinstance(bet_line, str) else bet_line)
                     except:
-                        pass
-                    logger.info(f"[Refresh Bets] Captured bet_line={bet_line} for {away} @ {home}")
-                    
-                    # Store bet type
-                    bet_type = bet.get('bet_type', '')
-                    if 'over' in bet_type.lower() or bet_type.lower().startswith('o'):
-                        game['bet_type'] = 'OVER'
-                    elif 'under' in bet_type.lower() or bet_type.lower().startswith('u'):
-                        game['bet_type'] = 'UNDER'
-                    else:
-                        game['bet_type'] = bet_type
-                    
-                    bets_added += 1
-                    logger.info(f"[Refresh Bets] Added bet to {away} @ {home}: {game['bet_type']} @ {game.get('bet_line')}")
+                        game['bet_lines'].append(None)
+                else:
+                    game['bet_lines'].append(None)
+                
+                game['bet_count'] += 1
+                
+                # For backward compatibility, set the primary bet_type and bet_line
+                # If there's both spread and total, prioritize showing both in bet_type
+                if len(game['bet_types']) == 1:
+                    game['bet_type'] = bet_type_display
+                    if bet_line:
+                        try:
+                            game['bet_line'] = float(bet_line) if isinstance(bet_line, str) else bet_line
+                        except:
+                            pass
+                else:
+                    # Multiple bets on same game - combine them
+                    game['bet_type'] = ' + '.join(game['bet_types'])
+                    # Keep the first bet_line for display
+                
+                logger.info(f"[Refresh Bets] Added bet #{game['bet_count']} to {away} @ {home}: {bet_type_display}")
         
         # Update plays array with games that have bets
         plays = []
