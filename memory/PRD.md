@@ -100,6 +100,14 @@ Display spread bets with purple highlighting in UI.
   - UI displays 💰 icon, bet line, and HIT/MISS status
   - "My Bets: X-Y" counter in header
 
+- **NHL Bet Results Feature COMPLETED**
+  - Extended bet results to NHL with support for both bet types:
+    - Standard NHL bets (OT Included)
+    - Regulation Time Only bets (marked as "SOC" sport in plays888)
+  - Handles team name variations and REG.TIME suffixes
+  - Found and matched 6 bets for Dec 29 (4-2 record)
+  - UI displays bet tracking same as NBA
+
 ### Dec 29-30, 2025
 - NCAAB Last 3 PPG feature
 - Yesterday scores feature for all leagues
