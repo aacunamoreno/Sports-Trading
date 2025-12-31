@@ -9723,30 +9723,51 @@ async def update_nba_bet_results(date: str = None):
             
             logger.info(f"[NBA Bet Results] Looking for bets on {search_date} or {search_date_alt}")
             
+            # The History page text format example:
+            # INTERNET / -1	Ticket #: 338655920
+            # Dec 29 04:40 PM
+            # NBA
+            # STRAIGHT BET
+            # [555] TOTAL o244-110
+            # (DENVER NUGGETS vrs MIAMI HEAT)
+            # 2200.00 / 2000.00
+            # 2000.00
+            # WIN
+            # WIN
+            # 12/29/2025 02:10 PM
+            
+            # Parse by looking for NBA sport entries
             i = 0
             while i < len(lines):
                 line = lines[i].strip()
                 
-                # Look for NBA TOTAL bets with specific date
-                if 'NBA' in line.upper() and 'TOTAL' in line.upper():
-                    # Check if this bet is for the target date
-                    context = ' '.join(lines[max(0, i-10):min(len(lines), i+10)])
+                # Look for the "NBA" sport marker (on its own line)
+                if line.upper() == 'NBA':
+                    # Look in a window around this line for bet details
+                    context_start = max(0, i - 5)
+                    context_end = min(len(lines), i + 15)
+                    context_lines = lines[context_start:context_end]
+                    context = ' '.join([l.strip() for l in context_lines])
                     
-                    if search_date in context or search_date_alt in context:
-                        # Extract the bet line (e.g., "TOTAL o233-110")
+                    # Check if this bet is for the target date
+                    if search_date in context or search_date_alt in context or f"Dec {int(date_parts[2])}" in context:
+                        # Extract the bet line (e.g., "TOTAL o244-110" or "TOTAL u220-120")
                         total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)[½]?', context, re.IGNORECASE)
                         
-                        # Extract teams (e.g., "ATLANTA HAWKS vrs BOSTON CELTICS")
-                        teams_match = re.search(r'([A-Z\s]+)\s+vrs\s+([A-Z\s]+)', context, re.IGNORECASE)
+                        # Extract teams (e.g., "(DENVER NUGGETS vrs MIAMI HEAT)")
+                        teams_match = re.search(r'\(([A-Z\s]+)\s+vrs\s+([A-Z\s]+)\)', context, re.IGNORECASE)
                         
-                        # Extract result (WIN/LOSE)
+                        # Extract result - look for WIN or LOSE patterns
                         result = None
-                        if 'WINWIN' in context.upper() or 'WIN' in context.upper().split()[-5:]:
-                            result = 'won'
-                        elif 'LOSELOSE' in context.upper() or 'LOSE' in context.upper().split()[-5:] or 'LOSS' in context.upper():
-                            result = 'lost'
-                        elif 'PUSH' in context.upper():
-                            result = 'push'
+                        result_match = re.search(r'\b(WIN|LOSE|LOSS|PUSH)\b', context, re.IGNORECASE)
+                        if result_match:
+                            res = result_match.group(1).upper()
+                            if res == 'WIN':
+                                result = 'won'
+                            elif res in ['LOSE', 'LOSS']:
+                                result = 'lost'
+                            elif res == 'PUSH':
+                                result = 'push'
                         
                         if total_match and teams_match:
                             bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
@@ -9754,14 +9775,23 @@ async def update_nba_bet_results(date: str = None):
                             away_team = normalize_team(teams_match.group(1))
                             home_team = normalize_team(teams_match.group(2))
                             
-                            settled_bets.append({
-                                'away_team': away_team,
-                                'home_team': home_team,
-                                'bet_type': bet_type,
-                                'bet_line': bet_line,
-                                'result': result
-                            })
-                            logger.info(f"[NBA Bet Results] Found: {away_team} @ {home_team} {bet_type} {bet_line} -> {result}")
+                            # Avoid duplicates - check if same teams/line already added
+                            is_duplicate = any(
+                                b['away_team'] == away_team and 
+                                b['home_team'] == home_team and 
+                                b['bet_line'] == bet_line 
+                                for b in settled_bets
+                            )
+                            
+                            if not is_duplicate:
+                                settled_bets.append({
+                                    'away_team': away_team,
+                                    'home_team': home_team,
+                                    'bet_type': bet_type,
+                                    'bet_line': bet_line,
+                                    'result': result
+                                })
+                                logger.info(f"[NBA Bet Results] Found: {away_team} @ {home_team} {bet_type} {bet_line} -> {result}")
                 
                 i += 1
             
