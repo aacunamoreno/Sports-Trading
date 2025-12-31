@@ -195,7 +195,7 @@ async def main():
     
     # Save
     db.ncaab_opportunities.update_one(
-        {"date": today},
+        {"date": target_date},
         {"$set": {
             "games": updated_games,
             "plays": existing_plays,
