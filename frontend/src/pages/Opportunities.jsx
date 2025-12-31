@@ -259,6 +259,69 @@ export default function Opportunities() {
     }
   };
 
+  // Upload PPG Excel file (Process #2)
+  const [uploadingPPG, setUploadingPPG] = useState(false);
+  const fileInputRef = React.useRef(null);
+  
+  const handlePPGExcelUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    setUploadingPPG(true);
+    toast.info('Uploading PPG Excel file...');
+    
+    try {
+      // First upload the file to /tmp/PPG.xlsx on the server
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      await axios.post(`${API}/ppg/upload-file`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000
+      });
+      
+      // Get tomorrow's date
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const targetDate = tomorrow.toISOString().split('T')[0];
+      
+      // Process all 3 leagues
+      toast.info('Processing PPG for all leagues...');
+      
+      const results = [];
+      for (const lg of ['NBA', 'NHL', 'NCAAB']) {
+        try {
+          const response = await axios.post(
+            `${API}/ppg/upload-excel?league=${lg}&target_date=${targetDate}`,
+            {},
+            { timeout: 60000 }
+          );
+          if (response.data.success) {
+            results.push(`${lg}: ${response.data.games_with_ppg}/${response.data.games_count}`);
+          }
+        } catch (err) {
+          results.push(`${lg}: Error`);
+        }
+      }
+      
+      toast.success(`PPG Updated! ${results.join(', ')}`);
+      
+      // Refresh data if viewing tomorrow
+      if (day === 'tomorrow') {
+        loadOpportunities();
+      }
+    } catch (error) {
+      console.error('Error uploading PPG:', error);
+      toast.error('Failed to upload PPG Excel');
+    } finally {
+      setUploadingPPG(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   // Export to Excel - using anchor element for reliable direct download
   const handleExport = async () => {
     setExporting(true);
