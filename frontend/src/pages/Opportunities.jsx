@@ -1009,6 +1009,12 @@ export default function Opportunities() {
                 <span>💰</span>
                 <span className="text-yellow-400">Active bet placed (ENANO)</span>
               </div>
+              {league === 'NCAAB' && (
+                <div className="flex items-center gap-2">
+                  <span>🎰</span>
+                  <span className="text-purple-400">Spread bet placed</span>
+                </div>
+              )}
             </div>
             <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-4">
               <div className="flex items-center gap-2">
