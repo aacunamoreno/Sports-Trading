@@ -7796,14 +7796,17 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     "game": f"{away} @ {home}",
                     "total": game.get('total'),
                     "bet_line": game.get('bet_line'),
+                    "bet_lines": game.get('bet_lines', []),
                     "combined_ppg": game.get('combined_ppg') or game.get('combined_gpg'),
                     "combined_gpg": game.get('combined_gpg') or game.get('combined_ppg'),
                     "edge": game.get('edge'),
                     "recommendation": game.get('recommendation', ''),
                     "has_bet": True,
                     "bet_type": game.get('bet_type', 'TOTAL'),
+                    "bet_types": game.get('bet_types', []),
                     "bet_count": game.get('bet_count', 1)
                 })
+                bets_added += game.get('bet_count', 1)  # Count all bets
         
         # Save updated games and plays
         await collection.update_one(
