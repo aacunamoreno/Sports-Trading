@@ -9658,12 +9658,22 @@ async def upload_ppg_excel(league: str, target_date: str = None):
         def find_ppg(team_name):
             if not team_name:
                 return None
+            
+            # Check direct match first
             if team_name in ppg_by_team:
                 return ppg_by_team[team_name]
+            
+            # For NCAAB, check the mapping
+            if league == 'NCAAB' and 'ncaab_team_mapping' in dir():
+                mapped_name = ncaab_team_mapping.get(team_name)
+                if mapped_name and mapped_name in ppg_by_team:
+                    return ppg_by_team[mapped_name]
+            
             # Fuzzy match
-            team_lower = team_name.lower()
+            team_lower = team_name.lower().replace(".", "").replace("-", " ").replace("'", "")
             for t, data in ppg_by_team.items():
-                if t.lower() == team_lower or t.lower() in team_lower or team_lower in t.lower():
+                t_lower = t.lower().replace(".", "").replace("-", " ").replace("'", "")
+                if t_lower == team_lower or t_lower in team_lower or team_lower in t_lower:
                     return data
             return None
         
