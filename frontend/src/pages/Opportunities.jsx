@@ -393,28 +393,24 @@ export default function Opportunities() {
                 {updatingPPG ? 'Updating PPG...' : 'Update PPG (L3)'}
               </Button>
             )}
-            {day === 'yesterday' && (
-              <Button 
-                onClick={handleUpdateScores} 
-                disabled={updatingScores}
-                variant="secondary"
-                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                <TrendingUp className={`w-4 h-4 ${updatingScores ? 'animate-pulse' : ''}`} />
-                {updatingScores ? 'Updating Scores...' : 'Update Scores'}
-              </Button>
-            )}
-            {day === 'yesterday' && (league === 'NBA' || league === 'NHL' || league === 'NCAAB') && (
-              <Button 
-                onClick={handleUpdateBetResults} 
-                disabled={updatingBetResults}
-                variant="secondary"
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-              >
-                <span className={updatingBetResults ? 'animate-pulse' : ''}>💰</span>
-                {updatingBetResults ? 'Updating Bets...' : 'Update Bet Results'}
-              </Button>
-            )}
+            <Button 
+              onClick={handleUpdateScores} 
+              disabled={updatingScores}
+              variant="secondary"
+              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <TrendingUp className={`w-4 h-4 ${updatingScores ? 'animate-pulse' : ''}`} />
+              {updatingScores ? 'Updating Scores...' : 'Update Scores'}
+            </Button>
+            <Button 
+              onClick={handleUpdateBetResults} 
+              disabled={updatingBetResults}
+              variant="secondary"
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+            >
+              <span className={updatingBetResults ? 'animate-pulse' : ''}>💰</span>
+              {updatingBetResults ? 'Updating Bets...' : 'Update Bet Results'}
+            </Button>
             <Button 
               onClick={handleExport} 
               disabled={exporting}
