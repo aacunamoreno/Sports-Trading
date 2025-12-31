@@ -5482,14 +5482,15 @@ async def refresh_nba_opportunities_scheduled():
                     "color": color
                 })
         
-        # Save to database
+        # Save to database with ppg_populated flag
         await db.nba_opportunities.update_one(
             {"date": today},
             {"$set": {
                 "date": today,
                 "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
                 "games": games,
-                "plays": plays
+                "plays": plays,
+                "ppg_populated": True
             }},
             upsert=True
         )
