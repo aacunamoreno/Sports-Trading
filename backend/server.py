@@ -7119,38 +7119,42 @@ async def refresh_lines_only(league: str = "NBA"):
         games = cached['games']
         original_count = len(games)
         
-        # Fetch live lines from plays888.co
+        # Fetch live lines from plays888.co using scrape_totals method
         live_lines = {}
+        service = Plays888Service()
         try:
-            service = Plays888Service()
             await service.initialize()
             login_result = await service.login("jac083", "acuna2025!")
             
             if login_result.get('success'):
-                # Get live games based on league
-                if league == "NBA":
-                    live_games = await service.get_nba_games()
-                elif league == "NHL":
-                    live_games = await service.get_nhl_games()
-                elif league == "NCAAB":
-                    live_games = await service.get_ncaab_games()
-                else:
-                    live_games = []
+                # Use scrape_totals to get live games
+                live_games = await service.scrape_totals(league.upper())
                 
                 # Build lookup of live lines by team matchup
                 for game in live_games:
-                    away = convert_plays888_team_name(game.get('away', '')) if league == "NBA" else game.get('away', '')
-                    home = convert_plays888_team_name(game.get('home', '')) if league == "NBA" else game.get('home', '')
+                    away = game.get('away', '')
+                    home = game.get('home', '')
                     total = game.get('total')
+                    
+                    # Convert plays888 team names for NBA
+                    if league.upper() == "NBA":
+                        away = convert_plays888_team_name(away)
+                        home = convert_plays888_team_name(home)
+                    
                     if total:
                         key = f"{away.upper()}_{home.upper()}"
-                        live_lines[key] = total
+                        live_lines[key] = float(total) if isinstance(total, str) else total
                         logger.info(f"[Refresh Lines] Live line for {away} @ {home}: {total}")
+            else:
+                raise HTTPException(status_code=401, detail="Failed to login to plays888.co")
             
-            await service.close()
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"[Refresh Lines] Error fetching from plays888: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to fetch live lines: {e}")
+        finally:
+            await service.close()
         
         if not live_lines:
             raise HTTPException(status_code=404, detail="No live lines found on plays888.co")
