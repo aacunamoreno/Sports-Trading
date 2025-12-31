@@ -7092,6 +7092,136 @@ async def get_opportunities(day: str = "today"):
         logger.error(f"Error getting opportunities: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@api_router.post("/opportunities/refresh-lines")
+async def refresh_lines_only(league: str = "NBA"):
+    """
+    Refresh ONLY the live betting lines from plays888.co.
+    Does NOT touch PPG values, opening lines, or any other data.
+    Only updates the 'total' field and recalculates edge.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        now_arizona = datetime.now(arizona_tz)
+        target_date = now_arizona.strftime('%Y-%m-%d')
+        
+        logger.info(f"[Refresh Lines] Refreshing {league} live lines only for {target_date}")
+        
+        # Get current games from database
+        collection_name = f"{league.lower()}_opportunities"
+        collection = db[collection_name]
+        cached = await collection.find_one({"date": target_date}, {"_id": 0})
+        
+        if not cached or not cached.get('games'):
+            raise HTTPException(status_code=404, detail=f"No {league} data found for {target_date}")
+        
+        games = cached['games']
+        original_count = len(games)
+        
+        # Fetch live lines from plays888.co
+        live_lines = {}
+        try:
+            service = Plays888Service()
+            await service.initialize()
+            login_result = await service.login("jac083", "acuna2025!")
+            
+            if login_result.get('success'):
+                # Get live games based on league
+                if league == "NBA":
+                    live_games = await service.get_nba_games()
+                elif league == "NHL":
+                    live_games = await service.get_nhl_games()
+                elif league == "NCAAB":
+                    live_games = await service.get_ncaab_games()
+                else:
+                    live_games = []
+                
+                # Build lookup of live lines by team matchup
+                for game in live_games:
+                    away = convert_plays888_team_name(game.get('away', '')) if league == "NBA" else game.get('away', '')
+                    home = convert_plays888_team_name(game.get('home', '')) if league == "NBA" else game.get('home', '')
+                    total = game.get('total')
+                    if total:
+                        key = f"{away.upper()}_{home.upper()}"
+                        live_lines[key] = total
+                        logger.info(f"[Refresh Lines] Live line for {away} @ {home}: {total}")
+            
+            await service.close()
+        except Exception as e:
+            logger.error(f"[Refresh Lines] Error fetching from plays888: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to fetch live lines: {e}")
+        
+        if not live_lines:
+            raise HTTPException(status_code=404, detail="No live lines found on plays888.co")
+        
+        # Update only the lines and recalculate edges
+        lines_updated = 0
+        for game in games:
+            away = game.get('away_team', '')
+            home = game.get('home_team', '')
+            key = f"{away.upper()}_{home.upper()}"
+            
+            if key in live_lines:
+                old_line = game.get('total')
+                new_line = live_lines[key]
+                
+                if old_line != new_line:
+                    game['total'] = new_line
+                    lines_updated += 1
+                    logger.info(f"[Refresh Lines] Updated {away} @ {home}: {old_line} -> {new_line}")
+                
+                # Recalculate edge with new line (PPG stays the same)
+                combined_ppg = game.get('combined_ppg', 0)
+                if combined_ppg and new_line:
+                    edge = round(combined_ppg - new_line, 1)
+                    game['edge'] = edge
+                    
+                    # Update recommendation based on new edge
+                    if edge >= 0.5:
+                        game['recommendation'] = 'OVER'
+                        game['color'] = 'green'
+                    elif edge <= -0.5:
+                        game['recommendation'] = 'UNDER'
+                        game['color'] = 'red'
+                    else:
+                        game['recommendation'] = None
+                        game['color'] = 'neutral'
+        
+        # Save updated games back to database
+        await collection.update_one(
+            {"date": target_date},
+            {"$set": {
+                "games": games,
+                "last_updated": now_arizona.strftime('%I:%M %p'),
+                "data_source": "plays888.co (lines refreshed)"
+            }}
+        )
+        
+        logger.info(f"[Refresh Lines] Updated {lines_updated} lines out of {original_count} games")
+        
+        # Return updated data
+        return {
+            "success": True,
+            "date": target_date,
+            "last_updated": now_arizona.strftime('%I:%M %p'),
+            "games": games,
+            "plays": cached.get('plays', []),
+            "lines_updated": lines_updated,
+            "total_games": original_count,
+            "data_source": "plays888.co (lines refreshed)",
+            "actual_bet_record": cached.get('actual_bet_record')
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Refresh Lines] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/opportunities/refresh")
 async def refresh_opportunities(day: str = "today", use_live_lines: bool = False):
     """Manually refresh NBA opportunities data. 
