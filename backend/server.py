@@ -7612,8 +7612,12 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                         logger.info(f"[Refresh Lines] Live line for {away} @ {home}: {total}")
                 
                 # Fetch open bets from jac083 (TIPSTER)
-                open_bets = await service.scrape_open_bets()
-                logger.info(f"[Refresh Bets] Found {len(open_bets)} open bets from TIPSTER")
+                tipster_bets = await service.scrape_open_bets()
+                # Tag bets with account source
+                for bet in tipster_bets:
+                    bet['_account'] = 'TIPSTER'
+                open_bets = tipster_bets
+                logger.info(f"[Refresh Bets] Found {len(tipster_bets)} open bets from TIPSTER")
                 
             else:
                 raise HTTPException(status_code=401, detail="Failed to login to plays888.co")
@@ -7634,6 +7638,9 @@ async def refresh_lines_and_bets(league: str = "NBA"):
             
             if login_result2.get('success'):
                 enano_bets = await service2.scrape_open_bets()
+                # Tag bets with account source
+                for bet in enano_bets:
+                    bet['_account'] = 'ENANO'
                 logger.info(f"[Refresh Bets] Found {len(enano_bets)} open bets from ENANO")
                 open_bets.extend(enano_bets)
         except Exception as e:
@@ -7646,7 +7653,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
         # If same bet appears in both accounts, keep only one
         # If same bet appears twice in same account (different tickets), keep both
         deduplicated_bets = []
-        seen_bet_keys = {}  # key -> list of (account, ticket)
+        seen_bet_keys = {}  # key -> list of accounts that have this bet
         
         for bet in open_bets:
             away = bet.get('away_team', '').upper()
