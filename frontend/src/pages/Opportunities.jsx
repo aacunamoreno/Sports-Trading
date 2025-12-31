@@ -1136,6 +1136,17 @@ export default function Opportunities() {
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )
+                        ) : game.has_bet && game.bet_type ? (
+                          // For today/tomorrow with active bet: show the bet type (OVER/UNDER)
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${
+                            game.bet_type === 'OVER' 
+                              ? 'bg-green-500/30 text-green-400' 
+                              : game.bet_type === 'UNDER'
+                                ? 'bg-orange-500/30 text-orange-400'
+                                : 'bg-yellow-500/30 text-yellow-400'
+                          }`}>
+                            {game.bet_type === 'OVER' ? '⬆️' : game.bet_type === 'UNDER' ? '⬇️' : '🎯'} {game.bet_type}
+                          </span>
                         ) : isNoBet ? (
                           // For today/tomorrow: show "-" for No Bet games
                           <span className="text-muted-foreground">-</span>
