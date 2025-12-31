@@ -474,9 +474,10 @@ export default function Opportunities() {
               onClick={handleRefresh} 
               disabled={refreshing}
               className="flex items-center gap-2"
+              data-testid="refresh-lines-bets-btn"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh Lines
+              Refresh Lines & Bets
             </Button>
             {league === 'NCAAB' && day === 'tomorrow' && (
               <Button 
