@@ -7676,6 +7676,11 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 bet_ticket = bet.get('ticket_id')
                 bet_description = bet.get('description', '').upper()
                 
+                # Get team names from bet data
+                bet_away = bet.get('away_team', '').upper()
+                bet_home = bet.get('home_team', '').upper()
+                bet_game = f"{bet_away} {bet_home}"  # Combined for matching
+                
                 # Check if this bet matches the current league
                 is_league_match = False
                 if league.upper() == 'NBA' and 'NBA' in bet_sport:
@@ -7684,34 +7689,56 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     # NHL bets can be marked as "NHL" or "SOC" (for Regulation Time Only)
                     if 'NHL' in bet_sport:
                         is_league_match = True
-                    elif bet_sport == 'SOC' and 'NHL' in bet_description:
+                    elif bet_sport == 'SOC' and ('NHL' in bet_description or 'REGULATION' in bet_description):
                         is_league_match = True
-                        logger.info(f"[Refresh Bets] Matched SOC bet as NHL: {bet_game}")
-                elif league.upper() == 'NCAAB' and ('CBB' in bet_sport or 'NCAA' in bet_sport or 'COLLEGE' in bet_sport):
+                        logger.info(f"[Refresh Bets] Matched SOC bet as NHL: {bet_away} vs {bet_home}")
+                elif league.upper() == 'NCAAB' and ('CBB' in bet_sport or 'NCAA' in bet_sport or 'COLLEGE' in bet_sport or 'NCAAB' in bet_sport):
                     is_league_match = True
                 
                 if not is_league_match:
                     continue
                 
-                # Check if game matches
-                if away.upper() in bet_game or home.upper() in bet_game:
-                    # #3.5 - Bet Duplication Prevention
-                    if bet_ticket and bet_ticket in existing_bet_tickets:
-                        bets_skipped += 1
-                        continue
+                # Check if game matches - compare team names
+                game_matches = False
+                away_upper = away.upper()
+                home_upper = home.upper()
+                
+                # Try various matching approaches
+                if bet_away and bet_home:
+                    # Check if bet teams match game teams (in any order)
+                    if (away_upper in bet_away or bet_away in away_upper or
+                        away_upper in bet_home or bet_home in away_upper or
+                        home_upper in bet_away or bet_away in home_upper or
+                        home_upper in bet_home or bet_home in home_upper):
+                        game_matches = True
+                elif bet_game:
+                    # Fallback to combined game string
+                    if away_upper in bet_game or home_upper in bet_game:
+                        game_matches = True
+                
+                if not game_matches:
+                    continue
                     
-                    # Add bet to game
-                    game['has_bet'] = True
-                    game['user_bet'] = True
-                    if bet_ticket:
-                        game['bet_slip_id'] = bet_ticket
-                        existing_bet_tickets.add(bet_ticket)  # Add to set to prevent future duplicates
-                    
-                    # #3.75 - Capture the bet line
-                    bet_line = bet.get('line') or bet.get('total')
-                    if bet_line:
+                # #3.5 - Bet Duplication Prevention
+                if bet_ticket and bet_ticket in existing_bet_tickets:
+                    bets_skipped += 1
+                    continue
+                
+                # Add bet to game
+                game['has_bet'] = True
+                game['user_bet'] = True
+                if bet_ticket:
+                    game['bet_slip_id'] = bet_ticket
+                    existing_bet_tickets.add(bet_ticket)  # Add to set to prevent future duplicates
+                
+                # #3.75 - Capture the bet line
+                bet_line = bet.get('total_line') or bet.get('line') or bet.get('total')
+                if bet_line:
+                    try:
                         game['bet_line'] = float(bet_line) if isinstance(bet_line, str) else bet_line
-                        logger.info(f"[Refresh Bets] Captured bet_line={bet_line} for {away} @ {home}")
+                    except:
+                        pass
+                    logger.info(f"[Refresh Bets] Captured bet_line={bet_line} for {away} @ {home}")
                     
                     # Store bet type
                     bet_type = bet.get('bet_type', '')
