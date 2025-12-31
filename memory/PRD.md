@@ -103,6 +103,20 @@ Display spread bets with purple highlighting in UI.
 ## What's Been Implemented (Recent)
 
 ### Dec 31, 2025
+- **Records Update Feature (#6) COMPLETED**
+  - Fixed `calculate_records_from_start_date` to use correct field names (`result_hit`, `user_bet_hit`)
+  - Now uses `actual_bet_record` when available for accurate duplicate bet counting
+  - Records calculated from 12/22 to yesterday for all leagues
+  - Results:
+    - NBA: Betting 15-13 (53.6%), Edge 32-21 (60.4%)
+    - NHL: Betting 14-8 (63.6%), Edge 17-10 (63.0%)
+    - NCAAB: Betting 10-12 (45.5%), Edge 14-11 (56.0%)
+
+- **NCAAB Bet Record Fix**
+  - Fixed duplicate bet counting (Stony Brook x2, Alabama State x2, Southern Miss x3)
+  - Now stores `actual_bet_record` directly from History page
+  - Correct record: 10-12 instead of 7-9
+
 - **NBA Bet Results Feature COMPLETED**
   - Fixed History page parser to correctly extract bet data
   - Parser now looks forward from NBA marker to find results AFTER team names
