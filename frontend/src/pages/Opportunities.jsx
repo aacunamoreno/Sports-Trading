@@ -857,8 +857,8 @@ export default function Opportunities() {
                               </span>
                               {/* Show bet-time line if user bet on this game */}
                               {game.user_bet && game.bet_line && (
-                                <span className="text-xs text-yellow-400 font-bold" title="Line when bet was placed">
-                                  🎯 {game.bet_line}
+                                <span className={`text-xs font-bold ${isSpreadBet ? 'text-purple-400' : 'text-yellow-400'}`} title={isSpreadBet ? 'Spread when bet was placed' : 'Line when bet was placed'}>
+                                  {isSpreadBet ? '📊' : '🎯'} {isSpreadBet && game.bet_line > 0 ? '+' : ''}{game.bet_line}
                                 </span>
                               )}
                             </div>
