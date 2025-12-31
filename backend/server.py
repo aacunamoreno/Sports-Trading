@@ -7641,7 +7641,7 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 # Calculate bet_edge using the line at which the bet was placed
                 bet_line = game_data.get("bet_line")
                 if bet_line:
-                    bet_edge = abs(combined_ppg - bet_line)
+                    bet_edge = combined_ppg - bet_line
                 else:
                     bet_edge = edge  # fallback to current edge if no bet_line
                     
