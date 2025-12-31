@@ -7959,6 +7959,15 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     name = name.replace("GA.", "GEORGIA").replace("GA ", "GEORGIA ")
                     name = name.replace("CONN.", "CONNECTICUT").replace("CONN ", "CONNECTICUT ")
                     name = name.replace("'S", "S").replace("'", "")  # Remove apostrophes
+                    # Handle common college team abbreviations
+                    name = name.replace("CHI.", "CHICAGO").replace("CHI ", "CHICAGO ")
+                    name = name.replace("LOYOLA CHI", "LOYOLA CHICAGO")
+                    name = name.replace("FAU", "FLORIDA ATLANTIC")
+                    name = name.replace("FLORIDA ATL", "FLORIDA ATLANTIC")
+                    name = name.replace("NORTHERN ILL", "NORTHERN ILLINOIS")
+                    name = name.replace("NORTH ILL", "NORTHERN ILLINOIS")
+                    name = name.replace("N ILLINOIS", "NORTHERN ILLINOIS")
+                    name = name.replace("BOSTON U.", "BOSTON UNIVERSITY").replace("BOSTON U ", "BOSTON UNIVERSITY ")
                     return name
                 
                 # Check if game matches - compare team names
