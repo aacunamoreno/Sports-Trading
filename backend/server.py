@@ -2614,29 +2614,38 @@ class Plays888Service:
                                           for pattern in intl_patterns)
                     
                     # Determine sport based on context (look for CBB, NHL, NBA, NFL labels)
-                    sport = 'INTL_BASKETBALL' if is_international else 'NCAAB'  # Mark international separately
+                    sport = 'INTL_BASKETBALL' if is_international else None
+                    sport_from_context = False
                     for j in range(max(0, i-5), min(len(lines), i+1)):
                         context_line = lines[j].upper()
                         if 'NHL' in context_line:
                             sport = 'NHL'
+                            sport_from_context = True
                             break
                         elif 'NBA' in context_line:
                             sport = 'NBA'
+                            sport_from_context = True
                             break
                         elif 'NFL' in context_line:
                             sport = 'NFL'
+                            sport_from_context = True
                             break
                         elif 'CBB' in context_line or 'COLLEGE' in context_line:
                             sport = 'NCAAB'
+                            sport_from_context = True
                             break
                     
-                    # Also check if it's an NHL/NBA/NFL team
-                    if is_nhl_team(team_name):
-                        sport = 'NHL'
-                    elif is_nba_team(team_name):
-                        sport = 'NBA'
-                    elif is_nfl_team(team_name):
-                        sport = 'NFL'
+                    # Only check team names if no sport found from context
+                    # This prevents NBA team name matching for college teams (e.g., Memphis)
+                    if not sport_from_context:
+                        if is_nhl_team(team_name):
+                            sport = 'NHL'
+                        elif is_nba_team(team_name):
+                            sport = 'NBA'
+                        elif is_nfl_team(team_name):
+                            sport = 'NFL'
+                        else:
+                            sport = 'NCAAB'  # Default to college basketball
                     
                     # Look for risk amount in the next line
                     risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
