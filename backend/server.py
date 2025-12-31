@@ -7781,22 +7781,43 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 if not is_league_match:
                     continue
                 
+                # Helper function to normalize team names for matching
+                def normalize_team_name(name):
+                    """Normalize team name for flexible matching"""
+                    if not name:
+                        return ''
+                    name = name.upper()
+                    # Common abbreviations
+                    name = name.replace("ST.", "SAINT").replace("ST ", "SAINT ")
+                    name = name.replace("N.", "NORTH ").replace("N ", "NORTH ")
+                    name = name.replace("S.", "SOUTH ").replace("S ", "SOUTH ")
+                    name = name.replace("E.", "EAST ").replace("E ", "EAST ")
+                    name = name.replace("W.", "WEST ").replace("W ", "WEST ")
+                    name = name.replace("VA.", "VIRGINIA").replace("VA ", "VIRGINIA ")
+                    name = name.replace("GA.", "GEORGIA").replace("GA ", "GEORGIA ")
+                    name = name.replace("CONN.", "CONNECTICUT").replace("CONN ", "CONNECTICUT ")
+                    name = name.replace("'S", "S").replace("'", "")  # Remove apostrophes
+                    return name
+                
                 # Check if game matches - compare team names
                 game_matches = False
-                away_upper = away.upper()
-                home_upper = home.upper()
+                away_norm = normalize_team_name(away)
+                home_norm = normalize_team_name(home)
+                bet_away_norm = normalize_team_name(bet_away)
+                bet_home_norm = normalize_team_name(bet_home)
                 
                 # Try various matching approaches
-                if bet_away and bet_home:
+                if bet_away_norm and bet_home_norm:
                     # Check if bet teams match game teams (in any order)
-                    if (away_upper in bet_away or bet_away in away_upper or
-                        away_upper in bet_home or bet_home in away_upper or
-                        home_upper in bet_away or bet_away in home_upper or
-                        home_upper in bet_home or bet_home in home_upper):
+                    if (away_norm in bet_away_norm or bet_away_norm in away_norm or
+                        away_norm in bet_home_norm or bet_home_norm in away_norm or
+                        home_norm in bet_away_norm or bet_away_norm in home_norm or
+                        home_norm in bet_home_norm or bet_home_norm in home_norm):
                         game_matches = True
                 elif bet_game:
                     # Fallback to combined game string
-                    if away_upper in bet_game or home_upper in bet_game:
+                    bet_game_norm = normalize_team_name(bet_game)
+                    if away_norm in bet_game_norm or home_norm in bet_game_norm:
                         game_matches = True
                 
                 if not game_matches:
