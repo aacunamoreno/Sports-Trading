@@ -9669,21 +9669,26 @@ async def upload_ppg_excel(league: str, target_date: str = None):
             home_data = find_ppg(home)
             
             if league == 'NHL':
-                away_ppg = away_data.get('last3_gpg') if away_data else None
-                home_ppg = home_data.get('last3_gpg') if home_data else None
+                away_l3 = away_data.get('last3_gpg') if away_data else None
+                home_l3 = home_data.get('last3_gpg') if home_data else None
                 away_season = away_data.get('season_gpg') if away_data else None
                 home_season = home_data.get('season_gpg') if home_data else None
             else:
-                away_ppg = away_data.get('last3_ppg') if away_data else None
-                home_ppg = home_data.get('last3_ppg') if home_data else None
+                away_l3 = away_data.get('last3_ppg') if away_data else None
+                home_l3 = home_data.get('last3_ppg') if home_data else None
                 away_season = away_data.get('season_ppg') if away_data else None
                 home_season = home_data.get('season_ppg') if home_data else None
+            
+            # Calculate average of Season + Last3 for each team
+            away_avg = round((away_season + away_l3) / 2, 1) if away_season and away_l3 else None
+            home_avg = round((home_season + home_l3) / 2, 1) if home_season and home_l3 else None
             
             away_rank = last3_ranks.get(away_data['team']) if away_data and away_data.get('team') in last3_ranks else None
             home_rank = last3_ranks.get(home_data['team']) if home_data and home_data.get('team') in last3_ranks else None
             
-            combined = round(away_ppg + home_ppg, 1) if away_ppg and home_ppg else None
-            if away_ppg and home_ppg:
+            # Combined = Away avg + Home avg
+            combined = round(away_avg + home_avg, 1) if away_avg and home_avg else None
+            if away_avg and home_avg:
                 games_with_ppg += 1
             
             line = game.get('total') or game.get('opening_line')
@@ -9699,13 +9704,13 @@ async def upload_ppg_excel(league: str, target_date: str = None):
             updated_game = {
                 **game,
                 'game_num': i,
-                'away_ppg_value': away_ppg,
-                'away_last3_value': away_ppg,
+                'away_ppg_value': away_avg,  # Store the average
+                'away_last3_value': away_l3,
                 'away_season_ppg': away_season,
                 'away_ppg_rank': away_rank,
                 'away_last3_rank': away_rank,
-                'home_ppg_value': home_ppg,
-                'home_last3_value': home_ppg,
+                'home_ppg_value': home_avg,  # Store the average
+                'home_last3_value': home_l3,
                 'home_season_ppg': home_season,
                 'home_ppg_rank': home_rank,
                 'home_last3_rank': home_rank,
