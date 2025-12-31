@@ -517,9 +517,19 @@ export default function Opportunities() {
                 }).length}</span></div>
                 <div className="border-l border-border pl-4 ml-2">
                   <span className="text-muted-foreground">💰 My Bets:</span>{' '}
-                  <span className="font-mono text-green-400">{data.games.filter(g => g.user_bet && g.user_bet_hit === true).length}</span>
-                  <span className="text-muted-foreground">-</span>
-                  <span className="font-mono text-red-400">{data.games.filter(g => g.user_bet && g.user_bet_hit === false).length}</span>
+                  {data.actual_bet_record ? (
+                    <>
+                      <span className="font-mono text-green-400">{data.actual_bet_record.wins}</span>
+                      <span className="text-muted-foreground">-</span>
+                      <span className="font-mono text-red-400">{data.actual_bet_record.losses}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-mono text-green-400">{data.games.filter(g => g.user_bet && g.user_bet_hit === true).length}</span>
+                      <span className="text-muted-foreground">-</span>
+                      <span className="font-mono text-red-400">{data.games.filter(g => g.user_bet && g.user_bet_hit === false).length}</span>
+                    </>
+                  )}
                 </div>
               </>
             )}
