@@ -118,13 +118,16 @@ Calculate and display cumulative betting and edge records from 12/22/25.
 
 ### Dec 31, 2025 - NHL Bet Highlighting Fix COMPLETED
 - **Bug Fixed:** NHL bets were not being highlighted in the UI table
-- **Root Cause:** The `plays` array wasn't being updated when bets were matched to games
-- **Fix Applied:** Updated `/api/opportunities/refresh-lines` endpoint to sync `plays` array with games that have bets
-- **File Modified:** `/app/backend/server.py` (lines 7751-7775)
-- **Verification:** All 3 NHL bets now display correctly:
-  - Nashville @ Vegas (Bet Line: 6.0, OVER)
-  - Minnesota @ San Jose (Bet Line: 6.0, OVER)
-  - Buffalo @ Dallas (Bet Line: 6.0, OVER)
+- **Root Cause 1:** The `plays` array wasn't being updated when bets were matched to games
+- **Root Cause 2:** The table row highlighting was too subtle (50% opacity)
+- **Fixes Applied:** 
+  1. Updated `/api/opportunities/refresh-lines` endpoint to sync `plays` array with games that have bets
+  2. Made table row highlighting more prominent: `ring-2 ring-yellow-500 bg-yellow-500/10` (full opacity ring + 10% yellow background)
+- **File Modified:** `/app/backend/server.py`, `/app/frontend/src/pages/Opportunities.jsx`
+- **Verification:** All 3 NHL bets now display correctly with visible yellow highlighting:
+  - Nashville @ Vegas (Row 2)
+  - Minnesota @ San Jose (Row 3)
+  - Buffalo @ Dallas (Row 7)
 
 ### Dec 31, 2025 - Process #1 (8pm Job) COMPLETED
 - **CBS Sports Scrapers Implemented**
