@@ -116,6 +116,24 @@ Calculate and display cumulative betting and edge records from 12/22/25.
 
 ## What's Been Implemented (Recent)
 
+### Dec 31, 2025 - Multiple Bet Types Per Game Fix COMPLETED
+- **Bug Fixed:** Games with both spread AND total bets were only showing one bet type
+- **Root Cause:** 
+  1. Bet matching logic was overwriting previous bets instead of accumulating
+  2. MEMPHIS spread bets were incorrectly classified as NBA (due to Memphis Grizzlies match)
+  3. Frontend wasn't displaying multiple bet types per game
+- **Fixes Applied:**
+  1. Backend: Reset bet tracking arrays on each refresh to prevent accumulation across refreshes
+  2. Backend: Fixed sport detection to prioritize context (CBB label) over team name matching
+  3. Backend: Track `bet_types[]` and `bet_count` per game to support multiple bets
+  4. Frontend: Updated Bet column to display multiple bet types vertically with correct colors:
+     - Green for OVER, Orange for UNDER, Purple for SPREAD bets
+     - Shows "x2" notation for duplicate bets
+- **Files Modified:** `/app/backend/server.py`, `/app/frontend/src/pages/Opportunities.jsx`
+- **Verification:**
+  - Duke row shows: ⬇️ UNDER x2 + 📊 DUKE -25.5 + 📊 DUKE -26
+  - Memphis row shows: ⬇️ UNDER x2 + 📊 MEMPHIS -9.5 + 📊 MEMPHIS -10
+
 ### Dec 31, 2025 - NHL Bet Highlighting Fix COMPLETED
 - **Bug Fixed:** NHL bets were not being highlighted in the UI table
 - **Root Cause 1:** The `plays` array wasn't being updated when bets were matched to games
