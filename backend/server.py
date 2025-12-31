@@ -7599,9 +7599,9 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                         live_lines[key] = float(total) if isinstance(total, str) else total
                         logger.info(f"[Refresh Lines] Live line for {away} @ {home}: {total}")
                 
-                # Fetch open bets
+                # Fetch open bets from jac083 (TIPSTER)
                 open_bets = await service.scrape_open_bets()
-                logger.info(f"[Refresh Bets] Found {len(open_bets)} open bets")
+                logger.info(f"[Refresh Bets] Found {len(open_bets)} open bets from TIPSTER")
                 
             else:
                 raise HTTPException(status_code=401, detail="Failed to login to plays888.co")
@@ -7613,6 +7613,21 @@ async def refresh_lines_and_bets(league: str = "NBA"):
             raise HTTPException(status_code=500, detail=f"Failed to fetch data: {e}")
         finally:
             await service.close()
+        
+        # Also check ENANO account for open bets
+        service2 = Plays888Service()
+        try:
+            await service2.initialize()
+            login_result2 = await service2.login("jac075", "acuna2025!")
+            
+            if login_result2.get('success'):
+                enano_bets = await service2.scrape_open_bets()
+                logger.info(f"[Refresh Bets] Found {len(enano_bets)} open bets from ENANO")
+                open_bets.extend(enano_bets)
+        except Exception as e:
+            logger.warning(f"[Refresh Bets] Error fetching from ENANO: {e}")
+        finally:
+            await service2.close()
         
         # Update lines and add bets
         lines_updated = 0
