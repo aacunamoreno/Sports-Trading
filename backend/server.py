@@ -7562,6 +7562,154 @@ async def get_opportunities(day: str = "today"):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def scrape_todays_history_bets(page, league: str, target_date: str) -> List[Dict[str, Any]]:
+    """
+    Scrape today's history bets (already settled) from plays888.co History page.
+    Returns bets that match today's date.
+    
+    This is important because:
+    - Games that already finished today have settled bets in History
+    - We need to track both open AND settled bets to show all bets placed for today
+    """
+    import re
+    from datetime import datetime
+    
+    try:
+        logger.info(f"[History] Scraping history bets for {league} on {target_date}")
+        
+        # Navigate to History page
+        await page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
+        await page.wait_for_load_state('networkidle')
+        await page.wait_for_timeout(2000)
+        
+        # Get page text
+        page_text = await page.inner_text('body')
+        lines = page_text.split('\n')
+        
+        # Parse today's date for matching (e.g., "Dec 31")
+        date_obj = datetime.strptime(target_date, '%Y-%m-%d')
+        today_pattern = date_obj.strftime('%b %d').replace(' 0', ' ')  # "Dec 31" not "Dec 01"
+        
+        raw_bets = []
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i].strip()
+            
+            # Check if this section is for today's date
+            is_today = False
+            for j in range(max(0, i-10), min(len(lines), i+3)):
+                if today_pattern in lines[j]:
+                    is_today = True
+                    break
+            
+            if not is_today:
+                i += 1
+                continue
+            
+            # Check sport context
+            sport = None
+            for j in range(max(0, i-5), min(len(lines), i+1)):
+                ctx = lines[j].upper()
+                if 'CBB' in ctx or 'COLLEGE' in ctx:
+                    sport = 'NCAAB'
+                    break
+                elif 'NBA' in ctx:
+                    sport = 'NBA'
+                    break
+                elif 'NHL' in ctx:
+                    sport = 'NHL'
+                    break
+                elif 'NFL' in ctx or 'NCAAF' in ctx:
+                    sport = 'NFL'
+                    break
+            
+            # Filter by league
+            if sport and sport != league.upper():
+                i += 1
+                continue
+            
+            # Look for TOTAL bets: "TOTAL o143-110" or "TOTAL u159-110"
+            total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)(½)?[-+]\d+', line, re.IGNORECASE)
+            if total_match:
+                bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
+                bet_line = float(total_match.group(2))
+                if total_match.group(3) == '½':
+                    bet_line += 0.5
+                
+                # Find team matchup
+                teams_text = ""
+                for j in range(max(0, i-2), min(len(lines), i+3)):
+                    if 'vrs' in lines[j].lower():
+                        teams_text = lines[j]
+                        break
+                
+                teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
+                if teams_match:
+                    away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
+                    home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                    
+                    raw_bets.append({
+                        "sport": sport or 'NCAAB',
+                        "away_team": away_team,
+                        "home_team": home_team,
+                        "bet_type": bet_type,
+                        "total_line": bet_line,
+                        "is_spread": False
+                    })
+                    logger.info(f"[History] Found TOTAL bet: {bet_type} {bet_line} ({away_team} vs {home_team})")
+            
+            # Look for SPREAD bets: "[837] TEAM +/-XX-110"
+            spread_match = re.search(r'\[\d+\]\s*([A-Z\s\.\']+?)\s*([+-]?\d+\.?\d*)(½)?[-+]\d+', line, re.IGNORECASE)
+            if spread_match and 'TOTAL' not in line.upper():
+                team_name = spread_match.group(1).strip()
+                spread_value = spread_match.group(2)
+                if spread_match.group(3) == '½':
+                    try:
+                        spread_val = float(spread_value)
+                        spread_value = str(spread_val + 0.5 if spread_val > 0 else spread_val - 0.5)
+                    except:
+                        pass
+                
+                bet_type = f"{team_name} {spread_value}"
+                
+                # Find team matchup if available
+                teams_text = ""
+                for j in range(max(0, i-2), min(len(lines), i+3)):
+                    if 'vrs' in lines[j].lower():
+                        teams_text = lines[j]
+                        break
+                
+                away_team = team_name
+                home_team = "OPPONENT"
+                
+                teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
+                if teams_match:
+                    away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
+                    home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                
+                raw_bets.append({
+                    "sport": sport or 'NCAAB',
+                    "away_team": away_team,
+                    "home_team": home_team,
+                    "bet_type": bet_type,
+                    "spread_line": spread_value,
+                    "is_spread": True
+                })
+                logger.info(f"[History] Found SPREAD bet: {bet_type} ({away_team} vs {home_team})")
+            
+            i += 1
+        
+        logger.info(f"[History] Found {len(raw_bets)} total history bets for today")
+        return raw_bets
+        
+    except Exception as e:
+        logger.error(f"[History] Error scraping history bets: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
 @api_router.post("/opportunities/refresh-lines")
 async def refresh_lines_and_bets(league: str = "NBA"):
     """
