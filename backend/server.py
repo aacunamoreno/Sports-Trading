@@ -9500,80 +9500,76 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                     continue
                     
         elif league == 'NHL':
-            # NHL Season PPG
+            # NHL team name normalization map
+            nhl_normalize = {
+                'Penguins': 'Pittsburgh', 'Golden Knights': 'Vegas', 'Maple Leafs': 'Toronto',
+                'Avalanche': 'Colorado', 'Stars': 'Dallas', 'Oilers': 'Edmonton',
+                'Ducks': 'Anaheim', 'Lightning': 'Tampa Bay', 'Canadiens': 'Montreal',
+                'Hurricanes': 'Carolina', 'Senators': 'Ottawa', 'Bruins': 'Boston',
+                'Rangers': 'NY Rangers', 'Islanders': 'NY Islanders', 'Flyers': 'Philadelphia',
+                'Devils': 'New Jersey', 'Blue Jackets': 'Columbus', 'Panthers': 'Florida',
+                'Sabres': 'Buffalo', 'Red Wings': 'Detroit', 'Blackhawks': 'Chicago',
+                'Blues': 'St. Louis', 'Predators': 'Nashville', 'Wild': 'Minnesota',
+                'Jets': 'Winnipeg', 'Kraken': 'Seattle', 'Sharks': 'San Jose',
+                'Kings': 'LA Kings', 'Flames': 'Calgary', 'Canucks': 'Vancouver',
+                'Capitals': 'Washington', 'Utah HC': 'Utah', 'Utah Mammoth': 'Utah'
+            }
+            
+            def normalize_nhl_team(full_name):
+                for key, val in nhl_normalize.items():
+                    if key in full_name:
+                        return val
+                return full_name.replace('Montréal', 'Montreal').strip()
+            
+            # NHL Season GPG from "NHL - PPG SEASON" tab
             df_season = pd.read_excel(xlsx, sheet_name='NHL - PPG SEASON', header=None)
-            season_data = {}
+            season_gpg = {}
             for i, row in df_season.iterrows():
                 vals = row.values
                 try:
                     rank = int(vals[0]) if pd.notna(vals[0]) else None
                     if rank and rank <= 32:
                         team_full = str(vals[1]).strip() if pd.notna(vals[1]) else None
-                        gpg = float(vals[15]) if pd.notna(vals[15]) else None  # PPG SEASON column
+                        gpg = float(vals[15]) if pd.notna(vals[15]) else None
                         if team_full and gpg:
-                            # Normalize team name
-                            team = team_full.replace(' Avalanche', '').replace(' Stars', '').replace(' Oilers', '')
-                            team = team.replace(' Ducks', '').replace(' Lightning', '').replace(' Canadiens', '')
-                            team = team.replace(' Maple Leafs', '').replace(' Hurricanes', '').replace(' Senators', '')
-                            team = team.replace(' Penguins', '').replace(' Bruins', '').replace(' Rangers', '')
-                            team = team.replace(' Islanders', '').replace(' Flyers', '').replace(' Devils', '')
-                            team = team.replace(' Blue Jackets', '').replace(' Panthers', '').replace(' Sabres', '')
-                            team = team.replace(' Red Wings', '').replace(' Blackhawks', '').replace(' Blues', '')
-                            team = team.replace(' Predators', '').replace(' Wild', '').replace(' Jets', '')
-                            team = team.replace(' Golden Knights', '').replace(' Kraken', '').replace(' Sharks', '')
-                            team = team.replace(' Kings', '').replace(' Flames', '').replace(' Canucks', '')
-                            team = team.replace('Montréal', 'Montreal').replace('Utah HC', 'Utah')
-                            season_data[team.strip()] = {'rank': rank, 'season_gpg': gpg}
+                            team = normalize_nhl_team(team_full)
+                            season_gpg[team] = gpg
                 except:
                     continue
             
-            # NHL Last 3 GPG
+            logger.info(f"[PPG Excel] NHL Season GPG: {len(season_gpg)} teams")
+            
+            # NHL Last 3 GPG from "NHL - PPGL3" tab
             df_l3 = pd.read_excel(xlsx, sheet_name='NHL - PPGL3', header=None)
-            last3_data = {}
-            current_rank = None
+            last3_gpg = {}
             current_gpg = None
             for i, row in df_l3.iterrows():
                 vals = row.values
                 try:
-                    # Check for rank and GPG
+                    # Row with rank has G/GP in column 3
                     if pd.notna(vals[0]):
-                        rank = int(vals[0])
-                        current_rank = rank
-                        current_gpg = float(vals[3]) if pd.notna(vals[3]) else None  # G/GP column
-                    # Check for team name
-                    team_col = vals[2] if pd.notna(vals[2]) else None
-                    if team_col and isinstance(team_col, str) and len(team_col) > 2:
-                        team = team_col.strip()
-                        # Normalize NHL team names
-                        nhl_map = {
-                            'Penguins': 'Pittsburgh', 'Golden Knights': 'Vegas', 'Maple Leafs': 'Toronto',
-                            'Avalanche': 'Colorado', 'Stars': 'Dallas', 'Oilers': 'Edmonton',
-                            'Ducks': 'Anaheim', 'Lightning': 'Tampa Bay', 'Canadiens': 'Montreal',
-                            'Hurricanes': 'Carolina', 'Senators': 'Ottawa', 'Bruins': 'Boston',
-                            'Rangers': 'NY Rangers', 'Islanders': 'NY Islanders', 'Flyers': 'Philadelphia',
-                            'Devils': 'New Jersey', 'Blue Jackets': 'Columbus', 'Panthers': 'Florida',
-                            'Sabres': 'Buffalo', 'Red Wings': 'Detroit', 'Blackhawks': 'Chicago',
-                            'Blues': 'St. Louis', 'Predators': 'Nashville', 'Wild': 'Minnesota',
-                            'Jets': 'Winnipeg', 'Kraken': 'Seattle', 'Sharks': 'San Jose',
-                            'Kings': 'LA Kings', 'Flames': 'Calgary', 'Canucks': 'Vancouver',
-                            'Capitals': 'Washington', 'Utah HC': 'Utah'
-                        }
-                        normalized = nhl_map.get(team, team)
-                        if current_rank and current_gpg:
-                            last3_data[normalized] = {'rank': current_rank, 'last3_gpg': current_gpg}
+                        current_gpg = float(vals[3]) if pd.notna(vals[3]) else None
+                    # Team name is in column 2
+                    team_name = vals[2] if pd.notna(vals[2]) else None
+                    if team_name and isinstance(team_name, str) and len(team_name) > 2 and team_name != 'TEAM':
+                        team = normalize_nhl_team(team_name.strip())
+                        if current_gpg:
+                            last3_gpg[team] = current_gpg
                 except:
                     continue
             
+            logger.info(f"[PPG Excel] NHL Last3 GPG: {len(last3_gpg)} teams")
+            
+            # Default Last3 GPG for missing teams (Jets/Vancouver at 2.33)
+            default_l3_gpg = 2.33
+            
             # Combine season and last3 data
-            all_teams = set(season_data.keys()) | set(last3_data.keys())
-            for team in all_teams:
-                s = season_data.get(team, {})
-                l3 = last3_data.get(team, {})
+            for team, season in season_gpg.items():
+                l3 = last3_gpg.get(team, default_l3_gpg)  # Use default if missing
                 ppg_data.append({
                     'team': team,
-                    'rank': s.get('rank') or l3.get('rank'),
-                    'season_gpg': s.get('season_gpg'),
-                    'last3_gpg': l3.get('last3_gpg')
+                    'season_gpg': season,
+                    'last3_gpg': l3
                 })
                     
         elif league == 'NCAAB':
