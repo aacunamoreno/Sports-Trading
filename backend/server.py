@@ -6844,13 +6844,33 @@ async def scrape_opening_lines_endpoint(target_date: str = None):
             }
             
             try:
-                # Use CBS Sports for NCAAB (more reliable), scoresandodds for others
-                if league == 'NCAAB':
+                # Use CBS Sports as primary source for all leagues (scoresandodds often blocks)
+                # Try CBS Sports first, fallback to scoresandodds if CBS fails
+                games = []
+                
+                if league == 'NBA':
+                    games = await scrape_cbssports_nba(target_date)
+                    if games:
+                        league_result["data_source"] = "cbssports.com"
+                    else:
+                        # Fallback to scoresandodds
+                        games = await scrape_scoresandodds(league.upper(), target_date)
+                        if games:
+                            league_result["data_source"] = "scoresandodds.com"
+                            
+                elif league == 'NHL':
+                    games = await scrape_cbssports_nhl(target_date)
+                    if games:
+                        league_result["data_source"] = "cbssports.com"
+                    else:
+                        # Fallback to scoresandodds
+                        games = await scrape_scoresandodds(league.upper(), target_date)
+                        if games:
+                            league_result["data_source"] = "scoresandodds.com"
+                            
+                elif league == 'NCAAB':
                     games = await scrape_cbssports_ncaab(target_date)
                     league_result["data_source"] = "cbssports.com"
-                else:
-                    games = await scrape_scoresandodds(league.upper(), target_date)
-                    league_result["data_source"] = "scoresandodds.com"
                 
                 league_result["games_scraped"] = len(games) if games else 0
                 
