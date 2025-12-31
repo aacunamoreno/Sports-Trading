@@ -43,6 +43,7 @@ Scrape user's bet results (Win/Loss) from `plays888.co` History page.
 - Store `actual_bet_record` from History page to handle duplicate bets correctly
 - **NBA: COMPLETED** (Dec 31, 2025)
 - **NHL: COMPLETED** (Dec 31, 2025) - Supports both OT Included and Regulation Time bets
+  - **Bet Highlighting Fix Applied** (Dec 31, 2025) - `plays` array now syncs with games
 - **NCAAB: COMPLETED** (Dec 31, 2025) - Supports both TOTAL and SPREAD bets, counts duplicates correctly
 
 ### 6. NCAAB Spread Bet Highlighting (COMPLETED)
