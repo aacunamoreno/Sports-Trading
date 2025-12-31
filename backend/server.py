@@ -2668,6 +2668,12 @@ class Plays888Service:
                 
                 i += 1
             
+            # Log all raw bets before consolidation
+            logger.info(f"[OpenBets] Found {len(raw_bets)} raw bets before consolidation")
+            for bet in raw_bets:
+                if bet.get('is_spread'):
+                    logger.info(f"[OpenBets] Raw spread bet: {bet.get('bet_type')} - sport={bet.get('sport')}")
+            
             # Consolidate duplicate bets (same game + bet type) and count them
             open_bets = []
             bet_counts = {}
