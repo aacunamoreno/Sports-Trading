@@ -7649,6 +7649,14 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     bet['_account'] = 'ENANO'
                 logger.info(f"[Refresh Bets] Found {len(enano_bets)} open bets from ENANO")
                 open_bets.extend(enano_bets)
+                
+                # Also scrape today's history bets (already settled)
+                history_bets = await scrape_todays_history_bets(service2.page, league, target_date)
+                for bet in history_bets:
+                    bet['_account'] = 'HISTORY'
+                    bet['_source'] = 'history'
+                logger.info(f"[Refresh Bets] Found {len(history_bets)} history bets from today")
+                open_bets.extend(history_bets)
         except Exception as e:
             logger.warning(f"[Refresh Bets] Error fetching from ENANO: {e}")
         finally:
