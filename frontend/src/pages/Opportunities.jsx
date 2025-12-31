@@ -200,6 +200,32 @@ export default function Opportunities() {
     }
   };
 
+  const handleUpdateRecords = async () => {
+    setUpdatingRecords(true);
+    toast.info('Recalculating all records from 12/22/25...');
+    try {
+      const response = await axios.post(`${API}/process/update-records?start_date=2025-12-22`, {}, { timeout: 60000 });
+      
+      if (response.data.status === 'success') {
+        const records = response.data.records;
+        const leagueData = records[league];
+        
+        // Update the displayed records
+        setBettingRecord({ hits: leagueData.betting.wins, misses: leagueData.betting.losses });
+        setEdgeRecord({ hits: leagueData.edge.hits, misses: leagueData.edge.misses });
+        
+        toast.success(`Records updated! Betting: ${leagueData.betting.wins}-${leagueData.betting.losses}, Edge: ${leagueData.edge.hits}-${leagueData.edge.misses}`);
+      } else {
+        toast.error('Failed to update records');
+      }
+    } catch (error) {
+      console.error('Error updating records:', error);
+      toast.error('Failed to update records');
+    } finally {
+      setUpdatingRecords(false);
+    }
+  };
+
   // Export to Excel - using anchor element for reliable direct download
   const handleExport = async () => {
     setExporting(true);
