@@ -3112,64 +3112,47 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
             await page.wait_for_load_state("networkidle")
             await page.wait_for_timeout(3000)
             
-            # Extract games
+            # Extract games using proper DOM structure
+            # CBS Sports: First .team element is AWAY, second .team element is HOME
             games = await page.evaluate("""() => {
                 const games = [];
                 const cards = document.querySelectorAll('.single-score-card');
                 
                 cards.forEach((card) => {
                     try {
-                        // Get raw text
+                        // Get team elements - first is AWAY, second is HOME
+                        const teamElements = card.querySelectorAll('.team.team--collegebasketball');
+                        if (teamElements.length < 2) return;
+                        
+                        // Extract team names from the team-name-link or innerText
+                        const awayTeamEl = teamElements[0].querySelector('.team-name-link');
+                        const homeTeamEl = teamElements[1].querySelector('.team-name-link');
+                        
+                        let awayTeam = awayTeamEl ? awayTeamEl.innerText.trim() : teamElements[0].innerText.split('\\n')[0].trim();
+                        let homeTeam = homeTeamEl ? homeTeamEl.innerText.trim() : teamElements[1].innerText.split('\\n')[0].trim();
+                        
+                        // Remove rank numbers from team names (e.g., "1 Duke" -> "Duke")
+                        awayTeam = awayTeam.replace(/^\\d+\\s+/, '').trim();
+                        homeTeam = homeTeam.replace(/^\\d+\\s+/, '').trim();
+                        
+                        if (!awayTeam || !homeTeam) return;
+                        
                         const rawText = card.innerText;
-                        const lines = rawText.split('\\n').filter(l => l.trim());
-                        
-                        // Find team names
-                        const teamLines = [];
-                        const timePattern = /^(\\d+:\\d+|WED|THU|FRI|SAT|SUN|MON|TUE)/;
-                        const networkPattern = /^(ESPN|ESPN2|BTN|SECN|ACCN|FS1|ESP|CBS|YTTV)/i;
-                        const skipPattern = /^(Preview|Expert|StubHub|o\\d|[+-]\\d)/i;
-                        
-                        for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (trimmed.length > 1 && 
-                                trimmed.length < 30 &&
-                                !timePattern.test(trimmed) &&
-                                !networkPattern.test(trimmed) &&
-                                !skipPattern.test(trimmed) &&
-                                !/^\\d+$/.test(trimmed)) {
-                                // Clean rank numbers
-                                const cleaned = trimmed.replace(/^\\d+\\s*/, '').trim();
-                                if (cleaned.length > 1 && !teamLines.includes(cleaned)) {
-                                    teamLines.push(cleaned);
-                                }
-                            }
-                        }
-                        
-                        if (teamLines.length < 2) return;
-                        
-                        const awayTeam = teamLines[0];
-                        const homeTeam = teamLines.length > 1 ? teamLines[teamLines.length - 1] : teamLines[1];
                         
                         // Get time
                         let time = '';
-                        for (const line of lines) {
-                            if (/^\\d+:\\d+\\s*(AM|PM)?/i.test(line.trim()) || /^(WED|THU|FRI|SAT|SUN|MON|TUE)/.test(line.trim())) {
-                                time = line.trim();
-                                break;
-                            }
-                        }
+                        const timeMatch = rawText.match(/(\\d+:\\d+\\s*(AM|PM)?|[A-Z]{3}\\s+\\d+:\\d+\\s*(AM|PM)?)/i);
+                        if (timeMatch) time = timeMatch[0].trim();
                         
-                        // Get total
+                        // Get total (over/under line)
                         let total = null;
                         const totalMatch = rawText.match(/o(\\d+\\.?\\d*)/);
                         if (totalMatch) total = parseFloat(totalMatch[1]);
                         
                         // Get spread
                         let spread = null;
-                        const spreadMatches = rawText.match(/([+-]\\d+\\.?\\d*)/g);
-                        if (spreadMatches && spreadMatches.length > 0) {
-                            spread = parseFloat(spreadMatches[spreadMatches.length - 1]);
-                        }
+                        const spreadMatch = rawText.match(/([+-]\\d+\\.?\\d*)/);
+                        if (spreadMatch) spread = parseFloat(spreadMatch[1]);
                         
                         // Get scores if game is finished
                         const scoreEls = card.querySelectorAll('.total-score');
@@ -3196,7 +3179,9 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
                         }
                         
                         games.push(game);
-                    } catch(e) {}
+                    } catch(e) {
+                        console.error('Error parsing card:', e);
+                    }
                 });
                 
                 return games;
