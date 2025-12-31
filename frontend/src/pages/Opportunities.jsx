@@ -377,7 +377,7 @@ export default function Opportunities() {
                 {updatingScores ? 'Updating Scores...' : 'Update Scores'}
               </Button>
             )}
-            {day === 'yesterday' && (league === 'NBA' || league === 'NHL') && (
+            {day === 'yesterday' && (league === 'NBA' || league === 'NHL' || league === 'NCAAB') && (
               <Button 
                 onClick={handleUpdateBetResults} 
                 disabled={updatingBetResults}
