@@ -2,6 +2,7 @@
 """
 NCAAB PPG scraper - scrapes ONLY teams playing on the target date.
 Uses TARGET_DATE env var (defaults to tomorrow if not set).
+Optimized with concurrent scraping.
 """
 import asyncio
 import re
@@ -11,6 +12,45 @@ from pymongo import MongoClient
 
 client = MongoClient(os.environ.get('MONGO_URL', 'mongodb://localhost:27017'))
 db = client[os.environ.get('DB_NAME', 'test_database')]
+
+async def scrape_team_ppg(browser, team_name, team_url, semaphore):
+    """Scrape a single team's Last 3 PPG with concurrency control."""
+    async with semaphore:
+        try:
+            full_url = f"https://www.cbssports.com{team_url}"
+            page = await browser.new_page()
+            await page.goto(full_url, timeout=15000)
+            await page.wait_for_load_state("domcontentloaded")
+            await page.wait_for_timeout(300)
+            
+            content = await page.evaluate("""() => {
+                const body = document.body.innerText;
+                const idx = body.indexOf('Schedule');
+                if (idx > -1) return body.substring(idx, idx + 1500);
+                return body.substring(0, 1500);
+            }""")
+            await page.close()
+            
+            # Parse scores: W 80-71 or L 58-80
+            scores = []
+            for match in re.finditer(r'\b([WL])\s+(\d+)-(\d+)\b', content):
+                result, s1, s2 = match.groups()
+                team_score = int(s1) if result == 'W' else int(s2)
+                if 40 <= team_score <= 160:
+                    scores.append(team_score)
+            
+            if scores:
+                last3 = scores[-3:] if len(scores) >= 3 else scores
+                avg = round(sum(last3) / len(last3), 1)
+                print(f"  {team_name}: {last3} -> avg {avg}")
+                return team_name, {'last3_avg': avg, 'scores': last3}
+            else:
+                print(f"  {team_name}: No scores found")
+                return team_name, None
+                
+        except Exception as e:
+            print(f"  {team_name}: Error - {str(e)[:40]}")
+            return team_name, None
 
 async def main():
     from playwright.async_api import async_playwright
@@ -32,10 +72,10 @@ async def main():
     print(f"[NCAAB PPG] Found {len(existing_games)} games, {len(existing_plays)} plays")
     
     if not existing_games:
-        print("[NCAAB PPG] No games found. Please refresh NCAAB first.")
+        print("[NCAAB PPG] No games found. Please run scrape-openers first.")
         return
     
-    # Get unique teams from today's games
+    # Get unique teams from target date's games
     teams_needed = set()
     for game in existing_games:
         teams_needed.add(game.get('away_team', ''))
@@ -83,49 +123,27 @@ async def main():
         
         print(f"[NCAAB PPG] Matched {len(team_urls)}/{len(teams_needed)} teams to URLs")
         
-        # Scrape each team
-        team_stats = {}
-        teams_list = list(team_urls.items())
-        total_teams = len(teams_list)
+        # Scrape teams concurrently (5 at a time)
+        print(f"[NCAAB PPG] Scraping {len(team_urls)} teams (5 concurrent)...")
+        semaphore = asyncio.Semaphore(5)
         
-        for i, (team_name, team_url) in enumerate(teams_list):
-            try:
-                full_url = f"https://www.cbssports.com{team_url}"
-                page = await browser.new_page()
-                await page.goto(full_url, timeout=20000)
-                await page.wait_for_load_state("domcontentloaded")
-                await page.wait_for_timeout(500)
-                
-                content = await page.evaluate("""() => {
-                    const body = document.body.innerText;
-                    const idx = body.indexOf('Schedule');
-                    if (idx > -1) return body.substring(idx, idx + 1200);
-                    return body.substring(0, 1200);
-                }""")
-                await page.close()
-                
-                # Parse scores: W 80-71 or L 58-80
-                scores = []
-                for match in re.finditer(r'\b([WL])\s+(\d+)-(\d+)\b', content):
-                    result, s1, s2 = match.groups()
-                    team_score = int(s1) if result == 'W' else int(s2)
-                    if 40 <= team_score <= 160:
-                        scores.append(team_score)
-                
-                if scores:
-                    last3 = scores[-3:] if len(scores) >= 3 else scores
-                    avg = round(sum(last3) / len(last3), 1)
-                    team_stats[team_name] = {'last3_avg': avg, 'scores': last3}
-                    print(f"  {team_name}: {last3} -> avg {avg}")
-                else:
-                    print(f"  {team_name}: No scores found")
-                    
-            except Exception as e:
-                print(f"  {team_name}: Error - {str(e)[:50]}")
+        tasks = [
+            scrape_team_ppg(browser, team_name, team_url, semaphore)
+            for team_name, team_url in team_urls.items()
+        ]
+        
+        results = await asyncio.gather(*tasks)
         
         await browser.close()
     
+    # Build team_stats from results
+    team_stats = {name: data for name, data in results if data is not None}
+    
     print(f"\n[NCAAB PPG] Got Last 3 PPG for {len(team_stats)} teams")
+    
+    if not team_stats:
+        print("[NCAAB PPG] No PPG data scraped. Exiting.")
+        return
     
     # Build lookups
     last3_values = {n: s['last3_avg'] for n, s in team_stats.items()}
