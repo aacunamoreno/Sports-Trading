@@ -23,6 +23,7 @@ export default function Opportunities() {
   const [updatingPPG, setUpdatingPPG] = useState(false);
   const [updatingScores, setUpdatingScores] = useState(false);
   const [updatingBetResults, setUpdatingBetResults] = useState(false);
+  const [updatingRecords, setUpdatingRecords] = useState(false);
 
   useEffect(() => {
     loadOpportunities();
