@@ -7659,13 +7659,19 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 bet_game = bet.get('game', '').upper()
                 bet_sport = bet.get('sport', '').upper()
                 bet_ticket = bet.get('ticket_id')
+                bet_description = bet.get('description', '').upper()
                 
                 # Check if this bet matches the current league
                 is_league_match = False
                 if league.upper() == 'NBA' and 'NBA' in bet_sport:
                     is_league_match = True
-                elif league.upper() == 'NHL' and 'NHL' in bet_sport:
-                    is_league_match = True
+                elif league.upper() == 'NHL':
+                    # NHL bets can be marked as "NHL" or "SOC" (for Regulation Time Only)
+                    if 'NHL' in bet_sport:
+                        is_league_match = True
+                    elif bet_sport == 'SOC' and 'NHL' in bet_description:
+                        is_league_match = True
+                        logger.info(f"[Refresh Bets] Matched SOC bet as NHL: {bet_game}")
                 elif league.upper() == 'NCAAB' and ('CBB' in bet_sport or 'NCAA' in bet_sport or 'COLLEGE' in bet_sport):
                     is_league_match = True
                 
