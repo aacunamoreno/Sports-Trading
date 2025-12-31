@@ -9568,6 +9568,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
             # NHL Last 3 GPG from "NHL - PPGL3" tab
             df_l3 = pd.read_excel(xlsx, sheet_name='NHL - PPGL3', header=None)
             last3_gpg = {}
+            last3_gpg_ordered = []  # Keep track of order to find the last one
             current_gpg = None
             for i, row in df_l3.iterrows():
                 vals = row.values
@@ -9581,13 +9582,16 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                         team = normalize_nhl_team(team_name.strip())
                         if current_gpg:
                             last3_gpg[team] = current_gpg
+                            last3_gpg_ordered.append(current_gpg)
                 except:
                     continue
             
             logger.info(f"[PPG Excel] NHL Last3 GPG: {len(last3_gpg)} teams")
             
-            # Default Last3 GPG for missing teams (Jets/Vancouver at 2.33)
-            default_l3_gpg = 2.33
+            # Default Last3 GPG = the last team's value in PPGL3 (25th team)
+            # This changes daily based on Excel data
+            default_l3_gpg = last3_gpg_ordered[-1] if last3_gpg_ordered else 2.33
+            logger.info(f"[PPG Excel] NHL default Last3 GPG for missing teams: {default_l3_gpg}")
             
             # Combine season and last3 data
             for team, season in season_gpg.items():
