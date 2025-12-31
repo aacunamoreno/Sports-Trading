@@ -7812,7 +7812,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
             home = bet.get('home_team', '').upper()
             bet_type = bet.get('bet_type', '').upper()
             ticket = bet.get('ticket', '')
-            account = bet.get('_account', 'UNKNOWN')
+            source = bet.get('_source', 'open')  # 'open' or 'history'
             
             # Create a normalized key for the bet (game + bet type)
             # Normalize bet type: "TOTAL O143" -> "OVER", "DUKE -26" -> spread
@@ -7833,26 +7833,15 @@ async def refresh_lines_and_bets(league: str = "NBA"):
             
             bet_key = f"{away}_{home}_{normalized_type}"
             
+            # Keep all bets - intentional duplicates (like Wofford x2) should be counted
+            deduplicated_bets.append(bet)
             if bet_key not in seen_bet_keys:
-                seen_bet_keys[bet_key] = []
-            
-            # Check if this exact bet was already seen from a DIFFERENT account
-            existing_accounts = [item[0] for item in seen_bet_keys[bet_key]]
-            
-            if account in existing_accounts:
-                # Same account - this is an intentional duplicate (like Wofford x2)
-                deduplicated_bets.append(bet)
-                seen_bet_keys[bet_key].append((account, ticket))
-                logger.info(f"[Dedup] Keeping duplicate bet from same account: {bet_key} (account={account})")
-            elif len(existing_accounts) == 0:
-                # First time seeing this bet
-                deduplicated_bets.append(bet)
-                seen_bet_keys[bet_key].append((account, ticket))
+                seen_bet_keys[bet_key] = 1
             else:
-                # Same bet from different account - skip (cross-account duplicate)
-                logger.info(f"[Dedup] Skipping cross-account duplicate: {bet_key} (already in {existing_accounts[0]})")
+                seen_bet_keys[bet_key] += 1
+                logger.info(f"[Dedup] Keeping duplicate bet #{seen_bet_keys[bet_key]}: {bet_key}")
         
-        logger.info(f"[Refresh Bets] After deduplication: {len(deduplicated_bets)} bets (from {len(open_bets)} total)")
+        logger.info(f"[Refresh Bets] Total bets from ENANO: {len(deduplicated_bets)}")
         open_bets = deduplicated_bets
         
         # Update lines and add bets
