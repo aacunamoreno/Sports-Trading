@@ -7733,63 +7733,6 @@ async def refresh_lines_and_bets(league: str = "NBA"):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-                old_line = game.get('total')
-                new_line = live_lines[key]
-                
-                if old_line != new_line:
-                    game['total'] = new_line
-                    lines_updated += 1
-                    logger.info(f"[Refresh Lines] Updated {away} @ {home}: {old_line} -> {new_line}")
-                
-                # Recalculate edge with new line (PPG stays the same)
-                combined_ppg = game.get('combined_ppg', 0)
-                if combined_ppg and new_line:
-                    edge = round(combined_ppg - new_line, 1)
-                    game['edge'] = edge
-                    
-                    # Update recommendation based on new edge
-                    if edge >= 0.5:
-                        game['recommendation'] = 'OVER'
-                        game['color'] = 'green'
-                    elif edge <= -0.5:
-                        game['recommendation'] = 'UNDER'
-                        game['color'] = 'red'
-                    else:
-                        game['recommendation'] = None
-                        game['color'] = 'neutral'
-        
-        # Save updated games back to database
-        await collection.update_one(
-            {"date": target_date},
-            {"$set": {
-                "games": games,
-                "last_updated": now_arizona.strftime('%I:%M %p'),
-                "data_source": "plays888.co (lines refreshed)"
-            }}
-        )
-        
-        logger.info(f"[Refresh Lines] Updated {lines_updated} lines out of {original_count} games")
-        
-        # Return updated data
-        return {
-            "success": True,
-            "date": target_date,
-            "last_updated": now_arizona.strftime('%I:%M %p'),
-            "games": games,
-            "plays": cached.get('plays', []),
-            "lines_updated": lines_updated,
-            "total_games": original_count,
-            "data_source": "plays888.co (lines refreshed)",
-            "actual_bet_record": cached.get('actual_bet_record')
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"[Refresh Lines] Error: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @api_router.post("/opportunities/refresh")
