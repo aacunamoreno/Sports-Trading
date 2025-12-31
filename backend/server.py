@@ -5380,6 +5380,28 @@ async def refresh_nba_opportunities_scheduled():
             'Toronto': 26, 'Indiana': 27, 'Minnesota': 28, 'LA Clippers': 29, 'Milwaukee': 30
         }
         
+        # PPG Values (Season) - Actual points per game averages
+        ppg_season_values = {
+            'Denver': 125.8, 'Okla City': 121.5, 'New York': 120.6, 'Utah': 120.5,
+            'Houston': 120.3, 'Miami': 120.2, 'San Antonio': 119.9, 'Cleveland': 119.5,
+            'Detroit': 118.8, 'Chicago': 118.8, 'Atlanta': 118.8, 'Minnesota': 118.8,
+            'LA Lakers': 117.2, 'Orlando': 117.1, 'Portland': 116.6, 'Boston': 116.5,
+            'Philadelphia': 115.7, 'Charlotte': 115.6, 'Memphis': 115.3, 'New Orleans': 115.2,
+            'Phoenix': 115.1, 'Golden State': 114.9, 'Toronto': 114.4, 'Washington': 113.6,
+            'Dallas': 113.5, 'Milwaukee': 112.7, 'Sacramento': 111.7, 'LA Clippers': 111.5,
+            'Brooklyn': 109.3, 'Indiana': 109.2
+        }
+        
+        # PPG Values (Last 3 games)
+        ppg_last3_values = {
+            'Chicago': 136.3, 'Utah': 128.7, 'New Orleans': 127.3, 'Atlanta': 124.7, 'San Antonio': 123.3,
+            'Portland': 122.7, 'Houston': 122.0, 'Orlando': 121.7, 'Dallas': 121.0, 'Memphis': 120.7,
+            'Denver': 120.3, 'Philadelphia': 119.7, 'New York': 119.0, 'Sacramento': 118.3, 'Golden State': 117.7,
+            'LA Lakers': 117.3, 'Cleveland': 117.0, 'Miami': 116.7, 'Boston': 115.7, 'Okla City': 114.7,
+            'Detroit': 114.0, 'Charlotte': 113.7, 'Washington': 112.0, 'Phoenix': 111.0, 'Brooklyn': 110.7,
+            'Toronto': 110.0, 'Indiana': 108.7, 'Minnesota': 107.3, 'LA Clippers': 106.0, 'Milwaukee': 104.0
+        }
+        
         # Today's games (would be scraped from teamrankings.com/nba/odds/)
         games_raw = [
             {"time": "7:00 PM", "away": "Charlotte", "home": "Cleveland", "total": 239.5},
@@ -5406,13 +5428,22 @@ async def refresh_nba_opportunities_scheduled():
             
             game_avg = (away_avg + home_avg) / 2
             
-            # Determine recommendation (midpoint is 15, +/- 2.5)
-            # OVER: 1-12.5 (2.5 below midpoint)
-            # UNDER: 17.5-30 (2.5 above midpoint)
-            if game_avg <= 12.5:
+            # Get actual PPG values
+            away_season_ppg = ppg_season_values.get(g['away'], 115.0)
+            away_last3_ppg = ppg_last3_values.get(g['away'], 115.0)
+            home_season_ppg = ppg_season_values.get(g['home'], 115.0)
+            home_last3_ppg = ppg_last3_values.get(g['home'], 115.0)
+            
+            # Calculate combined PPG
+            season_total = away_season_ppg + home_season_ppg
+            last3_total = away_last3_ppg + home_last3_ppg
+            combined_ppg = (season_total + last3_total) / 2
+            
+            # Determine recommendation based on PPG vs Line
+            if combined_ppg >= g['total'] + 0.5:
                 recommendation = "OVER"
                 color = "green"
-            elif game_avg >= 17.5:
+            elif combined_ppg <= g['total'] - 0.5:
                 recommendation = "UNDER"
                 color = "red"
             else:
@@ -5426,12 +5457,17 @@ async def refresh_nba_opportunities_scheduled():
                 "away_ppg_rank": away_season,
                 "away_last3_rank": away_last3,
                 "away_avg": round(away_avg, 1),
+                "away_season_ppg": round(away_season_ppg, 1),
+                "away_last3_ppg": round(away_last3_ppg, 1),
                 "home_team": g['home'],
                 "home_ppg_rank": home_season,
                 "home_last3_rank": home_last3,
                 "home_avg": round(home_avg, 1),
+                "home_season_ppg": round(home_season_ppg, 1),
+                "home_last3_ppg": round(home_last3_ppg, 1),
                 "total": g['total'],
                 "game_avg": round(game_avg, 1),
+                "combined_ppg": round(combined_ppg, 1),
                 "recommendation": recommendation,
                 "color": color
             }
