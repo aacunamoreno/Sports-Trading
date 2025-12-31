@@ -7784,6 +7784,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     game['bet_type'] = ' + '.join(game['bet_types'])
                     # Keep the first bet_line for display
                 
+                bets_added += 1
                 logger.info(f"[Refresh Bets] Added bet #{game['bet_count']} to {away} @ {home}: {bet_type_display}")
         
         # Update plays array with games that have bets
