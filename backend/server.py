@@ -8179,7 +8179,8 @@ async def get_ncaab_opportunities_endpoint(day: str = "today"):
                 "games": cached.get('games', []),
                 "plays": cached.get('plays', []),
                 "compound_record": compound_record,
-                "data_source": cached.get('data_source', 'scraped')
+                "data_source": cached.get('data_source', 'scraped'),
+                "actual_bet_record": cached.get('actual_bet_record')
             }
         
         return {
