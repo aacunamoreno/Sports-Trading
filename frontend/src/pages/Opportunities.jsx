@@ -534,6 +534,28 @@ export default function Opportunities() {
               <Calendar className={`w-4 h-4 ${scrapingOpeners ? 'animate-pulse' : ''}`} />
               {scrapingOpeners ? 'Scraping...' : 'Scrape Tomorrow (8pm Job)'}
             </Button>
+            {day === 'tomorrow' && (
+              <>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".xlsx,.xls"
+                  onChange={handlePPGExcelUpload}
+                  className="hidden"
+                  data-testid="ppg-file-input"
+                />
+                <Button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPPG}
+                  variant="outline"
+                  className="flex items-center gap-2 border-green-500/50 text-green-400 hover:bg-green-500/10"
+                  data-testid="upload-ppg-btn"
+                >
+                  <Upload className={`w-4 h-4 ${uploadingPPG ? 'animate-pulse' : ''}`} />
+                  {uploadingPPG ? 'Uploading PPG...' : 'Upload PPG Excel'}
+                </Button>
+              </>
+            )}
           </div>
         </div>
         
