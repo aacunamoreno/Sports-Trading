@@ -9573,6 +9573,32 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 })
                     
         elif league == 'NCAAB':
+            # NCAAB team name mapping (DB name -> Excel name)
+            ncaab_map = {
+                'App. St.': 'App State',
+                'East Carolina': 'E Carolina',
+                'FAU': 'Florida Atlantic',
+                'Ga. Tech': 'Georgia Tech',
+                'George Wash.': 'G Washington',
+                'J&W-Prov.': None,  # Not in Excel - small school
+                'Loyola-Md.': 'Loyola MD',
+                'N. Dak. St.': 'N Dakota St',
+                'N.J. Tech': 'NJIT',
+                'St. Bona.': 'St Bonaventure',
+                "St. John's": "St John's",
+                'TX A&M-CC': 'Texas A&M-CC',
+                'UNC-Ash.': 'NC Asheville',
+                'UNCW': 'NC Wilmington',
+                'UT-Rio Grande Valley': 'UT Rio Grande',
+                'Va. Tech': 'Virginia Tech',
+                'W. Carolina': 'W Carolina',
+                'Loyola Chi.': 'Loyola Chi',
+                'E. Texas A&M': 'E Texas A&M',
+                'East Texas A&M': 'E Texas A&M',
+                'UConn': 'Connecticut',
+                'NC A&T': 'NC A&T',
+            }
+            
             df = pd.read_excel(xlsx, sheet_name='NCAAB - PPG SEASON AND PPGL3', header=None)
             for i, row in df.iterrows():
                 vals = row.values
@@ -9591,6 +9617,9 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                             })
                 except:
                     continue
+            
+            # Store the mapping for use in find_ppg
+            ncaab_team_mapping = ncaab_map
         else:
             raise HTTPException(status_code=400, detail=f"Unknown league: {league}")
         
