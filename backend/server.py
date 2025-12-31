@@ -6986,7 +6986,8 @@ async def get_opportunities(day: str = "today"):
                 "games": cached.get('games', []),
                 "plays": cached.get('plays', []),
                 "compound_record": compound_record,
-                "data_source": cached.get('data_source', 'hardcoded')
+                "data_source": cached.get('data_source', 'hardcoded'),
+                "actual_bet_record": cached.get('actual_bet_record')
             }
         
         return {
@@ -7628,7 +7629,8 @@ async def get_nhl_opportunities(day: str = "today"):
                 "games": cached.get('games', []),
                 "plays": cached.get('plays', []),
                 "compound_record": compound_record,
-                "data_source": cached.get('data_source', 'hardcoded')
+                "data_source": cached.get('data_source', 'hardcoded'),
+                "actual_bet_record": cached.get('actual_bet_record')
             }
         
         return {
