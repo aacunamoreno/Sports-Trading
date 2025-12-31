@@ -86,14 +86,15 @@ async def main():
         # Scrape each team
         team_stats = {}
         teams_list = list(team_urls.items())
+        total_teams = len(teams_list)
         
         for i, (team_name, team_url) in enumerate(teams_list):
             try:
                 full_url = f"https://www.cbssports.com{team_url}"
                 page = await browser.new_page()
-                await page.goto(full_url, timeout=12000)
+                await page.goto(full_url, timeout=20000)
                 await page.wait_for_load_state("domcontentloaded")
-                await page.wait_for_timeout(600)
+                await page.wait_for_timeout(500)
                 
                 content = await page.evaluate("""() => {
                     const body = document.body.innerText;
