@@ -380,7 +380,7 @@ export default function Opportunities() {
               className="flex items-center gap-2"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh Data
+              Refresh Lines
             </Button>
             {league === 'NCAAB' && day === 'today' && (
               <Button 
