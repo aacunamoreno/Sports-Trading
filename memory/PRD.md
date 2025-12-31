@@ -84,6 +84,7 @@ Display spread bets with purple highlighting in UI.
 - `POST /api/scores/{league}/update` - Update final scores
 - `POST /api/bets/nba/update-results` - Update NBA bet results from History
 - `POST /api/bets/nhl/update-results` - Update NHL bet results from History
+- `POST /api/bets/ncaab/update-results` - Update NCAAB bet results from History
 
 ## Database Collections
 - `nba_opportunities`, `nhl_opportunities`, `ncaab_opportunities`
