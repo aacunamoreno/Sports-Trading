@@ -116,6 +116,25 @@ Calculate and display cumulative betting and edge records from 12/22/25.
 
 ## What's Been Implemented (Recent)
 
+### Dec 31, 2025 - History Bets Integration COMPLETED
+- **Feature Added:** Refresh now scrapes both Open Bets AND today's History (settled) bets
+- **New Function:** `scrape_todays_history_bets()` - parses History page for today's settled bets
+- **Bets Now Tracking:**
+  - Open bets (active/pending)
+  - History bets (already settled - WIN/LOSE)
+- **Team Name Normalization Enhanced:**
+  - "N. Illinois" ↔ "NORTHERN ILLINOIS"
+  - "FAU" ↔ "FLORIDA ATLANTIC"
+  - "Loyola Chi." ↔ "LOYOLA CHICAGO"
+  - "Boston U." ↔ "BOSTON UNIVERSITY"
+- **Verification:** 28 total NCAAB bets now tracking correctly including:
+  - Wofford x2 (2 identical spread bets)
+  - Lehigh 2 bets (total + spread)
+  - Lamar 2 bets (total + spread)
+  - Duke 2 bets (total + spread)
+  - Memphis 2 bets (total + spread)
+  - St. Joseph's 2 bets (total + spread)
+
 ### Dec 31, 2025 - Multiple Bet Types Per Game Fix COMPLETED
 - **Bug Fixed:** Games with both spread AND total bets were only showing one bet type
 - **Root Cause:** 
