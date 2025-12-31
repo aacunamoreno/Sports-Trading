@@ -1136,17 +1136,36 @@ export default function Opportunities() {
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )
-                        ) : game.has_bet && game.bet_type ? (
-                          // For today/tomorrow with active bet: show the bet type (OVER/UNDER)
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            game.bet_type === 'OVER' 
-                              ? 'bg-green-500/30 text-green-400' 
-                              : game.bet_type === 'UNDER'
-                                ? 'bg-orange-500/30 text-orange-400'
-                                : 'bg-yellow-500/30 text-yellow-400'
-                          }`}>
-                            {game.bet_type === 'OVER' ? '⬆️' : game.bet_type === 'UNDER' ? '⬇️' : '🎯'} {game.bet_type}
-                          </span>
+                        ) : game.has_bet && (game.bet_types?.length > 0 || game.bet_type) ? (
+                          // For today/tomorrow with active bet: show the bet type(s)
+                          <div className="flex flex-col gap-1">
+                            {/* Get unique bet types */}
+                            {(() => {
+                              const betTypes = game.bet_types || [game.bet_type];
+                              const uniqueTypes = [...new Set(betTypes)];
+                              const typeCounts = {};
+                              betTypes.forEach(t => { typeCounts[t] = (typeCounts[t] || 0) + 1; });
+                              
+                              return uniqueTypes.map((betType, idx) => {
+                                const count = typeCounts[betType];
+                                const isOver = betType?.toLowerCase()?.includes('over') || betType?.toLowerCase()?.startsWith('o');
+                                const isUnder = betType?.toLowerCase()?.includes('under') || betType?.toLowerCase()?.startsWith('u');
+                                const isSpread = !isOver && !isUnder;
+                                
+                                return (
+                                  <span key={idx} className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                    isOver 
+                                      ? 'bg-green-500/30 text-green-400' 
+                                      : isUnder
+                                        ? 'bg-orange-500/30 text-orange-400'
+                                        : 'bg-purple-500/30 text-purple-400'
+                                  }`}>
+                                    {isOver ? '⬆️' : isUnder ? '⬇️' : '📊'} {betType}{count > 1 ? ` x${count}` : ''}
+                                  </span>
+                                );
+                              });
+                            })()}
+                          </div>
                         ) : isNoBet ? (
                           // For today/tomorrow: show "-" for No Bet games
                           <span className="text-muted-foreground">-</span>
