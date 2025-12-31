@@ -7949,25 +7949,28 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     if not name:
                         return ''
                     name = name.upper()
-                    # Common abbreviations
+                    
+                    # Handle specific college team mappings FIRST
+                    specific_mappings = {
+                        'LOYOLA CHI.': 'LOYOLA CHICAGO',
+                        'LOYOLA CHI': 'LOYOLA CHICAGO',
+                        'N. ILLINOIS': 'NORTHERN ILLINOIS',
+                        'N ILLINOIS': 'NORTHERN ILLINOIS',
+                        'FAU': 'FLORIDA ATLANTIC',
+                        'FLORIDA ATL': 'FLORIDA ATLANTIC',
+                        'BOSTON U.': 'BOSTON UNIVERSITY',
+                        'BOSTON U': 'BOSTON UNIVERSITY',
+                    }
+                    for abbrev, full in specific_mappings.items():
+                        if abbrev in name:
+                            name = name.replace(abbrev, full)
+                    
+                    # Common abbreviations (applied after specific mappings)
                     name = name.replace("ST.", "SAINT").replace("ST ", "SAINT ")
-                    name = name.replace("N.", "NORTH ").replace("N ", "NORTH ")
-                    name = name.replace("S.", "SOUTH ").replace("S ", "SOUTH ")
-                    name = name.replace("E.", "EAST ").replace("E ", "EAST ")
-                    name = name.replace("W.", "WEST ").replace("W ", "WEST ")
                     name = name.replace("VA.", "VIRGINIA").replace("VA ", "VIRGINIA ")
                     name = name.replace("GA.", "GEORGIA").replace("GA ", "GEORGIA ")
                     name = name.replace("CONN.", "CONNECTICUT").replace("CONN ", "CONNECTICUT ")
                     name = name.replace("'S", "S").replace("'", "")  # Remove apostrophes
-                    # Handle common college team abbreviations
-                    name = name.replace("CHI.", "CHICAGO").replace("CHI ", "CHICAGO ")
-                    name = name.replace("LOYOLA CHI", "LOYOLA CHICAGO")
-                    name = name.replace("FAU", "FLORIDA ATLANTIC")
-                    name = name.replace("FLORIDA ATL", "FLORIDA ATLANTIC")
-                    name = name.replace("NORTHERN ILL", "NORTHERN ILLINOIS")
-                    name = name.replace("NORTH ILL", "NORTHERN ILLINOIS")
-                    name = name.replace("N ILLINOIS", "NORTHERN ILLINOIS")
-                    name = name.replace("BOSTON U.", "BOSTON UNIVERSITY").replace("BOSTON U ", "BOSTON UNIVERSITY ")
                     return name
                 
                 # Check if game matches - compare team names
