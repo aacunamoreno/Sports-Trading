@@ -9664,7 +9664,7 @@ async def update_nba_bet_results(date: str = None):
         
         # Initialize Plays888 service
         service = Plays888Service()
-        await service.init_browser()
+        await service.initialize()
         
         try:
             # Login with account jac075
