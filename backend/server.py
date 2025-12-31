@@ -7450,10 +7450,14 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 "away_ppg_rank": away_season,
                 "away_last3_rank": away_last3,
                 "away_avg": round(away_avg, 1),
+                "away_season_ppg": round(away_season_ppg, 1),
+                "away_last3_ppg": round(away_last3_ppg, 1),
                 "home_team": g['home'],
                 "home_ppg_rank": home_season,
                 "home_last3_rank": home_last3,
                 "home_avg": round(home_avg, 1),
+                "home_season_ppg": round(home_season_ppg, 1),
+                "home_last3_ppg": round(home_last3_ppg, 1),
                 "total": g['total'] if has_line else None,  # Show None if no line
                 "opening_line": None,  # Will be set below from database
                 "has_line": has_line,
