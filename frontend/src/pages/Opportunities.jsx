@@ -965,7 +965,7 @@ export default function Opportunities() {
                   return (
                     <tr 
                       key={game.game_num}
-                      className={`border-b border-border/50 ${rowStyle} ${game.has_bet ? 'ring-2 ring-yellow-500/50' : ''} ${game.user_bet && isSpreadBet ? 'ring-2 ring-purple-500/50 bg-purple-500/5' : ''}`}
+                      className={`border-b border-border/50 ${rowStyle} ${game.has_bet ? 'ring-2 ring-yellow-500 bg-yellow-500/10' : ''} ${game.user_bet && isSpreadBet ? 'ring-2 ring-purple-500 bg-purple-500/10' : ''}`}
                     >
                       <td className="py-3 px-2 font-mono text-muted-foreground">
                         {(game.has_bet || game.user_bet) && (
