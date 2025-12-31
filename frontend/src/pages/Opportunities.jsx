@@ -410,7 +410,7 @@ export default function Opportunities() {
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh Lines
             </Button>
-            {league === 'NCAAB' && day === 'today' && (
+            {league === 'NCAAB' && day === 'tomorrow' && (
               <Button 
                 onClick={handleNCAABPPGUpdate} 
                 disabled={updatingPPG}
