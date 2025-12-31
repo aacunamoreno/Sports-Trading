@@ -7748,7 +7748,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
             login_result = await service.login("jac083", "acuna2025!")
             
             if login_result.get('success'):
-                # Fetch live lines
+                # Fetch live lines only (no bets from TIPSTER)
                 live_games = await service.scrape_totals(league.upper())
                 
                 for game in live_games:
@@ -7765,14 +7765,6 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                         live_lines[key] = float(total) if isinstance(total, str) else total
                         logger.info(f"[Refresh Lines] Live line for {away} @ {home}: {total}")
                 
-                # Fetch open bets from jac083 (TIPSTER)
-                tipster_bets = await service.scrape_open_bets()
-                # Tag bets with account source
-                for bet in tipster_bets:
-                    bet['_account'] = 'TIPSTER'
-                open_bets = tipster_bets
-                logger.info(f"[Refresh Bets] Found {len(tipster_bets)} open bets from TIPSTER")
-                
             else:
                 raise HTTPException(status_code=401, detail="Failed to login to plays888.co")
             
@@ -7784,15 +7776,15 @@ async def refresh_lines_and_bets(league: str = "NBA"):
         finally:
             await service.close()
         
-        # Also check ENANO account for open bets
+        # Fetch bets ONLY from ENANO account (jac075) - ignore TIPSTER
         service2 = Plays888Service()
         try:
             await service2.initialize()
             login_result2 = await service2.login("jac075", "acuna2025!")
             
             if login_result2.get('success'):
+                # Fetch open bets from ENANO only
                 enano_bets = await service2.scrape_open_bets()
-                # Tag bets with account source
                 for bet in enano_bets:
                     bet['_account'] = 'ENANO'
                 logger.info(f"[Refresh Bets] Found {len(enano_bets)} open bets from ENANO")
@@ -7801,7 +7793,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 # Also scrape today's history bets (already settled)
                 history_bets = await scrape_todays_history_bets(service2.page, league, target_date)
                 for bet in history_bets:
-                    bet['_account'] = 'HISTORY'
+                    bet['_account'] = 'ENANO'
                     bet['_source'] = 'history'
                 logger.info(f"[Refresh Bets] Found {len(history_bets)} history bets from today")
                 open_bets.extend(history_bets)
@@ -7810,12 +7802,10 @@ async def refresh_lines_and_bets(league: str = "NBA"):
         finally:
             await service2.close()
         
-        # Deduplicate bets ACROSS accounts (but keep duplicates within same account)
+        # Deduplicate bets within ENANO account (keep intentional duplicates like Wofford x2)
         # Key: game teams + bet type (normalized)
-        # If same bet appears in both accounts, keep only one
-        # If same bet appears twice in same account (different tickets), keep both
         deduplicated_bets = []
-        seen_bet_keys = {}  # key -> list of accounts that have this bet
+        seen_bet_keys = {}  # key -> count of this bet
         
         for bet in open_bets:
             away = bet.get('away_team', '').upper()
