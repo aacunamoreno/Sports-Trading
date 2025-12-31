@@ -9380,10 +9380,13 @@ async def add_ncaab_manual_data(data: dict):
 
 
 @api_router.post("/opportunities/ncaab/update-ppg")
-async def update_ncaab_ppg_from_cbs():
+async def update_ncaab_ppg_from_cbs(target_date: str = None):
     """
     Update NCAAB PPG values by running the external scraper script.
     This spawns a subprocess to avoid memory issues with Playwright.
+    
+    Args:
+        target_date: Target date in 'YYYY-MM-DD' format. Defaults to tomorrow (Arizona time).
     """
     import subprocess
     import os
@@ -9391,12 +9394,18 @@ async def update_ncaab_ppg_from_cbs():
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
-        target_date = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        # Default to tomorrow if no date specified (since button is on Tomorrow page)
+        if not target_date:
+            target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
         
         logger.info(f"[NCAAB PPG Update] Starting script for {target_date}")
         
-        # Run the standalone script
+        # Run the standalone script with target_date as environment variable
         script_path = os.path.join(os.path.dirname(__file__), 'update_ncaab_ppg.py')
+        
+        env = os.environ.copy()
+        env['TARGET_DATE'] = target_date
         
         # Run with timeout of 300 seconds
         result = subprocess.run(
@@ -9404,7 +9413,8 @@ async def update_ncaab_ppg_from_cbs():
             capture_output=True,
             text=True,
             timeout=300,
-            cwd=os.path.dirname(__file__)
+            cwd=os.path.dirname(__file__),
+            env=env
         )
         
         logger.info(f"[NCAAB PPG Update] Script output: {result.stdout[-500:] if result.stdout else 'No output'}")
