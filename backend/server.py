@@ -10357,7 +10357,8 @@ async def update_ncaab_bet_results(date: str = None):
                                 }
                         
                         if bet_info:
-                            # Avoid duplicates
+                            # For counting, we track all bets including duplicates
+                            # But for matching to DB, we only match unique games
                             is_duplicate = False
                             if bet_info.get('is_spread'):
                                 is_duplicate = any(
@@ -10369,16 +10370,21 @@ async def update_ncaab_bet_results(date: str = None):
                                 is_duplicate = any(
                                     b.get('away_team') == bet_info.get('away_team') and 
                                     b.get('home_team') == bet_info.get('home_team') and 
-                                    b.get('bet_line') == bet_info.get('bet_line')
+                                    b.get('bet_line') == bet_info.get('bet_line') and
+                                    b.get('bet_type') == bet_info.get('bet_type')
                                     for b in settled_bets
                                 )
                             
-                            if not is_duplicate:
-                                settled_bets.append(bet_info)
-                                if bet_info.get('is_spread'):
-                                    logger.info(f"[NCAAB Bet Results] Found SPREAD: {bet_info['team_name']} {bet_info['bet_line']} -> {bet_info['result']}")
-                                else:
-                                    logger.info(f"[NCAAB Bet Results] Found TOTAL: {bet_info['away_team']} @ {bet_info['home_team']} {bet_info['bet_type']} {bet_info['bet_line']} -> {bet_info['result']}")
+                            # Always add to list - we'll count wins/losses from this list
+                            # Mark duplicates so we can handle them in matching
+                            bet_info['is_duplicate'] = is_duplicate
+                            settled_bets.append(bet_info)
+                            
+                            dup_marker = " (DUP)" if is_duplicate else ""
+                            if bet_info.get('is_spread'):
+                                logger.info(f"[NCAAB Bet Results] Found SPREAD: {bet_info['team_name']} {bet_info['bet_line']} -> {bet_info['result']}{dup_marker}")
+                            else:
+                                logger.info(f"[NCAAB Bet Results] Found TOTAL: {bet_info['away_team']} @ {bet_info['home_team']} {bet_info['bet_type']} {bet_info['bet_line']} -> {bet_info['result']}{dup_marker}")
                 
                 i += 1
             
