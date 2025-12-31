@@ -9766,7 +9766,7 @@ async def update_nba_bet_results(date: str = None):
                 i += 1
             
         finally:
-            await service.close_browser()
+            await service.close()
         
         logger.info(f"[NBA Bet Results] Found {len(settled_bets)} settled NBA bets for {date}")
         
