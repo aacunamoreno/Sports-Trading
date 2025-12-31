@@ -94,22 +94,14 @@ export default function Opportunities() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const liveParam = day === 'today' && useLiveLines ? '&use_live_lines=true' : '';
-      let endpoint;
-      if (league === 'NBA') {
-        endpoint = `/opportunities/refresh?day=${day}${liveParam}`;
-      } else if (league === 'NHL') {
-        endpoint = `/opportunities/nhl/refresh?day=${day}${liveParam}`;
-      } else if (league === 'NCAAB') {
-        endpoint = `/opportunities/ncaab/refresh?day=${day}`;
-      }
-      const response = await axios.post(`${API}${endpoint}`);
+      // Use the new "refresh lines only" endpoint that preserves PPG values
+      const response = await axios.post(`${API}/opportunities/refresh-lines?league=${league}`);
       setData(response.data);
-      const source = response.data.data_source === 'plays888.co' ? '(from plays888.co)' : '';
-      toast.success(`${league} ${day === 'tomorrow' ? 'tomorrow\'s' : 'today\'s'} opportunities refreshed! ${source}`);
+      const linesUpdated = response.data.lines_updated || 0;
+      toast.success(`${league} lines refreshed! ${linesUpdated} line(s) updated from plays888.co`);
     } catch (error) {
-      console.error('Error refreshing:', error);
-      toast.error('Failed to refresh');
+      console.error('Error refreshing lines:', error);
+      toast.error('Failed to refresh lines');
     } finally {
       setRefreshing(false);
     }
