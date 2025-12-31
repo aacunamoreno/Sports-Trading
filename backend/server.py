@@ -7752,16 +7752,36 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     bets_added += 1
                     logger.info(f"[Refresh Bets] Added bet to {away} @ {home}: {game['bet_type']} @ {game.get('bet_line')}")
         
-        # Save updated games (preserve all other fields like plays, data_source, etc.)
+        # Update plays array with games that have bets
+        plays = []
+        for game in games:
+            if game.get('has_bet'):
+                away = game.get('away_team', '')
+                home = game.get('home_team', '')
+                plays.append({
+                    "game": f"{away} @ {home}",
+                    "total": game.get('total'),
+                    "bet_line": game.get('bet_line'),
+                    "combined_ppg": game.get('combined_ppg') or game.get('combined_gpg'),
+                    "combined_gpg": game.get('combined_gpg') or game.get('combined_ppg'),
+                    "edge": game.get('edge'),
+                    "recommendation": game.get('recommendation', ''),
+                    "has_bet": True,
+                    "bet_type": game.get('bet_type', 'TOTAL'),
+                    "bet_count": game.get('bet_count', 1)
+                })
+        
+        # Save updated games and plays
         await collection.update_one(
             {"date": target_date},
             {"$set": {
                 "games": games,
+                "plays": plays,
                 "last_updated": now_arizona.strftime('%I:%M %p')
             }}
         )
         
-        logger.info(f"[Refresh Lines & Bets] Updated {lines_updated} lines, added {bets_added} bets, skipped {bets_skipped} duplicates")
+        logger.info(f"[Refresh Lines & Bets] Updated {lines_updated} lines, added {bets_added} bets, skipped {bets_skipped} duplicates, {len(plays)} plays")
         
         return {
             "success": True,
