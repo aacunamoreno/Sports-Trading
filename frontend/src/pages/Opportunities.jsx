@@ -774,15 +774,18 @@ export default function Opportunities() {
                     }
                   }
 
+                  // Determine if this is a spread bet for special styling
+                  const isSpreadBet = game.is_spread_bet || game.bet_type === 'SPREAD';
+
                   return (
                     <tr 
                       key={game.game_num}
-                      className={`border-b border-border/50 ${rowStyle} ${game.has_bet ? 'ring-2 ring-yellow-500/50' : ''}`}
+                      className={`border-b border-border/50 ${rowStyle} ${game.has_bet ? 'ring-2 ring-yellow-500/50' : ''} ${game.user_bet && isSpreadBet ? 'ring-2 ring-purple-500/50 bg-purple-500/5' : ''}`}
                     >
                       <td className="py-3 px-2 font-mono text-muted-foreground">
                         {(game.has_bet || game.user_bet) && (
-                          <span className="mr-1" title={game.has_bet ? `Active bet: ${game.bet_type}${game.bet_count > 1 ? ` (x${game.bet_count})` : ''}` : 'You bet on this game'}>
-                            💰{game.bet_count > 1 && <span className="text-xs text-yellow-400 font-bold">x{game.bet_count}</span>}
+                          <span className={`mr-1 ${isSpreadBet ? 'text-purple-400' : ''}`} title={game.has_bet ? `Active bet: ${game.bet_type}${game.bet_count > 1 ? ` (x${game.bet_count})` : ''}` : isSpreadBet ? 'Spread bet on this game' : 'You bet on this game'}>
+                            {isSpreadBet ? '🎰' : '💰'}{game.bet_count > 1 && <span className={`text-xs font-bold ${isSpreadBet ? 'text-purple-400' : 'text-yellow-400'}`}>x{game.bet_count}</span>}
                           </span>
                         )}
                         {index + 1}
