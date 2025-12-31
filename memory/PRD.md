@@ -35,9 +35,10 @@ Scrape user's bet results (Win/Loss) from `plays888.co` History page.
 - Show 💰 icon for games with bets
 - Display exact bet line
 - Show outcome (HIT/MISS)
+- Store `actual_bet_record` from History page to handle duplicate bets correctly
 - **NBA: COMPLETED** (Dec 31, 2025)
 - **NHL: COMPLETED** (Dec 31, 2025) - Supports both OT Included and Regulation Time bets
-- **NCAAB: COMPLETED** (Dec 31, 2025) - Supports both TOTAL and SPREAD bets
+- **NCAAB: COMPLETED** (Dec 31, 2025) - Supports both TOTAL and SPREAD bets, counts duplicates correctly
 
 ### 6. NCAAB Spread Bet Highlighting (COMPLETED)
 Display spread bets with purple highlighting in UI.
