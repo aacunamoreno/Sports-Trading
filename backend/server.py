@@ -7641,6 +7641,61 @@ async def refresh_lines_and_bets(league: str = "NBA"):
         finally:
             await service2.close()
         
+        # Deduplicate bets ACROSS accounts (but keep duplicates within same account)
+        # Key: game teams + bet type (normalized)
+        # If same bet appears in both accounts, keep only one
+        # If same bet appears twice in same account (different tickets), keep both
+        deduplicated_bets = []
+        seen_bet_keys = {}  # key -> list of (account, ticket)
+        
+        for bet in open_bets:
+            away = bet.get('away_team', '').upper()
+            home = bet.get('home_team', '').upper()
+            bet_type = bet.get('bet_type', '').upper()
+            ticket = bet.get('ticket', '')
+            # Determine which account this bet is from based on position in list
+            # TIPSTER bets come first, ENANO bets come after
+            account = 'TIPSTER' if open_bets.index(bet) < len(open_bets) // 2 else 'ENANO'
+            
+            # Create a normalized key for the bet (game + bet type)
+            # Normalize bet type: "TOTAL O143" -> "OVER", "DUKE -26" -> spread
+            normalized_type = bet_type
+            if 'TOTAL' in bet_type.upper() and ('O' in bet_type.upper() or 'OVER' in bet_type.upper()):
+                normalized_type = 'TOTAL_OVER'
+            elif 'TOTAL' in bet_type.upper() and ('U' in bet_type.upper() or 'UNDER' in bet_type.upper()):
+                normalized_type = 'TOTAL_UNDER'
+            elif 'OVER' in bet_type.upper():
+                normalized_type = 'TOTAL_OVER'
+            elif 'UNDER' in bet_type.upper():
+                normalized_type = 'TOTAL_UNDER'
+            else:
+                # It's a spread bet - normalize team name
+                normalized_type = f"SPREAD_{bet_type.split()[0] if bet_type else ''}"
+            
+            bet_key = f"{away}_{home}_{normalized_type}"
+            
+            if bet_key not in seen_bet_keys:
+                seen_bet_keys[bet_key] = []
+            
+            # Check if this exact bet was already seen from a DIFFERENT account
+            existing_accounts = [item[0] for item in seen_bet_keys[bet_key]]
+            
+            if account in existing_accounts:
+                # Same account - this is an intentional duplicate (like Wofford x2)
+                deduplicated_bets.append(bet)
+                seen_bet_keys[bet_key].append((account, ticket))
+                logger.info(f"[Dedup] Keeping duplicate bet from same account: {bet_key}")
+            elif len(existing_accounts) == 0:
+                # First time seeing this bet
+                deduplicated_bets.append(bet)
+                seen_bet_keys[bet_key].append((account, ticket))
+            else:
+                # Same bet from different account - skip (cross-account duplicate)
+                logger.info(f"[Dedup] Skipping cross-account duplicate: {bet_key} (already in {existing_accounts})")
+        
+        logger.info(f"[Refresh Bets] After deduplication: {len(deduplicated_bets)} bets (from {len(open_bets)} total)")
+        open_bets = deduplicated_bets
+        
         # Update lines and add bets
         lines_updated = 0
         bets_added = 0
