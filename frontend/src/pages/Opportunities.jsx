@@ -112,9 +112,14 @@ export default function Opportunities() {
     setUpdatingPPG(true);
     toast.info('Updating NCAAB PPG from CBS Sports... This may take a few minutes.');
     try {
-      const response = await axios.post(`${API}/opportunities/ncaab/update-ppg`, {}, { timeout: 300000 });
+      // Get tomorrow's date for the API call
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const targetDate = tomorrow.toISOString().split('T')[0];
+      
+      const response = await axios.post(`${API}/opportunities/ncaab/update-ppg?target_date=${targetDate}`, {}, { timeout: 300000 });
       if (response.data.success) {
-        toast.success(`Updated PPG for ${response.data.games_count} games (${response.data.teams_scraped} teams scraped)`);
+        toast.success(`Updated PPG for ${response.data.games_with_ppg} of ${response.data.games_count} NCAAB games`);
         // Reload data to show updated PPG
         await loadOpportunities();
       } else {
