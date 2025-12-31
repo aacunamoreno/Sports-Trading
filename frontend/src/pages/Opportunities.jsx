@@ -424,6 +424,15 @@ export default function Opportunities() {
               <Download className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} />
               {exporting ? 'Exporting...' : 'Export Excel'}
             </Button>
+            <Button 
+              onClick={handleUpdateRecords} 
+              disabled={updatingRecords}
+              variant="outline"
+              className="flex items-center gap-2 border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+            >
+              <span className={updatingRecords ? 'animate-spin' : ''}>📊</span>
+              {updatingRecords ? 'Updating...' : 'Update Records'}
+            </Button>
           </div>
         </div>
         
