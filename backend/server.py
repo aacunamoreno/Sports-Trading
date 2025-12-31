@@ -7545,11 +7545,13 @@ async def get_opportunities(day: str = "today"):
 
 
 @api_router.post("/opportunities/refresh-lines")
-async def refresh_lines_only(league: str = "NBA"):
+async def refresh_lines_and_bets(league: str = "NBA"):
     """
-    Refresh ONLY the live betting lines from plays888.co.
-    Does NOT touch PPG values, opening lines, or any other data.
-    Only updates the 'total' field and recalculates edge.
+    Refresh live betting lines AND open bets from plays888.co.
+    Does NOT touch PPG values, opening lines, or any other analysis data.
+    
+    #3.5 - Bet Duplication Prevention: Checks for existing bets before adding
+    #3.75 - Bet Line Capture: Stores the line at which bet was placed
     """
     try:
         from zoneinfo import ZoneInfo
@@ -7557,7 +7559,7 @@ async def refresh_lines_only(league: str = "NBA"):
         now_arizona = datetime.now(arizona_tz)
         target_date = now_arizona.strftime('%Y-%m-%d')
         
-        logger.info(f"[Refresh Lines] Refreshing {league} live lines only for {target_date}")
+        logger.info(f"[Refresh Lines & Bets] Refreshing {league} for {target_date}")
         
         # Get current games from database
         collection_name = f"{league.lower()}_opportunities"
@@ -7570,24 +7572,24 @@ async def refresh_lines_only(league: str = "NBA"):
         games = cached['games']
         original_count = len(games)
         
-        # Fetch live lines from plays888.co using scrape_totals method
+        # Fetch live lines AND open bets from plays888.co
         live_lines = {}
+        open_bets = []
+        
         service = Plays888Service()
         try:
             await service.initialize()
             login_result = await service.login("jac083", "acuna2025!")
             
             if login_result.get('success'):
-                # Use scrape_totals to get live games
+                # Fetch live lines
                 live_games = await service.scrape_totals(league.upper())
                 
-                # Build lookup of live lines by team matchup
                 for game in live_games:
                     away = game.get('away', '')
                     home = game.get('home', '')
                     total = game.get('total')
                     
-                    # Convert plays888 team names for NBA
                     if league.upper() == "NBA":
                         away = convert_plays888_team_name(away)
                         home = convert_plays888_team_name(home)
@@ -7596,28 +7598,141 @@ async def refresh_lines_only(league: str = "NBA"):
                         key = f"{away.upper()}_{home.upper()}"
                         live_lines[key] = float(total) if isinstance(total, str) else total
                         logger.info(f"[Refresh Lines] Live line for {away} @ {home}: {total}")
+                
+                # Fetch open bets
+                open_bets = await service.scrape_open_bets()
+                logger.info(f"[Refresh Bets] Found {len(open_bets)} open bets")
+                
             else:
                 raise HTTPException(status_code=401, detail="Failed to login to plays888.co")
             
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"[Refresh Lines] Error fetching from plays888: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch live lines: {e}")
+            logger.error(f"[Refresh Lines & Bets] Error fetching from plays888: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to fetch data: {e}")
         finally:
             await service.close()
         
-        if not live_lines:
-            raise HTTPException(status_code=404, detail="No live lines found on plays888.co")
-        
-        # Update only the lines and recalculate edges
+        # Update lines and add bets
         lines_updated = 0
+        bets_added = 0
+        bets_skipped = 0  # #3.5 - Track duplicates
+        
+        # Create a set of existing bet tickets for deduplication
+        existing_bet_tickets = set()
+        for game in games:
+            if game.get('bet_slip_id'):
+                existing_bet_tickets.add(game.get('bet_slip_id'))
+        
         for game in games:
             away = game.get('away_team', '')
             home = game.get('home_team', '')
             key = f"{away.upper()}_{home.upper()}"
             
+            # Update live line (but preserve opening_line and PPG)
             if key in live_lines:
+                new_line = live_lines[key]
+                old_line = game.get('total')
+                
+                if old_line != new_line:
+                    game['total'] = new_line
+                    
+                    # Recalculate edge (combined_ppg - new line)
+                    combined_ppg = game.get('combined_ppg')
+                    if combined_ppg:
+                        game['edge'] = round(combined_ppg - new_line, 1)
+                        # Update recommendation based on new edge
+                        edge = game['edge']
+                        if edge >= 9:
+                            game['recommendation'] = 'OVER'
+                        elif edge <= -9:
+                            game['recommendation'] = 'UNDER'
+                        else:
+                            game['recommendation'] = ''
+                    
+                    lines_updated += 1
+                    logger.info(f"[Refresh Lines] Updated {away} @ {home}: {old_line} -> {new_line}")
+            
+            # #3.75 - Match open bets to games and store bet_line
+            for bet in open_bets:
+                bet_game = bet.get('game', '').upper()
+                bet_sport = bet.get('sport', '').upper()
+                bet_ticket = bet.get('ticket_id')
+                
+                # Check if this bet matches the current league
+                is_league_match = False
+                if league.upper() == 'NBA' and 'NBA' in bet_sport:
+                    is_league_match = True
+                elif league.upper() == 'NHL' and 'NHL' in bet_sport:
+                    is_league_match = True
+                elif league.upper() == 'NCAAB' and ('CBB' in bet_sport or 'NCAA' in bet_sport or 'COLLEGE' in bet_sport):
+                    is_league_match = True
+                
+                if not is_league_match:
+                    continue
+                
+                # Check if game matches
+                if away.upper() in bet_game or home.upper() in bet_game:
+                    # #3.5 - Bet Duplication Prevention
+                    if bet_ticket and bet_ticket in existing_bet_tickets:
+                        bets_skipped += 1
+                        continue
+                    
+                    # Add bet to game
+                    game['has_bet'] = True
+                    game['user_bet'] = True
+                    if bet_ticket:
+                        game['bet_slip_id'] = bet_ticket
+                        existing_bet_tickets.add(bet_ticket)  # Add to set to prevent future duplicates
+                    
+                    # #3.75 - Capture the bet line
+                    bet_line = bet.get('line') or bet.get('total')
+                    if bet_line:
+                        game['bet_line'] = float(bet_line) if isinstance(bet_line, str) else bet_line
+                        logger.info(f"[Refresh Bets] Captured bet_line={bet_line} for {away} @ {home}")
+                    
+                    # Store bet type
+                    bet_type = bet.get('bet_type', '')
+                    if 'over' in bet_type.lower() or bet_type.lower().startswith('o'):
+                        game['bet_type'] = 'OVER'
+                    elif 'under' in bet_type.lower() or bet_type.lower().startswith('u'):
+                        game['bet_type'] = 'UNDER'
+                    else:
+                        game['bet_type'] = bet_type
+                    
+                    bets_added += 1
+                    logger.info(f"[Refresh Bets] Added bet to {away} @ {home}: {game['bet_type']} @ {game.get('bet_line')}")
+        
+        # Save updated games (preserve all other fields like plays, data_source, etc.)
+        await collection.update_one(
+            {"date": target_date},
+            {"$set": {
+                "games": games,
+                "last_updated": now_arizona.strftime('%I:%M %p')
+            }}
+        )
+        
+        logger.info(f"[Refresh Lines & Bets] Updated {lines_updated} lines, added {bets_added} bets, skipped {bets_skipped} duplicates")
+        
+        return {
+            "success": True,
+            "league": league,
+            "date": target_date,
+            "lines_updated": lines_updated,
+            "bets_added": bets_added,
+            "bets_skipped_duplicates": bets_skipped,
+            "total_games": original_count,
+            "last_updated": now_arizona.strftime('%I:%M %p')
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Refresh Lines & Bets] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
                 old_line = game.get('total')
                 new_line = live_lines[key]
                 
