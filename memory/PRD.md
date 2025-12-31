@@ -117,7 +117,7 @@ Display spread bets with purple highlighting in UI.
 
 ## Upcoming Tasks (Priority Order)
 1. (P0) Find permanent solution for blocked stat scrapers
-2. (P1) Extend bet results feature to NHL and NCAAB
+2. (P1) Extend bet results feature to NCAAB
 3. (P1) Fix NCAAB spread bets UI display
 4. (P1) Fix Excel export button
 5. (P2) Add automated daily jobs for score/bet updates
