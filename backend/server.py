@@ -6466,6 +6466,133 @@ async def update_records_from_start_date(start_date: str = "2025-12-22"):
     }
 
 
+@api_router.post("/process/scrape-openers")
+async def scrape_opening_lines_endpoint(target_date: str = None):
+    """
+    Process #1 - 8:00 PM Job: Scrape tomorrow's opening lines from ScoresAndOdds/CBS Sports.
+    Creates game documents in the opportunities collections with opening lines.
+    
+    Args:
+        target_date: Target date in 'YYYY-MM-DD' format. Defaults to tomorrow (Arizona time).
+    """
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    
+    # Default to tomorrow if no date specified
+    if not target_date:
+        target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    logger.info(f"[8PM Job] Starting scrape-openers for date: {target_date}")
+    
+    results = {
+        "date": target_date,
+        "leagues": {},
+        "status": "success",
+        "timestamp": datetime.now(arizona_tz).isoformat()
+    }
+    
+    try:
+        # NFL eliminated - only process NBA, NHL, NCAAB
+        leagues = ['NBA', 'NHL', 'NCAAB']
+        
+        for league in leagues:
+            league_result = {
+                "games_scraped": 0,
+                "games_stored": 0,
+                "data_source": "",
+                "status": "success",
+                "error": None
+            }
+            
+            try:
+                # Use CBS Sports for NCAAB (more reliable), scoresandodds for others
+                if league == 'NCAAB':
+                    games = await scrape_cbssports_ncaab(target_date)
+                    league_result["data_source"] = "cbssports.com"
+                else:
+                    games = await scrape_scoresandodds(league.upper(), target_date)
+                    league_result["data_source"] = "scoresandodds.com"
+                
+                league_result["games_scraped"] = len(games) if games else 0
+                
+                if games:
+                    # Create full game documents for the opportunities collection
+                    collection_name = f"{league.lower()}_opportunities"
+                    collection = db[collection_name]
+                    
+                    processed_games = []
+                    for game in games:
+                        away = game.get('away_team') or game.get('away')
+                        home = game.get('home_team') or game.get('home')
+                        total = game.get('total')
+                        time = game.get('time', 'TBD')
+                        spread = game.get('spread')
+                        
+                        if away and home:
+                            game_doc = {
+                                'away_team': away,
+                                'home_team': home,
+                                'total': total,
+                                'opening_line': total,  # Store as opening line
+                                'time': time,
+                                'spread': spread,
+                                'date': target_date,
+                                'status': 'scheduled'
+                            }
+                            processed_games.append(game_doc)
+                            
+                            # Also store in opening_lines collection for tracking
+                            if total:
+                                await store_opening_line(league, target_date, away, home, total)
+                    
+                    if processed_games:
+                        # Create or update the opportunities document
+                        await collection.update_one(
+                            {"date": target_date},
+                            {
+                                "$set": {
+                                    "date": target_date,
+                                    "games": processed_games,
+                                    "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+                                    "data_source": f"{league_result['data_source']} opening lines"
+                                }
+                            },
+                            upsert=True
+                        )
+                        league_result["games_stored"] = len(processed_games)
+                        logger.info(f"[8PM Job] Created {len(processed_games)} {league} games for {target_date}")
+                    else:
+                        league_result["status"] = "warning"
+                        league_result["error"] = "No valid games to store"
+                        logger.warning(f"[8PM Job] No valid {league} games to store for {target_date}")
+                else:
+                    league_result["status"] = "warning"
+                    league_result["error"] = "No games found"
+                    logger.warning(f"[8PM Job] No {league} games found for {target_date}")
+                    
+            except Exception as e:
+                league_result["status"] = "error"
+                league_result["error"] = str(e)
+                logger.error(f"[8PM Job] Error scraping {league}: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            results["leagues"][league] = league_result
+        
+        # Determine overall status
+        error_count = sum(1 for l in results["leagues"].values() if l["status"] == "error")
+        if error_count == len(leagues):
+            results["status"] = "error"
+        elif error_count > 0:
+            results["status"] = "partial"
+        
+        return results
+        
+    except Exception as e:
+        logger.error(f"[8PM Job] Error in scrape_opening_lines_endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/process/update-records")
 async def trigger_update_records(start_date: str = "2025-12-22"):
     """
