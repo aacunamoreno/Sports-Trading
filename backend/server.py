@@ -10174,6 +10174,338 @@ async def update_nhl_bet_results(date: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/bets/ncaab/update-results")
+async def update_ncaab_bet_results(date: str = None):
+    """
+    Update NCAAB bet results from plays888.co History page.
+    Marks games with user bets and their win/loss status.
+    Shows the exact line the bet was placed at (bet_line).
+    
+    NCAAB bets appear as "CBB" (College Basketball) in the sport marker.
+    Supports both TOTAL bets and SPREAD bets.
+    
+    Args:
+        date: Date in YYYY-MM-DD format. Defaults to yesterday.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import timedelta
+        import re
+        
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        # Default to yesterday if no date provided
+        if not date:
+            yesterday = datetime.now(arizona_tz) - timedelta(days=1)
+            date = yesterday.strftime('%Y-%m-%d')
+        
+        logger.info(f"[NCAAB Bet Results] Updating bet results for {date}")
+        
+        # Get database games for that date
+        db_data = await db.ncaab_opportunities.find_one({"date": date}, {"_id": 0})
+        if not db_data:
+            raise HTTPException(status_code=404, detail=f"No NCAAB data found for {date}")
+        
+        db_games = db_data.get('games', [])
+        logger.info(f"[NCAAB Bet Results] Found {len(db_games)} games in database")
+        
+        # Scrape bet history from plays888.co
+        settled_bets = []
+        
+        # Initialize Plays888 service
+        service = Plays888Service()
+        await service.initialize()
+        
+        try:
+            # Login with account jac075
+            login_result = await service.login("jac075", "acuna2025!")
+            if not login_result.get('success'):
+                raise HTTPException(status_code=401, detail="Failed to login to plays888")
+            
+            logger.info("[NCAAB Bet Results] Logged in to plays888.co")
+            
+            # Navigate to History page
+            await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
+            await service.page.wait_for_load_state('domcontentloaded')
+            await service.page.wait_for_timeout(3000)
+            
+            # Get page text
+            page_text = await service.page.inner_text('body')
+            logger.info(f"[NCAAB Bet Results] Got history page ({len(page_text)} chars)")
+            
+            # Parse settled bets
+            lines = page_text.split('\n')
+            
+            # Convert date format from YYYY-MM-DD to M/DD/YYYY for matching
+            date_parts = date.split('-')
+            search_date = f"{int(date_parts[1])}/{int(date_parts[2])}/{date_parts[0]}"
+            search_date_alt = f"{date_parts[1]}/{date_parts[2]}/{date_parts[0]}"
+            
+            # Map month number to name for date matching
+            month_names = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                         7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'}
+            month_name = month_names.get(int(date_parts[1]), '')
+            
+            logger.info(f"[NCAAB Bet Results] Looking for bets on {search_date} or {month_name} {int(date_parts[2])}")
+            
+            # NCAAB bets appear as "CBB" (College Basketball) in the sport marker
+            # Example formats:
+            # CBB -> STRAIGHT BET -> [802] TOTAL u133-120 (B+½) -> (MISSOURI STATE vrs DELAWARE)
+            # CBB -> STRAIGHT BET -> [803] MERRIMACK +2-110  (spread bet, single team)
+            
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+                
+                # Look for CBB sport marker
+                if line.upper() == 'CBB':
+                    # Look FORWARD for bet details
+                    forward_start = i
+                    forward_end = min(len(lines), i + 15)
+                    forward_lines = lines[forward_start:forward_end]
+                    forward_context = ' '.join([l.strip() for l in forward_lines])
+                    
+                    # Also check backward for date context
+                    backward_context = ' '.join([l.strip() for l in lines[max(0, i-5):i]])
+                    full_context = backward_context + ' ' + forward_context
+                    
+                    # Check if this bet is for the target date
+                    if search_date in full_context or search_date_alt in full_context or f"{month_name} {int(date_parts[2])}" in full_context:
+                        
+                        # Try to extract TOTAL bet first
+                        total_match = re.search(r'TOTAL\s+([ou])(\d+)[½]?\.?(\d*)', forward_context, re.IGNORECASE)
+                        
+                        # Extract teams for TOTAL bets (e.g., "(MISSOURI STATE vrs DELAWARE)")
+                        teams_match = re.search(r'\(([A-Z\s\.\&\-\']+?)\s+vrs\s+([A-Z\s\.\&\-\']+?)\)', forward_context, re.IGNORECASE)
+                        
+                        bet_info = None
+                        
+                        if total_match and teams_match:
+                            # This is a TOTAL bet with both teams
+                            bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
+                            base_num = float(total_match.group(2))
+                            if '½' in forward_context[total_match.start():total_match.end()+2]:
+                                bet_line = base_num + 0.5
+                            elif total_match.group(3):
+                                bet_line = float(f"{total_match.group(2)}.{total_match.group(3)}")
+                            else:
+                                bet_line = base_num
+                            
+                            away_team = teams_match.group(1).strip()
+                            home_team = teams_match.group(2).strip()
+                            
+                            # Extract result
+                            result = None
+                            teams_pos = forward_context.upper().find('VRS')
+                            if teams_pos > 0:
+                                after_teams = forward_context[teams_pos:]
+                                result_match = re.search(r'\b(WIN|LOSE|LOSS|PUSH)\b', after_teams, re.IGNORECASE)
+                                if result_match:
+                                    res = result_match.group(1).upper()
+                                    if res == 'WIN':
+                                        result = 'won'
+                                    elif res in ['LOSE', 'LOSS']:
+                                        result = 'lost'
+                                    elif res == 'PUSH':
+                                        result = 'push'
+                            
+                            bet_info = {
+                                'away_team': away_team,
+                                'home_team': home_team,
+                                'bet_type': bet_type,
+                                'bet_line': bet_line,
+                                'result': result,
+                                'is_spread': False
+                            }
+                        
+                        elif not teams_match:
+                            # Check for SPREAD bet (single team, e.g., "MERRIMACK +2-110")
+                            # Pattern: [ID] TEAM +/-SPREAD-ODDS
+                            spread_match = re.search(r'\[[\d]+\]\s+([A-Z\s\.\&\-\']+?)\s+([+-]?\d+\.?\d*)[½]?-\d+', forward_context, re.IGNORECASE)
+                            
+                            if spread_match:
+                                team_name = spread_match.group(1).strip()
+                                spread_value = spread_match.group(2)
+                                # Handle half values
+                                if '½' in forward_context[spread_match.start():spread_match.end()+2]:
+                                    bet_line = float(spread_value) + (0.5 if float(spread_value) >= 0 else -0.5)
+                                else:
+                                    bet_line = float(spread_value)
+                                
+                                # Extract result - look after the spread line
+                                result = None
+                                spread_pos = spread_match.end()
+                                after_spread = forward_context[spread_pos:]
+                                result_match = re.search(r'\b(WIN|LOSE|LOSS|PUSH)\b', after_spread, re.IGNORECASE)
+                                if result_match:
+                                    res = result_match.group(1).upper()
+                                    if res == 'WIN':
+                                        result = 'won'
+                                    elif res in ['LOSE', 'LOSS']:
+                                        result = 'lost'
+                                    elif res == 'PUSH':
+                                        result = 'push'
+                                
+                                bet_info = {
+                                    'team_name': team_name,  # Single team for spread bets
+                                    'away_team': None,
+                                    'home_team': None,
+                                    'bet_type': 'SPREAD',
+                                    'bet_line': bet_line,
+                                    'result': result,
+                                    'is_spread': True
+                                }
+                        
+                        if bet_info:
+                            # Avoid duplicates
+                            is_duplicate = False
+                            if bet_info.get('is_spread'):
+                                is_duplicate = any(
+                                    b.get('team_name') == bet_info.get('team_name') and 
+                                    b.get('bet_line') == bet_info.get('bet_line')
+                                    for b in settled_bets
+                                )
+                            else:
+                                is_duplicate = any(
+                                    b.get('away_team') == bet_info.get('away_team') and 
+                                    b.get('home_team') == bet_info.get('home_team') and 
+                                    b.get('bet_line') == bet_info.get('bet_line')
+                                    for b in settled_bets
+                                )
+                            
+                            if not is_duplicate:
+                                settled_bets.append(bet_info)
+                                if bet_info.get('is_spread'):
+                                    logger.info(f"[NCAAB Bet Results] Found SPREAD: {bet_info['team_name']} {bet_info['bet_line']} -> {bet_info['result']}")
+                                else:
+                                    logger.info(f"[NCAAB Bet Results] Found TOTAL: {bet_info['away_team']} @ {bet_info['home_team']} {bet_info['bet_type']} {bet_info['bet_line']} -> {bet_info['result']}")
+                
+                i += 1
+            
+        finally:
+            await service.close()
+        
+        total_bets = len(settled_bets)
+        spread_bets = len([b for b in settled_bets if b.get('is_spread')])
+        total_bet_count = total_bets - spread_bets
+        
+        logger.info(f"[NCAAB Bet Results] Found {total_bets} settled NCAAB bets for {date} ({total_bet_count} totals, {spread_bets} spreads)")
+        
+        # Match bets to games and update
+        bets_matched = 0
+        wins = 0
+        losses = 0
+        
+        def normalize_team_name(name):
+            """Normalize team names for matching"""
+            if not name:
+                return ''
+            # Remove common suffixes and normalize
+            name = name.upper().strip()
+            name = re.sub(r'\s+(ST|STATE|UNIV|UNIVERSITY)\.?$', ' STATE', name)
+            name = name.replace('.', '').replace("'", '').replace('-', ' ')
+            return name
+        
+        def match_teams(db_game, bet):
+            """Match a bet to a database game"""
+            db_away = normalize_team_name(db_game.get('away_team', ''))
+            db_home = normalize_team_name(db_game.get('home_team', ''))
+            
+            if bet.get('is_spread'):
+                # For spread bets, match single team name to either away or home
+                bet_team = normalize_team_name(bet.get('team_name', ''))
+                
+                # Check if bet team matches away or home
+                away_words = set(db_away.split())
+                home_words = set(db_home.split())
+                bet_words = set(bet_team.split())
+                
+                # Match if significant words overlap
+                away_match = len(away_words & bet_words) >= min(2, len(bet_words))
+                home_match = len(home_words & bet_words) >= min(2, len(bet_words))
+                
+                # Also try substring matching
+                if not away_match and not home_match:
+                    away_match = bet_team in db_away or db_away in bet_team
+                    home_match = bet_team in db_home or db_home in bet_team
+                
+                return away_match or home_match
+            else:
+                # For total bets, match both teams
+                bet_away = normalize_team_name(bet.get('away_team', ''))
+                bet_home = normalize_team_name(bet.get('home_team', ''))
+                
+                # Try word overlap matching
+                db_away_words = set(db_away.split())
+                db_home_words = set(db_home.split())
+                bet_away_words = set(bet_away.split())
+                bet_home_words = set(bet_home.split())
+                
+                away_match = len(db_away_words & bet_away_words) >= min(2, len(bet_away_words)) or \
+                            bet_away in db_away or db_away in bet_away
+                home_match = len(db_home_words & bet_home_words) >= min(2, len(bet_home_words)) or \
+                            bet_home in db_home or db_home in bet_home
+                
+                return away_match and home_match
+        
+        for game in db_games:
+            # Find matching bet
+            for bet in settled_bets:
+                if match_teams(game, bet):
+                    game['user_bet'] = True
+                    game['bet_line'] = bet['bet_line']
+                    game['bet_type'] = bet['bet_type']
+                    game['has_bet'] = True
+                    game['is_spread_bet'] = bet.get('is_spread', False)
+                    
+                    # Determine if bet hit
+                    if bet['result'] == 'won':
+                        game['user_bet_hit'] = True
+                        wins += 1
+                    elif bet['result'] == 'lost':
+                        game['user_bet_hit'] = False
+                        losses += 1
+                    else:
+                        game['user_bet_hit'] = None  # Push
+                    
+                    bets_matched += 1
+                    bet_type_str = f"SPREAD {bet['bet_line']}" if bet.get('is_spread') else f"{bet['bet_type']} {bet['bet_line']}"
+                    logger.info(f"[NCAAB Bet Results] Matched: {game.get('away_team')} @ {game.get('home_team')} ({bet_type_str}) -> {bet['result']}")
+                    break
+        
+        # Save to database
+        await db.ncaab_opportunities.update_one(
+            {"date": date},
+            {"$set": {
+                "games": db_games,
+                "bet_results_updated": datetime.now(arizona_tz).isoformat()
+            }}
+        )
+        
+        logger.info(f"[NCAAB Bet Results] Updated {bets_matched} games with bet results")
+        
+        return {
+            "success": True,
+            "date": date,
+            "message": f"Updated {bets_matched} NCAAB games with bet results",
+            "bets_found": total_bets,
+            "total_bets": total_bet_count,
+            "spread_bets": spread_bets,
+            "bets_matched": bets_matched,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": f"{wins/(wins+losses)*100:.1f}%" if wins + losses > 0 else "N/A"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating NCAAB bet results: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/opportunities/nhl/manual")
 async def add_nhl_manual_data(data: dict):
     """
