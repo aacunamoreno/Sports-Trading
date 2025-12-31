@@ -3235,36 +3235,37 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
     
     # NBA team name mapping
     nba_team_map = {
-        'WAS': 'Washington', 'WSH': 'Washington', 'WIZARDS': 'Washington',
-        'CHI': 'Chicago', 'BULLS': 'Chicago',
-        'NYK': 'New York', 'KNICKS': 'New York',
-        'OKC': 'Okla City', 'THUNDER': 'Okla City',
-        'MIL': 'Milwaukee', 'BUCKS': 'Milwaukee',
-        'DEN': 'Denver', 'NUGGETS': 'Denver',
-        'GSW': 'Golden State', 'WARRIORS': 'Golden State',
-        'DAL': 'Dallas', 'MAVERICKS': 'Dallas', 'MAVS': 'Dallas',
-        'PHX': 'Phoenix', 'PHO': 'Phoenix', 'SUNS': 'Phoenix',
-        'SAS': 'San Antonio', 'SPURS': 'San Antonio',
-        'CLE': 'Cleveland', 'CAVALIERS': 'Cleveland', 'CAVS': 'Cleveland',
-        'MIA': 'Miami', 'HEAT': 'Miami',
-        'BOS': 'Boston', 'CELTICS': 'Boston',
-        'LAL': 'LA Lakers', 'LAKERS': 'LA Lakers',
-        'LAC': 'LA Clippers', 'CLIPPERS': 'LA Clippers',
-        'SAC': 'Sacramento', 'KINGS': 'Sacramento',
-        'POR': 'Portland', 'BLAZERS': 'Portland', 'TRAIL BLAZERS': 'Portland',
-        'UTA': 'Utah', 'JAZZ': 'Utah',
-        'MIN': 'Minnesota', 'TIMBERWOLVES': 'Minnesota', 'WOLVES': 'Minnesota',
-        'HOU': 'Houston', 'ROCKETS': 'Houston',
-        'NOP': 'New Orleans', 'PELICANS': 'New Orleans',
-        'MEM': 'Memphis', 'GRIZZLIES': 'Memphis',
-        'ATL': 'Atlanta', 'HAWKS': 'Atlanta',
-        'ORL': 'Orlando', 'MAGIC': 'Orlando',
-        'IND': 'Indiana', 'PACERS': 'Indiana',
-        'PHI': 'Philadelphia', '76ERS': 'Philadelphia', 'SIXERS': 'Philadelphia',
-        'BKN': 'Brooklyn', 'BRK': 'Brooklyn', 'NETS': 'Brooklyn',
-        'TOR': 'Toronto', 'RAPTORS': 'Toronto',
-        'CHA': 'Charlotte', 'HORNETS': 'Charlotte',
-        'DET': 'Detroit', 'PISTONS': 'Detroit',
+        'WIZARDS': 'Washington',
+        'BULLS': 'Chicago',
+        'KNICKS': 'New York',
+        'THUNDER': 'Okla City',
+        'BUCKS': 'Milwaukee',
+        'NUGGETS': 'Denver',
+        'WARRIORS': 'Golden State',
+        'MAVERICKS': 'Dallas',
+        'SUNS': 'Phoenix',
+        'SPURS': 'San Antonio',
+        'CAVALIERS': 'Cleveland',
+        'HEAT': 'Miami',
+        'CELTICS': 'Boston',
+        'LAKERS': 'LA Lakers',
+        'CLIPPERS': 'LA Clippers',
+        'KINGS': 'Sacramento',
+        'TRAIL BLAZERS': 'Portland',
+        'BLAZERS': 'Portland',
+        'JAZZ': 'Utah',
+        'TIMBERWOLVES': 'Minnesota',
+        'ROCKETS': 'Houston',
+        'PELICANS': 'New Orleans',
+        'GRIZZLIES': 'Memphis',
+        'HAWKS': 'Atlanta',
+        'MAGIC': 'Orlando',
+        'PACERS': 'Indiana',
+        '76ERS': 'Philadelphia',
+        'NETS': 'Brooklyn',
+        'RAPTORS': 'Toronto',
+        'HORNETS': 'Charlotte',
+        'PISTONS': 'Detroit',
     }
     
     def normalize_nba_team(name):
@@ -3272,7 +3273,7 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
             return name
         name_upper = name.upper().strip()
         for key, val in nba_team_map.items():
-            if key in name_upper or name_upper in key:
+            if key in name_upper:
                 return val
         return name.strip()
     
@@ -3285,58 +3286,43 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
             await page.wait_for_load_state("networkidle")
             await page.wait_for_timeout(3000)
             
-            # Extract games
+            # Extract games using proper DOM structure
+            # CBS Sports: First .team element is AWAY, second .team element is HOME
             games = await page.evaluate("""() => {
                 const games = [];
                 const cards = document.querySelectorAll('.single-score-card');
                 
                 cards.forEach((card) => {
                     try {
+                        // Get team elements - first is AWAY, second is HOME
+                        const teamElements = card.querySelectorAll('.team.team--nba');
+                        if (teamElements.length < 2) return;
+                        
+                        // Extract team names from the team-name-link or innerText
+                        const awayTeamEl = teamElements[0].querySelector('.team-name-link');
+                        const homeTeamEl = teamElements[1].querySelector('.team-name-link');
+                        
+                        const awayTeam = awayTeamEl ? awayTeamEl.innerText.trim() : teamElements[0].innerText.split('\\n')[0].trim();
+                        const homeTeam = homeTeamEl ? homeTeamEl.innerText.trim() : teamElements[1].innerText.split('\\n')[0].trim();
+                        
+                        if (!awayTeam || !homeTeam) return;
+                        
                         const rawText = card.innerText;
-                        const lines = rawText.split('\\n').filter(l => l.trim());
                         
-                        // Find team names - typically first two valid text entries
-                        const teamLines = [];
-                        const skipPatterns = ['pm', 'am', 'ESPN', 'TNT', 'NBA', 'TV', 'Preview', 'Expert', 'StubHub', 'NBATV'];
-                        
-                        for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (trimmed.length >= 2 && 
-                                trimmed.length < 25 &&
-                                !skipPatterns.some(p => trimmed.toUpperCase().includes(p)) &&
-                                !/^\\d+$/.test(trimmed) &&
-                                !/^\\d+:\\d+/.test(trimmed) &&
-                                !/^o\\d/.test(trimmed) &&
-                                !/^[+-]\\d/.test(trimmed)) {
-                                teamLines.push(trimmed);
-                            }
-                        }
-                        
-                        if (teamLines.length < 2) return;
-                        
-                        const awayTeam = teamLines[0];
-                        const homeTeam = teamLines[1];
-                        
-                        // Get time
+                        // Get time - look for time pattern at start
                         let time = '';
-                        for (const line of lines) {
-                            if (/^\\d+:\\d+\\s*(am|pm)?/i.test(line.trim())) {
-                                time = line.trim();
-                                break;
-                            }
-                        }
+                        const timeMatch = rawText.match(/(\\d+:\\d+\\s*(am|pm)|[A-Z]{3}\\s+\\d+:\\d+\\s*(am|pm)?)/i);
+                        if (timeMatch) time = timeMatch[0].trim();
                         
-                        // Get total
+                        // Get total (over/under line) - look for 'o' followed by number
                         let total = null;
                         const totalMatch = rawText.match(/o(\\d+\\.?\\d*)/);
                         if (totalMatch) total = parseFloat(totalMatch[1]);
                         
-                        // Get spread
+                        // Get spread - look for +/- followed by number
                         let spread = null;
-                        const spreadMatches = rawText.match(/([+-]\\d+\\.?\\d*)/g);
-                        if (spreadMatches && spreadMatches.length > 0) {
-                            spread = parseFloat(spreadMatches[0]);
-                        }
+                        const spreadMatch = rawText.match(/([+-]\\d+\\.?\\d*)/);
+                        if (spreadMatch) spread = parseFloat(spreadMatch[1]);
                         
                         // Get scores if game is finished
                         const scoreEls = card.querySelectorAll('.total-score');
@@ -3362,7 +3348,9 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
                         }
                         
                         games.push(game);
-                    } catch(e) {}
+                    } catch(e) {
+                        console.error('Error parsing card:', e);
+                    }
                 });
                 
                 return games;
