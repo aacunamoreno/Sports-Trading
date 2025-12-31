@@ -7807,7 +7807,6 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     "bet_types": game.get('bet_types', []),
                     "bet_count": game.get('bet_count', 1)
                 })
-                bets_added += game.get('bet_count', 1)  # Count all bets
         
         # Save updated games and plays
         await collection.update_one(
