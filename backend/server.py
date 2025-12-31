@@ -3394,38 +3394,38 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
     
     # NHL team name mapping
     nhl_team_map = {
-        'WSH': 'Washington', 'CAPITALS': 'Washington', 'CAPS': 'Washington',
-        'BOS': 'Boston', 'BRUINS': 'Boston',
-        'NYR': 'NY Rangers', 'RANGERS': 'NY Rangers',
-        'NYI': 'NY Islanders', 'ISLANDERS': 'NY Islanders',
-        'PHI': 'Philadelphia', 'FLYERS': 'Philadelphia',
-        'PIT': 'Pittsburgh', 'PENGUINS': 'Pittsburgh', 'PENS': 'Pittsburgh',
-        'NJD': 'New Jersey', 'NJ': 'New Jersey', 'DEVILS': 'New Jersey',
-        'CBJ': 'Columbus', 'BLUE JACKETS': 'Columbus', 'JACKETS': 'Columbus',
-        'CAR': 'Carolina', 'HURRICANES': 'Carolina', 'CANES': 'Carolina',
-        'FLA': 'Florida', 'PANTHERS': 'Florida',
-        'TBL': 'Tampa Bay', 'TB': 'Tampa Bay', 'LIGHTNING': 'Tampa Bay', 'BOLTS': 'Tampa Bay',
-        'TOR': 'Toronto', 'MAPLE LEAFS': 'Toronto', 'LEAFS': 'Toronto',
-        'MTL': 'Montreal', 'MON': 'Montreal', 'CANADIENS': 'Montreal', 'HABS': 'Montreal',
-        'OTT': 'Ottawa', 'SENATORS': 'Ottawa', 'SENS': 'Ottawa',
-        'BUF': 'Buffalo', 'SABRES': 'Buffalo',
-        'DET': 'Detroit', 'RED WINGS': 'Detroit',
-        'CHI': 'Chicago', 'BLACKHAWKS': 'Chicago', 'HAWKS': 'Chicago',
-        'STL': 'St. Louis', 'BLUES': 'St. Louis',
-        'NSH': 'Nashville', 'PREDATORS': 'Nashville', 'PREDS': 'Nashville',
-        'DAL': 'Dallas', 'STARS': 'Dallas',
-        'MIN': 'Minnesota', 'WILD': 'Minnesota',
-        'WPG': 'Winnipeg', 'JETS': 'Winnipeg',
-        'COL': 'Colorado', 'AVALANCHE': 'Colorado', 'AVS': 'Colorado',
-        'ARI': 'Utah', 'UTA': 'Utah', 'UTAH HC': 'Utah',  # Arizona moved to Utah
-        'VGK': 'Vegas', 'LV': 'Vegas', 'GOLDEN KNIGHTS': 'Vegas', 'KNIGHTS': 'Vegas',
-        'SEA': 'Seattle', 'KRAKEN': 'Seattle',
-        'SJS': 'San Jose', 'SJ': 'San Jose', 'SHARKS': 'San Jose',
-        'LAK': 'LA Kings', 'LA': 'LA Kings', 'KINGS': 'LA Kings',
-        'ANA': 'Anaheim', 'DUCKS': 'Anaheim',
-        'EDM': 'Edmonton', 'OILERS': 'Edmonton',
-        'CGY': 'Calgary', 'FLAMES': 'Calgary',
-        'VAN': 'Vancouver', 'CANUCKS': 'Vancouver',
+        'CAPITALS': 'Washington',
+        'BRUINS': 'Boston',
+        'RANGERS': 'NY Rangers',
+        'ISLANDERS': 'NY Islanders',
+        'FLYERS': 'Philadelphia',
+        'PENGUINS': 'Pittsburgh',
+        'DEVILS': 'New Jersey',
+        'BLUE JACKETS': 'Columbus',
+        'HURRICANES': 'Carolina',
+        'PANTHERS': 'Florida',
+        'LIGHTNING': 'Tampa Bay',
+        'MAPLE LEAFS': 'Toronto',
+        'CANADIENS': 'Montreal',
+        'SENATORS': 'Ottawa',
+        'SABRES': 'Buffalo',
+        'RED WINGS': 'Detroit',
+        'BLACKHAWKS': 'Chicago',
+        'BLUES': 'St. Louis',
+        'PREDATORS': 'Nashville',
+        'STARS': 'Dallas',
+        'WILD': 'Minnesota',
+        'JETS': 'Winnipeg',
+        'AVALANCHE': 'Colorado',
+        'UTAH HC': 'Utah',
+        'GOLDEN KNIGHTS': 'Vegas',
+        'KRAKEN': 'Seattle',
+        'SHARKS': 'San Jose',
+        'KINGS': 'LA Kings',
+        'DUCKS': 'Anaheim',
+        'OILERS': 'Edmonton',
+        'FLAMES': 'Calgary',
+        'CANUCKS': 'Vancouver',
     }
     
     def normalize_nhl_team(name):
@@ -3433,7 +3433,7 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
             return name
         name_upper = name.upper().strip()
         for key, val in nhl_team_map.items():
-            if key in name_upper or name_upper in key:
+            if key in name_upper:
                 return val
         return name.strip()
     
@@ -3446,55 +3446,45 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
             await page.wait_for_load_state("networkidle")
             await page.wait_for_timeout(3000)
             
-            # Extract games
+            # Extract games using proper DOM structure
+            # CBS Sports: First .team element is AWAY, second .team element is HOME
             games = await page.evaluate("""() => {
                 const games = [];
                 const cards = document.querySelectorAll('.single-score-card');
                 
                 cards.forEach((card) => {
                     try {
+                        // Get team elements - first is AWAY, second is HOME
+                        const teamElements = card.querySelectorAll('.team.team--nhl');
+                        if (teamElements.length < 2) return;
+                        
+                        // Extract team names from the team-name-link or innerText
+                        const awayTeamEl = teamElements[0].querySelector('.team-name-link');
+                        const homeTeamEl = teamElements[1].querySelector('.team-name-link');
+                        
+                        const awayTeam = awayTeamEl ? awayTeamEl.innerText.trim() : teamElements[0].innerText.split('\\n')[0].trim();
+                        const homeTeam = homeTeamEl ? homeTeamEl.innerText.trim() : teamElements[1].innerText.split('\\n')[0].trim();
+                        
+                        if (!awayTeam || !homeTeam) return;
+                        
                         const rawText = card.innerText;
-                        const lines = rawText.split('\\n').filter(l => l.trim());
                         
-                        const teamLines = [];
-                        const skipPatterns = ['pm', 'am', 'ESPN', 'TNT', 'NHL', 'TV', 'Preview', 'Expert', 'StubHub'];
-                        
-                        for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (trimmed.length >= 2 && 
-                                trimmed.length < 25 &&
-                                !skipPatterns.some(p => trimmed.toUpperCase().includes(p)) &&
-                                !/^\\d+$/.test(trimmed) &&
-                                !/^\\d+:\\d+/.test(trimmed) &&
-                                !/^o\\d/.test(trimmed) &&
-                                !/^[+-]\\d/.test(trimmed)) {
-                                teamLines.push(trimmed);
-                            }
-                        }
-                        
-                        if (teamLines.length < 2) return;
-                        
-                        const awayTeam = teamLines[0];
-                        const homeTeam = teamLines[1];
-                        
+                        // Get time
                         let time = '';
-                        for (const line of lines) {
-                            if (/^\\d+:\\d+\\s*(am|pm)?/i.test(line.trim())) {
-                                time = line.trim();
-                                break;
-                            }
-                        }
+                        const timeMatch = rawText.match(/(\\d+:\\d+\\s*(am|pm)|[A-Z]{3}\\s+\\d+:\\d+\\s*(am|pm)?)/i);
+                        if (timeMatch) time = timeMatch[0].trim();
                         
+                        // Get total
                         let total = null;
                         const totalMatch = rawText.match(/o(\\d+\\.?\\d*)/);
                         if (totalMatch) total = parseFloat(totalMatch[1]);
                         
+                        // Get spread
                         let spread = null;
-                        const spreadMatches = rawText.match(/([+-]\\d+\\.?\\d*)/g);
-                        if (spreadMatches && spreadMatches.length > 0) {
-                            spread = parseFloat(spreadMatches[0]);
-                        }
+                        const spreadMatch = rawText.match(/([+-]\\d+\\.?\\d*)/);
+                        if (spreadMatch) spread = parseFloat(spreadMatch[1]);
                         
+                        // Get scores if game is finished
                         const scoreEls = card.querySelectorAll('.total-score');
                         const scores = [];
                         scoreEls.forEach(s => {
@@ -3518,7 +3508,9 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                         }
                         
                         games.push(game);
-                    } catch(e) {}
+                    } catch(e) {
+                        console.error('Error parsing card:', e);
+                    }
                 });
                 
                 return games;
