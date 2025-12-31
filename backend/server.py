@@ -6203,7 +6203,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
     """
     Calculate betting records and edge records from start_date to yesterday.
     
-    Betting Record: W-L record of actual user bets (ENANO account)
+    Betting Record: W-L record of actual user bets (from plays888.co History)
     Edge Record: W-L record of system recommendations (edge-based predictions)
     
     Args:
@@ -6221,9 +6221,9 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
     logger.info(f"[#6] Calculating records from {start_date} to {yesterday}")
     
     results = {
-        "NBA": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}},
-        "NHL": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}},
-        "NCAAB": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}},
+        "NBA": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}, "dates_processed": []},
+        "NHL": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}, "dates_processed": []},
+        "NCAAB": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}, "dates_processed": []},
     }
     
     # Generate list of dates from start_date to yesterday
@@ -6236,92 +6236,144 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
         dates.append(current.strftime('%Y-%m-%d'))
         current += timedelta(days=1)
     
-    logger.info(f"[#6] Processing {len(dates)} dates")
+    logger.info(f"[#6] Processing {len(dates)} dates: {dates}")
     
     # Process NBA records
     for date in dates:
         doc = await db.nba_opportunities.find_one({"date": date})
         if doc and doc.get('games'):
+            date_edge_hits = 0
+            date_edge_misses = 0
+            date_bet_wins = 0
+            date_bet_losses = 0
+            
+            # First, check for actual_bet_record (accurate count from History page)
+            actual_record = doc.get('actual_bet_record')
+            if actual_record:
+                date_bet_wins = actual_record.get('wins', 0)
+                date_bet_losses = actual_record.get('losses', 0)
+            
             for game in doc['games']:
                 # Check if game has final score (completed)
                 if game.get('final_score') is None:
                     continue
                 
                 # Edge Record: Check if system recommendation hit
-                recommendation = game.get('recommendation')
-                actual_result = game.get('actual_result')
-                if recommendation and actual_result:
-                    if recommendation == actual_result:
-                        results["NBA"]["edge"]["hits"] += 1
-                    else:
-                        results["NBA"]["edge"]["misses"] += 1
+                # The field is 'result_hit' (True/False) - True means recommendation matched actual result
+                if game.get('result_hit') is True:
+                    date_edge_hits += 1
+                elif game.get('result_hit') is False:
+                    date_edge_misses += 1
                 
-                # Betting Record: Check if user bet hit
-                if game.get('user_bet'):
-                    bet_result = game.get('bet_result')
-                    if bet_result == 'won':
-                        results["NBA"]["betting"]["wins"] += 1
-                    elif bet_result == 'lost':
-                        results["NBA"]["betting"]["losses"] += 1
+                # Betting Record: If no actual_bet_record, count from matched games
+                if not actual_record and game.get('user_bet'):
+                    # The field is 'user_bet_hit' (True/False)
+                    if game.get('user_bet_hit') is True:
+                        date_bet_wins += 1
+                    elif game.get('user_bet_hit') is False:
+                        date_bet_losses += 1
+            
+            results["NBA"]["edge"]["hits"] += date_edge_hits
+            results["NBA"]["edge"]["misses"] += date_edge_misses
+            results["NBA"]["betting"]["wins"] += date_bet_wins
+            results["NBA"]["betting"]["losses"] += date_bet_losses
+            results["NBA"]["dates_processed"].append({
+                "date": date,
+                "edge": f"{date_edge_hits}H-{date_edge_misses}M",
+                "betting": f"{date_bet_wins}W-{date_bet_losses}L"
+            })
+            
+            logger.info(f"[#6] NBA {date}: Edge {date_edge_hits}H-{date_edge_misses}M, Betting {date_bet_wins}W-{date_bet_losses}L")
     
     # Process NHL records
     for date in dates:
         doc = await db.nhl_opportunities.find_one({"date": date})
         if doc and doc.get('games'):
+            date_edge_hits = 0
+            date_edge_misses = 0
+            date_bet_wins = 0
+            date_bet_losses = 0
+            
+            # First, check for actual_bet_record
+            actual_record = doc.get('actual_bet_record')
+            if actual_record:
+                date_bet_wins = actual_record.get('wins', 0)
+                date_bet_losses = actual_record.get('losses', 0)
+            
             for game in doc['games']:
-                # Check if game has final score (completed)
                 if game.get('final_score') is None:
                     continue
                 
-                # Edge Record: Check if system recommendation hit
-                recommendation = game.get('recommendation')
-                actual_result = game.get('actual_result')
-                if recommendation and actual_result:
-                    if recommendation == actual_result:
-                        results["NHL"]["edge"]["hits"] += 1
-                    else:
-                        results["NHL"]["edge"]["misses"] += 1
+                # Edge Record
+                if game.get('result_hit') is True:
+                    date_edge_hits += 1
+                elif game.get('result_hit') is False:
+                    date_edge_misses += 1
                 
-                # Betting Record: Check if user bet hit
-                if game.get('user_bet'):
-                    # Handle games with multiple bets (e.g., Florida Panthers 12/23 had OVER and UNDER)
-                    if game.get('multiple_bets') and game.get('bet_results'):
-                        for result in game['bet_results']:
-                            if result == 'won':
-                                results["NHL"]["betting"]["wins"] += 1
-                            elif result == 'lost':
-                                results["NHL"]["betting"]["losses"] += 1
-                    else:
-                        bet_result = game.get('bet_result')
-                        if bet_result == 'won':
-                            results["NHL"]["betting"]["wins"] += 1
-                        elif bet_result == 'lost':
-                            results["NHL"]["betting"]["losses"] += 1
+                # Betting Record (if no actual_bet_record)
+                if not actual_record and game.get('user_bet'):
+                    if game.get('user_bet_hit') is True:
+                        date_bet_wins += 1
+                    elif game.get('user_bet_hit') is False:
+                        date_bet_losses += 1
+            
+            results["NHL"]["edge"]["hits"] += date_edge_hits
+            results["NHL"]["edge"]["misses"] += date_edge_misses
+            results["NHL"]["betting"]["wins"] += date_bet_wins
+            results["NHL"]["betting"]["losses"] += date_bet_losses
+            results["NHL"]["dates_processed"].append({
+                "date": date,
+                "edge": f"{date_edge_hits}H-{date_edge_misses}M",
+                "betting": f"{date_bet_wins}W-{date_bet_losses}L"
+            })
+            
+            logger.info(f"[#6] NHL {date}: Edge {date_edge_hits}H-{date_edge_misses}M, Betting {date_bet_wins}W-{date_bet_losses}L")
     
     # Process NCAAB records
     for date in dates:
         doc = await db.ncaab_opportunities.find_one({"date": date})
         if doc and doc.get('games'):
+            date_edge_hits = 0
+            date_edge_misses = 0
+            date_bet_wins = 0
+            date_bet_losses = 0
+            
+            # First, check for actual_bet_record (important for NCAAB due to duplicate bets)
+            actual_record = doc.get('actual_bet_record')
+            if actual_record:
+                date_bet_wins = actual_record.get('wins', 0)
+                date_bet_losses = actual_record.get('losses', 0)
+            
             for game in doc['games']:
                 if game.get('final_score') is None:
                     continue
                 
-                recommendation = game.get('recommendation')
-                actual_result = game.get('actual_result')
-                if recommendation and actual_result:
-                    if recommendation == actual_result:
-                        results["NCAAB"]["edge"]["hits"] += 1
-                    else:
-                        results["NCAAB"]["edge"]["misses"] += 1
+                # Edge Record
+                if game.get('result_hit') is True:
+                    date_edge_hits += 1
+                elif game.get('result_hit') is False:
+                    date_edge_misses += 1
                 
-                if game.get('user_bet'):
-                    bet_result = game.get('bet_result')
-                    if bet_result == 'won':
-                        results["NCAAB"]["betting"]["wins"] += 1
-                    elif bet_result == 'lost':
-                        results["NCAAB"]["betting"]["losses"] += 1
+                # Betting Record (if no actual_bet_record)
+                if not actual_record and game.get('user_bet'):
+                    if game.get('user_bet_hit') is True:
+                        date_bet_wins += 1
+                    elif game.get('user_bet_hit') is False:
+                        date_bet_losses += 1
+            
+            results["NCAAB"]["edge"]["hits"] += date_edge_hits
+            results["NCAAB"]["edge"]["misses"] += date_edge_misses
+            results["NCAAB"]["betting"]["wins"] += date_bet_wins
+            results["NCAAB"]["betting"]["losses"] += date_bet_losses
+            results["NCAAB"]["dates_processed"].append({
+                "date": date,
+                "edge": f"{date_edge_hits}H-{date_edge_misses}M",
+                "betting": f"{date_bet_wins}W-{date_bet_losses}L"
+            })
+            
+            logger.info(f"[#6] NCAAB {date}: Edge {date_edge_hits}H-{date_edge_misses}M, Betting {date_bet_wins}W-{date_bet_losses}L")
     
-    logger.info(f"[#6] Calculated records: {results}")
+    logger.info(f"[#6] Final calculated records: NBA={results['NBA']}, NHL={results['NHL']}, NCAAB={results['NCAAB']}")
     return results
 
 
