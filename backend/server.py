@@ -10149,12 +10149,17 @@ async def update_nhl_bet_results(date: str = None):
                     logger.info(f"[NHL Bet Results] Matched: {game.get('away_team')} @ {game.get('home_team')} -> {bet['result']}")
                     break
         
-        # Save to database
+        # Save to database with actual bet record
         await db.nhl_opportunities.update_one(
             {"date": date},
             {"$set": {
                 "games": db_games,
-                "bet_results_updated": datetime.now(arizona_tz).isoformat()
+                "bet_results_updated": datetime.now(arizona_tz).isoformat(),
+                "actual_bet_record": {
+                    "wins": wins,
+                    "losses": losses,
+                    "total_bets": len(settled_bets)
+                }
             }}
         )
         
