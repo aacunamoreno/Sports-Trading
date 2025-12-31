@@ -261,7 +261,7 @@ export default function Opportunities() {
 
   // Upload PPG Excel file (Process #2)
   const [uploadingPPG, setUploadingPPG] = useState(false);
-  const fileInputRef = React.useRef(null);
+  const fileInputRef = useRef(null);
   
   const handlePPGExcelUpload = async (event) => {
     const file = event.target.files[0];
