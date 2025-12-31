@@ -3214,6 +3214,345 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
         return []
 
 
+async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
+    """
+    Scrape NBA games and lines from CBS Sports.
+    Fallback when scoresandodds.com is blocked.
+    
+    Args:
+        target_date: Date in 'YYYY-MM-DD' format
+    
+    Returns:
+        List of games with teams, totals, spreads, times
+    """
+    from playwright.async_api import async_playwright
+    
+    # Convert date format from YYYY-MM-DD to YYYYMMDD for CBS URL
+    date_for_url = target_date.replace("-", "")
+    url = f"https://www.cbssports.com/nba/scoreboard/{date_for_url}/"
+    
+    logger.info(f"Scraping CBS Sports NBA: {url}")
+    
+    # NBA team name mapping
+    nba_team_map = {
+        'WAS': 'Washington', 'WSH': 'Washington', 'WIZARDS': 'Washington',
+        'CHI': 'Chicago', 'BULLS': 'Chicago',
+        'NYK': 'New York', 'KNICKS': 'New York',
+        'OKC': 'Okla City', 'THUNDER': 'Okla City',
+        'MIL': 'Milwaukee', 'BUCKS': 'Milwaukee',
+        'DEN': 'Denver', 'NUGGETS': 'Denver',
+        'GSW': 'Golden State', 'WARRIORS': 'Golden State',
+        'DAL': 'Dallas', 'MAVERICKS': 'Dallas', 'MAVS': 'Dallas',
+        'PHX': 'Phoenix', 'PHO': 'Phoenix', 'SUNS': 'Phoenix',
+        'SAS': 'San Antonio', 'SPURS': 'San Antonio',
+        'CLE': 'Cleveland', 'CAVALIERS': 'Cleveland', 'CAVS': 'Cleveland',
+        'MIA': 'Miami', 'HEAT': 'Miami',
+        'BOS': 'Boston', 'CELTICS': 'Boston',
+        'LAL': 'LA Lakers', 'LAKERS': 'LA Lakers',
+        'LAC': 'LA Clippers', 'CLIPPERS': 'LA Clippers',
+        'SAC': 'Sacramento', 'KINGS': 'Sacramento',
+        'POR': 'Portland', 'BLAZERS': 'Portland', 'TRAIL BLAZERS': 'Portland',
+        'UTA': 'Utah', 'JAZZ': 'Utah',
+        'MIN': 'Minnesota', 'TIMBERWOLVES': 'Minnesota', 'WOLVES': 'Minnesota',
+        'HOU': 'Houston', 'ROCKETS': 'Houston',
+        'NOP': 'New Orleans', 'PELICANS': 'New Orleans',
+        'MEM': 'Memphis', 'GRIZZLIES': 'Memphis',
+        'ATL': 'Atlanta', 'HAWKS': 'Atlanta',
+        'ORL': 'Orlando', 'MAGIC': 'Orlando',
+        'IND': 'Indiana', 'PACERS': 'Indiana',
+        'PHI': 'Philadelphia', '76ERS': 'Philadelphia', 'SIXERS': 'Philadelphia',
+        'BKN': 'Brooklyn', 'BRK': 'Brooklyn', 'NETS': 'Brooklyn',
+        'TOR': 'Toronto', 'RAPTORS': 'Toronto',
+        'CHA': 'Charlotte', 'HORNETS': 'Charlotte',
+        'DET': 'Detroit', 'PISTONS': 'Detroit',
+    }
+    
+    def normalize_nba_team(name):
+        if not name:
+            return name
+        name_upper = name.upper().strip()
+        for key, val in nba_team_map.items():
+            if key in name_upper or name_upper in key:
+                return val
+        return name.strip()
+    
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            await page.goto(url, timeout=30000)
+            await page.wait_for_load_state("networkidle")
+            await page.wait_for_timeout(3000)
+            
+            # Extract games
+            games = await page.evaluate("""() => {
+                const games = [];
+                const cards = document.querySelectorAll('.single-score-card');
+                
+                cards.forEach((card) => {
+                    try {
+                        const rawText = card.innerText;
+                        const lines = rawText.split('\\n').filter(l => l.trim());
+                        
+                        // Find team names - typically first two valid text entries
+                        const teamLines = [];
+                        const skipPatterns = ['pm', 'am', 'ESPN', 'TNT', 'NBA', 'TV', 'Preview', 'Expert', 'StubHub', 'NBATV'];
+                        
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed.length >= 2 && 
+                                trimmed.length < 25 &&
+                                !skipPatterns.some(p => trimmed.toUpperCase().includes(p)) &&
+                                !/^\\d+$/.test(trimmed) &&
+                                !/^\\d+:\\d+/.test(trimmed) &&
+                                !/^o\\d/.test(trimmed) &&
+                                !/^[+-]\\d/.test(trimmed)) {
+                                teamLines.push(trimmed);
+                            }
+                        }
+                        
+                        if (teamLines.length < 2) return;
+                        
+                        const awayTeam = teamLines[0];
+                        const homeTeam = teamLines[1];
+                        
+                        // Get time
+                        let time = '';
+                        for (const line of lines) {
+                            if (/^\\d+:\\d+\\s*(am|pm)?/i.test(line.trim())) {
+                                time = line.trim();
+                                break;
+                            }
+                        }
+                        
+                        // Get total
+                        let total = null;
+                        const totalMatch = rawText.match(/o(\\d+\\.?\\d*)/);
+                        if (totalMatch) total = parseFloat(totalMatch[1]);
+                        
+                        // Get spread
+                        let spread = null;
+                        const spreadMatches = rawText.match(/([+-]\\d+\\.?\\d*)/g);
+                        if (spreadMatches && spreadMatches.length > 0) {
+                            spread = parseFloat(spreadMatches[0]);
+                        }
+                        
+                        // Get scores if game is finished
+                        const scoreEls = card.querySelectorAll('.total-score');
+                        const scores = [];
+                        scoreEls.forEach(s => {
+                            const num = parseInt(s.innerText.trim());
+                            if (!isNaN(num)) scores.push(num);
+                        });
+                        
+                        const game = {
+                            away_team: awayTeam,
+                            home_team: homeTeam,
+                            time: time,
+                            total: total,
+                            opening_line: total,
+                            spread: spread
+                        };
+                        
+                        if (scores.length >= 2) {
+                            game.away_score = scores[0];
+                            game.home_score = scores[1];
+                            game.final_score = scores[0] + scores[1];
+                        }
+                        
+                        games.push(game);
+                    } catch(e) {}
+                });
+                
+                return games;
+            }""")
+            
+            await browser.close()
+            
+            # Normalize team names
+            for game in games:
+                game['away_team'] = normalize_nba_team(game.get('away_team', ''))
+                game['home_team'] = normalize_nba_team(game.get('home_team', ''))
+            
+            logger.info(f"Scraped {len(games)} NBA games from CBS Sports for {target_date}")
+            return games
+            
+    except Exception as e:
+        logger.error(f"Error scraping CBS Sports NBA: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
+    """
+    Scrape NHL games and lines from CBS Sports.
+    Fallback when scoresandodds.com is blocked.
+    
+    Args:
+        target_date: Date in 'YYYY-MM-DD' format
+    
+    Returns:
+        List of games with teams, totals, spreads, times
+    """
+    from playwright.async_api import async_playwright
+    
+    # Convert date format
+    date_for_url = target_date.replace("-", "")
+    url = f"https://www.cbssports.com/nhl/scoreboard/{date_for_url}/"
+    
+    logger.info(f"Scraping CBS Sports NHL: {url}")
+    
+    # NHL team name mapping
+    nhl_team_map = {
+        'WSH': 'Washington', 'CAPITALS': 'Washington', 'CAPS': 'Washington',
+        'BOS': 'Boston', 'BRUINS': 'Boston',
+        'NYR': 'NY Rangers', 'RANGERS': 'NY Rangers',
+        'NYI': 'NY Islanders', 'ISLANDERS': 'NY Islanders',
+        'PHI': 'Philadelphia', 'FLYERS': 'Philadelphia',
+        'PIT': 'Pittsburgh', 'PENGUINS': 'Pittsburgh', 'PENS': 'Pittsburgh',
+        'NJD': 'New Jersey', 'NJ': 'New Jersey', 'DEVILS': 'New Jersey',
+        'CBJ': 'Columbus', 'BLUE JACKETS': 'Columbus', 'JACKETS': 'Columbus',
+        'CAR': 'Carolina', 'HURRICANES': 'Carolina', 'CANES': 'Carolina',
+        'FLA': 'Florida', 'PANTHERS': 'Florida',
+        'TBL': 'Tampa Bay', 'TB': 'Tampa Bay', 'LIGHTNING': 'Tampa Bay', 'BOLTS': 'Tampa Bay',
+        'TOR': 'Toronto', 'MAPLE LEAFS': 'Toronto', 'LEAFS': 'Toronto',
+        'MTL': 'Montreal', 'MON': 'Montreal', 'CANADIENS': 'Montreal', 'HABS': 'Montreal',
+        'OTT': 'Ottawa', 'SENATORS': 'Ottawa', 'SENS': 'Ottawa',
+        'BUF': 'Buffalo', 'SABRES': 'Buffalo',
+        'DET': 'Detroit', 'RED WINGS': 'Detroit',
+        'CHI': 'Chicago', 'BLACKHAWKS': 'Chicago', 'HAWKS': 'Chicago',
+        'STL': 'St. Louis', 'BLUES': 'St. Louis',
+        'NSH': 'Nashville', 'PREDATORS': 'Nashville', 'PREDS': 'Nashville',
+        'DAL': 'Dallas', 'STARS': 'Dallas',
+        'MIN': 'Minnesota', 'WILD': 'Minnesota',
+        'WPG': 'Winnipeg', 'JETS': 'Winnipeg',
+        'COL': 'Colorado', 'AVALANCHE': 'Colorado', 'AVS': 'Colorado',
+        'ARI': 'Utah', 'UTA': 'Utah', 'UTAH HC': 'Utah',  # Arizona moved to Utah
+        'VGK': 'Vegas', 'LV': 'Vegas', 'GOLDEN KNIGHTS': 'Vegas', 'KNIGHTS': 'Vegas',
+        'SEA': 'Seattle', 'KRAKEN': 'Seattle',
+        'SJS': 'San Jose', 'SJ': 'San Jose', 'SHARKS': 'San Jose',
+        'LAK': 'LA Kings', 'LA': 'LA Kings', 'KINGS': 'LA Kings',
+        'ANA': 'Anaheim', 'DUCKS': 'Anaheim',
+        'EDM': 'Edmonton', 'OILERS': 'Edmonton',
+        'CGY': 'Calgary', 'FLAMES': 'Calgary',
+        'VAN': 'Vancouver', 'CANUCKS': 'Vancouver',
+    }
+    
+    def normalize_nhl_team(name):
+        if not name:
+            return name
+        name_upper = name.upper().strip()
+        for key, val in nhl_team_map.items():
+            if key in name_upper or name_upper in key:
+                return val
+        return name.strip()
+    
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            await page.goto(url, timeout=30000)
+            await page.wait_for_load_state("networkidle")
+            await page.wait_for_timeout(3000)
+            
+            # Extract games
+            games = await page.evaluate("""() => {
+                const games = [];
+                const cards = document.querySelectorAll('.single-score-card');
+                
+                cards.forEach((card) => {
+                    try {
+                        const rawText = card.innerText;
+                        const lines = rawText.split('\\n').filter(l => l.trim());
+                        
+                        const teamLines = [];
+                        const skipPatterns = ['pm', 'am', 'ESPN', 'TNT', 'NHL', 'TV', 'Preview', 'Expert', 'StubHub'];
+                        
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed.length >= 2 && 
+                                trimmed.length < 25 &&
+                                !skipPatterns.some(p => trimmed.toUpperCase().includes(p)) &&
+                                !/^\\d+$/.test(trimmed) &&
+                                !/^\\d+:\\d+/.test(trimmed) &&
+                                !/^o\\d/.test(trimmed) &&
+                                !/^[+-]\\d/.test(trimmed)) {
+                                teamLines.push(trimmed);
+                            }
+                        }
+                        
+                        if (teamLines.length < 2) return;
+                        
+                        const awayTeam = teamLines[0];
+                        const homeTeam = teamLines[1];
+                        
+                        let time = '';
+                        for (const line of lines) {
+                            if (/^\\d+:\\d+\\s*(am|pm)?/i.test(line.trim())) {
+                                time = line.trim();
+                                break;
+                            }
+                        }
+                        
+                        let total = null;
+                        const totalMatch = rawText.match(/o(\\d+\\.?\\d*)/);
+                        if (totalMatch) total = parseFloat(totalMatch[1]);
+                        
+                        let spread = null;
+                        const spreadMatches = rawText.match(/([+-]\\d+\\.?\\d*)/g);
+                        if (spreadMatches && spreadMatches.length > 0) {
+                            spread = parseFloat(spreadMatches[0]);
+                        }
+                        
+                        const scoreEls = card.querySelectorAll('.total-score');
+                        const scores = [];
+                        scoreEls.forEach(s => {
+                            const num = parseInt(s.innerText.trim());
+                            if (!isNaN(num)) scores.push(num);
+                        });
+                        
+                        const game = {
+                            away_team: awayTeam,
+                            home_team: homeTeam,
+                            time: time,
+                            total: total,
+                            opening_line: total,
+                            spread: spread
+                        };
+                        
+                        if (scores.length >= 2) {
+                            game.away_score = scores[0];
+                            game.home_score = scores[1];
+                            game.final_score = scores[0] + scores[1];
+                        }
+                        
+                        games.push(game);
+                    } catch(e) {}
+                });
+                
+                return games;
+            }""")
+            
+            await browser.close()
+            
+            # Normalize team names
+            for game in games:
+                game['away_team'] = normalize_nhl_team(game.get('away_team', ''))
+                game['home_team'] = normalize_nhl_team(game.get('home_team', ''))
+            
+            logger.info(f"Scraped {len(games)} NHL games from CBS Sports for {target_date}")
+            return games
+            
+    except Exception as e:
+        logger.error(f"Error scraping CBS Sports NHL: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
 async def scrape_cbssports_ncaab_with_team_urls(target_date: str) -> Tuple[List[Dict], Dict[str, str]]:
     """
     Scrape NCAAB games from CBS Sports including team URLs for Last 3 PPG lookup.
