@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-NCAAB PPG scraper - scrapes ONLY teams playing today.
+NCAAB PPG scraper - scrapes ONLY teams playing on the target date.
+Uses TARGET_DATE env var (defaults to tomorrow if not set).
 """
 import asyncio
 import re
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pymongo import MongoClient
 
 client = MongoClient(os.environ.get('MONGO_URL', 'mongodb://localhost:27017'))
@@ -14,13 +15,17 @@ db = client[os.environ.get('DB_NAME', 'test_database')]
 async def main():
     from playwright.async_api import async_playwright
     
-    today = datetime.now().strftime('%Y-%m-%d')
-    date_url = today.replace("-", "")
+    # Get target date from environment or default to tomorrow
+    target_date = os.environ.get('TARGET_DATE')
+    if not target_date:
+        target_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
     
-    print(f"[NCAAB PPG] Starting for {today}")
+    date_url = target_date.replace("-", "")
+    
+    print(f"[NCAAB PPG] Starting for {target_date}")
     
     # Get existing games from database
-    existing = db.ncaab_opportunities.find_one({"date": today})
+    existing = db.ncaab_opportunities.find_one({"date": target_date})
     existing_games = existing.get('games', []) if existing else []
     existing_plays = existing.get('plays', []) if existing else []
     
