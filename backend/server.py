@@ -9736,44 +9736,54 @@ async def update_nba_bet_results(date: str = None):
             # WIN
             # 12/29/2025 02:10 PM
             
-            # Parse by looking for NBA sport entries
+            # Parse by looking for NBA sport entries followed by TOTAL bets
             i = 0
             while i < len(lines):
                 line = lines[i].strip()
                 
                 # Look for the "NBA" sport marker (on its own line)
                 if line.upper() == 'NBA':
-                    # Look in a window around this line for bet details
-                    context_start = max(0, i - 5)
-                    context_end = min(len(lines), i + 15)
-                    context_lines = lines[context_start:context_end]
-                    context = ' '.join([l.strip() for l in context_lines])
+                    # Look FORWARD from NBA marker (not backwards) for bet details
+                    # The structure is: NBA -> STRAIGHT BET -> [ID] TOTAL oXXX -> (TEAM vrs TEAM) -> amounts -> WIN/LOSE
+                    forward_start = i
+                    forward_end = min(len(lines), i + 12)  # Result is usually within 12 lines forward
+                    forward_lines = lines[forward_start:forward_end]
+                    forward_context = ' '.join([l.strip() for l in forward_lines])
+                    
+                    # Also check backward for date context
+                    backward_context = ' '.join([l.strip() for l in lines[max(0, i-5):i]])
+                    full_context = backward_context + ' ' + forward_context
                     
                     # Check if this bet is for the target date
-                    if search_date in context or search_date_alt in context or f"Dec {int(date_parts[2])}" in context:
+                    if search_date in full_context or search_date_alt in full_context or f"Dec {int(date_parts[2])}" in full_context:
                         # Extract the bet line (e.g., "TOTAL o244-110" or "TOTAL u220-120")
-                        total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)[½]?', context, re.IGNORECASE)
+                        total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)[½]?', forward_context, re.IGNORECASE)
                         
                         # Extract teams (e.g., "(DENVER NUGGETS vrs MIAMI HEAT)")
-                        teams_match = re.search(r'\(([A-Z\s]+)\s+vrs\s+([A-Z\s]+)\)', context, re.IGNORECASE)
-                        
-                        # Extract result - look for WIN or LOSE patterns
-                        result = None
-                        result_match = re.search(r'\b(WIN|LOSE|LOSS|PUSH)\b', context, re.IGNORECASE)
-                        if result_match:
-                            res = result_match.group(1).upper()
-                            if res == 'WIN':
-                                result = 'won'
-                            elif res in ['LOSE', 'LOSS']:
-                                result = 'lost'
-                            elif res == 'PUSH':
-                                result = 'push'
+                        teams_match = re.search(r'\(([A-Z\s]+)\s+vrs\s+([A-Z\s]+)\)', forward_context, re.IGNORECASE)
                         
                         if total_match and teams_match:
                             bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
                             bet_line = float(total_match.group(2).replace('½', '.5'))
                             away_team = normalize_team(teams_match.group(1))
                             home_team = normalize_team(teams_match.group(2))
+                            
+                            # Extract result - look for WIN or LOSE AFTER the teams in forward context
+                            # Find where teams appear and look after that
+                            result = None
+                            teams_pos = forward_context.upper().find('VRS')
+                            if teams_pos > 0:
+                                # Look for result after teams
+                                after_teams = forward_context[teams_pos:]
+                                result_match = re.search(r'\b(WIN|LOSE|LOSS|PUSH)\b', after_teams, re.IGNORECASE)
+                                if result_match:
+                                    res = result_match.group(1).upper()
+                                    if res == 'WIN':
+                                        result = 'won'
+                                    elif res in ['LOSE', 'LOSS']:
+                                        result = 'lost'
+                                    elif res == 'PUSH':
+                                        result = 'push'
                             
                             # Avoid duplicates - check if same teams/line already added
                             is_duplicate = any(
