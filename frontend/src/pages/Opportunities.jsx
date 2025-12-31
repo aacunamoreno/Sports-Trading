@@ -457,6 +457,15 @@ export default function Opportunities() {
               <span className={updatingRecords ? 'animate-spin' : ''}>📊</span>
               {updatingRecords ? 'Updating...' : 'Update Records'}
             </Button>
+            <Button 
+              onClick={handleScrapeOpeners} 
+              disabled={scrapingOpeners}
+              variant="outline"
+              className="flex items-center gap-2 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+            >
+              <Calendar className={`w-4 h-4 ${scrapingOpeners ? 'animate-pulse' : ''}`} />
+              {scrapingOpeners ? 'Scraping...' : 'Scrape Tomorrow (8pm Job)'}
+            </Button>
           </div>
         </div>
         
