@@ -218,6 +218,42 @@ export default function Opportunities() {
     }
   };
 
+  // Scrape Tomorrow's Opening Lines (8pm Job)
+  const [scrapingOpeners, setScrapingOpeners] = useState(false);
+  
+  const handleScrapeOpeners = async () => {
+    setScrapingOpeners(true);
+    toast.info('Scraping tomorrow\'s opening lines...');
+    try {
+      // Get tomorrow's date in Arizona timezone
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const targetDate = tomorrow.toISOString().split('T')[0];
+      
+      const response = await axios.post(`${API}/process/scrape-openers?target_date=${targetDate}`, {}, { timeout: 180000 });
+      
+      if (response.data.status === 'success' || response.data.status === 'partial') {
+        const leagues = response.data.leagues;
+        const summary = Object.entries(leagues)
+          .map(([l, d]) => `${l}: ${d.games_stored} games`)
+          .join(', ');
+        toast.success(`Opening lines scraped! ${summary}`);
+        
+        // If viewing tomorrow, refresh the data
+        if (day === 'tomorrow') {
+          loadOpportunities();
+        }
+      } else {
+        toast.error('Failed to scrape opening lines');
+      }
+    } catch (error) {
+      console.error('Error scraping openers:', error);
+      toast.error('Failed to scrape opening lines');
+    } finally {
+      setScrapingOpeners(false);
+    }
+  };
+
   // Export to Excel - using anchor element for reliable direct download
   const handleExport = async () => {
     setExporting(true);
