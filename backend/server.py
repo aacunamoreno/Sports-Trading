@@ -9881,6 +9881,299 @@ async def update_nba_bet_results(date: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/bets/nhl/update-results")
+async def update_nhl_bet_results(date: str = None):
+    """
+    Update NHL bet results from plays888.co History page.
+    Marks games with user bets and their win/loss status.
+    Shows the exact line the bet was placed at (bet_line).
+    
+    NHL bets can appear as:
+    1. Sport marker "NHL" with "OT Included" or just TOTAL
+    2. Sport marker "SOC" with "NHL - Regulation Time Only" in description
+    
+    Args:
+        date: Date in YYYY-MM-DD format. Defaults to yesterday.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import timedelta
+        import re
+        
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        # Default to yesterday if no date provided
+        if not date:
+            yesterday = datetime.now(arizona_tz) - timedelta(days=1)
+            date = yesterday.strftime('%Y-%m-%d')
+        
+        logger.info(f"[NHL Bet Results] Updating bet results for {date}")
+        
+        # Get database games for that date
+        db_data = await db.nhl_opportunities.find_one({"date": date}, {"_id": 0})
+        if not db_data:
+            raise HTTPException(status_code=404, detail=f"No NHL data found for {date}")
+        
+        db_games = db_data.get('games', [])
+        logger.info(f"[NHL Bet Results] Found {len(db_games)} games in database")
+        
+        # Scrape bet history from plays888.co
+        settled_bets = []
+        
+        # Initialize Plays888 service
+        service = Plays888Service()
+        await service.initialize()
+        
+        try:
+            # Login with account jac075
+            login_result = await service.login("jac075", "acuna2025!")
+            if not login_result.get('success'):
+                raise HTTPException(status_code=401, detail="Failed to login to plays888")
+            
+            logger.info("[NHL Bet Results] Logged in to plays888.co")
+            
+            # Navigate to History page
+            await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
+            await service.page.wait_for_load_state('domcontentloaded')
+            await service.page.wait_for_timeout(3000)
+            
+            # Get page text
+            page_text = await service.page.inner_text('body')
+            logger.info(f"[NHL Bet Results] Got history page ({len(page_text)} chars)")
+            
+            # Parse settled bets
+            lines = page_text.split('\n')
+            
+            # NHL team mapping for matching
+            NHL_TEAMS = {
+                'ANAHEIM': 'Anaheim', 'DUCKS': 'Anaheim',
+                'ARIZONA': 'Arizona', 'COYOTES': 'Arizona',
+                'BOSTON': 'Boston', 'BRUINS': 'Boston',
+                'BUFFALO': 'Buffalo', 'SABRES': 'Buffalo',
+                'CALGARY': 'Calgary', 'FLAMES': 'Calgary',
+                'CAROLINA': 'Carolina', 'HURRICANES': 'Carolina',
+                'CHICAGO': 'Chicago', 'BLACKHAWKS': 'Chicago',
+                'COLORADO': 'Colorado', 'AVALANCHE': 'Colorado',
+                'COLUMBUS': 'Columbus', 'BLUE JACKETS': 'Columbus',
+                'DALLAS': 'Dallas', 'STARS': 'Dallas',
+                'DETROIT': 'Detroit', 'RED WINGS': 'Detroit',
+                'EDMONTON': 'Edmonton', 'OILERS': 'Edmonton',
+                'FLORIDA': 'Florida', 'PANTHERS': 'Florida',
+                'LOS ANGELES': 'Los Angeles', 'KINGS': 'Los Angeles', 'LA KINGS': 'Los Angeles',
+                'MINNESOTA': 'Minnesota', 'WILD': 'Minnesota',
+                'MONTREAL': 'Montreal', 'CANADIENS': 'Montreal',
+                'NASHVILLE': 'Nashville', 'PREDATORS': 'Nashville',
+                'NEW JERSEY': 'New Jersey', 'DEVILS': 'New Jersey',
+                'NEW YORK ISLANDERS': 'NY Islanders', 'ISLANDERS': 'NY Islanders',
+                'NEW YORK RANGERS': 'NY Rangers', 'RANGERS': 'NY Rangers',
+                'OTTAWA': 'Ottawa', 'SENATORS': 'Ottawa',
+                'PHILADELPHIA': 'Philadelphia', 'FLYERS': 'Philadelphia',
+                'PITTSBURGH': 'Pittsburgh', 'PENGUINS': 'Pittsburgh',
+                'SAN JOSE': 'San Jose', 'SHARKS': 'San Jose',
+                'SEATTLE': 'Seattle', 'KRAKEN': 'Seattle',
+                'ST. LOUIS': 'St. Louis', 'BLUES': 'St. Louis', 'ST LOUIS': 'St. Louis',
+                'TAMPA BAY': 'Tampa Bay', 'LIGHTNING': 'Tampa Bay',
+                'TORONTO': 'Toronto', 'MAPLE LEAFS': 'Toronto',
+                'UTAH': 'Utah',
+                'VANCOUVER': 'Vancouver', 'CANUCKS': 'Vancouver',
+                'VEGAS': 'Vegas', 'GOLDEN KNIGHTS': 'Vegas', 'VGK': 'Vegas',
+                'WASHINGTON': 'Washington', 'CAPITALS': 'Washington',
+                'WINNIPEG': 'Winnipeg', 'JETS': 'Winnipeg'
+            }
+            
+            def normalize_team(team_str):
+                if not team_str:
+                    return None
+                # Clean up REG.TIME suffix
+                team_upper = team_str.upper().strip().replace(' REG.TIME', '').replace('REG.TIME', '')
+                for key, value in NHL_TEAMS.items():
+                    if key in team_upper:
+                        return value
+                return team_str.strip().replace(' REG.TIME', '')
+            
+            # Convert date format from YYYY-MM-DD to M/DD/YYYY for matching
+            date_parts = date.split('-')
+            search_date = f"{int(date_parts[1])}/{int(date_parts[2])}/{date_parts[0]}"
+            search_date_alt = f"{date_parts[1]}/{date_parts[2]}/{date_parts[0]}"
+            
+            # Map month number to name for date matching
+            month_names = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                         7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'}
+            month_name = month_names.get(int(date_parts[1]), '')
+            
+            logger.info(f"[NHL Bet Results] Looking for bets on {search_date} or {month_name} {int(date_parts[2])}")
+            
+            # NHL bets can appear in two formats:
+            # 1. Sport = "NHL" with "OT Included" or regular TOTAL
+            # 2. Sport = "SOC" but description contains "NHL - Regulation Time Only"
+            
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+                
+                # Check for direct NHL marker
+                is_nhl_bet = line.upper() == 'NHL'
+                
+                # Check for SOC marker that might be an NHL Regulation Time bet
+                is_reg_time_bet = False
+                if line.upper() == 'SOC':
+                    # Look ahead for "NHL - Regulation Time" in description
+                    look_ahead = ' '.join([l.strip() for l in lines[i:min(len(lines), i+5)]])
+                    if 'NHL' in look_ahead.upper() and 'REGULATION' in look_ahead.upper():
+                        is_reg_time_bet = True
+                
+                if is_nhl_bet or is_reg_time_bet:
+                    # Look FORWARD for bet details
+                    forward_start = i
+                    forward_end = min(len(lines), i + 15)  # NHL bets may have more lines
+                    forward_lines = lines[forward_start:forward_end]
+                    forward_context = ' '.join([l.strip() for l in forward_lines])
+                    
+                    # Also check backward for date context
+                    backward_context = ' '.join([l.strip() for l in lines[max(0, i-5):i]])
+                    full_context = backward_context + ' ' + forward_context
+                    
+                    # Check if this bet is for the target date
+                    if search_date in full_context or search_date_alt in full_context or f"{month_name} {int(date_parts[2])}" in full_context:
+                        # Extract the bet line (e.g., "TOTAL o5½-125" or "TOTAL u6-110")
+                        # Handle half values with ½ symbol
+                        total_match = re.search(r'TOTAL\s+([ou])(\d+)[½]?\.?(\d*)', forward_context, re.IGNORECASE)
+                        
+                        # Extract teams - handle REG.TIME suffix
+                        # Pattern: (TEAM1 [REG.TIME] vrs TEAM2 [REG.TIME])
+                        teams_match = re.search(r'\(([A-Z\s\.]+?)\s+vrs\s+([A-Z\s\.]+?)\)', forward_context, re.IGNORECASE)
+                        
+                        if total_match and teams_match:
+                            bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
+                            # Handle half values
+                            base_num = float(total_match.group(2))
+                            if '½' in forward_context[total_match.start():total_match.end()+2]:
+                                bet_line = base_num + 0.5
+                            elif total_match.group(3):
+                                bet_line = float(f"{total_match.group(2)}.{total_match.group(3)}")
+                            else:
+                                bet_line = base_num
+                            
+                            away_team = normalize_team(teams_match.group(1))
+                            home_team = normalize_team(teams_match.group(2))
+                            
+                            # Extract result - look for WIN or LOSE AFTER the teams
+                            result = None
+                            teams_pos = forward_context.upper().find('VRS')
+                            if teams_pos > 0:
+                                after_teams = forward_context[teams_pos:]
+                                result_match = re.search(r'\b(WIN|LOSE|LOSS|PUSH)\b', after_teams, re.IGNORECASE)
+                                if result_match:
+                                    res = result_match.group(1).upper()
+                                    if res == 'WIN':
+                                        result = 'won'
+                                    elif res in ['LOSE', 'LOSS']:
+                                        result = 'lost'
+                                    elif res == 'PUSH':
+                                        result = 'push'
+                            
+                            # Avoid duplicates
+                            is_duplicate = any(
+                                b['away_team'] == away_team and 
+                                b['home_team'] == home_team and 
+                                b['bet_line'] == bet_line 
+                                for b in settled_bets
+                            )
+                            
+                            if not is_duplicate:
+                                bet_info = {
+                                    'away_team': away_team,
+                                    'home_team': home_team,
+                                    'bet_type': bet_type,
+                                    'bet_line': bet_line,
+                                    'result': result,
+                                    'is_reg_time': is_reg_time_bet
+                                }
+                                settled_bets.append(bet_info)
+                                reg_marker = " (REG TIME)" if is_reg_time_bet else ""
+                                logger.info(f"[NHL Bet Results] Found: {away_team} @ {home_team} {bet_type} {bet_line}{reg_marker} -> {result}")
+                
+                i += 1
+            
+        finally:
+            await service.close()
+        
+        logger.info(f"[NHL Bet Results] Found {len(settled_bets)} settled NHL bets for {date}")
+        
+        # Match bets to games and update
+        bets_matched = 0
+        wins = 0
+        losses = 0
+        
+        def match_teams(db_game, bet):
+            db_away = db_game.get('away_team', '').lower()
+            db_home = db_game.get('home_team', '').lower()
+            bet_away = (bet.get('away_team') or '').lower()
+            bet_home = (bet.get('home_team') or '').lower()
+            
+            # Match by team names (partial match for variations)
+            away_match = bet_away in db_away or db_away in bet_away or \
+                        any(word in db_away for word in bet_away.split() if len(word) > 3)
+            home_match = bet_home in db_home or db_home in bet_home or \
+                        any(word in db_home for word in bet_home.split() if len(word) > 3)
+            
+            return away_match and home_match
+        
+        for game in db_games:
+            # Find matching bet
+            for bet in settled_bets:
+                if match_teams(game, bet):
+                    game['user_bet'] = True
+                    game['bet_line'] = bet['bet_line']
+                    game['bet_type'] = bet['bet_type']
+                    game['has_bet'] = True
+                    game['is_reg_time_bet'] = bet.get('is_reg_time', False)
+                    
+                    # Determine if bet hit
+                    if bet['result'] == 'won':
+                        game['user_bet_hit'] = True
+                        wins += 1
+                    elif bet['result'] == 'lost':
+                        game['user_bet_hit'] = False
+                        losses += 1
+                    else:
+                        game['user_bet_hit'] = None  # Push
+                    
+                    bets_matched += 1
+                    logger.info(f"[NHL Bet Results] Matched: {game.get('away_team')} @ {game.get('home_team')} -> {bet['result']}")
+                    break
+        
+        # Save to database
+        await db.nhl_opportunities.update_one(
+            {"date": date},
+            {"$set": {
+                "games": db_games,
+                "bet_results_updated": datetime.now(arizona_tz).isoformat()
+            }}
+        )
+        
+        logger.info(f"[NHL Bet Results] Updated {bets_matched} games with bet results")
+        
+        return {
+            "success": True,
+            "date": date,
+            "message": f"Updated {bets_matched} NHL games with bet results",
+            "bets_found": len(settled_bets),
+            "bets_matched": bets_matched,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": f"{wins/(wins+losses)*100:.1f}%" if wins + losses > 0 else "N/A"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating NHL bet results: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/opportunities/nhl/manual")
 async def add_nhl_manual_data(data: dict):
     """
