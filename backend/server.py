@@ -9453,6 +9453,32 @@ async def update_ncaab_ppg_from_cbs(target_date: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/ppg/upload-file")
+async def upload_ppg_file(file: UploadFile):
+    """
+    Upload PPG Excel file to server.
+    Saves to /tmp/PPG.xlsx for processing.
+    """
+    try:
+        # Read file content
+        content = await file.read()
+        
+        # Save to /tmp/PPG.xlsx
+        with open('/tmp/PPG.xlsx', 'wb') as f:
+            f.write(content)
+        
+        logger.info(f"[PPG Upload] Saved PPG.xlsx ({len(content)} bytes)")
+        
+        return {
+            "success": True,
+            "message": "PPG file uploaded successfully",
+            "size": len(content)
+        }
+    except Exception as e:
+        logger.error(f"Error uploading PPG file: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/ppg/upload-excel")
 async def upload_ppg_excel(league: str, target_date: str = None):
     """
