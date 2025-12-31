@@ -9675,16 +9675,20 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 away_season = away_data.get('season_ppg') if away_data else None
                 home_season = home_data.get('season_ppg') if home_data else None
             
-            # Calculate average of Season + Last3 for each team
-            away_avg = round((away_season + away_l3) / 2, 1) if away_season and away_l3 else None
-            home_avg = round((home_season + home_l3) / 2, 1) if home_season and home_l3 else None
+            # Calculate average of Season + Last3 for each team (keep precision until final)
+            away_avg_raw = (away_season + away_l3) / 2 if away_season and away_l3 else None
+            home_avg_raw = (home_season + home_l3) / 2 if home_season and home_l3 else None
+            
+            # Round for display
+            away_avg = round(away_avg_raw, 1) if away_avg_raw else None
+            home_avg = round(home_avg_raw, 1) if home_avg_raw else None
             
             away_rank = last3_ranks.get(away_data['team']) if away_data and away_data.get('team') in last3_ranks else None
             home_rank = last3_ranks.get(home_data['team']) if home_data and home_data.get('team') in last3_ranks else None
             
-            # Combined = Away avg + Home avg
-            combined = round(away_avg + home_avg, 1) if away_avg and home_avg else None
-            if away_avg and home_avg:
+            # Combined = Away avg + Home avg (use raw values for precision, round final)
+            combined = round(away_avg_raw + home_avg_raw, 1) if away_avg_raw and home_avg_raw else None
+            if away_avg_raw and home_avg_raw:
                 games_with_ppg += 1
             
             line = game.get('total') or game.get('opening_line')
