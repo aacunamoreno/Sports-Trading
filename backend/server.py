@@ -7920,6 +7920,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 bet_sport = bet.get('sport', '').upper()
                 bet_ticket = bet.get('ticket_id')
                 bet_description = bet.get('description', '').upper()
+                bet_risk = bet.get('risk', 0) or bet.get('total_risk', 0) or 0
                 
                 # Get team names from bet data
                 bet_away = bet.get('away_team', '').upper()
@@ -7941,6 +7942,14 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     is_league_match = True
                 
                 if not is_league_match:
+                    continue
+                
+                # Filter by bet amount:
+                # - NBA/NHL: Only count bets with $2,000+ risk (ignore $1,000 bets)
+                # - NCAAB: Count all bets including $1,000
+                min_bet_amount = 1800 if league.upper() in ['NBA', 'NHL'] else 0  # Use 1800 to account for rounding
+                if bet_risk > 0 and bet_risk < min_bet_amount:
+                    logger.info(f"[Refresh Bets] Skipping low-amount bet for {league}: ${bet_risk} < ${min_bet_amount} ({bet_away} vs {bet_home})")
                     continue
                 
                 # Helper function to normalize team names for matching
