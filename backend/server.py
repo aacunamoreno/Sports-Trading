@@ -10484,28 +10484,33 @@ async def update_ncaab_bet_results(date: str = None):
                     logger.info(f"[NCAAB Bet Results] Matched: {game.get('away_team')} @ {game.get('home_team')} ({bet_type_str}) -> {bet['result']}")
                     break
         
-        # Save to database
+        # Save to database - also store the actual bet record from History
         await db.ncaab_opportunities.update_one(
             {"date": date},
             {"$set": {
                 "games": db_games,
-                "bet_results_updated": datetime.now(arizona_tz).isoformat()
+                "bet_results_updated": datetime.now(arizona_tz).isoformat(),
+                "actual_bet_record": {
+                    "wins": all_wins,
+                    "losses": all_losses,
+                    "total_bets": total_bets
+                }
             }}
         )
         
-        logger.info(f"[NCAAB Bet Results] Updated {bets_matched} games with bet results")
+        logger.info(f"[NCAAB Bet Results] Updated {bets_matched} games with bet results. Actual record: {all_wins}-{all_losses}")
         
         return {
             "success": True,
             "date": date,
-            "message": f"Updated {bets_matched} NCAAB games with bet results",
+            "message": f"Updated {bets_matched} NCAAB games with bet results. Actual record: {all_wins}-{all_losses}",
             "bets_found": total_bets,
             "total_bets": total_bet_count,
             "spread_bets": spread_bets,
             "bets_matched": bets_matched,
-            "wins": wins,
-            "losses": losses,
-            "win_rate": f"{wins/(wins+losses)*100:.1f}%" if wins + losses > 0 else "N/A"
+            "wins": all_wins,
+            "losses": all_losses,
+            "win_rate": f"{all_wins/(all_wins+all_losses)*100:.1f}%" if all_wins + all_losses > 0 else "N/A"
         }
         
     except HTTPException:
