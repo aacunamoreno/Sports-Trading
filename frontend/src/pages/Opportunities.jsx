@@ -155,7 +155,7 @@ export default function Opportunities() {
   // Update yesterday's scores from CBS Sports
   const handleUpdateScores = async () => {
     setUpdatingScores(true);
-    toast.info('Fetching scores from ScoresAndOdds.com...');
+    toast.info('Fetching scores from CBS Sports...');
     try {
       // Get yesterday's date
       const yesterday = new Date();
