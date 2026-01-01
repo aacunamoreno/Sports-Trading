@@ -8080,45 +8080,54 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                         return ''
                     name = name.upper()
                     
-                    # Handle specific college team mappings FIRST (order matters!)
-                    specific_mappings = {
-                        # Directional schools (must be before generic replacements)
-                        'E. ILLINOIS': 'EASTERN ILLINOIS',
-                        'E ILLINOIS': 'EASTERN ILLINOIS',
-                        'W. ILLINOIS': 'WESTERN ILLINOIS',
-                        'W ILLINOIS': 'WESTERN ILLINOIS',
-                        'N. ILLINOIS': 'NORTHERN ILLINOIS',
-                        'N ILLINOIS': 'NORTHERN ILLINOIS',
-                        'S. ILLINOIS': 'SOUTHERN ILLINOIS',
-                        'S ILLINOIS': 'SOUTHERN ILLINOIS',
-                        'E. KENTUCKY': 'EASTERN KENTUCKY',
-                        'W. KENTUCKY': 'WESTERN KENTUCKY',
-                        'N. KENTUCKY': 'NORTHERN KENTUCKY',
-                        'E. MICHIGAN': 'EASTERN MICHIGAN',
-                        'W. MICHIGAN': 'WESTERN MICHIGAN',
-                        'N. IOWA': 'NORTHERN IOWA',
-                        'N IOWA': 'NORTHERN IOWA',
-                        'N. ARIZONA': 'NORTHERN ARIZONA',
-                        'N. COLORADO': 'NORTHERN COLORADO',
-                        'N. DAKOTA': 'NORTH DAKOTA',
-                        'S. DAKOTA': 'SOUTH DAKOTA',
-                        'W. VIRGINIA': 'WEST VIRGINIA',
-                        'N. CAROLINA': 'NORTH CAROLINA',
-                        'S. CAROLINA': 'SOUTH CAROLINA',
-                        'E. CAROLINA': 'EAST CAROLINA',
-                        'W. CAROLINA': 'WESTERN CAROLINA',
+                    # Handle specific college team mappings FIRST
+                    # Use word-boundary-safe replacements to avoid partial matches
+                    # (e.g., "EASTERN" shouldn't match "N ILLINOIS" pattern)
+                    
+                    # Directional replacements - match full team names or use regex for safety
+                    directional_mappings = [
+                        # Illinois schools (check full patterns first)
+                        (r'\bE\.?\s*ILLINOIS\b', 'EASTERN ILLINOIS'),
+                        (r'\bW\.?\s*ILLINOIS\b', 'WESTERN ILLINOIS'),
+                        (r'\bN\.?\s*ILLINOIS\b', 'NORTHERN ILLINOIS'),
+                        (r'\bS\.?\s*ILLINOIS\b', 'SOUTHERN ILLINOIS'),
+                        # Kentucky schools
+                        (r'\bE\.?\s*KENTUCKY\b', 'EASTERN KENTUCKY'),
+                        (r'\bW\.?\s*KENTUCKY\b', 'WESTERN KENTUCKY'),
+                        (r'\bN\.?\s*KENTUCKY\b', 'NORTHERN KENTUCKY'),
+                        # Michigan schools
+                        (r'\bE\.?\s*MICHIGAN\b', 'EASTERN MICHIGAN'),
+                        (r'\bW\.?\s*MICHIGAN\b', 'WESTERN MICHIGAN'),
+                        # Iowa
+                        (r'\bN\.?\s*IOWA\b', 'NORTHERN IOWA'),
+                        # Other states
+                        (r'\bN\.?\s*ARIZONA\b', 'NORTHERN ARIZONA'),
+                        (r'\bN\.?\s*COLORADO\b', 'NORTHERN COLORADO'),
+                        (r'\bN\.?\s*DAKOTA\b', 'NORTH DAKOTA'),
+                        (r'\bS\.?\s*DAKOTA\b', 'SOUTH DAKOTA'),
+                        (r'\bW\.?\s*VIRGINIA\b', 'WEST VIRGINIA'),
+                        (r'\bN\.?\s*CAROLINA\b', 'NORTH CAROLINA'),
+                        (r'\bS\.?\s*CAROLINA\b', 'SOUTH CAROLINA'),
+                        (r'\bE\.?\s*CAROLINA\b', 'EAST CAROLINA'),
+                        (r'\bW\.?\s*CAROLINA\b', 'WESTERN CAROLINA'),
+                        # Missouri schools
+                        (r'\bSE\.?\s*MISSOURI\s*ST\.?\b', 'SOUTHEAST MISSOURI STATE'),
+                        (r'\bSE\.?\s*MISSOURI\b', 'SOUTHEAST MISSOURI'),
+                        (r'\bMISSOURI\s*ST\.?\b', 'MISSOURI STATE'),
+                    ]
+                    
+                    import re
+                    for pattern, replacement in directional_mappings:
+                        name = re.sub(pattern, replacement, name)
+                    
+                    # Other specific mappings (simple string replacements)
+                    simple_mappings = {
                         # Tennessee schools
                         'UT MARTIN': 'TENNESSEE MARTIN',
                         'TENNESSEE-MARTIN': 'TENNESSEE MARTIN',
                         'MIDDLE TENN': 'MIDDLE TENNESSEE',
                         'E. TENNESSEE': 'EAST TENNESSEE',
                         'TENN. TECH': 'TENNESSEE TECH',
-                        # Missouri schools
-                        'SE MISSOURI': 'SOUTHEAST MISSOURI',
-                        'SE MISSOURI ST': 'SOUTHEAST MISSOURI STATE',
-                        'SE MISSOURI ST.': 'SOUTHEAST MISSOURI STATE',
-                        'MISSOURI ST': 'MISSOURI STATE',
-                        'MISSOURI ST.': 'MISSOURI STATE',
                         # Florida schools
                         'FGCU': 'FLORIDA GULF COAST',
                         'FLA GULF COAST': 'FLORIDA GULF COAST',
@@ -8144,7 +8153,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                         'ILLINOIS ST.': 'ILLINOIS STATE',
                         'ILLINOIS ST': 'ILLINOIS STATE',
                     }
-                    for abbrev, full in specific_mappings.items():
+                    for abbrev, full in simple_mappings.items():
                         if abbrev in name:
                             name = name.replace(abbrev, full)
                     
