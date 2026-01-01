@@ -402,19 +402,22 @@ export default function Opportunities() {
   };
 
   // Edge color based on league
-  // NBA: Red < 5, Green >= 5
-  // NHL: Red < 0.5, Green >= 0.5
-  // NCAAB: Red < 9, Green >= 9
+  // Edge styling: Green if edge meets threshold (positive OR negative)
+  // NBA: Green if |edge| >= 5
+  // NHL: Green if |edge| >= 0.5
+  // NCAAB: Green if |edge| >= 9
+  // A negative edge like -16.4 is a strong UNDER play, so it should be green
   const getEdgeStyle = (edge, currentLeague = league) => {
+    const absEdge = Math.abs(edge);
     if (currentLeague === 'NBA') {
-      if (edge >= 5) return 'text-green-400 font-bold';
+      if (absEdge >= 5) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
     } else if (currentLeague === 'NCAAB') {
-      if (edge >= 9) return 'text-green-400 font-bold';
+      if (absEdge >= 9) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
     } else {
       // NHL
-      if (edge >= 0.5) return 'text-green-400 font-bold';
+      if (absEdge >= 0.5) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
     }
   };
