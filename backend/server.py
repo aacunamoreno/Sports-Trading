@@ -10554,18 +10554,18 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'away_ppg_value': away_avg,  # Store the average
                 'away_last3_value': away_l3,
                 'away_season_ppg': away_season,
-                'away_ppg_rank': away_rank,
-                'away_last3_rank': away_rank,
+                'away_ppg_rank': away_season_rank,  # Season rank
+                'away_last3_rank': away_l3_rank,    # L3 rank
                 'home_ppg_value': home_avg,  # Store the average
                 'home_last3_value': home_l3,
                 'home_season_ppg': home_season,
-                'home_ppg_rank': home_rank,
-                'home_last3_rank': home_rank,
+                'home_ppg_rank': home_season_rank,  # Season rank
+                'home_last3_rank': home_l3_rank,    # L3 rank
                 'combined_ppg': combined,
                 'edge': edge,
                 'recommendation': rec,
-                'away_dots': get_dot(away_rank, total_teams),
-                'home_dots': get_dot(home_rank, total_teams)
+                'away_dots': get_dot(away_season_rank, total_teams) + get_dot(away_l3_rank, total_teams),
+                'home_dots': get_dot(home_season_rank, total_teams) + get_dot(home_l3_rank, total_teams)
             }
             updated_games.append(updated_game)
         
