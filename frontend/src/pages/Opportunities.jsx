@@ -152,15 +152,31 @@ export default function Opportunities() {
     }
   };
 
-  // Update yesterday's scores from CBS Sports
+  // Update scores for the currently viewed date from CBS Sports
   const handleUpdateScores = async () => {
     setUpdatingScores(true);
     toast.info('Fetching scores from CBS Sports...');
     try {
-      // Get yesterday's date
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const dateStr = yesterday.toISOString().split('T')[0];
+      // Get the date we're currently viewing
+      let dateStr;
+      if (day === 'yesterday') {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        dateStr = yesterday.toISOString().split('T')[0];
+      } else if (day === 'today') {
+        dateStr = new Date().toISOString().split('T')[0];
+      } else if (day === 'tomorrow') {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        dateStr = tomorrow.toISOString().split('T')[0];
+      } else if (customDate) {
+        dateStr = customDate;
+      } else {
+        // Default to yesterday
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        dateStr = yesterday.toISOString().split('T')[0];
+      }
       
       const endpoint = league === 'NBA' ? `/scores/nba/update?date=${dateStr}` 
                      : league === 'NHL' ? `/scores/nhl/update?date=${dateStr}`
@@ -169,7 +185,7 @@ export default function Opportunities() {
       const response = await axios.post(`${API}${endpoint}`, {}, { timeout: 120000 });
       
       if (response.data.success) {
-        toast.success(`Updated ${response.data.games_updated} games. Hit Rate: ${response.data.hit_rate}`);
+        toast.success(`Updated ${response.data.games_updated} games for ${dateStr}. Hit Rate: ${response.data.hit_rate}`);
         // Reload data to show updated scores
         await loadOpportunities();
       } else {
