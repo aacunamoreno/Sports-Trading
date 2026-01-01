@@ -3188,7 +3188,7 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
                                     // Look ahead for the score line (contains tabs and numbers)
                                     for (let j = i + 1; j < Math.min(i + 4, rawTextLines.length); j++) {
                                         const scoreLine = rawTextLines[j];
-                                        if (scoreLine.includes('\t') || /^[\d\s]+$/.test(scoreLine.replace(/\t/g, ' '))) {
+                                        if (scoreLine.includes('\\t') || /^[\\d\\s]+$/.test(scoreLine.replace(/\\t/g, ' '))) {
                                             const parts = scoreLine.trim().split(/\s+/);
                                             const lastNum = parts[parts.length - 1];
                                             const total = parseInt(lastNum);
@@ -3381,7 +3381,7 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
                                     // Look ahead for the score line (contains tabs and numbers)
                                     for (let j = i + 1; j < Math.min(i + 4, rawTextLines.length); j++) {
                                         const scoreLine = rawTextLines[j];
-                                        if (scoreLine.includes('\t') || /^[\d\s]+$/.test(scoreLine.replace(/\t/g, ' '))) {
+                                        if (scoreLine.includes('\\t') || /^[\\d\\s]+$/.test(scoreLine.replace(/\\t/g, ' '))) {
                                             const parts = scoreLine.trim().split(/\s+/);
                                             const lastNum = parts[parts.length - 1];
                                             const total = parseInt(lastNum);
@@ -3579,7 +3579,7 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                                     // Look ahead for the score line (contains tabs and numbers)
                                     for (let j = i + 1; j < Math.min(i + 4, rawTextLines.length); j++) {
                                         const scoreLine = rawTextLines[j];
-                                        if (scoreLine.includes('\t') || /^[\d\s]+$/.test(scoreLine.replace(/\t/g, ' '))) {
+                                        if (scoreLine.includes('\\t') || /^[\\d\\s]+$/.test(scoreLine.replace(/\\t/g, ' '))) {
                                             const parts = scoreLine.trim().split(/\s+/);
                                             const lastNum = parts[parts.length - 1];
                                             const total = parseInt(lastNum);
