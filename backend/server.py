@@ -11254,6 +11254,7 @@ async def update_nba_bet_results(date: str = None):
                     game['bet_line'] = bet['bet_line']
                     game['bet_type'] = bet['bet_type']
                     game['has_bet'] = True
+                    game['bet_result'] = bet['result']  # Store the raw result (won/lost/push)
                     
                     # Determine if bet hit
                     if bet['result'] == 'won':
@@ -11898,6 +11899,7 @@ async def update_ncaab_bet_results(date: str = None):
                     game['bet_type'] = bet['bet_type']
                     game['has_bet'] = True
                     game['is_spread_bet'] = bet.get('is_spread', False)
+                    game['bet_result'] = bet['result']  # Store the raw result (won/lost/push)
                     
                     # Determine if bet hit
                     if bet['result'] == 'won':
