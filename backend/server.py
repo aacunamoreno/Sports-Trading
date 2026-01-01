@@ -3570,7 +3570,7 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                         
                         if (isFinal) {
                             // Look for team rows with total scores
-                            // Format is like: "76ers\\n17-14\\n34\\t38\\t31\\t25\\t11\\t139"
+                            // Format is like: "Hurricanes\\n24-12-3\\n0\\t1\\t0\\t1" where last number is total
                             // The last number in each team's row is the total
                             for (let i = 0; i < rawTextLines.length; i++) {
                                 const line = rawTextLines[i].trim();
@@ -3583,7 +3583,7 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                                             const parts = scoreLine.trim().split(/\\s+/);
                                             const lastNum = parts[parts.length - 1];
                                             const total = parseInt(lastNum);
-                                            if (!isNaN(total) && total >= 60 && total <= 200) {
+                                            if (!isNaN(total) && total >= 0 && total <= 15) {
                                                 scores.push(total);
                                                 break;
                                             }
@@ -3592,19 +3592,27 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                                 }
                             }
                             
-                            // Alternative: look for T column values (total scores are usually 3-digit numbers)
+                            // Alternative: look for T column values - NHL scores are typically 0-12
                             if (scores.length < 2) {
-                                const allNums = rawText.match(/\\b(\\d{2,3})\\b/g) || [];
-                                const finalScores = allNums.filter(n => {
-                                    const num = parseInt(n);
-                                    return num >= 70 && num <= 200;
-                                });
-                                // Take the last two valid scores (home and away totals)
-                                if (finalScores.length >= 2) {
-                                    scores.length = 0;  // Clear any partial scores
-                                    // The totals are usually near the end of each team's row
-                                    scores.push(parseInt(finalScores[finalScores.length - 2]));
-                                    scores.push(parseInt(finalScores[finalScores.length - 1]));
+                                // For NHL, look for the "T" column values after team names
+                                // Format: "Hurricanes\\n24-12-3\\n0\\t1\\t0\\t1" where last number is total
+                                const lines = rawText.split('\\n');
+                                for (let i = 0; i < lines.length; i++) {
+                                    const line = lines[i].trim();
+                                    // Look for record pattern (XX-XX-X) which precedes score line
+                                    if (/^\\d+-\\d+-\\d+$/.test(line)) {
+                                        // Next line should have period scores ending with total
+                                        if (i + 1 < lines.length) {
+                                            const scoreLine = lines[i + 1].trim();
+                                            const parts = scoreLine.split(/[\\t\\s]+/);
+                                            if (parts.length >= 3) {
+                                                const total = parseInt(parts[parts.length - 1]);
+                                                if (!isNaN(total) && total >= 0 && total <= 15) {
+                                                    scores.push(total);
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
