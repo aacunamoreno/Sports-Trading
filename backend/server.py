@@ -6741,12 +6741,13 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 if game.get('final_score') is None:
                     continue
                 
-                # Edge Record: Check if system recommendation hit
-                # The field is 'result_hit' (True/False) - True means recommendation matched actual result
-                if game.get('result_hit') is True:
-                    date_edge_hits += 1
-                elif game.get('result_hit') is False:
-                    date_edge_misses += 1
+                # Edge Record: Only count games with |edge| >= 5 (NBA threshold)
+                edge = game.get('edge') or 0
+                if abs(edge) >= 5:
+                    if game.get('result_hit') is True:
+                        date_edge_hits += 1
+                    elif game.get('result_hit') is False:
+                        date_edge_misses += 1
                 
                 # Betting Record: If no actual_bet_record, count from matched games
                 if not actual_record and game.get('user_bet'):
