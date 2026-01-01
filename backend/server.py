@@ -8050,6 +8050,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 
                 # Check if this bet matches the current league
                 is_league_match = False
+                logger.debug(f"[Refresh Bets] Checking bet: sport={bet_sport}, away={bet_away}, home={bet_home}")
                 if league.upper() == 'NBA' and 'NBA' in bet_sport:
                     is_league_match = True
                 elif league.upper() == 'NHL':
