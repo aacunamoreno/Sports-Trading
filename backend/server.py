@@ -8150,7 +8150,9 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     
                     # Common abbreviations (applied after specific mappings)
                     # Note: ST. -> STATE for college teams (not SAINT)
-                    name = name.replace("ST.", "STATE").replace(" ST ", " STATE ")
+                    # Only apply if STATE isn't already in the name
+                    if 'STATE' not in name:
+                        name = name.replace("ST.", "STATE").replace(" ST ", " STATE ")
                     name = name.replace("VA.", "VIRGINIA").replace("VA ", "VIRGINIA ")
                     name = name.replace("GA.", "GEORGIA").replace("GA ", "GEORGIA ")
                     name = name.replace("CONN.", "CONNECTICUT").replace("CONN ", "CONNECTICUT ")
@@ -8165,13 +8167,34 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 bet_home_norm = normalize_team_name(bet_home)
                 
                 # Try various matching approaches
+                # IMPORTANT: Require BOTH teams to match for accurate bet tracking
                 if bet_away_norm and bet_home_norm:
-                    # Check if bet teams match game teams (in any order)
-                    if (away_norm in bet_away_norm or bet_away_norm in away_norm or
-                        away_norm in bet_home_norm or bet_home_norm in away_norm or
-                        home_norm in bet_away_norm or bet_away_norm in home_norm or
-                        home_norm in bet_home_norm or bet_home_norm in home_norm):
-                        game_matches = True
+                    # Check away team match
+                    away_match = (away_norm == bet_away_norm or 
+                                 away_norm in bet_away_norm or bet_away_norm in away_norm or
+                                 away_norm == bet_home_norm or
+                                 away_norm in bet_home_norm or bet_home_norm in away_norm)
+                    
+                    # Check home team match  
+                    home_match = (home_norm == bet_home_norm or
+                                 home_norm in bet_home_norm or bet_home_norm in home_norm or
+                                 home_norm == bet_away_norm or
+                                 home_norm in bet_away_norm or bet_away_norm in home_norm)
+                    
+                    # Require both teams to match, but prevent substring false positives
+                    # by checking that the matched word is significant (>4 chars)
+                    if away_match and home_match:
+                        # Verify it's not a false positive by checking word overlap
+                        away_words = set(away_norm.split())
+                        home_words = set(home_norm.split())
+                        bet_away_words = set(bet_away_norm.split())
+                        bet_home_words = set(bet_home_norm.split())
+                        
+                        away_word_match = len(away_words & bet_away_words) >= 1 or len(away_words & bet_home_words) >= 1
+                        home_word_match = len(home_words & bet_home_words) >= 1 or len(home_words & bet_away_words) >= 1
+                        
+                        if away_word_match and home_word_match:
+                            game_matches = True
                 elif bet_game:
                     # Fallback to combined game string
                     bet_game_norm = normalize_team_name(bet_game)
