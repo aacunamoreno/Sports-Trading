@@ -11941,8 +11941,59 @@ async def update_ncaab_bet_results(date: str = None):
             """Normalize team names for matching"""
             if not name:
                 return ''
-            # Remove common suffixes and normalize
             name = name.upper().strip()
+            
+            # Handle specific college team mappings FIRST (order matters!)
+            specific_mappings = {
+                # Directional schools
+                'E. ILLINOIS': 'EASTERN ILLINOIS',
+                'E ILLINOIS': 'EASTERN ILLINOIS',
+                'W. ILLINOIS': 'WESTERN ILLINOIS',
+                'W ILLINOIS': 'WESTERN ILLINOIS',
+                'N. ILLINOIS': 'NORTHERN ILLINOIS',
+                'S. ILLINOIS': 'SOUTHERN ILLINOIS',
+                'E. KENTUCKY': 'EASTERN KENTUCKY',
+                'W. KENTUCKY': 'WESTERN KENTUCKY',
+                'N. KENTUCKY': 'NORTHERN KENTUCKY',
+                'E. MICHIGAN': 'EASTERN MICHIGAN',
+                'W. MICHIGAN': 'WESTERN MICHIGAN',
+                'N. IOWA': 'NORTHERN IOWA',
+                'N IOWA': 'NORTHERN IOWA',
+                'N. ARIZONA': 'NORTHERN ARIZONA',
+                'N. COLORADO': 'NORTHERN COLORADO',
+                'N. DAKOTA': 'NORTH DAKOTA',
+                'S. DAKOTA': 'SOUTH DAKOTA',
+                # Tennessee schools
+                'UT MARTIN': 'TENNESSEE MARTIN',
+                'TENNESSEE-MARTIN': 'TENNESSEE MARTIN',
+                'MIDDLE TENN': 'MIDDLE TENNESSEE',
+                # Missouri schools
+                'SE MISSOURI': 'SOUTHEAST MISSOURI',
+                'SE MISSOURI ST': 'SOUTHEAST MISSOURI STATE',
+                'SE MISSOURI ST.': 'SOUTHEAST MISSOURI STATE',
+                # Florida schools
+                'FGCU': 'FLORIDA GULF COAST',
+                'FLA GULF COAST': 'FLORIDA GULF COAST',
+                'FAU': 'FLORIDA ATLANTIC',
+                'FIU': 'FLORIDA INTERNATIONAL',
+                'UCF': 'CENTRAL FLORIDA',
+                # Arkansas schools
+                'CENT. ARKANSAS': 'CENTRAL ARKANSAS',
+                'CENT ARKANSAS': 'CENTRAL ARKANSAS',
+                # Other mappings
+                'INDIANA ST.': 'INDIANA STATE',
+                'INDIANA ST': 'INDIANA STATE',
+                'MONTANA ST.': 'MONTANA STATE',
+                'MONTANA ST': 'MONTANA STATE',
+                'CAL POLY SLO': 'CAL POLY',
+                'ILLINOIS ST.': 'ILLINOIS STATE',
+                'ILLINOIS ST': 'ILLINOIS STATE',
+            }
+            for abbrev, full in specific_mappings.items():
+                if abbrev in name:
+                    name = name.replace(abbrev, full)
+            
+            # Remove common suffixes and normalize
             name = re.sub(r'\s+(ST|STATE|UNIV|UNIVERSITY)\.?$', ' STATE', name)
             name = name.replace('.', '').replace("'", '').replace('-', ' ')
             return name
