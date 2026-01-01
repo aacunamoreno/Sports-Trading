@@ -10528,8 +10528,10 @@ async def upload_ppg_excel(league: str, target_date: str = None):
             away_avg = round(away_avg_raw, 1) if away_avg_raw else None
             home_avg = round(home_avg_raw, 1) if home_avg_raw else None
             
-            away_rank = last3_ranks.get(away_data['team']) if away_data and away_data.get('team') in last3_ranks else None
-            home_rank = last3_ranks.get(home_data['team']) if home_data and home_data.get('team') in last3_ranks else None
+            away_l3_rank = last3_ranks.get(away_data['team']) if away_data and away_data.get('team') in last3_ranks else None
+            home_l3_rank = last3_ranks.get(home_data['team']) if home_data and home_data.get('team') in last3_ranks else None
+            away_season_rank = season_ranks.get(away_data['team']) if away_data and away_data.get('team') in season_ranks else None
+            home_season_rank = season_ranks.get(home_data['team']) if home_data and home_data.get('team') in season_ranks else None
             
             # Combined = Away avg + Home avg (use raw values for precision, round final)
             combined = round(away_avg_raw + home_avg_raw, 1) if away_avg_raw and home_avg_raw else None
