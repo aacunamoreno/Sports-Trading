@@ -1145,6 +1145,11 @@ export default function Opportunities() {
                                 game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : game.bet_result === 'push' ? '⚪ PUSH' : '⏳ PENDING'
                               )}
                             </span>
+                          ) : game.has_bet && game.bet_type ? (
+                            // For historical dates with has_bet but no user_bet (e.g., TIPSTER account bets) - show as pending
+                            <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/30 text-gray-400">
+                              ⏳ {game.bet_account === 'jac083' ? 'TIPSTER' : 'PENDING'}
+                            </span>
                           ) : isNoBet ? (
                             // For historical dates without user bet and low edge: show NO BET
                             <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/20 text-gray-400">
