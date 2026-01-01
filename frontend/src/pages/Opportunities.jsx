@@ -1123,8 +1123,8 @@ export default function Opportunities() {
                         )}
                       </td>
                       <td className="py-3 px-2 text-center">
-                        {isHistorical ? (
-                          // For historical dates with user bets: show user's bet result (HIT/MISS)
+                        {(isHistorical || game.final_score) ? (
+                          // For historical dates OR completed games with user bets: show user's bet result (HIT/MISS)
                           game.user_bet ? (
                             <span className={`px-2 py-1 rounded text-xs font-bold ${
                               isSpreadBet 
