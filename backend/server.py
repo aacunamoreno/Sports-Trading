@@ -5800,9 +5800,13 @@ async def get_ncaab_opportunities():
         home_last3_rank = ppg_data['last3_ranks'].get(home_team)
         home_last3_value = ppg_data['last3_values'].get(home_team)
         
-        # Calculate combined PPG
+        # Calculate combined PPG using the correct formula:
+        # (Team1 Season PPG + Team2 Season PPG + Team1 L3 PPG + Team2 L3 PPG) / 2
         combined_ppg = None
-        if away_ppg_value and home_ppg_value:
+        if away_ppg_value and home_ppg_value and away_last3_value and home_last3_value:
+            combined_ppg = round((away_ppg_value + home_ppg_value + away_last3_value + home_last3_value) / 2, 1)
+        elif away_ppg_value and home_ppg_value:
+            # Fallback to season only if L3 not available
             combined_ppg = round((away_ppg_value + home_ppg_value), 1)
         
         # Calculate edge (same as NBA)
