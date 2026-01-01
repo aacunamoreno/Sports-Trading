@@ -3116,8 +3116,9 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
     from playwright.async_api import async_playwright
     
     # Convert date format from YYYY-MM-DD to YYYYMMDD for CBS URL
+    # Use 'all' for college basketball (not FBS which is football)
     date_for_url = target_date.replace("-", "")
-    url = f"https://www.cbssports.com/college-basketball/scoreboard/FBS/{date_for_url}/?layout=compact"
+    url = f"https://www.cbssports.com/college-basketball/scoreboard/all/{date_for_url}/?layout=compact"
     
     logger.info(f"Scraping CBS Sports NCAAB: {url}")
     
