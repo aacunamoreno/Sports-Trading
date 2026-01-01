@@ -8111,7 +8111,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                         (r'\bE\.?\s*CAROLINA\b', 'EAST CAROLINA'),
                         (r'\bW\.?\s*CAROLINA\b', 'WESTERN CAROLINA'),
                         # Missouri schools
-                        (r'\bSE\.?\s*MISSOURI\s*ST\.?\b', 'SOUTHEAST MISSOURI STATE'),
+                        (r'\bSE\.?\s*MISSOURI\s*ST\.?(?:\s|$)', 'SOUTHEAST MISSOURI STATE '),
                         (r'\bSE\.?\s*MISSOURI\b', 'SOUTHEAST MISSOURI'),
                         (r'\bMISSOURI\s*ST\.?\b', 'MISSOURI STATE'),
                     ]
