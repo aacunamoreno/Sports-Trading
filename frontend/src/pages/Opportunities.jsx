@@ -320,10 +320,10 @@ export default function Opportunities() {
         timeout: 30000
       });
       
-      // Get tomorrow's date
+      // Get tomorrow's date in local timezone (not UTC)
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      const targetDate = tomorrow.toISOString().split('T')[0];
+      const targetDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
       
       // Process all 3 leagues
       toast.info('Processing PPG for all leagues...');
