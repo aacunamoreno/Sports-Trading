@@ -1135,26 +1135,39 @@ export default function Opportunities() {
                               }`}>
                                 {game.result === 'OVER' ? '⬆️ OVER' : game.result === 'UNDER' ? '⬇️ UNDER' : game.result || '-'}
                               </span>
-                              {/* Show HIT/MISS status */}
-                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                isSpreadBet 
-                                  ? (game.user_bet_hit === true
-                                      ? 'bg-purple-500/30 text-purple-300 ring-1 ring-purple-400/50'
-                                      : game.user_bet_hit === false
-                                        ? 'bg-purple-900/30 text-purple-400 ring-1 ring-purple-500/30'
-                                        : 'bg-gray-500/30 text-gray-400')
-                                  : (game.user_bet_hit === true
-                                      ? 'bg-green-500/30 text-green-400'
-                                      : game.user_bet_hit === false
-                                        ? 'bg-red-500/30 text-red-400'
-                                        : 'bg-gray-500/30 text-gray-400')
-                              }`}>
-                                {isSpreadBet ? (
-                                  game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : game.bet_result === 'push' ? '⚪ PUSH' : '⏳'
-                                ) : (
-                                  game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : game.bet_result === 'push' ? '⚪ PUSH' : '⏳'
-                                )}
-                              </span>
+                              {/* Show individual bet results if multiple bets */}
+                              {game.bet_results && game.bet_results.length > 1 ? (
+                                <div className="flex flex-col gap-0.5">
+                                  {game.bet_results.map((br, idx) => (
+                                    <span key={idx} className={`px-1.5 py-0.5 rounded text-xs font-bold ${
+                                      br.hit ? 'bg-green-500/30 text-green-400' : 'bg-red-500/30 text-red-400'
+                                    }`}>
+                                      {br.hit ? '✅' : '❌'} {br.type}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                /* Single bet - show HIT/MISS status */
+                                <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                  isSpreadBet 
+                                    ? (game.user_bet_hit === true
+                                        ? 'bg-purple-500/30 text-purple-300 ring-1 ring-purple-400/50'
+                                        : game.user_bet_hit === false
+                                          ? 'bg-purple-900/30 text-purple-400 ring-1 ring-purple-500/30'
+                                          : 'bg-gray-500/30 text-gray-400')
+                                    : (game.user_bet_hit === true
+                                        ? 'bg-green-500/30 text-green-400'
+                                        : game.user_bet_hit === false
+                                          ? 'bg-red-500/30 text-red-400'
+                                          : 'bg-gray-500/30 text-gray-400')
+                                }`}>
+                                  {isSpreadBet ? (
+                                    game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : game.bet_result === 'push' ? '⚪ PUSH' : '⏳'
+                                  ) : (
+                                    game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : game.bet_result === 'push' ? '⚪ PUSH' : '⏳'
+                                  )}
+                                </span>
+                              )}
                             </div>
                           ) : game.has_bet && game.bet_type ? (
                             // For historical dates with has_bet but no user_bet (e.g., TIPSTER account bets) - show as pending
