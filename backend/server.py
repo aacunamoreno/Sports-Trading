@@ -3269,8 +3269,9 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
     from playwright.async_api import async_playwright
     
     # Convert date format from YYYY-MM-DD to YYYYMMDD for CBS URL
+    # Use ?layout=compact to ensure betting lines are shown
     date_for_url = target_date.replace("-", "")
-    url = f"https://www.cbssports.com/nba/scoreboard/{date_for_url}/"
+    url = f"https://www.cbssports.com/nba/scoreboard/{date_for_url}/?layout=compact"
     
     logger.info(f"Scraping CBS Sports NBA: {url}")
     
