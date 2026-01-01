@@ -821,8 +821,8 @@ export default function Opportunities() {
           {(() => {
             // Determine if we're viewing historical data (past dates with results)
             const isHistorical = day === 'yesterday' || day === 'custom';
-            // Show historical columns if viewing past data OR if game has final scores
-            const hasAnyFinalScores = filteredGames.some(g => g.final_score);
+            // Show historical columns if viewing past data OR if any game has final scores
+            const hasAnyFinalScores = data.games && data.games.some(g => g.final_score);
             const showHistoricalColumns = isHistorical || hasAnyFinalScores;
             
             return data.games && data.games.length > 0 ? (
