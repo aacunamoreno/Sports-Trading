@@ -2521,6 +2521,8 @@ class Plays888Service:
                 total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)(½)?[-+]\d+', line, re.IGNORECASE)
                 # Look for SPREAD bets like "[837] OAKLAND +2-110" or "[811] DETROIT +11-110"
                 spread_match = re.search(r'\[\d+\]\s*([A-Z\s\.]+?)\s*([+-]\d+\.?\d*)(½)?[-+]\d+', line, re.IGNORECASE)
+                # Look for live betting format: "Over 161.5 -106" or "Under 161.5 -106"
+                live_total_match = re.search(r'(Over|Under)\s+(\d+\.?\d*)\s*[-+]\d+', line, re.IGNORECASE)
                 
                 if total_match:
                     bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
