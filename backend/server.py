@@ -8079,23 +8079,77 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                         return ''
                     name = name.upper()
                     
-                    # Handle specific college team mappings FIRST
+                    # Handle specific college team mappings FIRST (order matters!)
                     specific_mappings = {
-                        'LOYOLA CHI.': 'LOYOLA CHICAGO',
-                        'LOYOLA CHI': 'LOYOLA CHICAGO',
+                        # Directional schools (must be before generic replacements)
+                        'E. ILLINOIS': 'EASTERN ILLINOIS',
+                        'E ILLINOIS': 'EASTERN ILLINOIS',
+                        'W. ILLINOIS': 'WESTERN ILLINOIS',
+                        'W ILLINOIS': 'WESTERN ILLINOIS',
                         'N. ILLINOIS': 'NORTHERN ILLINOIS',
                         'N ILLINOIS': 'NORTHERN ILLINOIS',
+                        'S. ILLINOIS': 'SOUTHERN ILLINOIS',
+                        'S ILLINOIS': 'SOUTHERN ILLINOIS',
+                        'E. KENTUCKY': 'EASTERN KENTUCKY',
+                        'W. KENTUCKY': 'WESTERN KENTUCKY',
+                        'N. KENTUCKY': 'NORTHERN KENTUCKY',
+                        'E. MICHIGAN': 'EASTERN MICHIGAN',
+                        'W. MICHIGAN': 'WESTERN MICHIGAN',
+                        'N. IOWA': 'NORTHERN IOWA',
+                        'N IOWA': 'NORTHERN IOWA',
+                        'N. ARIZONA': 'NORTHERN ARIZONA',
+                        'N. COLORADO': 'NORTHERN COLORADO',
+                        'N. DAKOTA': 'NORTH DAKOTA',
+                        'S. DAKOTA': 'SOUTH DAKOTA',
+                        'W. VIRGINIA': 'WEST VIRGINIA',
+                        'N. CAROLINA': 'NORTH CAROLINA',
+                        'S. CAROLINA': 'SOUTH CAROLINA',
+                        'E. CAROLINA': 'EAST CAROLINA',
+                        'W. CAROLINA': 'WESTERN CAROLINA',
+                        # Tennessee schools
+                        'UT MARTIN': 'TENNESSEE MARTIN',
+                        'TENNESSEE-MARTIN': 'TENNESSEE MARTIN',
+                        'MIDDLE TENN': 'MIDDLE TENNESSEE',
+                        'E. TENNESSEE': 'EAST TENNESSEE',
+                        'TENN. TECH': 'TENNESSEE TECH',
+                        # Missouri schools
+                        'SE MISSOURI': 'SOUTHEAST MISSOURI',
+                        'SE MISSOURI ST': 'SOUTHEAST MISSOURI STATE',
+                        'SE MISSOURI ST.': 'SOUTHEAST MISSOURI STATE',
+                        'MISSOURI ST': 'MISSOURI STATE',
+                        'MISSOURI ST.': 'MISSOURI STATE',
+                        # Florida schools
+                        'FGCU': 'FLORIDA GULF COAST',
+                        'FLA GULF COAST': 'FLORIDA GULF COAST',
                         'FAU': 'FLORIDA ATLANTIC',
                         'FLORIDA ATL': 'FLORIDA ATLANTIC',
+                        'FIU': 'FLORIDA INTERNATIONAL',
+                        'UCF': 'CENTRAL FLORIDA',
+                        # Arkansas schools
+                        'CENT. ARKANSAS': 'CENTRAL ARKANSAS',
+                        'CENT ARKANSAS': 'CENTRAL ARKANSAS',
+                        'ARK. STATE': 'ARKANSAS STATE',
+                        'ARK STATE': 'ARKANSAS STATE',
+                        # Other specific mappings
+                        'LOYOLA CHI.': 'LOYOLA CHICAGO',
+                        'LOYOLA CHI': 'LOYOLA CHICAGO',
                         'BOSTON U.': 'BOSTON UNIVERSITY',
                         'BOSTON U': 'BOSTON UNIVERSITY',
+                        'INDIANA ST.': 'INDIANA STATE',
+                        'INDIANA ST': 'INDIANA STATE',
+                        'MONTANA ST.': 'MONTANA STATE',
+                        'MONTANA ST': 'MONTANA STATE',
+                        'CAL POLY SLO': 'CAL POLY',
+                        'ILLINOIS ST.': 'ILLINOIS STATE',
+                        'ILLINOIS ST': 'ILLINOIS STATE',
                     }
                     for abbrev, full in specific_mappings.items():
                         if abbrev in name:
                             name = name.replace(abbrev, full)
                     
                     # Common abbreviations (applied after specific mappings)
-                    name = name.replace("ST.", "SAINT").replace("ST ", "SAINT ")
+                    # Note: ST. -> STATE for college teams (not SAINT)
+                    name = name.replace("ST.", "STATE").replace(" ST ", " STATE ")
                     name = name.replace("VA.", "VIRGINIA").replace("VA ", "VIRGINIA ")
                     name = name.replace("GA.", "GEORGIA").replace("GA ", "GEORGIA ")
                     name = name.replace("CONN.", "CONNECTICUT").replace("CONN ", "CONNECTICUT ")
