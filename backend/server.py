@@ -10658,7 +10658,12 @@ async def update_nba_scores(date: str = None):
                         game['result'] = 'PUSH'
                     
                     # Check if recommendation hit (only for games with |edge| >= 5)
-                    if abs(edge) >= 5 and recommendation:
+                    # If recommendation is missing but edge meets threshold, derive it from edge
+                    if abs(edge) >= 5:
+                        if not recommendation:
+                            recommendation = 'OVER' if edge >= 5 else 'UNDER'
+                            game['recommendation'] = recommendation
+                        
                         if recommendation == 'OVER':
                             game['result_hit'] = final_score > line
                         elif recommendation == 'UNDER':
