@@ -3126,8 +3126,8 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             
-            await page.goto(url, timeout=30000)
-            await page.wait_for_load_state("networkidle")
+            await page.goto(url, timeout=60000)
+            await page.wait_for_load_state("domcontentloaded", timeout=30000)
             await page.wait_for_timeout(3000)
             
             # Extract games using proper DOM structure
@@ -3323,8 +3323,8 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             
-            await page.goto(url, timeout=30000)
-            await page.wait_for_load_state("networkidle")
+            await page.goto(url, timeout=60000)
+            await page.wait_for_load_state("domcontentloaded", timeout=30000)
             await page.wait_for_timeout(3000)
             
             # Extract games using proper DOM structure
@@ -3521,8 +3521,8 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             
-            await page.goto(url, timeout=30000)
-            await page.wait_for_load_state("networkidle")
+            await page.goto(url, timeout=60000)
+            await page.wait_for_load_state("domcontentloaded", timeout=30000)
             await page.wait_for_timeout(3000)
             
             # Extract games using proper DOM structure
@@ -3669,8 +3669,8 @@ async def scrape_cbssports_ncaab_with_team_urls(target_date: str) -> Tuple[List[
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             
-            await page.goto(url, timeout=30000)
-            await page.wait_for_load_state("networkidle")
+            await page.goto(url, timeout=60000)
+            await page.wait_for_load_state("domcontentloaded", timeout=30000)
             await page.wait_for_timeout(3000)
             
             # Extract games with team URLs
