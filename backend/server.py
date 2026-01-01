@@ -10974,17 +10974,26 @@ async def update_ncaab_scores(date: str = None):
         
         for game in db_games:
             matched = match_game(game, scraped_games)
-            if matched:
+            
+            # IMPORTANT: Only update if scraped has a final score
+            # Preserve existing scores if CBS doesn't have this game
+            if matched and matched.get('final_score'):
                 final_score = matched.get('final_score')
                 game['final_score'] = final_score
                 game['away_score'] = matched.get('away_score')
                 game['home_score'] = matched.get('home_score')
-                
-                line = game.get('total') or game.get('opening_line')
-                recommendation = game.get('recommendation')
-                edge = game.get('edge', 0) or 0
-                
-                if final_score is not None and line:
+            elif game.get('final_score'):
+                # Preserve existing score that was manually added
+                final_score = game.get('final_score')
+                logger.info(f"[NCAAB Scores] Preserving existing score for {game.get('away_team')} @ {game.get('home_team')}: {final_score}")
+            else:
+                final_score = None
+            
+            line = game.get('total') or game.get('opening_line')
+            recommendation = game.get('recommendation')
+            edge = game.get('edge', 0) or 0
+            
+            if final_score is not None and line:
                     # Determine result
                     if final_score > line:
                         game['result'] = 'OVER'
