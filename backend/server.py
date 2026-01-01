@@ -10597,7 +10597,7 @@ async def update_nba_scores(date: str = None):
 @api_router.post("/scores/nhl/update")
 async def update_nhl_scores(date: str = None):
     """
-    Update NHL scores from ScoresAndOdds.com for a specific date.
+    Update NHL scores from CBS Sports for a specific date.
     Marks edge recommendations as HIT or MISS based on final scores.
     
     Args:
@@ -10614,93 +10614,12 @@ async def update_nhl_scores(date: str = None):
             yesterday = datetime.now(arizona_tz) - timedelta(days=1)
             date = yesterday.strftime('%Y-%m-%d')
         
-        logger.info(f"[NHL Scores] Updating scores for {date}")
+        logger.info(f"[NHL Scores] Updating scores for {date} from CBS Sports")
         
-        # Scrape scores from ScoresAndOdds.com
-        url = f"https://www.scoresandodds.com/nhl?date={date}"
-        logger.info(f"[NHL Scores] Scraping from {url}")
+        # Scrape scores from CBS Sports (same source as Process #1)
+        scraped_games = await scrape_cbssports_nhl(date)
         
-        scraped_games = []
-        
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            
-            await page.goto(url, timeout=30000)
-            await page.wait_for_load_state("domcontentloaded")
-            await page.wait_for_timeout(3000)
-            
-            # Parse NHL game data - look for FINAL headers and extract team pairs
-            scraped_games = await page.evaluate("""() => {
-                const games = [];
-                const text = document.body.innerText;
-                const lines = text.split('\\n');
-                
-                let i = 0;
-                while (i < lines.length) {
-                    const line = lines[i].trim();
-                    
-                    // Look for "FINAL" header which starts a new game
-                    if (line.includes('FINAL') && (line.includes('LINE MOVEMENTS') || line.includes('MONEYLINE'))) {
-                        let awayTeam = null, awayScore = null;
-                        let homeTeam = null, homeScore = null;
-                        let teamCount = 0;
-                        let j = i + 1;
-                        
-                        while (j < Math.min(i + 50, lines.length) && teamCount < 2) {
-                            if (j + 3 < lines.length) {
-                                const rank = lines[j].trim();
-                                const teamName = lines[j + 1].trim();
-                                const record = lines[j + 2].trim();
-                                const scoreLine = lines[j + 3].trim();
-                                
-                                // Validate: rank (20-80), team name, record (X-Y or X-Y-Z), score
-                                if (/^\\d+$/.test(rank) && 
-                                    parseInt(rank) >= 20 && parseInt(rank) <= 80 &&
-                                    teamName && teamName.length > 2 && !/^\\d/.test(teamName) &&
-                                    /^\\d+-\\d+(-\\d+)?$/.test(record)) {
-                                    
-                                    const scoreMatch = scoreLine.match(/^(\\d+)/);
-                                    if (scoreMatch) {
-                                        const score = parseInt(scoreMatch[1]);
-                                        
-                                        if (teamCount === 0) {
-                                            awayTeam = teamName;
-                                            awayScore = score;
-                                        } else {
-                                            homeTeam = teamName;
-                                            homeScore = score;
-                                        }
-                                        teamCount++;
-                                        j += 4;
-                                        continue;
-                                    }
-                                }
-                            }
-                            j++;
-                        }
-                        
-                        if (awayTeam && homeTeam && awayScore !== null && homeScore !== null) {
-                            games.push({
-                                away_team: awayTeam,
-                                away_score: awayScore,
-                                home_team: homeTeam,
-                                home_score: homeScore,
-                                final_score: awayScore + homeScore
-                            });
-                        }
-                        i = j;
-                    } else {
-                        i++;
-                    }
-                }
-                
-                return games;
-            }""")
-            
-            await browser.close()
-        
-        logger.info(f"[NHL Scores] Scraped {len(scraped_games)} games")
+        logger.info(f"[NHL Scores] Scraped {len(scraped_games)} games from CBS Sports")
         
         # Get database games
         db_data = await db.nhl_opportunities.find_one({"date": date}, {"_id": 0})
