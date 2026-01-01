@@ -3174,7 +3174,7 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
                         
                         // Get scores if game is finished (look for FINAL text and total scores)
                         const scores = [];
-                        const rawTextLines = rawText.split('\n');
+                        const rawTextLines = rawText.split('\\n');
                         const isFinal = rawText.toLowerCase().includes('final');
                         
                         if (isFinal) {
@@ -3367,7 +3367,7 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
                         
                         // Get scores if game is finished (look for FINAL text and total scores)
                         const scores = [];
-                        const rawTextLines = rawText.split('\n');
+                        const rawTextLines = rawText.split('\\n');
                         const isFinal = rawText.toLowerCase().includes('final');
                         
                         if (isFinal) {
@@ -3565,7 +3565,7 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                         
                         // Get scores if game is finished (look for FINAL text and total scores)
                         const scores = [];
-                        const rawTextLines = rawText.split('\n');
+                        const rawTextLines = rawText.split('\\n');
                         const isFinal = rawText.toLowerCase().includes('final');
                         
                         if (isFinal) {
