@@ -3172,18 +3172,56 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
                         const spreadMatch = rawText.match(/([+-]\\d+\\.?\\d*)/);
                         if (spreadMatch) spread = parseFloat(spreadMatch[1]);
                         
-                        // Get scores if game is finished
-                        const scoreEls = card.querySelectorAll('.total-score');
+                        // Get scores if game is finished (look for FINAL text and total scores)
                         const scores = [];
-                        scoreEls.forEach(s => {
-                            const num = parseInt(s.innerText.trim());
-                            if (!isNaN(num)) scores.push(num);
-                        });
+                        const rawTextLines = rawText.split('\n');
+                        const isFinal = rawText.toLowerCase().includes('final');
+                        
+                        if (isFinal) {
+                            // Look for team rows with total scores
+                            // Format is like: "76ers\n17-14\n34\t38\t31\t25\t11\t139"
+                            // The last number in each team's row is the total
+                            for (let i = 0; i < rawTextLines.length; i++) {
+                                const line = rawTextLines[i].trim();
+                                // Skip if it's just a team name or record
+                                if (line === awayTeam || line === homeTeam) {
+                                    // Look ahead for the score line (contains tabs and numbers)
+                                    for (let j = i + 1; j < Math.min(i + 4, rawTextLines.length); j++) {
+                                        const scoreLine = rawTextLines[j];
+                                        if (scoreLine.includes('\t') || /^[\d\s]+$/.test(scoreLine.replace(/\t/g, ' '))) {
+                                            const parts = scoreLine.trim().split(/\s+/);
+                                            const lastNum = parts[parts.length - 1];
+                                            const total = parseInt(lastNum);
+                                            if (!isNaN(total) && total >= 60 && total <= 200) {
+                                                scores.push(total);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Alternative: look for T column values (total scores are usually 3-digit numbers)
+                            if (scores.length < 2) {
+                                const allNums = rawText.match(/\b(\d{2,3})\b/g) || [];
+                                const finalScores = allNums.filter(n => {
+                                    const num = parseInt(n);
+                                    return num >= 70 && num <= 200;
+                                });
+                                // Take the last two valid scores (home and away totals)
+                                if (finalScores.length >= 2) {
+                                    scores.length = 0;  // Clear any partial scores
+                                    // The totals are usually near the end of each team's row
+                                    scores.push(parseInt(finalScores[finalScores.length - 2]));
+                                    scores.push(parseInt(finalScores[finalScores.length - 1]));
+                                }
+                            }
+                        }
                         
                         const game = {
                             away_team: awayTeam,
                             home_team: homeTeam,
-                            time: time,
+                            time: isFinal ? 'FINAL' : time,
                             total: total,
                             opening_line: total,
                             spread: spread
@@ -3327,18 +3365,56 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
                         const spreadMatch = rawText.match(/([+-]\\d+\\.?\\d*)/);
                         if (spreadMatch) spread = parseFloat(spreadMatch[1]);
                         
-                        // Get scores if game is finished
-                        const scoreEls = card.querySelectorAll('.total-score');
+                        // Get scores if game is finished (look for FINAL text and total scores)
                         const scores = [];
-                        scoreEls.forEach(s => {
-                            const num = parseInt(s.innerText.trim());
-                            if (!isNaN(num)) scores.push(num);
-                        });
+                        const rawTextLines = rawText.split('\n');
+                        const isFinal = rawText.toLowerCase().includes('final');
+                        
+                        if (isFinal) {
+                            // Look for team rows with total scores
+                            // Format is like: "76ers\n17-14\n34\t38\t31\t25\t11\t139"
+                            // The last number in each team's row is the total
+                            for (let i = 0; i < rawTextLines.length; i++) {
+                                const line = rawTextLines[i].trim();
+                                // Skip if it's just a team name or record
+                                if (line === awayTeam || line === homeTeam) {
+                                    // Look ahead for the score line (contains tabs and numbers)
+                                    for (let j = i + 1; j < Math.min(i + 4, rawTextLines.length); j++) {
+                                        const scoreLine = rawTextLines[j];
+                                        if (scoreLine.includes('\t') || /^[\d\s]+$/.test(scoreLine.replace(/\t/g, ' '))) {
+                                            const parts = scoreLine.trim().split(/\s+/);
+                                            const lastNum = parts[parts.length - 1];
+                                            const total = parseInt(lastNum);
+                                            if (!isNaN(total) && total >= 60 && total <= 200) {
+                                                scores.push(total);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Alternative: look for T column values (total scores are usually 3-digit numbers)
+                            if (scores.length < 2) {
+                                const allNums = rawText.match(/\b(\d{2,3})\b/g) || [];
+                                const finalScores = allNums.filter(n => {
+                                    const num = parseInt(n);
+                                    return num >= 70 && num <= 200;
+                                });
+                                // Take the last two valid scores (home and away totals)
+                                if (finalScores.length >= 2) {
+                                    scores.length = 0;  // Clear any partial scores
+                                    // The totals are usually near the end of each team's row
+                                    scores.push(parseInt(finalScores[finalScores.length - 2]));
+                                    scores.push(parseInt(finalScores[finalScores.length - 1]));
+                                }
+                            }
+                        }
                         
                         const game = {
                             away_team: awayTeam,
                             home_team: homeTeam,
-                            time: time,
+                            time: isFinal ? 'FINAL' : time,
                             total: total,
                             opening_line: total,
                             spread: spread
@@ -3487,18 +3563,56 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                         const spreadMatch = rawText.match(/([+-]\\d+\\.?\\d*)/);
                         if (spreadMatch) spread = parseFloat(spreadMatch[1]);
                         
-                        // Get scores if game is finished
-                        const scoreEls = card.querySelectorAll('.total-score');
+                        // Get scores if game is finished (look for FINAL text and total scores)
                         const scores = [];
-                        scoreEls.forEach(s => {
-                            const num = parseInt(s.innerText.trim());
-                            if (!isNaN(num)) scores.push(num);
-                        });
+                        const rawTextLines = rawText.split('\n');
+                        const isFinal = rawText.toLowerCase().includes('final');
+                        
+                        if (isFinal) {
+                            // Look for team rows with total scores
+                            // Format is like: "76ers\n17-14\n34\t38\t31\t25\t11\t139"
+                            // The last number in each team's row is the total
+                            for (let i = 0; i < rawTextLines.length; i++) {
+                                const line = rawTextLines[i].trim();
+                                // Skip if it's just a team name or record
+                                if (line === awayTeam || line === homeTeam) {
+                                    // Look ahead for the score line (contains tabs and numbers)
+                                    for (let j = i + 1; j < Math.min(i + 4, rawTextLines.length); j++) {
+                                        const scoreLine = rawTextLines[j];
+                                        if (scoreLine.includes('\t') || /^[\d\s]+$/.test(scoreLine.replace(/\t/g, ' '))) {
+                                            const parts = scoreLine.trim().split(/\s+/);
+                                            const lastNum = parts[parts.length - 1];
+                                            const total = parseInt(lastNum);
+                                            if (!isNaN(total) && total >= 60 && total <= 200) {
+                                                scores.push(total);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Alternative: look for T column values (total scores are usually 3-digit numbers)
+                            if (scores.length < 2) {
+                                const allNums = rawText.match(/\b(\d{2,3})\b/g) || [];
+                                const finalScores = allNums.filter(n => {
+                                    const num = parseInt(n);
+                                    return num >= 70 && num <= 200;
+                                });
+                                // Take the last two valid scores (home and away totals)
+                                if (finalScores.length >= 2) {
+                                    scores.length = 0;  // Clear any partial scores
+                                    // The totals are usually near the end of each team's row
+                                    scores.push(parseInt(finalScores[finalScores.length - 2]));
+                                    scores.push(parseInt(finalScores[finalScores.length - 1]));
+                                }
+                            }
+                        }
                         
                         const game = {
                             away_team: awayTeam,
                             home_team: homeTeam,
-                            time: time,
+                            time: isFinal ? 'FINAL' : time,
                             total: total,
                             opening_line: total,
                             spread: spread
