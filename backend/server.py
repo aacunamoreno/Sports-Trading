@@ -10432,15 +10432,20 @@ async def upload_ppg_excel(league: str, target_date: str = None):
             team = item['team']
             ppg_by_team[team] = item
         
-        # Sort by Last3 PPG/GPG to create ranks
+        # Sort by Last3 PPG/GPG to create L3 ranks
         if league == 'NHL':
             sorted_by_l3 = sorted([t for t in ppg_data if t.get('last3_gpg')], 
                                   key=lambda x: x['last3_gpg'], reverse=True)
+            sorted_by_season = sorted([t for t in ppg_data if t.get('season_gpg')], 
+                                      key=lambda x: x['season_gpg'], reverse=True)
         else:
             sorted_by_l3 = sorted([t for t in ppg_data if t.get('last3_ppg')], 
                                   key=lambda x: x['last3_ppg'], reverse=True)
+            sorted_by_season = sorted([t for t in ppg_data if t.get('season_ppg')], 
+                                      key=lambda x: x['season_ppg'], reverse=True)
         
         last3_ranks = {t['team']: i+1 for i, t in enumerate(sorted_by_l3)}
+        season_ranks = {t['team']: i+1 for i, t in enumerate(sorted_by_season)}
         
         # Get existing games
         collection_name = f"{league.lower()}_opportunities"
