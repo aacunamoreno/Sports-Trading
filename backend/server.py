@@ -6698,10 +6698,10 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
     
-    # Get yesterday's date (we don't count today since games may not be finished)
-    yesterday = (datetime.now(arizona_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+    # Get today's date - we'll include games that have final scores
+    today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
     
-    logger.info(f"[#6] Calculating records from {start_date} to {yesterday}")
+    logger.info(f"[#6] Calculating records from {start_date} to {today}")
     
     results = {
         "NBA": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}, "dates_processed": []},
@@ -6709,9 +6709,9 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
         "NCAAB": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}, "dates_processed": []},
     }
     
-    # Generate list of dates from start_date to yesterday
+    # Generate list of dates from start_date to today (inclusive)
     start = datetime.strptime(start_date, '%Y-%m-%d')
-    end = datetime.strptime(yesterday, '%Y-%m-%d')
+    end = datetime.strptime(today, '%Y-%m-%d')
     
     dates = []
     current = start
