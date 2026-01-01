@@ -10448,7 +10448,7 @@ NHL_TEAM_ALIASES = {
 @api_router.post("/scores/nba/update")
 async def update_nba_scores(date: str = None):
     """
-    Update NBA scores from ScoresAndOdds.com for a specific date.
+    Update NBA scores from CBS Sports for a specific date.
     Marks edge recommendations as HIT or MISS based on final scores.
     
     Args:
@@ -10465,19 +10465,10 @@ async def update_nba_scores(date: str = None):
             yesterday = datetime.now(arizona_tz) - timedelta(days=1)
             date = yesterday.strftime('%Y-%m-%d')
         
-        logger.info(f"[NBA Scores] Updating scores for {date}")
+        logger.info(f"[NBA Scores] Updating scores for {date} from CBS Sports")
         
-        # Scrape scores from ScoresAndOdds.com
-        url = f"https://www.scoresandodds.com/nba?date={date}"
-        logger.info(f"[NBA Scores] Scraping from {url}")
-        
-        scraped_games = []
-        
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            
-            await page.goto(url, timeout=30000)
+        # Scrape scores from CBS Sports (same source as Process #1)
+        scraped_games = await scrape_cbssports_nba(date)
             await page.wait_for_load_state("domcontentloaded")
             await page.wait_for_timeout(3000)
             
