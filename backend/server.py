@@ -8237,6 +8237,20 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                         if abbrev in name:
                             name = name.replace(abbrev, full)
                     
+                    # NHL team name mappings (city abbreviations to full names)
+                    nhl_mappings = {
+                        'LA KINGS': 'LOS ANGELES KINGS',
+                        'LA ': 'LOS ANGELES ',
+                        'NY RANGERS': 'NEW YORK RANGERS',
+                        'NY ISLANDERS': 'NEW YORK ISLANDERS',
+                        'TB LIGHTNING': 'TAMPA BAY LIGHTNING',
+                        'NJ DEVILS': 'NEW JERSEY DEVILS',
+                        'SJ SHARKS': 'SAN JOSE SHARKS',
+                    }
+                    for abbrev, full in nhl_mappings.items():
+                        if abbrev in name:
+                            name = name.replace(abbrev, full)
+                    
                     # Common abbreviations (applied after specific mappings)
                     # Note: ST. -> STATE for college teams (not SAINT)
                     # Only apply if STATE isn't already in the name
