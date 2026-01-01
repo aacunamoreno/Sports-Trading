@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 
 class DetailedHistoricalVerifier:
-    def __init__(self, base_url="https://betsmart-28.preview.emergentagent.com"):
+    def __init__(self, base_url="https://betedge-15.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.results = []
