@@ -1,231 +1,171 @@
-<analysis>**original_problem_statement:** The user wants to create a system that can automatically log into their account on the betting website . This system should be able to place wagers based on specific scenarios and rules provided by the user.
+<analysis>**original_problem_statement:** The user wants to build an automated betting analysis system for the website . The system should scrape game data, calculate betting edges based on statistical models, track user bets, and display all information in a unified dashboard.
 
 PRODUCT REQUIREMENTS:
-1.  A web dashboard to manage the betting automation system.
-2.  Secure login and connection to  for two accounts:  (labeled ENANO) and  (labeled TIPSTER).
-3.  Server-side monitoring to detect bets placed from any device and send notifications.
-4.  Telegram notifications for all new bets and settled bet results.
-5.  A sleep mode to pause monitoring.
-6.  A mechanism to scrape bet results from a reliable source to track profit/loss.
-7.  An Opportunities section in the dashboard to analyze and display potential betting opportunities from sports leagues like NBA, NHL, and NFL.
-8.  For games the user has bet on, the dashboard must track and display the specific betting line and calculated edge *at the time the bet was placed*, separate from the current or closing line.
-9.  The data source for live/upcoming games should be , while the source for historical/settled game results should be .
-10. A UI to display team rankings with colored dots (🟢🔵🟡🔴) to help with analysis.
-11. A highlighting system (yellow) to alert the user when the dot-based analysis conflicts with the edge-based recommendation.
-12. A UI feature to show the opening line for a game in gray text next to the current line.
-13. The main Betting Record should only count bets from the ENANO account (>k bets).
+1.  **(Process #1 - DONE)** Scrape tomorrow's opening lines for NBA, NHL, and NCAAB from CBS Sports.
+2.  **(Process #2 - DONE)** Implement a UI for uploading an Excel file () to update PPG/GPG stats for all games.
+3.  **(Data Integrity - DONE)** Opening lines and PPG values must be locked in and not change when live data is refreshed.
+4.  **(Process #3.5 - DONE)** Prevent duplicate bet entries.
+5.  **(Process #3.75 - DONE)** Capture and display the exact  a wager was placed on.
+6.  **(Process #4 - IN PROGRESS)** Get yesterday's final scores from a consistent source (CBS Sports) and mark bets as HIT or MISS.
+7.  **(Process #5 - IN PROGRESS)** At 5am, get bet results from the  History page.
+8.  **(Bet Tracking - DONE)**:
+    *   Handle multiple, distinct bets (spread + total) on the same game.
+    *   Correctly count duplicate bets on the same line (e.g., Wofford x2).
+    *   Only consider bets from the  account.
+    *   For NBA/NHL, only consider bets with a risk of ,000 or more.
+9.  **(UI Requirement - DONE)** Consolidate refresh actions and visually highlight rows with active bets.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application is a multi-sport (NBA, NHL, NFL) betting analysis dashboard. In this session, several major features and fixes were implemented:
--   **Bet-Time & Opening Line Tracking:** For NBA games, the UI now displays the line/edge at the time a bet was placed (), the live/closing line (), and the opening line (stored in MongoDB).
--   **Advanced UI Analytics:** Team rankings are now displayed with colored dots (e.g., 🟢🔴), and a conflict-detection system highlights rows in yellow when the dot-based analysis contradicts the statistical edge recommendation.
--   **Corrected Data & Calculations:**
-    -   NBA PPG (Points Per Game) calculations were fixed by scraping live data from .
-    -   Game schedules for NBA (today) and NHL (today/tomorrow) have been corrected to show the right number of games from the correct sources.
-    -   The main Betting Record now correctly filters to only include the user's personal bets (ENANO account, >k wager), ignoring copied bets (TIPSTER account).
--   **Data Sourcing Strategy:** A data sourcing model has been implemented:  for live data (today), and  for future (tomorrow) and past (yesterday) data.
+The application consists of a FastAPI backend and a React frontend. All core features up to Process #3.75 are implemented. The system now correctly scrapes opening lines (Process #1), processes PPG data from an Excel upload (Process #2), and refreshes live lines and bets from a single user account (), handling multiple bet types per game and filtering by bet amount for NBA/NHL. The agent has also implemented the backend logic for Process #4 (updating final scores from CBS Sports) and was beginning work on Process #5 (updating bet results from the History page). Most of the recent work has been focused on improving the accuracy of the bet scraping and data matching logic in  and the corresponding UI rendering in .
 
 **Last working item**:
--   **Last item agent was working:** The user pointed out that the betting line for the NHL game Washington @ New Jersey for tomorrow (Dec 27) was incorrect (showing 6.5 instead of 5.5). The agent was in the process of fixing this hardcoded value.
+-   **Last item agent was working:** The user requested to start **Process #5**: getting bet results from the  History page. The user noted there were no NBA bets on the previous day to test with. The agent's last action was to modify the Update Bet Results button on the frontend to pass the date of the currently viewed tab () to the backend, rather than always calculating yesterday. This allows the user to navigate to a specific date with known bets (e.g., 2025-12-29) and trigger the update for that day.
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** backend testing agent to verify the API returns the correct line, and the screenshot tool to verify the UI.
+-   **Which testing method agent to use?** both.
+    1.  **Backend**: Verify the  endpoint correctly scrapes settled bets from the Plays888 History page for a specific date, correctly filters for the specified league (e.g., only NBA), and updates the  field in the database. A previous test showed it incorrectly scraped a non-NBA game.
+    2.  **Frontend**: After backend verification, use the screenshot tool to navigate to a historical date (e.g., 2025-12-29 as suggested by the user), click the Update Bet Results button, and verify the Result column updates to show ✅ HIT or ❌ MISS.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1:** Fix the Washington @ New Jersey NHL game line for Dec 27 (P0)
--   **Issue 2:** Verify all other NHL lines for Dec 27 (P0)
--   **Issue 3:** The  scraper is unreliable (P1)
--   **Issue 4:** Automate Daily Results Scraping (P1)
--   **Issue 5:** Refactor  (P2)
--   **Issue 6:** Reliable auto-deletion of Telegram status messages (P3)
+-   **Issue 1:** Implement Process #5 - Update Bet Results (P0)
+-   **Issue 2:** Verify Process #4 - Update Scores (P1)
+-   **Issue 3:** Excel Export button is broken (P2)
+-   **Issue 4:**  is a large monolith (P2)
 
 **Issues Detail**:
--   **Issue 1:**
-    -   **Description:** The user identified that the NHL game Washington @ New Jersey for Dec 27 has an incorrect line of 6.5. It should be 5.5.
-    -   **Attempted fixes:** The agent was about to edit the hardcoded data in .
+-   **Issue 1:** Implement Process #5 - Update Bet Results
+    -   **Description:** The Update Bet Results button needs to fetch settled (WIN/LOSS) bets from the  History page for a given date and update the UI to show if the bet was a HIT or MISS.
+    -   **Attempted fixes:** The agent updated the frontend button to send the currently viewed date to the backend. The backend endpoint exists but a previous test showed it was not filtering by league correctly.
     -   **Next debug checklist:**
-        1.  Edit  to change the  for this game in the  list for NHL tomorrow's data.
-        2.  Restart the backend.
-        3.  Test the  endpoint to confirm the line is 5.5.
-        4.  Take a screenshot of the NHL Tomorrow view to verify the UI.
-    -   **Why fix this issue and what will be achieved with the fix?** To ensure data accuracy and maintain user trust, which is currently very low.
+        1.  In , review the  endpoint and its scraper ().
+        2.  Ensure the scraper properly filters by league and doesn't just match on the word 'NBA'. It should verify team names belong to the league.
+        3.  Test the endpoint via  for a date with known settled bets (e.g., 2025-12-29 for NBA).
+        4.  Verify the  and  fields are updated correctly in the  collection.
+    -   **Why fix this issue and what will be achieved with the fix?** Completes the user's defined Process #5, providing the final outcome of placed bets.
     -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on other issue:** None
+    -   **Is recurring issue?** Y (Scraper accuracy is a recurring theme).
+    -   **Should Test frontend/backend/both after fix?** Both.
 
--   **Issue 2:**
-    -   **Description:** The user's message implies that other NHL lines for tomorrow might also be wrong. A full verification is needed.
-    -   **Attempted fixes:** None.
-    -   **Next debug checklist:**
-        1.  Cross-reference all 13 NHL game lines for Dec 27 in the UI/API against .
-        2.  Update any incorrect lines in the hardcoded data in .
-    -   **Why fix this issue and what will be achieved with the fix?** Proactively fixes data errors before the user finds them, helping to rebuild trust.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on other issue:** None
-
--   **Issue 3:**
-    -   **Description:** The Playwright scraper for  frequently times out, causing the system to fall back on hardcoded data. This is a primary source of data inaccuracy when dates change.
-    -   **Attempted fixes:** The agent implemented a fallback mechanism, but did not fix the scraper's reliability.
-    -   **Next debug checklist:**
-        1.  Investigate the  function in .
-        2.  Increase timeout values, add retries, or optimize the Playwright selectors to be faster and more resilient.
-        3.  Ensure the function gracefully handles cases where the site structure changes.
-    -   **Why fix this issue and what will be achieved with the fix?** Creates a robust data pipeline that doesn't rely on brittle, hardcoded fallbacks.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Backend
-    -   **Blocked on other issue:** None
-
--   **Issue 4:**
-    -   **Description:** The process for updating historical results is manual. A background job is needed to scrape results from  daily.
-    -   **Attempted fixes:** None.
-    -   **Next debug checklist:**
-        1.  Create a new  job in .
-        2.  The job should run daily and call the  function for the previous day's date for all leagues.
-        3.  It should update the respective opportunity collections with final scores.
-    -   **Why fix this issue and what will be achieved with the fix?** Fully automates the data pipeline, ensuring the dashboard is always up-to-date.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Backend
-    -   **Blocked on other issue:** Issue 3 (The scraper must be reliable first).
-
--   **Issue 5:**
-    -   **Description:** The backend file, , is a monolithic monster exceeding 5,500 lines. It contains all API routes, web scraping, data processing, and scheduling logic, making it extremely difficult and risky to modify.
-    -   **Attempted fixes:** None. The file has only grown larger.
-    -   **Next debug checklist:**
-        1.  Create a new directory structure: , , .
-        2.  Systematically move logic from  into the new structure (e.g., API endpoints to , scraping to ).
-    -   **Why fix this issue and what will be achieved with the fix?** Drastically improves code maintainability, reduces bugs, and enables faster future development. This is critical for the project's long-term health.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** both (extensive regression testing needed)
-    -   **Blocked on other issue:** None.
-
--   **Issue 6:**
-    -   **Description:** Non-essential Telegram status messages were cluttering the chat. A fix was implemented using a database-backed deletion queue.
-    -   **Attempted fixes:** A  collection in MongoDB was created.
-    -   **Next debug checklist:** User needs to monitor the Telegram chat to confirm no extraneous status messages appear.
-    -   **Why fix this issue and what will be achieved with the fix?** Provides a clean, uncluttered Telegram notification experience.
+-   **Issue 2:** Verify Process #4 - Update Scores
+    -   **Description:** The user has not confirmed that the Update Scores functionality works correctly for NHL and NCAAB after the agent's recent fixes.
+    -   **Attempted fixes:** The agent fixed the score scrapers for all leagues and corrected a date calculation bug in the frontend.
+    -   **Next debug checklist:** This is pending user testing. The agent should ask the user to test the Update Scores button on the Yesterday tab for both NHL and NCAAB.
+    -   **Why fix this issue and what will be achieved with the fix?** This will confirm Process #4 is fully functional across all leagues.
     -   **Status:** USER VERIFICATION PENDING
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** Frontend (User Test).
+
+-   **Issue 3:** Excel Export button is broken
+    -   **Description:** The Export Excel button does not trigger a file download.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** Frontend.
+
+-   **Issue 4:**  is a large monolith
+    -   **Description:** The backend logic is concentrated in a single large file, which is difficult to maintain.
+    -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Backend
-    -   **Blocked on other issue:** None.
 
 **In progress Task List**:
--   None.
+-   None. Current work is categorized under the issues above.
 
 **Upcoming and Future Tasks**
-
 -   **Upcoming Tasks:**
-    -   (P1) Improve  scraper reliability to prevent timeouts.
-    -   (P1) Implement automated daily scraping for historical game results.
+    -   (P1) Fix the broken Export Excel button (Issue #3).
+    -   (P1) Begin implementing user-defined processes #6 and #7 once defined by the user.
 -   **Future Tasks:**
-    -   (P2) **Refactor the monolithic  file.** This is a high-priority technical debt item.
-    -   (P3) Implement a UI and API to create, manage, and store custom betting rules (e.g., edge thresholds) in MongoDB.
+    -   (P1) Refactor  into a modular architecture (Issue #4).
+    -   (P2) Implement a UI to create and manage custom betting rules.
 
 **Completed work in this session**
--   **Bet-Time & Opening Line Tracking (DONE):** Implemented UI and backend logic to display the original bet line/edge (), the live line, and the opening line (from MongoDB) for NBA games.
--   **Advanced UI Analytics (DONE):**
-    -   Added colored dots (🟢🔵🟡🔴) to represent team rankings (Season vs. Last 3).
-    -   Implemented a conflict-highlighting system (yellow rows) for when dot analysis and edge recommendations disagree.
--   **Data Accuracy & Calculations (DONE):**
-    -   Fixed NBA PPG calculations by scraping live data from .
-    -   Corrected NBA schedule to show all 9 games for the current day.
-    -   Corrected NHL schedule to show 0 games for Dec 26 and all 13 games for Dec 27.
-    -   Fixed the Betting Record to only count the user's personal ENANO bets (>k), ignoring copied TIPSTER bets.
-    -   Fixed the Yesterday view to correctly show only past games with final scores, removing active bets.
-
-**Earlier issues found/mentioned but not fixed**
--   **Issue 1: Monolithic  file.** This critical issue was ignored again and has worsened as more logic was added to the file.
--   **Issue 2: Unreliable  scraper.** The scraper frequently times out, forcing the system to use brittle hardcoded data. A robust solution is needed.
-
-**Known issue recurrence from previous fork**
--   **Data Accuracy:** The issue of incorrect data (game schedules, calculations) recurred multiple times in this session, causing significant user frustration. The reliance on hardcoded fallbacks is the primary cause. Recurrence count: 5+ times. Status: IN PROGRESS.
+-   **NHL Bet Highlighting:** Fixed multiple bugs preventing NHL bets from being highlighted correctly, including data sync issues and UI rendering logic.
+-   **Multi-Bet Tracking:** Reworked backend and frontend to correctly track, count, and display multiple distinct bets (spread + total) on a single game.
+-   **Bet Scraper Accuracy:**
+    -   Fixed a bug misidentifying NCAAB teams as NBA teams.
+    -   Implemented a history scraper to include settled bets from the current day.
+    -   Vastly improved team name normalization logic to handle various abbreviations.
+-   **Bet Filtering Logic:**
+    -   Restricted all bet scraping to only the  account.
+    -   Filtered NBA/NHL bets to only include those with a risk of ,000+.
+-   **Process #4 (Update Scores):**
+    -   Migrated score scraping from  to  for consistency.
+    -   Fixed the CBS Sports scrapers for all three leagues to correctly parse final scores.
+    -   Resolved a critical date bug where the Update Scores button always updated for the current server date instead of the date being viewed in the UI.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Backend:** FastAPI, Playwright, , BeautifulSoup, Pydantic, APScheduler
--   **Frontend:** React (Hooks), Tailwind CSS, Shadcn UI, 
--   **Database:** MongoDB
--   **Web Scraping:** Complex, multi-source scraping from , , and .
+-   **Backend:** FastAPI, Playwright for scraping, Pydantic models.
+-   **Frontend:** React, Axios for API calls, TailwindCSS for styling.
+-   **Database:** MongoDB.
+-   **Scraping:** The system now scrapes  for bets (from both Open Bets and History pages) and  for game lines and final scores.
 
 **key DB schema**
--   ****: . Game objects now contain , , , , , , and .
--   ** (NEW)**: . Stores the first line scraped for a game.
--   : 
--   : 
--   : 
-
-**changes in tech stack**
--   None.
+-   **, , :**
+    -   : (Array[str]) Stores multiple bet types for a single game (e.g., ).
+    -   : (int) The number of bets on a game.
+    -   : (float) The combined final score of the game.
+    -   : (str) The game's outcome relative to the line (e.g., 'OVER', 'UNDER').
+    -   : (bool) Whether a placed bet on the game was a HIT or MISS.
 
 **All files of reference**
--   : All backend logic was modified here. This includes the implementation of opening line storage, PPG scraping, bet filtering, and fixes to game schedules.
--   : All frontend changes were made here, including the UI for bet-time lines, opening lines, colored dots, and the conflict highlighting system.
-
-**Areas that need refactoring**:
--   : **CRITICAL PRIORITY.** This file is dangerously large and complex. It MUST be broken down into a proper project structure (, , ) before any more features are added. The technical debt is severe.
--   : This file is now very large. It should be decomposed into smaller components (, , , etc.).
+-   : Contains all logic for scraping, data processing, and API endpoints. The , , and  endpoints were significantly changed. A new  function was added.
+-   : The single source for all UI. Handlers for Update Scores and Update Bet Results were fixed, and rendering logic for multi-bet display and final scores was added.
 
 **key api endpoints**
--   : Fetches opportunity data. The backend logic for this endpoint was significantly refactored to handle different data sources and calculations.
--   : Forces a refresh of opportunity data.
+-   : The main endpoint for getting live lines and user bets. Now scrapes only the ENANO account from both Open Bets and History pages.
+-   : Updates final game scores from CBS Sports for the provided date.
+-   : Updates bet outcomes (HIT/MISS) by scraping the Plays888 History page for the provided date.
 
 **Critical Info for New Agent**
--   **USER IS EXTREMELY FRUSTRATED:** The user is very unhappy about recurring data accuracy bugs and the associated credit costs. Your first priority is to be meticulous and accurate. Double-check all data points against the user's sources (, ).
--   **DO NOT ADDRESS CREDIT ISSUES:** The user was referred to Emergent support for credit-related complaints. Do not engage on this topic. Focus solely on fixing the technical issues.
--   **Immediate Task:** Fix the NHL Washington @ New Jersey line to 5.5 and then verify all other NHL lines for Dec 27.
--   **Data Pipeline is Brittle:** Be aware that the  scraper is flaky. The system often falls back to hardcoded data in , which is a common source of errors when the date changes. Your goal should be to make scrapers more reliable to reduce reliance on hardcoded data.
--   **Opening Lines:** The system now stores the *first seen* line from  as the . This is a persistent value.
+-   The immediate task is to fix and test **Process #5 (Update Bet Results)**. The user wants this to work for historical dates, and the frontend button has been fixed to support this. The backend scraper () needs to be verified to ensure it filters for the correct league and doesn't scrape irrelevant games.
+-   The user needs to re-test **Process #4 (Update Scores)** for NHL and NCAAB to confirm the latest fixes worked.
+-   Bet scraping is now **ENANO (jac075) account ONLY**.
+-   NBA/NHL bets are filtered for **risk >= ,000**.
+-   Team name normalization ( in ) is a complex but critical part of the bet matching logic and may require further additions.
 
 **documents and test reports created in this job**
--   
--   
--   
+-   /app/memory/PRD.md
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User Request:** Fix the NHL Washington @ New Jersey line from 6.5 to 5.5. (PENDING)
-2.  **User Feedback:** All 13 NHL games for tomorrow are not showing. (RESOLVED)
-3.  **User Feedback:** NHL data is wrong; showing games on Dec 26 (no games) and 0 games on Dec 27. (RESOLVED)
-4.  **User Feedback:** The betting lines for tomorrow's NBA games are wrong. Also, the switch to  should be at 5am, not 10pm. (RESOLVED)
-5.  **User Feedback:** Yesterday's games are missing results and an active game (Clippers) is incorrectly showing. (RESOLVED)
-6.  **User Feedback:** Today's NBA view is only showing 6 games instead of 9. NEED IT TO BE THE LAST TIME YOU FIX THIS. (RESOLVED)
-7.  **User Request:** The Betting Record should only count the user's k bets (ENANO), not the k copied bets (TIPSTER). (RESOLVED)
-8.  **User Request:** Scrape and store the opening line for games from . (RESOLVED)
-9.  **User Request:** Add a gray number for the opening line and adjust the yellow highlighting logic. (RESOLVED)
-10. **User Feedback:** Extremely angry about recurring bugs and credit charges. Contacted support. (NO ACTION NEEDED)
+1.  **User:** Requests start of Process #5 (Update Bet Results) for NBA, using 12/29/2025 as the example date.
+2.  **Agent:** Starts implementing Process #5, tests the endpoint but finds it scrapes irrelevant games.
+3.  **User:** Clarifies there were no NBA bets on the previous day (12/30).
+4.  **Agent:** Realizes the Update Bet Results button needs to use the date from the UI, not calculate yesterday. Implements this fix.
+5.  **Agent:** Asks the user to go ahead with Process #4 (Update Scores) and explains the source is now CBS Sports.
+6.  **User:** Reports that clicking Update Scores did nothing and the UI still mentioned ScoresAndOdds.com.
+7.  **Agent:** Fixes the UI toast message and discovers the frontend was sending the wrong date to the backend. Fixes the date logic to use the currently viewed date from the UI.
+8.  **User:** Confirms NBA scores worked after the fix, but NHL did not.
+9.  **Agent:** Investigates and finds the NHL scores were being saved, but the UI wasn't refreshing correctly. Confirms via screenshot that the scores do appear after a refresh.
+10. **User:** Reports that NCAAB scores did not work.
+11. **Agent:** Identifies the root cause was the date being sent was still incorrect for the Yesterday tab due to server time being on the next day. Fixes the frontend to use the displayed data's date, resolving the issue. This is the last implemented change.
 
 **Project Health Check:**
--   **Broken:** The data pipeline is fragile. The  scraper is prone to timeouts, and the system's reliance on hardcoded fallbacks in  is a primary source of recurring data errors.
--   **Mocked:** Opening lines were initially simulated with fake data before a real storage mechanism was implemented. The hardcoded data for game schedules still acts as a critical, and often incorrect, fallback.
+-   **Broken:**
+    -   Export Excel button functionality.
+-   **Mocked:**
+    -   All PPG/GPG data is dependent on the user manually providing the  file.
 
 **3rd Party Integrations**
--   **Telegram:** Used for all notifications.
--   **Playwright:** Used for web scraping , , and .
+-   **Playwright:** Used for web scraping  and .
+-   **BeautifulSoup:** Used for parsing HTML.
+-   **openpyxl, pandas:** Used for parsing the  file.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES, the agent used the backend and frontend testing subagents to verify the bet-time tracking feature.
--   **Troubleshoot agent used after agent stuck in loop:** NO
--   **Test files created:**
-    - 
--   **Known regressions:** None.
+-   **Testing agent used after significant changes:** NO
+-   **Troubleshoot agent used after agent stuck in loop:** YES, a testing agent was invoked once to apply linting fixes.
+-   **Test files created:** None
+-   **Known regressions:** None, but the screenshot tool was highly unreliable, causing significant delays and crashes.
 
 **Credentials to test flow:**
 -   **Website:** 
-    -   **Account 1:** , Password:  (Label: ENANO)
-    -   **Account 2:** , Password:  (Label: TIPSTER)
--   **Telegram:**
-    -   Bot Token: 
-    -   Group Chat ID: 
+    -   **Betting Account:**  /  (ENANO)
+    -   **Lines-only Account:**  /  (TIPSTER)
 
 **What agent forgot to execute**
--   The agent again failed to address the critical technical debt of refactoring the monolithic  file.
--   The agent did not make the  scraper more robust, instead implementing workarounds (fallbacks), which continues to cause data integrity issues.</analysis>
+-   The agent did not fully test the  endpoint (Process #5) after discovering it was scraping non-NBA games. The subsequent fix to the frontend date logic has also not been tested.
+-   The user has not yet re-tested the Update Scores functionality for NHL and NCAAB after the agent's last fix.</analysis>
