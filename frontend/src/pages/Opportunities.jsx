@@ -834,13 +834,13 @@ export default function Opportunities() {
                   <th className="text-left py-3 px-2">Away</th>
                   <th className="text-center py-3 px-1"></th>
                   <th className="text-left py-3 px-2">Home</th>
-                  {!isHistorical && <th className="text-center py-3 px-2">Open</th>}
+                  {!showHistoricalColumns && <th className="text-center py-3 px-2">Open</th>}
                   <th className="text-center py-3 px-2">Line</th>
-                  {isHistorical && <th className="text-center py-3 px-2">Final</th>}
-                  {isHistorical && <th className="text-center py-3 px-2">Diff</th>}
+                  {showHistoricalColumns && <th className="text-center py-3 px-2">Final</th>}
+                  {showHistoricalColumns && <th className="text-center py-3 px-2">Diff</th>}
                   <th className="text-center py-3 px-2">{league === 'NBA' || league === 'NCAAB' ? 'PPG' : 'GPG'} Avg</th>
                   <th className="text-center py-3 px-2">Edge</th>
-                  <th className="text-center py-3 px-2">{isHistorical ? 'Result' : 'Bet'}</th>
+                  <th className="text-center py-3 px-2">{showHistoricalColumns ? 'Result' : 'Bet'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1053,12 +1053,12 @@ export default function Opportunities() {
                           );
                         })()}
                       </td>
-                      {isHistorical && (
+                      {showHistoricalColumns && (
                         <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
                           {game.final_score || '-'}
                         </td>
                       )}
-                      {isHistorical && (
+                      {showHistoricalColumns && (
                         <td className="py-3 px-2 text-center font-mono">
                           {game.final_score && game.total ? (
                             <span className={game.final_score > game.total ? 'text-green-400' : 'text-red-400'}>
