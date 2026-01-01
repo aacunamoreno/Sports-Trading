@@ -3179,7 +3179,7 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
                         
                         if (isFinal) {
                             // Look for team rows with total scores
-                            // Format is like: "76ers\n17-14\n34\t38\t31\t25\t11\t139"
+                            // Format is like: "76ers\\n17-14\\n34\\t38\\t31\\t25\\t11\\t139"
                             // The last number in each team's row is the total
                             for (let i = 0; i < rawTextLines.length; i++) {
                                 const line = rawTextLines[i].trim();
@@ -3372,7 +3372,7 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
                         
                         if (isFinal) {
                             // Look for team rows with total scores
-                            // Format is like: "76ers\n17-14\n34\t38\t31\t25\t11\t139"
+                            // Format is like: "76ers\\n17-14\\n34\\t38\\t31\\t25\\t11\\t139"
                             // The last number in each team's row is the total
                             for (let i = 0; i < rawTextLines.length; i++) {
                                 const line = rawTextLines[i].trim();
@@ -3570,7 +3570,7 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                         
                         if (isFinal) {
                             // Look for team rows with total scores
-                            // Format is like: "76ers\n17-14\n34\t38\t31\t25\t11\t139"
+                            // Format is like: "76ers\\n17-14\\n34\\t38\\t31\\t25\\t11\\t139"
                             // The last number in each team's row is the total
                             for (let i = 0; i < rawTextLines.length; i++) {
                                 const line = rawTextLines[i].trim();
