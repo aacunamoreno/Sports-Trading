@@ -2532,12 +2532,19 @@ class Plays888Service:
                     # Look for team names in nearby lines
                     teams_text = ""
                     for j in range(max(0, i-2), min(len(lines), i+3)):
-                        if 'vrs' in lines[j].lower():
+                        if 'vrs' in lines[j].lower() or ' vs ' in lines[j].lower():
                             teams_text = lines[j]
                             break
                     
                     # Extract team names from "(TEAM1 vrs TEAM2)" or "(TEAM1 REG.TIME vrs TEAM2 REG.TIME)"
+                    # Also support live betting format: "TEAM1 vs TEAM2 / Game / Total"
                     teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
+                    
+                    # If no match, try live betting format: "Team1 vs Team2 / Game / Total"
+                    if not teams_match:
+                        live_match = re.search(r'([A-Za-z\s\.]+?)\s+vs\s+([A-Za-z\s\.]+?)\s*/\s*Game', teams_text, re.IGNORECASE)
+                        if live_match:
+                            teams_match = live_match
                     if teams_match:
                         away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
                         home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
