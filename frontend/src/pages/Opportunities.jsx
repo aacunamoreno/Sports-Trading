@@ -152,7 +152,7 @@ export default function Opportunities() {
     }
   };
 
-  // Update yesterday's scores from ScoresAndOdds.com
+  // Update yesterday's scores from CBS Sports
   const handleUpdateScores = async () => {
     setUpdatingScores(true);
     toast.info('Fetching scores from ScoresAndOdds.com...');
