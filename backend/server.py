@@ -10994,30 +10994,30 @@ async def update_ncaab_scores(date: str = None):
             edge = game.get('edge', 0) or 0
             
             if final_score is not None and line:
-                    # Determine result
-                    if final_score > line:
-                        game['result'] = 'OVER'
-                    elif final_score < line:
-                        game['result'] = 'UNDER'
-                    else:
-                        game['result'] = 'PUSH'
-                    
-                    # Check if recommendation hit (edge threshold 9 for NCAAB)
-                    if abs(edge) >= edge_threshold and recommendation:
-                        if recommendation == 'OVER':
-                            game['result_hit'] = final_score > line
-                        elif recommendation == 'UNDER':
-                            game['result_hit'] = final_score < line
-                        else:
-                            game['result_hit'] = None
-                        
-                        if game['result_hit'] == True:
-                            hits += 1
-                        elif game['result_hit'] == False:
-                            misses += 1
+                # Determine result
+                if final_score > line:
+                    game['result'] = 'OVER'
+                elif final_score < line:
+                    game['result'] = 'UNDER'
+                else:
+                    game['result'] = 'PUSH'
+                
+                # Check if recommendation hit (edge threshold 9 for NCAAB)
+                if abs(edge) >= edge_threshold and recommendation:
+                    if recommendation == 'OVER':
+                        game['result_hit'] = final_score > line
+                    elif recommendation == 'UNDER':
+                        game['result_hit'] = final_score < line
                     else:
                         game['result_hit'] = None
-                
+                    
+                    if game['result_hit'] == True:
+                        hits += 1
+                    elif game['result_hit'] == False:
+                        misses += 1
+                else:
+                    game['result_hit'] = None
+            
                 updated_count += 1
                 status = "HIT" if game.get('result_hit') == True else "MISS" if game.get('result_hit') == False else "NO_REC"
                 results.append({
