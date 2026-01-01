@@ -1174,7 +1174,7 @@ export default function Opportunities() {
                           <div className="flex flex-col gap-1">
                             {/* Get unique bet types */}
                             {(() => {
-                              const betTypes = game.bet_types || [game.bet_type];
+                              const betTypes = (game.bet_types && game.bet_types.length > 0) ? game.bet_types : (game.bet_type ? [game.bet_type] : []);
                               const uniqueTypes = [...new Set(betTypes)];
                               const typeCounts = {};
                               betTypes.forEach(t => { typeCounts[t] = (typeCounts[t] || 0) + 1; });
