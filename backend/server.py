@@ -4004,6 +4004,7 @@ async def update_opportunity_with_bet(sport: str, game: str, bet_type: str, bet_
             'NFL': 'nfl_opportunities',
             'CBB': 'ncaab_opportunities',
             'NCAAB': 'ncaab_opportunities',
+            'RBL': 'ncaab_opportunities',  # College Basketball Extra on plays888
         }
         
         # Try to match sport to collection
