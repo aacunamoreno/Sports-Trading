@@ -8058,7 +8058,8 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     elif bet_sport == 'SOC' and ('NHL' in bet_description or 'REGULATION' in bet_description):
                         is_league_match = True
                         logger.info(f"[Refresh Bets] Matched SOC bet as NHL: {bet_away} vs {bet_home}")
-                elif league.upper() == 'NCAAB' and ('CBB' in bet_sport or 'NCAA' in bet_sport or 'COLLEGE' in bet_sport or 'NCAAB' in bet_sport):
+                elif league.upper() == 'NCAAB' and ('CBB' in bet_sport or 'NCAA' in bet_sport or 'COLLEGE' in bet_sport or 'NCAAB' in bet_sport or 'RBL' in bet_sport):
+                    # RBL = College Basketball Extra (special lines on plays888)
                     is_league_match = True
                 
                 if not is_league_match:
