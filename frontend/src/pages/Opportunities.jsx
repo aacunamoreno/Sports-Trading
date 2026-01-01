@@ -157,9 +157,13 @@ export default function Opportunities() {
     setUpdatingScores(true);
     toast.info('Fetching scores from CBS Sports...');
     try {
-      // Get the date we're currently viewing
+      // Get the date we're currently viewing from the loaded data
+      // This ensures we update the exact date shown in the UI
       let dateStr;
-      if (day === 'yesterday') {
+      if (data && data.date) {
+        // Use the date from the currently loaded data
+        dateStr = data.date;
+      } else if (day === 'yesterday') {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         dateStr = yesterday.toISOString().split('T')[0];
