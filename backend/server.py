@@ -6834,11 +6834,13 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 if game.get('final_score') is None:
                     continue
                 
-                # Edge Record
-                if game.get('result_hit') is True:
-                    date_edge_hits += 1
-                elif game.get('result_hit') is False:
-                    date_edge_misses += 1
+                # Edge Record: Only count games with |edge| >= 9 (NCAAB threshold)
+                edge = game.get('edge') or 0
+                if abs(edge) >= 9:
+                    if game.get('result_hit') is True:
+                        date_edge_hits += 1
+                    elif game.get('result_hit') is False:
+                        date_edge_misses += 1
                 
                 # Betting Record (if no actual_bet_record)
                 if not actual_record and game.get('user_bet'):
