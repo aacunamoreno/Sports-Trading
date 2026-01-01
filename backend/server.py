@@ -10779,70 +10779,12 @@ async def update_ncaab_scores(date: str = None):
             yesterday = datetime.now(arizona_tz) - timedelta(days=1)
             date = yesterday.strftime('%Y-%m-%d')
         
-        logger.info(f"[NCAAB Scores] Updating scores for {date}")
+        logger.info(f"[NCAAB Scores] Updating scores for {date} from CBS Sports")
         
-        # Scrape scores from ScoresAndOdds.com
-        url = f"https://www.scoresandodds.com/ncaab?date={date}"
-        logger.info(f"[NCAAB Scores] Scraping from {url}")
+        # Scrape scores from CBS Sports (same source as Process #1)
+        scraped_games = await scrape_cbssports_ncaab(date)
         
-        scraped_games = []
-        
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            
-            await page.goto(url, timeout=30000)
-            await page.wait_for_load_state("domcontentloaded")
-            await page.wait_for_timeout(3000)
-            
-            # Parse NCAAB game data - scores are typically 40-120 range
-            scraped_games = await page.evaluate("""() => {
-                const games = [];
-                const text = document.body.innerText;
-                const lines = text.split('\\n');
-                
-                let currentGame = {};
-                let lastTeam = '';
-                
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    
-                    // NCAAB scores are typically 40-120
-                    if (/^\\d{2,3}$/.test(line)) {
-                        const score = parseInt(line);
-                        if (score >= 40 && score <= 150) {
-                            // Look back for team name
-                            for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
-                                const prevLine = lines[j].trim();
-                                if (prevLine && !/^\\d+-\\d+$/.test(prevLine) && !/^\\d+$/.test(prevLine) && prevLine.length > 2) {
-                                    lastTeam = prevLine;
-                                    break;
-                                }
-                            }
-                            
-                            if (lastTeam) {
-                                if (!currentGame.away_team) {
-                                    currentGame.away_team = lastTeam;
-                                    currentGame.away_score = score;
-                                } else if (!currentGame.home_team) {
-                                    currentGame.home_team = lastTeam;
-                                    currentGame.home_score = score;
-                                    currentGame.final_score = currentGame.away_score + score;
-                                    games.push({...currentGame});
-                                    currentGame = {};
-                                }
-                                lastTeam = '';
-                            }
-                        }
-                    }
-                }
-                
-                return games;
-            }""")
-            
-            await browser.close()
-        
-        logger.info(f"[NCAAB Scores] Scraped {len(scraped_games)} games")
+        logger.info(f"[NCAAB Scores] Scraped {len(scraped_games)} games from CBS Sports")
         
         # Get database games
         db_data = await db.ncaab_opportunities.find_one({"date": date}, {"_id": 0})
