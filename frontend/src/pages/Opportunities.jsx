@@ -208,17 +208,22 @@ export default function Opportunities() {
     setUpdatingBetResults(true);
     toast.info('Fetching bet results from plays888.co History...');
     try {
-      // Get yesterday's date
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const dateStr = yesterday.toISOString().split('T')[0];
+      // Use the date from currently loaded data (same as Update Scores)
+      let dateStr;
+      if (data && data.date) {
+        dateStr = data.date;
+      } else {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        dateStr = yesterday.toISOString().split('T')[0];
+      }
       
       const endpoint = `/bets/${league.toLowerCase()}/update-results?date=${dateStr}`;
       
       const response = await axios.post(`${API}${endpoint}`, {}, { timeout: 120000 });
       
       if (response.data.success) {
-        toast.success(`Updated ${response.data.bets_matched} bets. Record: ${response.data.wins}W-${response.data.losses}L`);
+        toast.success(`Updated ${response.data.bets_matched || response.data.games_updated || 0} bets for ${dateStr}. Record: ${response.data.wins || 0}W-${response.data.losses || 0}L`);
         // Reload data to show updated bet results
         await loadOpportunities();
       } else {
