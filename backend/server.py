@@ -2675,6 +2675,75 @@ class Plays888Service:
                         "is_spread": True  # Flag for spread bets
                     })
                 
+                elif live_total_match and not total_match:
+                    # Handle live betting format: "Over 161.5 -106" or "Team vs Team / Game / Total / Over 161.5"
+                    bet_type = 'OVER' if live_total_match.group(1).lower() == 'over' else 'UNDER'
+                    total_line = float(live_total_match.group(2))
+                    
+                    # Look for team names in nearby lines (check wider range for live bets)
+                    teams_text = ""
+                    for j in range(max(0, i-5), min(len(lines), i+3)):
+                        if ' vs ' in lines[j].lower() and 'game' in lines[j].lower():
+                            teams_text = lines[j]
+                            break
+                    
+                    # Extract team names from "Team1 vs Team2 / Game / Total"
+                    live_teams_match = re.search(r'(?:\d+\s*-\s*)?([A-Za-z\s\.]+?)\s+vs\s+([A-Za-z\s\.]+?)\s*/\s*Game', teams_text, re.IGNORECASE)
+                    
+                    if live_teams_match:
+                        away_team = live_teams_match.group(1).strip()
+                        home_team = live_teams_match.group(2).strip()
+                        
+                        # Check for international/European basketball
+                        intl_patterns = ['CSM ', 'BC ', 'KK ', 'TARGU', 'PLOIESTI', 'BUCHAREST', 'CLUJ', 
+                                        'SIBIU', 'ORADEA', 'STEAUA', 'DINAMO', 'RAPID', 'FCSB']
+                        is_international = any(pattern in away_team.upper() or pattern in home_team.upper() 
+                                              for pattern in intl_patterns)
+                        
+                        # Determine sport - check for RBL marker in nearby lines
+                        sport = None
+                        for j in range(max(0, i-3), min(len(lines), i+5)):
+                            if 'RBL' in lines[j] or 'College Basketball' in lines[j]:
+                                sport = 'NCAAB'
+                                break
+                            elif 'NBA' in lines[j]:
+                                sport = 'NBA'
+                                break
+                            elif 'NHL' in lines[j]:
+                                sport = 'NHL'
+                                break
+                        
+                        if not sport:
+                            if is_nhl_team(away_team) and is_nhl_team(home_team):
+                                sport = 'NHL'
+                            elif is_nba_team(away_team) and is_nba_team(home_team):
+                                sport = 'NBA'
+                            elif is_international:
+                                sport = 'INTL_BASKETBALL'
+                            else:
+                                sport = 'NCAAB'  # Default to college basketball for live bets
+                        
+                        # Look for risk amount
+                        risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
+                        risk_amount = 0
+                        win_amount = 0
+                        if risk_match:
+                            risk_amount = float(risk_match.group(1).replace(',', ''))
+                            win_amount = float(risk_match.group(2).replace(',', ''))
+                        
+                        logger.info(f"[OpenBets] Found live bet: {away_team} vs {home_team} - {bet_type} {total_line} (sport={sport})")
+                        
+                        raw_bets.append({
+                            "sport": sport,
+                            "away_team": away_team,
+                            "home_team": home_team,
+                            "bet_type": bet_type,
+                            "total_line": total_line,
+                            "risk": risk_amount,
+                            "to_win": win_amount,
+                            "is_live": True  # Flag for live bets
+                        })
+                
                 i += 1
             
             # Log all raw bets before consolidation
