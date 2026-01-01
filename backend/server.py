@@ -10199,7 +10199,19 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'NC A&T': 'NC A&T',
             }
             
-            df = pd.read_excel(xlsx, sheet_name='NCAAB - PPG SEASON AND PPGL3', header=None)
+            # Try both possible sheet names
+            sheet_names = xlsx.sheet_names
+            ncaab_sheet = None
+            for sn in sheet_names:
+                if 'NCAAB' in sn.upper() and 'PPG' in sn.upper():
+                    ncaab_sheet = sn
+                    break
+            
+            if not ncaab_sheet:
+                ncaab_sheet = 'NCAAB - PPG SEASON AND PPGL3'  # Fallback
+            
+            logger.info(f"[PPG Excel] Using NCAAB sheet: {ncaab_sheet}")
+            df = pd.read_excel(xlsx, sheet_name=ncaab_sheet, header=None)
             for i, row in df.iterrows():
                 vals = row.values
                 try:
