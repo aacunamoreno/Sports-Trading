@@ -11552,6 +11552,7 @@ async def update_nhl_bet_results(date: str = None):
                     game['bet_type'] = bet['bet_type']
                     game['has_bet'] = True
                     game['is_reg_time_bet'] = bet.get('is_reg_time', False)
+                    game['bet_result'] = bet['result']  # Store the raw result (won/lost/push)
                     
                     # Determine if bet hit
                     if bet['result'] == 'won':
