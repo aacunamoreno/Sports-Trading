@@ -1007,7 +1007,7 @@ export default function Opportunities() {
                         </div>
                       </td>
                       {/* Opening Line column - only for non-historical */}
-                      {!isHistorical && (
+                      {!showHistoricalColumns && (
                         <td className={`py-3 px-2 text-center font-mono text-muted-foreground`}>
                           {game.opening_line || game.total || '-'}
                         </td>
@@ -1037,7 +1037,7 @@ export default function Opportunities() {
                                   </span>
                                 )}
                                 {/* Arrow for opening line movement (today/tomorrow) */}
-                                {!isHistorical && !game.user_bet && lineMovement !== 0 && (
+                                {!showHistoricalColumns && !game.user_bet && lineMovement !== 0 && (
                                   <span className="text-xs ml-1">
                                     {lineMovement > 0 ? '↑' : '↓'}
                                   </span>
