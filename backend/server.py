@@ -8052,45 +8052,54 @@ async def refresh_lines_and_bets(league: str = "NBA"):
         live_lines = {}
         open_bets = []
         
-        service = Plays888Service()
-        try:
-            await service.initialize()
-            login_result = await service.login("jac083", "acuna2025!")
-            
-            if login_result.get('success'):
-                # Fetch live lines only (no bets from TIPSTER)
-                live_games = await service.scrape_totals(league.upper())
-                
+        # For NCAAB, use scoresandodds.com for live lines since plays888 scraper doesn't support it well
+        if league.upper() == "NCAAB":
+            try:
+                live_games = await scrape_scoresandodds("NCAAB", target_date)
                 for game in live_games:
                     away = game.get('away', '')
                     home = game.get('home', '')
                     total = game.get('total')
                     
-                    # Convert plays888 team names to match our database
-                    if league.upper() == "NBA":
-                        away = convert_plays888_team_name(away)
-                        home = convert_plays888_team_name(home)
-                    elif league.upper() == "NCAAB":
-                        # NCAAB team names from plays888 often have "St" instead of "St." etc.
-                        # Clean up for matching
-                        away = away.replace(" ST", " St.").replace("WESTERN ", "W. ").replace("EASTERN ", "E. ")
-                        home = home.replace(" ST", " St.").replace("WESTERN ", "W. ").replace("EASTERN ", "E. ")
-                    
                     if total:
                         key = f"{away.upper()}_{home.upper()}"
                         live_lines[key] = float(total) if isinstance(total, str) else total
-                        logger.info(f"[Refresh Lines] Live line for {away} @ {home}: {total}")
+                        logger.info(f"[Refresh Lines] Live line from scoresandodds for {away} @ {home}: {total}")
+            except Exception as e:
+                logger.warning(f"[Refresh Lines] Error fetching NCAAB lines from scoresandodds: {e}")
+        else:
+            # For NBA/NHL, use plays888 for live lines
+            service = Plays888Service()
+            try:
+                await service.initialize()
+                login_result = await service.login("jac083", "acuna2025!")
                 
-            else:
-                raise HTTPException(status_code=401, detail="Failed to login to plays888.co")
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"[Refresh Lines & Bets] Error fetching from plays888: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch data: {e}")
-        finally:
-            await service.close()
+                if login_result.get('success'):
+                    # Fetch live lines only (no bets from TIPSTER)
+                    live_games = await service.scrape_totals(league.upper())
+                    
+                    for game in live_games:
+                        away = game.get('away', '')
+                        home = game.get('home', '')
+                        total = game.get('total')
+                        
+                        # Convert plays888 team names to match our database
+                        if league.upper() == "NBA":
+                            away = convert_plays888_team_name(away)
+                            home = convert_plays888_team_name(home)
+                        
+                        if total:
+                            key = f"{away.upper()}_{home.upper()}"
+                            live_lines[key] = float(total) if isinstance(total, str) else total
+                            logger.info(f"[Refresh Lines] Live line for {away} @ {home}: {total}")
+                    
+                else:
+                    logger.warning(f"[Refresh Lines] Failed to login to plays888.co for lines")
+                
+            except Exception as e:
+                logger.error(f"[Refresh Lines & Bets] Error fetching from plays888: {e}")
+            finally:
+                await service.close()
         
         # Fetch bets ONLY from ENANO account (jac075) - ignore TIPSTER
         service2 = Plays888Service()
