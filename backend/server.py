@@ -13157,6 +13157,85 @@ async def set_ranking_ppg(data: RankingPPGUpdate):
         logger.error(f"Error setting ranking PPG: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ================= BET CANCELLED FLAG =================
+
+class BetCancelledUpdate(BaseModel):
+    league: str
+    date: str
+    game_num: int
+    cancelled: bool = True
+
+@api_router.post("/opportunities/bet-cancelled")
+async def set_bet_cancelled(data: BetCancelledUpdate):
+    """Mark a game's bet as cancelled (e.g., when user places both OVER and UNDER)"""
+    try:
+        league = data.league.upper()
+        collection_map = {
+            'NBA': 'nba_opportunities',
+            'NHL': 'nhl_opportunities',
+            'NCAAB': 'ncaab_opportunities'
+        }
+        
+        if league not in collection_map:
+            raise HTTPException(status_code=400, detail=f"Invalid league: {league}")
+        
+        collection = db[collection_map[league]]
+        
+        # Get the document for this date
+        doc = await collection.find_one({"date": data.date})
+        if not doc:
+            raise HTTPException(status_code=404, detail=f"No data found for {league} on {data.date}")
+        
+        games = doc.get('games', [])
+        game_found = False
+        
+        for game in games:
+            if game.get('game_num') == data.game_num:
+                if data.cancelled:
+                    # Mark as cancelled and clear bet indicators
+                    game['bet_cancelled'] = True
+                    game['has_bet'] = False
+                    game['user_bet'] = False
+                    game['bet_type'] = None
+                    game['bet_line'] = None
+                    game['bet_types'] = []
+                    game['bet_lines'] = []
+                    game['bet_count'] = 0
+                else:
+                    # Uncancel - remove the flag (bet will be re-added on next refresh)
+                    game['bet_cancelled'] = False
+                game_found = True
+                break
+        
+        if not game_found:
+            raise HTTPException(status_code=404, detail=f"Game #{data.game_num} not found")
+        
+        # Update the document
+        await collection.update_one(
+            {"date": data.date},
+            {"$set": {"games": games}}
+        )
+        
+        action = "cancelled" if data.cancelled else "uncancelled"
+        logger.info(f"Bet {action} for {league} game #{data.game_num} on {data.date}")
+        
+        return {
+            "success": True,
+            "message": f"Bet {action} for game #{data.game_num}",
+            "league": league,
+            "date": data.date,
+            "game_num": data.game_num,
+            "cancelled": data.cancelled
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error setting bet cancelled: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 @api_router.delete("/opportunities/ranking-ppg")
 async def clear_ranking_ppg(league: str, date: str, game_num: int):
     """Clear ranking PPG selection for a game"""
