@@ -8065,8 +8065,9 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 live_games = []
             
             for game in live_games:
-                away = game.get('away', '')
-                home = game.get('home', '')
+                # CBS Sports returns 'away_team'/'home_team', handle both formats
+                away = game.get('away') or game.get('away_team', '')
+                home = game.get('home') or game.get('home_team', '')
                 total = game.get('total')
                 
                 if total and away and home:
