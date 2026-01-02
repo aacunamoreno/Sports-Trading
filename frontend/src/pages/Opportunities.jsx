@@ -723,20 +723,6 @@ export default function Opportunities() {
             </>
           )}
         </div>
-        
-        {/* Row 3: Direct Download Links */}
-        <div className="flex flex-col gap-1 text-xs mt-3 p-2 bg-gray-800/50 rounded">
-          <span className="text-muted-foreground text-[10px]">Copy links to download Excel:</span>
-          <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
-            {BACKEND_URL}/api/export/excel?league=NBA&start_date=2025-12-22
-          </code>
-          <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
-            {BACKEND_URL}/api/export/excel?league=NHL&start_date=2025-12-22
-          </code>
-          <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
-            {BACKEND_URL}/api/export/excel?league=NCAAB&start_date=2025-12-22
-          </code>
-        </div>
       </div>
 
       {/* League Tabs - NFL eliminated */}
