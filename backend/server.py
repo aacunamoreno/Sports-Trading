@@ -10596,10 +10596,11 @@ async def upload_ppg_excel(league: str, target_date: str = None):
             if team_name in ppg_by_team:
                 return ppg_by_team[team_name]
             
-            # For NCAAB, check the mapping
-            if league == 'NCAAB' and 'ncaab_team_mapping' in dir():
-                mapped_name = ncaab_team_mapping.get(team_name)
+            # For NCAAB, check the mapping FIRST (before fuzzy match)
+            if league == 'NCAAB':
+                mapped_name = ncaab_map.get(team_name)
                 if mapped_name and mapped_name in ppg_by_team:
+                    logger.info(f"[PPG] Mapped '{team_name}' -> '{mapped_name}'")
                     return ppg_by_team[mapped_name]
             
             # Fuzzy match
