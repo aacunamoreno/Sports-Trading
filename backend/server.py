@@ -2299,29 +2299,45 @@ class Plays888Service:
             await self.page.wait_for_timeout(2000)
             
             # Determine checkbox ID and continue button based on league
+            # For NCAAB: Need to check BOTH "NCAA BASKETBALL - MEN" and "NCAA BASKETBALL - MEN EXTRA GAMES"
             if league.upper() == "NBA":
                 checkbox_id = "lg_3"  # NBA checkbox
                 card_heading = "heading4"  # Baloncesto section
+                checkbox_ids = ["lg_3"]
             elif league.upper() == "NHL":
                 checkbox_id = "lg_1166"  # NHL - OT INCLUDED checkbox
                 card_heading = "heading12"  # Hockey section (adjust if needed)
+                checkbox_ids = ["lg_1166"]
             elif league.upper() == "NFL":
                 checkbox_id = "lg_5207"  # NFL - GAME LINES checkbox
                 card_heading = "heading1"  # Futbol Americano section
+                checkbox_ids = ["lg_5207"]
+            elif league.upper() in ["NCAAB", "CBB"]:
+                # NCAAB has two sections on plays888:
+                # 1. NCAA BASKETBALL - MEN
+                # 2. NCAA BASKETBALL - MEN EXTRA GAMES
+                # We need to scrape from BOTH
+                checkbox_id = "lg_1"  # Primary NCAA BASKETBALL - MEN
+                card_heading = "heading3"  # Baloncesto Universitario section
+                checkbox_ids = ["lg_1"]  # Will also try "lg_1268" for EXTRA GAMES
             else:
                 logger.error(f"Unsupported league: {league}")
                 return []
             
-            # Check the league checkbox using JavaScript
+            # Check the league checkbox(es) using JavaScript
             checkbox_result = await self.page.evaluate(f'''
                 () => {{
-                    const checkbox = document.getElementById("{checkbox_id}");
-                    if (checkbox) {{
-                        checkbox.checked = true;
-                        checkbox.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                        return true;
+                    const checkboxIds = {checkbox_ids};
+                    let checked = 0;
+                    for (const id of checkboxIds) {{
+                        const checkbox = document.getElementById(id);
+                        if (checkbox) {{
+                            checkbox.checked = true;
+                            checkbox.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                            checked++;
+                        }}
                     }}
-                    return false;
+                    return checked > 0;
                 }}
             ''')
             
