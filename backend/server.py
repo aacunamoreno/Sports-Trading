@@ -8276,6 +8276,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 # Filter by bet amount:
                 # - NBA/NHL: Only count bets with $2,000+ risk (ignore $1,000 bets)
                 # - NCAAB: Count all bets including $1,000
+                # NOTE: If risk is 0 (parsing issue), still process the bet
                 min_bet_amount = 1800 if league.upper() in ['NBA', 'NHL'] else 0  # Use 1800 to account for rounding
                 if bet_risk > 0 and bet_risk < min_bet_amount:
                     logger.info(f"[Refresh Bets] Skipping low-amount bet for {league}: ${bet_risk} < ${min_bet_amount} ({bet_away} vs {bet_home})")
