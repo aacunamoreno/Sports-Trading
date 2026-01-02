@@ -8163,29 +8163,51 @@ async def refresh_lines_and_bets(league: str = "NBA"):
             game['bet_type'] = None
             game['bet_line'] = None
             
-            # Update live line (but preserve opening_line and PPG)
+            # Update live line (but preserve opening_line/total and PPG)
+            # opening_line/total = the original line from 8pm scrape (never changes)
+            # live_line = current line from plays888 (updated on refresh)
             if key in live_lines:
                 new_line = live_lines[key]
-                old_line = game.get('total')
+                old_live_line = game.get('live_line') or game.get('total')
                 
-                if old_line != new_line:
-                    game['total'] = new_line
+                if old_live_line != new_line:
+                    # Store in live_line field, NOT total (total = opening line)
+                    game['live_line'] = new_line
                     
-                    # Recalculate edge (combined_ppg - new line)
+                    # If this is the first time and opening_line is not set, set it
+                    if not game.get('opening_line') and game.get('total'):
+                        game['opening_line'] = game.get('total')
+                    
+                    # Recalculate edge based on LIVE line
                     combined_ppg = game.get('combined_ppg')
                     if combined_ppg:
                         game['edge'] = round(combined_ppg - new_line, 1)
                         # Update recommendation based on new edge
                         edge = game['edge']
-                        if edge >= 9:
-                            game['recommendation'] = 'OVER'
-                        elif edge <= -9:
-                            game['recommendation'] = 'UNDER'
-                        else:
-                            game['recommendation'] = ''
+                        if league.upper() == 'NCAAB':
+                            if edge >= 9:
+                                game['recommendation'] = 'OVER'
+                            elif edge <= -9:
+                                game['recommendation'] = 'UNDER'
+                            else:
+                                game['recommendation'] = ''
+                        elif league.upper() == 'NBA':
+                            if edge >= 5:
+                                game['recommendation'] = 'OVER'
+                            elif edge <= -5:
+                                game['recommendation'] = 'UNDER'
+                            else:
+                                game['recommendation'] = ''
+                        else:  # NHL
+                            if edge >= 0.5:
+                                game['recommendation'] = 'OVER'
+                            elif edge <= -0.5:
+                                game['recommendation'] = 'UNDER'
+                            else:
+                                game['recommendation'] = ''
                     
                     lines_updated += 1
-                    logger.info(f"[Refresh Lines] Updated {away} @ {home}: {old_line} -> {new_line}")
+                    logger.info(f"[Refresh Lines] Updated live line {away} @ {home}: {old_live_line} -> {new_line} (opening: {game.get('opening_line') or game.get('total')})")
             
             # #3.75 - Match open bets to games and store bet_line
             for bet in open_bets:
