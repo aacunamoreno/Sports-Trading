@@ -8435,6 +8435,11 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 
                 if not game_matches:
                     continue
+                
+                # Skip cancelled games - don't add bets back
+                if game.get('bet_cancelled', False):
+                    logger.info(f"[Refresh Bets] Skipping cancelled game: {away} @ {home}")
+                    continue
                     
                 # #3.5 - Bet Duplication Prevention
                 if bet_ticket and bet_ticket in existing_bet_tickets:
