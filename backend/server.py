@@ -8369,7 +8369,6 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     # NHL team name mappings (city abbreviations to full names)
                     nhl_mappings = {
                         'LA KINGS': 'LOS ANGELES KINGS',
-                        'LA ': 'LOS ANGELES ',
                         'NY RANGERS': 'NEW YORK RANGERS',
                         'NY ISLANDERS': 'NEW YORK ISLANDERS',
                         'TB LIGHTNING': 'TAMPA BAY LIGHTNING',
