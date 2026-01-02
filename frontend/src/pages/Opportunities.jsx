@@ -1089,6 +1089,43 @@ export default function Opportunities() {
                         {index + 1}
                       </td>
                       <td className="py-3 px-2 text-muted-foreground">{game.time}</td>
+                      {/* Ranking PPG Selection Buttons */}
+                      <td className="py-3 px-1">
+                        <div className="flex flex-col gap-0.5">
+                          {game.ranking_ppg ? (
+                            // Show selected state - single highlighted button
+                            <button
+                              className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                game.ranking_ppg === 'high' 
+                                  ? 'bg-green-500 text-white' 
+                                  : 'bg-red-500 text-white'
+                              }`}
+                              title={`${game.ranking_ppg.toUpperCase()} ranking game selected`}
+                              disabled
+                            >
+                              {game.ranking_ppg === 'high' ? 'H' : 'L'}
+                            </button>
+                          ) : (
+                            // Show both buttons for selection
+                            <>
+                              <button
+                                onClick={() => handleRankingPPGSelect(game.game_num, 'high')}
+                                className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white transition-all border border-green-500/30"
+                                title="Mark as HIGH ranking game (all green dots)"
+                              >
+                                H
+                              </button>
+                              <button
+                                onClick={() => handleRankingPPGSelect(game.game_num, 'low')}
+                                className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all border border-red-500/30"
+                                title="Mark as LOW ranking game (all red dots)"
+                              >
+                                L
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
                       {/* Away Team with Rankings */}
                       <td className={`py-3 px-2 ${textStyle}`}>
                         <div className="flex flex-col">
