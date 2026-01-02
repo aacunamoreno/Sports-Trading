@@ -3383,6 +3383,10 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
             
             await browser.close()
             
+            # Convert times to Arizona timezone
+            for game in games:
+                game['time'] = convert_time_to_arizona(game.get('time', ''))
+            
             logger.info(f"Scraped {len(games)} NCAAB games from CBS Sports for {target_date}")
             return games
             
