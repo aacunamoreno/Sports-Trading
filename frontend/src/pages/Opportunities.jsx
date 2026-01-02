@@ -63,6 +63,26 @@ export default function Opportunities() {
     fetchRecordsSummary();
   }, [league]);
 
+  // Fetch Ranking PPG records when league changes
+  useEffect(() => {
+    const fetchRankingPPGRecords = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/records/ranking-ppg-summary`);
+        const summary = await res.json();
+        
+        if (summary[league]) {
+          setRankingPPGRecord({
+            high: { hits: summary[league].high_hits, misses: summary[league].high_misses },
+            low: { hits: summary[league].low_hits, misses: summary[league].low_misses }
+          });
+        }
+      } catch (e) {
+        console.error('Error fetching ranking PPG records:', e);
+      }
+    };
+    fetchRankingPPGRecords();
+  }, [league]);
+
   const loadOpportunities = async () => {
     setLoading(true);
     try {
