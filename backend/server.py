@@ -8208,7 +8208,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                             break
             
             if matched_line:
-                new_line = live_lines[key]
+                new_line = matched_line
                 old_live_line = game.get('live_line') or game.get('total')
                 
                 if old_live_line != new_line:
