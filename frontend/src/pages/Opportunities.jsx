@@ -420,6 +420,32 @@ export default function Opportunities() {
     }
   };
 
+  // Handle Ranking PPG selection (High/Low)
+  const handleRankingPPGSelect = async (gameNum, rankingType) => {
+    try {
+      const response = await axios.post(`${API}/opportunities/ranking-ppg`, {
+        league: league,
+        date: data.date,
+        game_num: gameNum,
+        ranking_type: rankingType
+      });
+      
+      if (response.data.success) {
+        toast.success(`Marked as ${rankingType.toUpperCase()} ranking game`);
+        // Update local state to reflect the change
+        setData(prev => ({
+          ...prev,
+          games: prev.games.map(g => 
+            g.game_num === gameNum ? { ...g, ranking_ppg: rankingType } : g
+          )
+        }));
+      }
+    } catch (error) {
+      console.error('Error setting ranking PPG:', error);
+      toast.error('Failed to set ranking PPG');
+    }
+  };
+
   // Row styles: Orange for UNDER, Blue for OVER
   const getRowStyle = (recommendation) => {
     if (recommendation === 'OVER') return 'bg-blue-500/20 border-blue-500/50';
