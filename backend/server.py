@@ -3585,66 +3585,11 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
             
             await browser.close()
             
-            # Normalize team names and convert times to Arizona timezone (UTC-7)
-            from datetime import datetime, timedelta
-            import re
-            
+            # Normalize team names and convert times to Arizona timezone
             for game in games:
                 game['away_team'] = normalize_nba_team(game.get('away_team', ''))
                 game['home_team'] = normalize_nba_team(game.get('home_team', ''))
-                
-                # Convert time from UTC to Arizona time (UTC-7)
-                time_str = game.get('time', '')
-                if time_str and time_str != 'FINAL' and ':' in time_str:
-                    try:
-                        # Parse the time (e.g., "SAT 12:00AM" or "12:00AM")
-                        time_match = re.search(r'(\d+):(\d+)\s*(AM|PM|am|pm)', time_str)
-                        if time_match:
-                            hour = int(time_match.group(1))
-                            minute = int(time_match.group(2))
-                            ampm = time_match.group(3).upper()
-                            
-                            # Convert to 24-hour format
-                            if ampm == 'PM' and hour != 12:
-                                hour += 12
-                            elif ampm == 'AM' and hour == 12:
-                                hour = 0
-                            
-                            # The server time is UTC, subtract 7 hours for Arizona
-                            # But CBS shows future games in ET (UTC-5), so we subtract 2 more hours for AZ
-                            # Actually CBS shows in viewer's local time, which is UTC for our server
-                            # Arizona is UTC-7, so we subtract 7 hours
-                            utc_hour = hour
-                            az_hour = (utc_hour - 7) % 24
-                            
-                            # Determine day change
-                            day_prefix = ''
-                            if 'SAT' in time_str.upper():
-                                # If we go negative, it's the previous day (FRI)
-                                if utc_hour < 7:
-                                    day_prefix = 'FRI '
-                                else:
-                                    day_prefix = 'SAT '
-                            elif 'SUN' in time_str.upper():
-                                if utc_hour < 7:
-                                    day_prefix = 'SAT '
-                                else:
-                                    day_prefix = 'SUN '
-                            elif 'FRI' in time_str.upper():
-                                if utc_hour < 7:
-                                    day_prefix = 'THU '
-                                else:
-                                    day_prefix = 'FRI '
-                            
-                            # Convert back to 12-hour format
-                            az_ampm = 'AM' if az_hour < 12 else 'PM'
-                            az_hour_12 = az_hour % 12
-                            if az_hour_12 == 0:
-                                az_hour_12 = 12
-                            
-                            game['time'] = f"{day_prefix}{az_hour_12}:{minute:02d}{az_ampm}"
-                    except Exception as e:
-                        logger.warning(f"Could not convert time {time_str}: {e}")
+                game['time'] = convert_time_to_arizona(game.get('time', ''))
             
             logger.info(f"Scraped {len(games)} NBA games from CBS Sports for {target_date}")
             return games
