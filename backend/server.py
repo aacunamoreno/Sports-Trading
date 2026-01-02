@@ -8384,6 +8384,7 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     name = name.replace("GA.", "GEORGIA").replace("GA ", "GEORGIA ")
                     name = name.replace("CONN.", "CONNECTICUT").replace("CONN ", "CONNECTICUT ")
                     name = name.replace("'S", "S").replace("'", "")  # Remove apostrophes
+                    name = name.replace(".", "")  # Remove periods for consistent matching
                     return name
                 
                 # Check if game matches - compare team names
