@@ -3180,6 +3180,65 @@ async def scrape_scoresandodds(league: str, date_str: str) -> List[Dict[str, Any
         return []
 
 
+def convert_time_to_arizona(time_str: str) -> str:
+    """
+    Convert UTC time from CBS Sports to Arizona time (UTC-7).
+    CBS shows times in the viewer's local timezone, which is UTC for the server.
+    """
+    import re
+    
+    if not time_str or time_str == 'FINAL' or ':' not in time_str:
+        return time_str
+    
+    try:
+        # Parse the time (e.g., "SAT 12:00AM" or "12:00AM")
+        time_match = re.search(r'(\d+):(\d+)\s*(AM|PM|am|pm)', time_str)
+        if not time_match:
+            return time_str
+            
+        hour = int(time_match.group(1))
+        minute = int(time_match.group(2))
+        ampm = time_match.group(3).upper()
+        
+        # Convert to 24-hour format
+        if ampm == 'PM' and hour != 12:
+            hour += 12
+        elif ampm == 'AM' and hour == 12:
+            hour = 0
+        
+        # The server time is UTC, subtract 7 hours for Arizona
+        utc_hour = hour
+        az_hour = (utc_hour - 7) % 24
+        
+        # Determine day change
+        day_prefix = ''
+        time_upper = time_str.upper()
+        if 'SAT' in time_upper:
+            day_prefix = 'FRI ' if utc_hour < 7 else 'SAT '
+        elif 'SUN' in time_upper:
+            day_prefix = 'SAT ' if utc_hour < 7 else 'SUN '
+        elif 'FRI' in time_upper:
+            day_prefix = 'THU ' if utc_hour < 7 else 'FRI '
+        elif 'THU' in time_upper:
+            day_prefix = 'WED ' if utc_hour < 7 else 'THU '
+        elif 'WED' in time_upper:
+            day_prefix = 'TUE ' if utc_hour < 7 else 'WED '
+        elif 'TUE' in time_upper:
+            day_prefix = 'MON ' if utc_hour < 7 else 'TUE '
+        elif 'MON' in time_upper:
+            day_prefix = 'SUN ' if utc_hour < 7 else 'MON '
+        
+        # Convert back to 12-hour format
+        az_ampm = 'AM' if az_hour < 12 else 'PM'
+        az_hour_12 = az_hour % 12
+        if az_hour_12 == 0:
+            az_hour_12 = 12
+        
+        return f"{day_prefix}{az_hour_12}:{minute:02d}{az_ampm}"
+    except Exception:
+        return time_str
+
+
 async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
     """
     Scrape NCAAB games and lines from CBS Sports.
