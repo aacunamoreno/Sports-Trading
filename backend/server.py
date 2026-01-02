@@ -10612,13 +10612,37 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                     logger.info(f"[PPG] Mapped '{team_name}' -> '{mapped_name}'")
                     return ppg_by_team[mapped_name]
             
-            # Fuzzy match
-            team_lower = team_name.lower().replace(".", "").replace("-", " ").replace("'", "")
+            # Fuzzy match - but be careful with similar names (Michigan vs Michigan St)
+            team_lower = team_name.lower().replace(".", "").replace("-", " ").replace("'", "").strip()
+            
+            # First pass: exact match after normalization
             for t, data in ppg_by_team.items():
-                t_lower = t.lower().replace(".", "").replace("-", " ").replace("'", "")
-                if t_lower == team_lower or t_lower in team_lower or team_lower in t_lower:
+                t_lower = t.lower().replace(".", "").replace("-", " ").replace("'", "").strip()
+                if t_lower == team_lower:
                     return data
-            return None
+            
+            # Second pass: fuzzy match but avoid partial matches for teams with common prefixes
+            # e.g., "Michigan" should NOT match "Michigan St"
+            best_match = None
+            best_score = 0
+            for t, data in ppg_by_team.items():
+                t_lower = t.lower().replace(".", "").replace("-", " ").replace("'", "").strip()
+                
+                # Skip if one is a prefix of the other but they're not equal
+                # (prevents "michigan" matching "michigan st")
+                if t_lower != team_lower:
+                    if t_lower.startswith(team_lower + " ") or team_lower.startswith(t_lower + " "):
+                        continue
+                
+                # Check for substring match
+                if t_lower in team_lower or team_lower in t_lower:
+                    # Score by how similar the lengths are (prefer closer matches)
+                    score = min(len(t_lower), len(team_lower)) / max(len(t_lower), len(team_lower))
+                    if score > best_score:
+                        best_score = score
+                        best_match = data
+            
+            return best_match
         
         # Dot color helper
         def get_dot(rank, total):
