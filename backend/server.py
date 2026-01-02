@@ -8188,7 +8188,26 @@ async def refresh_lines_and_bets(league: str = "NBA"):
             # Update live line (but preserve opening_line/total and PPG)
             # opening_line/total = the original line from 8pm scrape (never changes)
             # live_line = current line from plays888 (updated on refresh)
+            # For NCAAB, try fuzzy key matching since team names may differ
+            matched_line = None
             if key in live_lines:
+                matched_line = live_lines[key]
+            elif league.upper() == 'NCAAB':
+                # Try fuzzy matching for NCAAB
+                away_clean = away.upper().replace(".", "").replace("'", "").replace("-", " ").strip()
+                home_clean = home.upper().replace(".", "").replace("'", "").replace("-", " ").strip()
+                for lk, lv in live_lines.items():
+                    lk_clean = lk.replace(".", "").replace("'", "").replace("-", " ").strip()
+                    lk_parts = lk_clean.split("_")
+                    if len(lk_parts) == 2:
+                        lk_away, lk_home = lk_parts
+                        # Check if team names are close enough
+                        if (away_clean in lk_away or lk_away in away_clean) and (home_clean in lk_home or lk_home in home_clean):
+                            matched_line = lv
+                            logger.info(f"[Refresh Lines] Fuzzy matched {away} @ {home} -> {lk}")
+                            break
+            
+            if matched_line:
                 new_line = live_lines[key]
                 old_live_line = game.get('live_line') or game.get('total')
                 
