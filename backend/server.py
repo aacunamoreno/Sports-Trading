@@ -8066,9 +8066,15 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                     home = game.get('home', '')
                     total = game.get('total')
                     
+                    # Convert plays888 team names to match our database
                     if league.upper() == "NBA":
                         away = convert_plays888_team_name(away)
                         home = convert_plays888_team_name(home)
+                    elif league.upper() == "NCAAB":
+                        # NCAAB team names from plays888 often have "St" instead of "St." etc.
+                        # Clean up for matching
+                        away = away.replace(" ST", " St.").replace("WESTERN ", "W. ").replace("EASTERN ", "E. ")
+                        home = home.replace(" ST", " St.").replace("WESTERN ", "W. ").replace("EASTERN ", "E. ")
                     
                     if total:
                         key = f"{away.upper()}_{home.upper()}"
