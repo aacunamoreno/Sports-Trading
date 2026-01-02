@@ -8048,58 +8048,35 @@ async def refresh_lines_and_bets(league: str = "NBA"):
         games = cached['games']
         original_count = len(games)
         
-        # Fetch live lines AND open bets from plays888.co
+        # Fetch live lines from CBS Sports (same source as opening lines)
+        # plays888 is ONLY used for scraping bets (open bets / history)
         live_lines = {}
         open_bets = []
         
-        # For NCAAB, use scoresandodds.com for live lines since plays888 scraper doesn't support it well
-        if league.upper() == "NCAAB":
-            try:
-                live_games = await scrape_scoresandodds("NCAAB", target_date)
-                for game in live_games:
-                    away = game.get('away', '')
-                    home = game.get('home', '')
-                    total = game.get('total')
-                    
-                    if total:
-                        key = f"{away.upper()}_{home.upper()}"
-                        live_lines[key] = float(total) if isinstance(total, str) else total
-                        logger.info(f"[Refresh Lines] Live line from scoresandodds for {away} @ {home}: {total}")
-            except Exception as e:
-                logger.warning(f"[Refresh Lines] Error fetching NCAAB lines from scoresandodds: {e}")
-        else:
-            # For NBA/NHL, use plays888 for live lines
-            service = Plays888Service()
-            try:
-                await service.initialize()
-                login_result = await service.login("jac083", "acuna2025!")
+        try:
+            # Use CBS Sports for live lines for ALL leagues
+            if league.upper() == "NCAAB":
+                live_games = await scrape_cbssports_ncaab(target_date)
+            elif league.upper() == "NBA":
+                live_games = await scrape_cbssports_nba(target_date)
+            elif league.upper() == "NHL":
+                live_games = await scrape_cbssports_nhl(target_date)
+            else:
+                live_games = []
+            
+            for game in live_games:
+                away = game.get('away', '')
+                home = game.get('home', '')
+                total = game.get('total')
                 
-                if login_result.get('success'):
-                    # Fetch live lines only (no bets from TIPSTER)
-                    live_games = await service.scrape_totals(league.upper())
-                    
-                    for game in live_games:
-                        away = game.get('away', '')
-                        home = game.get('home', '')
-                        total = game.get('total')
-                        
-                        # Convert plays888 team names to match our database
-                        if league.upper() == "NBA":
-                            away = convert_plays888_team_name(away)
-                            home = convert_plays888_team_name(home)
-                        
-                        if total:
-                            key = f"{away.upper()}_{home.upper()}"
-                            live_lines[key] = float(total) if isinstance(total, str) else total
-                            logger.info(f"[Refresh Lines] Live line for {away} @ {home}: {total}")
-                    
-                else:
-                    logger.warning(f"[Refresh Lines] Failed to login to plays888.co for lines")
-                
-            except Exception as e:
-                logger.error(f"[Refresh Lines & Bets] Error fetching from plays888: {e}")
-            finally:
-                await service.close()
+                if total and away and home:
+                    key = f"{away.upper()}_{home.upper()}"
+                    live_lines[key] = float(total) if isinstance(total, str) else total
+                    logger.info(f"[Refresh Lines] CBS Sports line for {away} @ {home}: {total}")
+            
+            logger.info(f"[Refresh Lines] Fetched {len(live_lines)} live lines from CBS Sports")
+        except Exception as e:
+            logger.warning(f"[Refresh Lines] Error fetching lines from CBS Sports: {e}")
         
         # Fetch bets ONLY from ENANO account (jac075) - ignore TIPSTER
         service2 = Plays888Service()
