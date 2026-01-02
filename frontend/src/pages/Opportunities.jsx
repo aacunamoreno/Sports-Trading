@@ -446,6 +446,39 @@ export default function Opportunities() {
     }
   };
 
+  // Handle bet cancellation
+  const handleCancelBet = async (gameNum, cancel = true) => {
+    try {
+      const response = await axios.post(`${API}/opportunities/bet-cancelled`, {
+        league: league,
+        date: data.date,
+        game_num: gameNum,
+        cancelled: cancel
+      });
+      
+      if (response.data.success) {
+        toast.success(cancel ? 'Bet cancelled' : 'Bet restored');
+        // Update local state to reflect the change
+        setData(prev => ({
+          ...prev,
+          games: prev.games.map(g => 
+            g.game_num === gameNum ? { 
+              ...g, 
+              bet_cancelled: cancel,
+              has_bet: cancel ? false : g.has_bet,
+              user_bet: cancel ? false : g.user_bet,
+              bet_type: cancel ? null : g.bet_type,
+              bet_line: cancel ? null : g.bet_line
+            } : g
+          )
+        }));
+      }
+    } catch (error) {
+      console.error('Error cancelling bet:', error);
+      toast.error('Failed to cancel bet');
+    }
+  };
+
   // Row styles: Orange for UNDER, Blue for OVER
   const getRowStyle = (recommendation) => {
     if (recommendation === 'OVER') return 'bg-blue-500/20 border-blue-500/50';
