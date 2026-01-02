@@ -1003,9 +1003,15 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
             wins_1k = len([b for b in bets_1k if b.get('result') == 'won'])
             losses_1k = len([b for b in bets_1k if b.get('result') == 'lost'])
             
+            # $.5K bets ($500-$999 range, typically $500-$600)
+            bets_05k = [b for b in bets if b.get('wager_short', '').startswith('$5') or b.get('wager_short', '').startswith('$6')]
+            wins_05k = len([b for b in bets_05k if b.get('result') == 'won'])
+            losses_05k = len([b for b in bets_05k if b.get('result') == 'lost'])
+            
             lines.append(f"*Record: {overall_wins}-{overall_losses}*")
             lines.append(f"*$2K: {wins_2k}-{losses_2k}*")
             lines.append(f"*$1K: {wins_1k}-{losses_1k}*")
+            lines.append(f"*$.5K: {wins_05k}-{losses_05k}*")
         else:
             # TIPSTER: Single overall record
             wins = len([b for b in bets if b.get('result') == 'won'])
