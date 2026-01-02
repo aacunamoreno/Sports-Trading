@@ -10491,6 +10491,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
             # NCAAB team name mapping (DB name -> Excel name)
             ncaab_map = {
                 'App. St.': 'App State',
+                'Detroit': 'Detroit Mercy',  # CBS shows "Detroit", Excel has "Detroit Mercy"
                 'East Carolina': 'E Carolina',
                 'FAU': 'Florida Atlantic',
                 'Ga. Tech': 'Georgia Tech',
