@@ -3393,9 +3393,14 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
         if not name:
             return name
         name_upper = name.upper().strip()
-        for key, val in nba_team_map.items():
+        # Check for exact match first (more specific)
+        if name_upper in nba_team_map:
+            return nba_team_map[name_upper]
+        # Then check for partial matches, but handle HORNETS/NETS conflict
+        # by checking longer keys first
+        for key in sorted(nba_team_map.keys(), key=len, reverse=True):
             if key in name_upper:
-                return val
+                return nba_team_map[key]
         return name.strip()
     
     try:
