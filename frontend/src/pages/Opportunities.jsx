@@ -558,6 +558,24 @@ export default function Opportunities() {
             </div>
             <div className="text-[10px] text-muted-foreground text-center">Since 12/22</div>
           </div>
+          {/* Ranking PPG Record Badge */}
+          <div className="bg-gradient-to-r from-emerald-600/20 to-rose-600/20 border border-emerald-500/30 rounded-lg px-4 py-2">
+            <div className="text-xs text-muted-foreground text-center">📊 Ranking PPG</div>
+            <div className="text-sm font-bold text-center flex flex-col gap-0.5">
+              <div>
+                <span className="text-green-400 text-xs">H:</span>
+                <span className="text-green-400 ml-1">{rankingPPGRecord.high.hits}</span>
+                <span className="text-muted-foreground mx-0.5">-</span>
+                <span className="text-red-400">{rankingPPGRecord.high.misses}</span>
+              </div>
+              <div>
+                <span className="text-red-400 text-xs">L:</span>
+                <span className="text-green-400 ml-1">{rankingPPGRecord.low.hits}</span>
+                <span className="text-muted-foreground mx-0.5">-</span>
+                <span className="text-red-400">{rankingPPGRecord.low.misses}</span>
+              </div>
+            </div>
+          </div>
           {/* Live Lines Toggle */}
           {day === 'today' && (
             <button
