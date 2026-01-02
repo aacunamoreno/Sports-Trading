@@ -1111,14 +1111,31 @@ export default function Opportunities() {
                   return (
                     <tr 
                       key={game.game_num}
-                      className={`border-b border-border/50 ${rowStyle} ${game.has_bet ? 'ring-2 ring-yellow-500 bg-yellow-500/10' : ''} ${game.user_bet && isSpreadBet ? 'ring-2 ring-purple-500 bg-purple-500/10' : ''}`}
+                      className={`border-b border-border/50 ${rowStyle} ${game.has_bet && !game.bet_cancelled ? 'ring-2 ring-yellow-500 bg-yellow-500/10' : ''} ${game.user_bet && isSpreadBet ? 'ring-2 ring-purple-500 bg-purple-500/10' : ''} ${game.bet_cancelled ? 'opacity-60' : ''}`}
                     >
                       <td className="py-3 px-2 font-mono text-muted-foreground">
-                        {(game.has_bet || game.user_bet) && (
-                          <span className={`mr-1 ${isSpreadBet ? 'text-purple-400' : ''}`} title={game.has_bet ? `Active bet: ${game.bet_type}${game.bet_count > 1 ? ` (x${game.bet_count})` : ''}` : isSpreadBet ? 'Spread bet on this game' : 'You bet on this game'}>
-                            {isSpreadBet ? '🎰' : '💰'}{game.bet_count > 1 && <span className={`text-xs font-bold ${isSpreadBet ? 'text-purple-400' : 'text-yellow-400'}`}>x{game.bet_count}</span>}
+                        {game.bet_cancelled ? (
+                          <button
+                            onClick={() => handleCancelBet(game.game_num, false)}
+                            className="mr-1 text-gray-500 hover:text-yellow-500 transition-colors"
+                            title="Bet cancelled - click to restore"
+                          >
+                            🚫
+                          </button>
+                        ) : (game.has_bet || game.user_bet) ? (
+                          <span className="inline-flex items-center">
+                            <span className={`mr-0.5 ${isSpreadBet ? 'text-purple-400' : ''}`} title={game.has_bet ? `Active bet: ${game.bet_type}${game.bet_count > 1 ? ` (x${game.bet_count})` : ''}` : isSpreadBet ? 'Spread bet on this game' : 'You bet on this game'}>
+                              {isSpreadBet ? '🎰' : '💰'}{game.bet_count > 1 && <span className={`text-xs font-bold ${isSpreadBet ? 'text-purple-400' : 'text-yellow-400'}`}>x{game.bet_count}</span>}
+                            </span>
+                            <button
+                              onClick={() => handleCancelBet(game.game_num, true)}
+                              className="text-[10px] text-gray-500 hover:text-red-500 transition-colors ml-0.5"
+                              title="Cancel bet (e.g., if you placed both OVER and UNDER)"
+                            >
+                              ✕
+                            </button>
                           </span>
-                        )}
+                        ) : null}
                         {index + 1}
                       </td>
                       <td className="py-3 px-2 text-muted-foreground">{game.time}</td>
