@@ -488,8 +488,10 @@ export default function Opportunities() {
             {league} Over/Under analysis based on {config.statLabel} rankings
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          {/* Edge Record Badge - from 12/22/25 */}
+        
+        {/* Row 1: Records and Live Lines toggle */}
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Edge Record Badge */}
           <div className="bg-gradient-to-r from-green-600/20 to-red-600/20 border border-primary/30 rounded-lg px-4 py-2">
             <div className="text-xs text-muted-foreground text-center">Edge Record</div>
             <div className="text-xl font-bold text-center">
@@ -499,7 +501,7 @@ export default function Opportunities() {
             </div>
             <div className="text-[10px] text-muted-foreground text-center">Since 12/22</div>
           </div>
-          {/* Betting Record Badge - from 12/22/25 */}
+          {/* Betting Record Badge */}
           <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/30 rounded-lg px-4 py-2">
             <div className="text-xs text-muted-foreground text-center">💰 Betting Record</div>
             <div className="text-xl font-bold text-center">
@@ -509,126 +511,133 @@ export default function Opportunities() {
             </div>
             <div className="text-[10px] text-muted-foreground text-center">Since 12/22</div>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Live Lines Toggle */}
-            {day === 'today' && (
-              <button
-                onClick={() => setUseLiveLines(!useLiveLines)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  useLiveLines 
-                    ? 'bg-green-500/20 text-green-400 border border-green-500/50' 
-                    : 'bg-muted text-muted-foreground border border-muted'
-                }`}
-                title={useLiveLines ? 'Using live lines from plays888.co' : 'Using cached data'}
-              >
-                <Wifi className={`w-4 h-4 ${useLiveLines ? 'text-green-400' : 'text-muted-foreground'}`} />
-                Live Lines
-              </button>
-            )}
-            <Button 
-              onClick={handleRefresh} 
-              disabled={refreshing}
-              className="flex items-center gap-2"
-              data-testid="refresh-lines-bets-btn"
+          {/* Live Lines Toggle */}
+          {day === 'today' && (
+            <button
+              onClick={() => setUseLiveLines(!useLiveLines)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                useLiveLines 
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/50' 
+                  : 'bg-muted text-muted-foreground border border-muted'
+              }`}
+              title={useLiveLines ? 'Using live lines from plays888.co' : 'Using cached data'}
             >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh Lines & Bets
-            </Button>
-            {league === 'NCAAB' && day === 'tomorrow' && (
-              <Button 
-                onClick={handleNCAABPPGUpdate} 
-                disabled={updatingPPG}
-                variant="secondary"
-                className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white"
-              >
-                <Target className={`w-4 h-4 ${updatingPPG ? 'animate-pulse' : ''}`} />
-                {updatingPPG ? 'Updating PPG...' : 'Update PPG (L3)'}
-              </Button>
-            )}
-            <Button 
-              onClick={handleUpdateScores} 
-              disabled={updatingScores}
-              variant="secondary"
-              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              <TrendingUp className={`w-4 h-4 ${updatingScores ? 'animate-pulse' : ''}`} />
-              {updatingScores ? 'Updating Scores...' : 'Update Scores'}
-            </Button>
-            <Button 
-              onClick={handleUpdateBetResults} 
-              disabled={updatingBetResults}
-              variant="secondary"
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-            >
-              <span className={updatingBetResults ? 'animate-pulse' : ''}>💰</span>
-              {updatingBetResults ? 'Updating Bets...' : 'Update Bet Results'}
-            </Button>
-            <Button 
-              onClick={handleExport} 
-              disabled={exporting}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Download className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} />
-              {exporting ? 'Exporting...' : 'Export Excel'}
-            </Button>
-            <Button 
-              onClick={handleUpdateRecords} 
-              disabled={updatingRecords}
-              variant="outline"
-              className="flex items-center gap-2 border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
-            >
-              <span className={updatingRecords ? 'animate-spin' : ''}>📊</span>
-              {updatingRecords ? 'Updating...' : 'Update Records'}
-            </Button>
-            <Button 
-              onClick={handleScrapeOpeners} 
-              disabled={scrapingOpeners}
-              variant="outline"
-              className="flex items-center gap-2 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
-            >
-              <Calendar className={`w-4 h-4 ${scrapingOpeners ? 'animate-pulse' : ''}`} />
-              {scrapingOpeners ? 'Scraping...' : 'Scrape Tomorrow (8pm Job)'}
-            </Button>
-            {day === 'tomorrow' && (
-              <>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept=".xlsx,.xls"
-                  onChange={handlePPGExcelUpload}
-                  className="hidden"
-                  data-testid="ppg-file-input"
-                />
-                <Button 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingPPG}
-                  variant="outline"
-                  className="flex items-center gap-2 border-green-500/50 text-green-400 hover:bg-green-500/10"
-                  data-testid="upload-ppg-btn"
-                >
-                  <Upload className={`w-4 h-4 ${uploadingPPG ? 'animate-pulse' : ''}`} />
-                  {uploadingPPG ? 'Uploading PPG...' : 'Upload PPG Excel'}
-                </Button>
-              </>
-            )}
-          </div>
+              <Wifi className={`w-4 h-4 ${useLiveLines ? 'text-green-400' : 'text-muted-foreground'}`} />
+              Live Lines
+            </button>
+          )}
+          <Button 
+            onClick={handleRefresh} 
+            disabled={refreshing}
+            className="flex items-center gap-2"
+            data-testid="refresh-lines-bets-btn"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh Lines & Bets
+          </Button>
         </div>
         
-        {/* Direct Download Links - Copy these URLs */}
-        <div className="flex flex-col gap-2 text-xs mt-2 p-2 bg-gray-800/50 rounded">
-          <span className="text-muted-foreground">Copy these links to download Excel:</span>
-          <div className="flex flex-col gap-1">
-            <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
-              {BACKEND_URL}/api/export/excel?league=NBA&start_date=2025-12-22
-            </code>
-            <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
-              {BACKEND_URL}/api/export/excel?league=NHL&start_date=2025-12-22
-            </code>
-            <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
-              {BACKEND_URL}/api/export/excel?league=NCAAB&start_date=2025-12-22
-            </code>
-          </div>
+        {/* Row 2: Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          <Button 
+            onClick={handleUpdateScores} 
+            disabled={updatingScores}
+            variant="secondary"
+            size="sm"
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            <TrendingUp className={`w-4 h-4 ${updatingScores ? 'animate-pulse' : ''}`} />
+            {updatingScores ? 'Updating...' : 'Update Scores'}
+          </Button>
+          <Button 
+            onClick={handleUpdateBetResults} 
+            disabled={updatingBetResults}
+            variant="secondary"
+            size="sm"
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+          >
+            <span className={updatingBetResults ? 'animate-pulse' : ''}>💰</span>
+            {updatingBetResults ? 'Updating...' : 'Update Bet Results'}
+          </Button>
+          <Button 
+            onClick={handleUpdateRecords} 
+            disabled={updatingRecords}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2 border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+          >
+            <span className={updatingRecords ? 'animate-spin' : ''}>📊</span>
+            {updatingRecords ? 'Updating...' : 'Update Records'}
+          </Button>
+          <Button 
+            onClick={handleScrapeOpeners} 
+            disabled={scrapingOpeners}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+          >
+            <Calendar className={`w-4 h-4 ${scrapingOpeners ? 'animate-pulse' : ''}`} />
+            {scrapingOpeners ? 'Scraping...' : 'Scrape Tomorrow (8pm)'}
+          </Button>
+          <Button 
+            onClick={handleExport} 
+            disabled={exporting}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Download className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} />
+            {exporting ? 'Exporting...' : 'Export Excel'}
+          </Button>
+          {league === 'NCAAB' && day === 'tomorrow' && (
+            <Button 
+              onClick={handleNCAABPPGUpdate} 
+              disabled={updatingPPG}
+              variant="secondary"
+              size="sm"
+              className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white"
+            >
+              <Target className={`w-4 h-4 ${updatingPPG ? 'animate-pulse' : ''}`} />
+              {updatingPPG ? 'Updating PPG...' : 'Update PPG (L3)'}
+            </Button>
+          )}
+          {day === 'tomorrow' && (
+            <>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".xlsx,.xls"
+                onChange={handlePPGExcelUpload}
+                className="hidden"
+                data-testid="ppg-file-input"
+              />
+              <Button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingPPG}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 border-green-500/50 text-green-400 hover:bg-green-500/10"
+                data-testid="upload-ppg-btn"
+              >
+                <Upload className={`w-4 h-4 ${uploadingPPG ? 'animate-pulse' : ''}`} />
+                {uploadingPPG ? 'Uploading...' : 'Upload PPG Excel'}
+              </Button>
+            </>
+          )}
+        </div>
+        
+        {/* Row 3: Direct Download Links */}
+        <div className="flex flex-col gap-1 text-xs mt-3 p-2 bg-gray-800/50 rounded">
+          <span className="text-muted-foreground text-[10px]">Copy links to download Excel:</span>
+          <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
+            {BACKEND_URL}/api/export/excel?league=NBA&start_date=2025-12-22
+          </code>
+          <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
+            {BACKEND_URL}/api/export/excel?league=NHL&start_date=2025-12-22
+          </code>
+          <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
+            {BACKEND_URL}/api/export/excel?league=NCAAB&start_date=2025-12-22
+          </code>
         </div>
       </div>
 
