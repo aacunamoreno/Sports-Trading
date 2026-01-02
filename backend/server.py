@@ -3792,10 +3792,11 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
             
             await browser.close()
             
-            # Normalize team names
+            # Normalize team names and convert times to Arizona timezone
             for game in games:
                 game['away_team'] = normalize_nhl_team(game.get('away_team', ''))
                 game['home_team'] = normalize_nhl_team(game.get('home_team', ''))
+                game['time'] = convert_time_to_arizona(game.get('time', ''))
             
             logger.info(f"Scraped {len(games)} NHL games from CBS Sports for {target_date}")
             return games
