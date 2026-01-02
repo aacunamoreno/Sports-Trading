@@ -8474,6 +8474,11 @@ async def refresh_lines_and_bets(league: str = "NBA"):
                 bet_away_norm = normalize_team_name(bet_away)
                 bet_home_norm = normalize_team_name(bet_home)
                 
+                # Debug logging for OKC
+                if 'OKLA' in bet_away_norm or 'THUNDER' in bet_away or 'GOLDEN' in bet_home:
+                    logger.info(f"[DEBUG OKC] Game: {away} @ {home} -> {away_norm} @ {home_norm}")
+                    logger.info(f"[DEBUG OKC] Bet: {bet_away} vs {bet_home} -> {bet_away_norm} vs {bet_home_norm}")
+                
                 # Try various matching approaches
                 # IMPORTANT: Require BOTH teams to match for accurate bet tracking
                 if bet_away_norm and bet_home_norm:
