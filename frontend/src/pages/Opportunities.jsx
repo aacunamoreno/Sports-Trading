@@ -940,6 +940,7 @@ export default function Opportunities() {
                 <tr className="border-b border-border">
                   <th className="text-left py-3 px-2">#</th>
                   <th className="text-left py-3 px-2">Time</th>
+                  <th className="text-center py-3 px-1" title="Ranking PPG Selection">Rank</th>
                   <th className="text-left py-3 px-2">Away</th>
                   <th className="text-center py-3 px-1"></th>
                   <th className="text-left py-3 px-2">Home</th>
