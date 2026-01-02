@@ -577,7 +577,7 @@ export default function Opportunities() {
             className="flex items-center gap-2 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
           >
             <Calendar className={`w-4 h-4 ${scrapingOpeners ? 'animate-pulse' : ''}`} />
-            {scrapingOpeners ? 'Scraping...' : 'Scrape Tomorrow (8pm)'}
+            {scrapingOpeners ? 'Scraping...' : 'Scrape Tomorrow'}
           </Button>
           <Button 
             onClick={handleExport} 
