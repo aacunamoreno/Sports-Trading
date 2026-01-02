@@ -362,23 +362,35 @@ export default function Opportunities() {
     }
   };
 
-  // Export to Excel - using anchor element for reliable direct download
+  // Export to Excel - using fetch and blob for reliable download
   const handleExport = async () => {
     setExporting(true);
     
     try {
       const downloadUrl = `${BACKEND_URL}/api/export/excel?league=${league}&start_date=2025-12-22`;
       
-      // Create a hidden anchor element and trigger download
+      // Fetch the file as a blob
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+      
+      // Get the blob data
+      const blob = await response.blob();
+      
+      // Create a blob URL and trigger download
+      const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = blobUrl;
       link.download = `${league}_Analysis.xlsx`;
-      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      toast.success(`${league} analysis downloading...`);
+      // Clean up the blob URL
+      window.URL.revokeObjectURL(blobUrl);
+      
+      toast.success(`${league} analysis downloaded!`);
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Failed to export. Please try again.');
