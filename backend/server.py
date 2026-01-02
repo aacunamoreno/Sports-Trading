@@ -11459,7 +11459,7 @@ async def update_nba_bet_results(date: str = None):
             logger.info(f"[NBA Bet Results] Looking for bets on {search_date} or {search_date_alt}")
             
             # The History page text format example:
-            # INTERNET / -1	Ticket #: 338655920
+            # INTERNET / -1     Ticket #: 338655920
             # Dec 29 04:40 PM
             # NBA
             # STRAIGHT BET
@@ -13039,6 +13039,175 @@ async def trigger_5am_process():
     except Exception as e:
         logger.error(f"Error in 5am process: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ================= RANKING PPG FEATURE =================
+
+class RankingPPGUpdate(BaseModel):
+    league: str
+    date: str
+    game_num: int
+    ranking_type: str  # "high" or "low"
+
+@api_router.post("/opportunities/ranking-ppg")
+async def set_ranking_ppg(data: RankingPPGUpdate):
+    """Set ranking PPG selection (High/Low) for a game"""
+    try:
+        league = data.league.upper()
+        collection_map = {
+            'NBA': 'nba_opportunities',
+            'NHL': 'nhl_opportunities',
+            'NCAAB': 'ncaab_opportunities'
+        }
+        
+        if league not in collection_map:
+            raise HTTPException(status_code=400, detail=f"Invalid league: {league}")
+        
+        collection = db[collection_map[league]]
+        
+        # Get the document for this date
+        doc = await collection.find_one({"date": data.date})
+        if not doc:
+            raise HTTPException(status_code=404, detail=f"No data found for {league} on {data.date}")
+        
+        games = doc.get('games', [])
+        game_found = False
+        
+        for game in games:
+            if game.get('game_num') == data.game_num:
+                game['ranking_ppg'] = data.ranking_type  # "high" or "low"
+                game_found = True
+                break
+        
+        if not game_found:
+            raise HTTPException(status_code=404, detail=f"Game #{data.game_num} not found")
+        
+        # Update the document
+        await collection.update_one(
+            {"date": data.date},
+            {"$set": {"games": games}}
+        )
+        
+        logger.info(f"Set ranking PPG to '{data.ranking_type}' for {league} game #{data.game_num} on {data.date}")
+        
+        return {
+            "success": True,
+            "message": f"Ranking PPG set to '{data.ranking_type}' for game #{data.game_num}",
+            "league": league,
+            "date": data.date,
+            "game_num": data.game_num,
+            "ranking_type": data.ranking_type
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error setting ranking PPG: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/opportunities/ranking-ppg")
+async def clear_ranking_ppg(league: str, date: str, game_num: int):
+    """Clear ranking PPG selection for a game"""
+    try:
+        league = league.upper()
+        collection_map = {
+            'NBA': 'nba_opportunities',
+            'NHL': 'nhl_opportunities',
+            'NCAAB': 'ncaab_opportunities'
+        }
+        
+        if league not in collection_map:
+            raise HTTPException(status_code=400, detail=f"Invalid league: {league}")
+        
+        collection = db[collection_map[league]]
+        
+        # Get the document for this date
+        doc = await collection.find_one({"date": date})
+        if not doc:
+            raise HTTPException(status_code=404, detail=f"No data found for {league} on {date}")
+        
+        games = doc.get('games', [])
+        game_found = False
+        
+        for game in games:
+            if game.get('game_num') == game_num:
+                if 'ranking_ppg' in game:
+                    del game['ranking_ppg']
+                game_found = True
+                break
+        
+        if not game_found:
+            raise HTTPException(status_code=404, detail=f"Game #{game_num} not found")
+        
+        # Update the document
+        await collection.update_one(
+            {"date": date},
+            {"$set": {"games": games}}
+        )
+        
+        logger.info(f"Cleared ranking PPG for {league} game #{game_num} on {date}")
+        
+        return {
+            "success": True,
+            "message": f"Ranking PPG cleared for game #{game_num}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error clearing ranking PPG: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/records/ranking-ppg-summary")
+async def get_ranking_ppg_summary():
+    """Get Ranking PPG records summary for all leagues"""
+    try:
+        summary = {}
+        
+        for league in ['NBA', 'NHL', 'NCAAB']:
+            collection_map = {
+                'NBA': 'nba_opportunities',
+                'NHL': 'nhl_opportunities',
+                'NCAAB': 'ncaab_opportunities'
+            }
+            collection = db[collection_map[league]]
+            
+            # Aggregate all games with ranking_ppg set and user_bet_hit determined
+            high_hits = 0
+            high_misses = 0
+            low_hits = 0
+            low_misses = 0
+            
+            # Get all documents
+            async for doc in collection.find({}, {"_id": 0, "games": 1}):
+                games = doc.get('games', [])
+                for game in games:
+                    ranking = game.get('ranking_ppg')
+                    if ranking and game.get('user_bet_hit') is not None:
+                        if ranking == 'high':
+                            if game.get('user_bet_hit') == True:
+                                high_hits += 1
+                            elif game.get('user_bet_hit') == False:
+                                high_misses += 1
+                        elif ranking == 'low':
+                            if game.get('user_bet_hit') == True:
+                                low_hits += 1
+                            elif game.get('user_bet_hit') == False:
+                                low_misses += 1
+            
+            summary[league] = {
+                "high_record": f"{high_hits}-{high_misses}",
+                "low_record": f"{low_hits}-{low_misses}",
+                "high_hits": high_hits,
+                "high_misses": high_misses,
+                "low_hits": low_hits,
+                "low_misses": low_misses
+            }
+        
+        return summary
+    except Exception as e:
+        logger.error(f"Error getting ranking PPG summary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 
 @api_router.get("/process/status")
