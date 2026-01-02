@@ -615,7 +615,21 @@ export default function Opportunities() {
           </div>
         </div>
         
-        {/* Direct Download Links - removed, use Export Excel button instead */}
+        {/* Direct Download Links - Copy these URLs */}
+        <div className="flex flex-col gap-2 text-xs mt-2 p-2 bg-gray-800/50 rounded">
+          <span className="text-muted-foreground">Copy these links to download Excel:</span>
+          <div className="flex flex-col gap-1">
+            <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
+              {BACKEND_URL}/api/export/excel?league=NBA&start_date=2025-12-22
+            </code>
+            <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
+              {BACKEND_URL}/api/export/excel?league=NHL&start_date=2025-12-22
+            </code>
+            <code className="text-blue-400 bg-gray-900 p-1 rounded text-[10px] break-all select-all cursor-text">
+              {BACKEND_URL}/api/export/excel?league=NCAAB&start_date=2025-12-22
+            </code>
+          </div>
+        </div>
       </div>
 
       {/* League Tabs - NFL eliminated */}
