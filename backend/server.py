@@ -8029,7 +8029,7 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
 
 
 @api_router.post("/opportunities/refresh-lines")
-async def refresh_lines_and_bets(league: str = "NBA"):
+async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
     """
     Refresh live betting lines AND open bets from plays888.co.
     Does NOT touch PPG values, opening lines, or any other analysis data.
@@ -8041,7 +8041,14 @@ async def refresh_lines_and_bets(league: str = "NBA"):
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
         now_arizona = datetime.now(arizona_tz)
-        target_date = now_arizona.strftime('%Y-%m-%d')
+        
+        # Support day parameter: 'today', 'tomorrow', or specific date 'YYYY-MM-DD'
+        if day == "tomorrow":
+            target_date = (now_arizona + timedelta(days=1)).strftime('%Y-%m-%d')
+        elif len(day) == 10 and day[4] == '-' and day[7] == '-':
+            target_date = day
+        else:
+            target_date = now_arizona.strftime('%Y-%m-%d')
         
         logger.info(f"[Refresh Lines & Bets] Refreshing {league} for {target_date}")
         
