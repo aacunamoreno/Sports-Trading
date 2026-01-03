@@ -10817,6 +10817,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'home_ppg_rank': home_season_rank,  # Season rank
                 'home_last3_rank': home_l3_rank,    # L3 rank
                 'combined_ppg': combined,
+                'combined_gpg': combined if league == 'NHL' else None,  # Also store as combined_gpg for NHL
                 'edge': edge,
                 'recommendation': rec,
                 'away_dots': get_dot(away_season_rank, total_teams) + get_dot(away_l3_rank, total_teams),
