@@ -10593,30 +10593,91 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 })
                     
         elif league == 'NCAAB':
-            # NCAAB team name mapping (DB name -> Excel name)
+            # NCAAB team name mapping (CBS Sports name -> Excel name)
             ncaab_map = {
+                # A
                 'App. St.': 'App State',
-                'Detroit': 'Detroit Mercy',  # CBS shows "Detroit", Excel has "Detroit Mercy"
+                # B
+                # C
+                'CCSU': 'Central Connecticut',
+                'Clev. St.': 'Cleveland St',
+                'Chicago St.': 'Chicago St',
+                # D
+                'Detroit': 'Detroit Mercy',
+                # E
                 'East Carolina': 'E Carolina',
+                'E. Kentucky': 'E Kentucky',
+                'E. Michigan': 'E Michigan',
+                # F
                 'FAU': 'Florida Atlantic',
+                'FDU': 'Fairleigh Dickinson',
+                'FIU': 'Florida Intl',
+                'Fla. Gulf Coast': 'Florida Gulf Coast',
+                # G
                 'Ga. Tech': 'Georgia Tech',
+                'Ga. Southern': 'Georgia Southern',
                 'George Wash.': 'G Washington',
-                'J&W-Prov.': None,  # Not in Excel - small school
+                # I
+                'IUI': 'Indiana-Purdue',
+                'Ill.-Chicago': 'Illinois Chicago',
+                # J
+                'J&W-Prov.': None,
+                'Jax. State': 'Jacksonville St',
+                # K
+                'Kennesaw St.': 'Kennesaw St',
+                # L
+                'LIU': 'Long Island',
+                'LMU': 'Loyola Marymount',
+                'La. Tech': 'Louisiana Tech',
                 'Loyola-Md.': 'Loyola MD',
+                'Loyola Chi.': 'Loyola Chi',
+                # M
+                'Middle Tenn.': 'Middle Tenn',
+                'Missouri St.': 'Missouri St',
+                'Mt St Mary\'s': 'Mount St Mary\'s',
+                'Murray St.': 'Murray St',
+                # N
                 'N. Dak. St.': 'N Dakota St',
+                'N. Iowa': 'Northern Iowa',
+                'N. Kentucky': 'N Kentucky',
+                'N. Mex. St.': 'New Mexico St',
                 'N.J. Tech': 'NJIT',
+                # O
+                'Oregon St.': 'Oregon St',
+                # P
+                'PFW': 'Purdue-Fort Wayne',
+                # R
+                # S
+                'S. Illinois': 'Southern Illinois',
+                'Saint Francis': 'St Francis PA',
+                "Saint Mary's": "Saint Mary's",
+                'Sam Houston': 'Sam Houston St',
+                'San Fran.': 'San Francisco',
                 'St. Bona.': 'St Bonaventure',
                 "St. John's": "St John's",
+                'St. Thomas (MN)': 'St Thomas MN',
+                # T
                 'TX A&M-CC': 'Texas A&M-CC',
+                # U
+                'UAB': 'UAB',
+                'UConn': 'UConn',
+                'UIC': 'Illinois Chicago',
+                'UTEP': 'UTEP',
                 'UNC-Ash.': 'NC Asheville',
                 'UNCW': 'NC Wilmington',
                 'UT-Rio Grande Valley': 'UT Rio Grande',
+                # V
                 'Va. Tech': 'Virginia Tech',
+                # W
                 'W. Carolina': 'W Carolina',
-                'Loyola Chi.': 'Loyola Chi',
+                'W. Kentucky': 'W Kentucky',
+                'Wash. St.': 'Washington St',
+                'Wright St.': 'Wright St',
+                # Y
+                'Youngstown St.': 'Youngstown St',
+                # Others
                 'E. Texas A&M': 'E Texas A&M',
                 'East Texas A&M': 'E Texas A&M',
-                'UConn': 'Connecticut',
                 'NC A&T': 'NC A&T',
             }
             
