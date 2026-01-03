@@ -10627,7 +10627,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'Kennesaw St.': 'Kennesaw St',
                 # L
                 'LIU': 'Long Island',
-                'LMU': 'Loyola Marymount',
+                'LMU': 'Loyola Mymt',
                 'La. Tech': 'Louisiana Tech',
                 'Loyola-Md.': 'Loyola MD',
                 'Loyola Chi.': 'Loyola Chi',
