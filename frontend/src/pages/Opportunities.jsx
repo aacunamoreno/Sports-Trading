@@ -1056,15 +1056,15 @@ export default function Opportunities() {
                       <td className="py-3 px-1">
                         <div className="flex flex-col gap-0.5">
                           {game.ranking_ppg ? (
-                            // Show selected state - single highlighted button
+                            // Show selected state - click to clear
                             <button
-                              className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                              onClick={() => handleClearRankingPPG(game.game_num)}
+                              className={`px-1.5 py-0.5 text-[10px] font-bold rounded cursor-pointer hover:opacity-70 transition-opacity ${
                                 game.ranking_ppg === 'high' 
                                   ? 'bg-green-500 text-white' 
                                   : 'bg-red-500 text-white'
                               }`}
-                              title={`${game.ranking_ppg.toUpperCase()} ranking game selected`}
-                              disabled
+                              title={`${game.ranking_ppg.toUpperCase()} ranking - click to clear`}
                             >
                               {game.ranking_ppg === 'high' ? 'H' : 'L'}
                             </button>
