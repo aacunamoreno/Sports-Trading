@@ -967,10 +967,15 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
             # For ENANO: check if this loss is also in TIPSTER
             if account == "jac075":
                 bet_key = f"{bet.get('game_short', '')}-{bet.get('bet_type_short', '')}"
+                wager_short = bet.get('wager_short', '')
                 if bet_key in tipster_bet_keys:
                     bet_line += "🔴"  # Red: Loss is in both ENANO and TIPSTER
+                elif wager_short.startswith('$5') or wager_short.startswith('$6'):
+                    bet_line += "🟤"  # Brown: Loss for $.5K bets
+                elif wager_short.startswith('$1'):
+                    bet_line += "🟣"  # Purple: Loss for $1K bets
                 else:
-                    bet_line += "🟠"  # Orange: Loss is only in ENANO
+                    bet_line += "🟠"  # Orange: Loss for $2K+ bets
             else:
                 bet_line += "🔴"
         elif result == 'push':
