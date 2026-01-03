@@ -3670,6 +3670,8 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
         'JETS': 'Winnipeg',
         'AVALANCHE': 'Colorado',
         'UTAH HC': 'Utah',
+        'UTAH': 'Utah',
+        'MAMMOTH': 'Utah',
         'GOLDEN KNIGHTS': 'Vegas',
         'KRAKEN': 'Seattle',
         'SHARKS': 'San Jose',
