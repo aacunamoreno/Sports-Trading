@@ -447,6 +447,27 @@ export default function Opportunities() {
     }
   };
 
+  // Handle clearing ranking PPG selection
+  const handleClearRankingPPG = async (gameNum) => {
+    try {
+      const response = await axios.delete(`${API}/opportunities/ranking-ppg?league=${league}&date=${data.date}&game_num=${gameNum}`);
+      
+      if (response.data.success) {
+        toast.success('Ranking PPG cleared');
+        // Update local state to reflect the change
+        setData(prev => ({
+          ...prev,
+          games: prev.games.map(g => 
+            g.game_num === gameNum ? { ...g, ranking_ppg: null } : g
+          )
+        }));
+      }
+    } catch (error) {
+      console.error('Error clearing ranking PPG:', error);
+      toast.error('Failed to clear ranking PPG');
+    }
+  };
+
   // Handle bet cancellation
   const handleCancelBet = async (gameNum, cancel = true) => {
     try {
