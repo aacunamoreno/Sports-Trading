@@ -10557,12 +10557,11 @@ async def upload_ppg_excel(league: str, target_date: str = None):
             for i, row in df_l3.iterrows():
                 vals = row.values
                 try:
-                    # Row with rank has G (goals) in column 3 and GP (games played) in column 4
+                    # Row with rank has G/GP (goals per game) directly in column 3
                     if pd.notna(vals[0]):
-                        goals = float(vals[3]) if pd.notna(vals[3]) else None
-                        games = float(vals[4]) if pd.notna(vals[4]) else 3  # Default to 3 games
-                        if goals and games:
-                            current_gpg = round(goals / games, 2)  # Calculate GPG
+                        gpg_value = float(vals[3]) if pd.notna(vals[3]) else None
+                        if gpg_value:
+                            current_gpg = gpg_value  # Column 3 is already GPG, don't divide again!
                         else:
                             current_gpg = None
                     # Team name is in column 2
