@@ -117,7 +117,8 @@ export default function Opportunities() {
     toast.info('Refreshing lines & bets from plays888.co...');
     try {
       // Use the "refresh lines & bets" endpoint that preserves PPG values and opening lines
-      const response = await axios.post(`${API}/opportunities/refresh-lines?league=${league}`, {}, { timeout: 60000 });
+      // Pass the current day parameter so tomorrow's games get refreshed correctly
+      const response = await axios.post(`${API}/opportunities/refresh-lines?league=${league}&day=${day}`, {}, { timeout: 60000 });
       
       // Reload data to show updates
       await loadOpportunities();
