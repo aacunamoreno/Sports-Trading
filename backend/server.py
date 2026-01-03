@@ -10655,7 +10655,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'San Fran.': 'San Francisco',
                 'St. Bona.': 'St Bonaventure',
                 "St. John's": "St John's",
-                'St. Thomas (MN)': 'St Thomas MN',
+                'St. Thomas (MN)': 'St Thomas',
                 # T
                 'TX A&M-CC': 'Texas A&M-CC',
                 # U
