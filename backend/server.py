@@ -10618,7 +10618,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'Ga. Southern': 'Georgia Southern',
                 'George Wash.': 'G Washington',
                 # I
-                'IUI': 'Indiana-Purdue',
+                'IUI': None,  # Indiana University Indianapolis - not in Excel
                 'Ill.-Chicago': 'Illinois Chicago',
                 # J
                 'J&W-Prov.': None,
