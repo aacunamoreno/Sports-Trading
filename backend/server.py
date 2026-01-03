@@ -10610,7 +10610,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'E. Michigan': 'E Michigan',
                 # F
                 'FAU': 'Florida Atlantic',
-                'FDU': 'Fairleigh Dickinson',
+                'FDU': 'F Dickinson',
                 'FIU': 'Florida Intl',
                 'Fla. Gulf Coast': 'Florida Gulf Coast',
                 # G
