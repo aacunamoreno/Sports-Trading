@@ -10524,7 +10524,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'Blues': 'St. Louis', 'Predators': 'Nashville', 'Wild': 'Minnesota',
                 'Jets': 'Winnipeg', 'Kraken': 'Seattle', 'Sharks': 'San Jose',
                 'Kings': 'LA Kings', 'Flames': 'Calgary', 'Canucks': 'Vancouver',
-                'Capitals': 'Washington', 'Utah HC': 'Utah', 'Utah Mammoth': 'Utah'
+                'Capitals': 'Washington', 'Utah HC': 'Utah', 'Utah Mammoth': 'Utah', 'Mammoth': 'Utah'
             }
             
             def normalize_nhl_team(full_name):
