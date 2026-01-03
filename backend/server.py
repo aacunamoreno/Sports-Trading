@@ -10599,7 +10599,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'App. St.': 'App State',
                 # B
                 # C
-                'CCSU': 'Central Connecticut',
+                'CCSU': 'C Connecticut',
                 'Clev. St.': 'Cleveland St',
                 'Chicago St.': 'Chicago St',
                 # D
