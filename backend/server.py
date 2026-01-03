@@ -10708,6 +10708,18 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                     logger.info(f"[PPG] Mapped '{team_name}' -> '{mapped_name}'")
                     return ppg_by_team[mapped_name]
             
+            # For NHL, check team name mapping
+            if league == 'NHL':
+                nhl_game_map = {
+                    'Mammoth': 'Utah',
+                    'Utah Mammoth': 'Utah',
+                    'Utah HC': 'Utah',
+                }
+                mapped_name = nhl_game_map.get(team_name)
+                if mapped_name and mapped_name in ppg_by_team:
+                    logger.info(f"[PPG] Mapped NHL '{team_name}' -> '{mapped_name}'")
+                    return ppg_by_team[mapped_name]
+            
             # Fuzzy match - but be careful with similar names (Michigan vs Michigan St)
             team_lower = team_name.lower().replace(".", "").replace("-", " ").replace("'", "").strip()
             
