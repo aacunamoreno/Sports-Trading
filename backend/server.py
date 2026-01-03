@@ -10645,7 +10645,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 # O
                 'Oregon St.': 'Oregon St',
                 # P
-                'PFW': 'Purdue-Fort Wayne',
+                'PFW': 'Purdue FW',
                 # R
                 # S
                 'S. Illinois': 'Southern Illinois',
