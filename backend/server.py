@@ -7917,9 +7917,11 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
         page_text = await page.inner_text('body')
         lines = page_text.split('\n')
         
-        # Parse today's date for matching (e.g., "Dec 31")
+        # Parse today's date for matching (e.g., "Dec 31" or "Jan 03")
         date_obj = datetime.strptime(target_date, '%Y-%m-%d')
-        today_pattern = date_obj.strftime('%b %d').replace(' 0', ' ')  # "Dec 31" not "Dec 01"
+        # Create both patterns - with and without leading zero
+        today_pattern_no_zero = date_obj.strftime('%b ') + str(date_obj.day)  # "Jan 3"
+        today_pattern_with_zero = date_obj.strftime('%b %d')  # "Jan 03"
         
         raw_bets = []
         i = 0
@@ -7927,10 +7929,10 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
         while i < len(lines):
             line = lines[i].strip()
             
-            # Check if this section is for today's date
+            # Check if this section is for today's date (match both patterns)
             is_today = False
             for j in range(max(0, i-10), min(len(lines), i+3)):
-                if today_pattern in lines[j]:
+                if today_pattern_no_zero in lines[j] or today_pattern_with_zero in lines[j]:
                     is_today = True
                     break
             
