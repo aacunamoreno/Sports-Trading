@@ -9605,8 +9605,9 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             home_season_gpg = gpg_season_values.get(g['home'], 3.0)
             home_last3_gpg = gpg_last3_values.get(g['home'], 3.0)
             
-            # Combined GPG = average of all 4 values (away_season + away_l3 + home_season + home_l3) / 4
-            combined_gpg = (away_season_gpg + away_last3_gpg + home_season_gpg + home_last3_gpg) / 4
+            # Combined GPG = (away_season + home_season + away_l3 + home_l3) / 2
+            # This gives expected total goals in the game
+            combined_gpg = (away_season_gpg + away_last3_gpg + home_season_gpg + home_last3_gpg) / 2
             
             # Check if we have a valid line from plays888.co
             has_line = g.get('total') and g['total'] > 0
