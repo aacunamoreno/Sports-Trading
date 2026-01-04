@@ -13508,40 +13508,21 @@ async def clear_ranking_ppg(league: str, date: str, game_num: int):
 
 @api_router.get("/records/ranking-ppg-summary")
 async def get_ranking_ppg_summary():
-    """Get Ranking PPG records summary for all leagues"""
+    """Get Ranking PPG records summary for all leagues from stored records"""
     try:
         summary = {}
         
         for league in ['NBA', 'NHL', 'NCAAB']:
-            collection_map = {
-                'NBA': 'nba_opportunities',
-                'NHL': 'nhl_opportunities',
-                'NCAAB': 'ncaab_opportunities'
-            }
-            collection = db[collection_map[league]]
+            # Read from stored ranking_ppg_records collection
+            record = await db.ranking_ppg_records.find_one({"league": league})
             
-            # Aggregate all games with ranking_ppg set and user_bet_hit determined
-            high_hits = 0
-            high_misses = 0
-            low_hits = 0
-            low_misses = 0
-            
-            # Get all documents
-            async for doc in collection.find({}, {"_id": 0, "games": 1}):
-                games = doc.get('games', [])
-                for game in games:
-                    ranking = game.get('ranking_ppg')
-                    if ranking and game.get('user_bet_hit') is not None:
-                        if ranking == 'high':
-                            if game.get('user_bet_hit') == True:
-                                high_hits += 1
-                            elif game.get('user_bet_hit') == False:
-                                high_misses += 1
-                        elif ranking == 'low':
-                            if game.get('user_bet_hit') == True:
-                                low_hits += 1
-                            elif game.get('user_bet_hit') == False:
-                                low_misses += 1
+            if record:
+                high_hits = record.get('high_hits', 0)
+                high_misses = record.get('high_misses', 0)
+                low_hits = record.get('low_hits', 0)
+                low_misses = record.get('low_misses', 0)
+            else:
+                high_hits = high_misses = low_hits = low_misses = 0
             
             summary[league] = {
                 "high_record": f"{high_hits}-{high_misses}",
