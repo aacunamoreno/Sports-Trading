@@ -2724,19 +2724,30 @@ class Plays888Service:
                         is_international = any(pattern in away_team.upper() or pattern in home_team.upper() 
                                               for pattern in intl_patterns)
                         
-                        # Determine sport - check for RBL marker in nearby lines
+                        # Determine sport - check nearby lines for sport markers
+                        # IMPORTANT: Check NBA/NHL/NFL FIRST before RBL (which is a generic marker)
                         sport = None
-                        for j in range(max(0, i-3), min(len(lines), i+5)):
-                            if 'RBL' in lines[j] or 'College Basketball' in lines[j]:
-                                sport = 'NCAAB'
-                                break
-                            elif 'NBA' in lines[j]:
+                        for j in range(max(0, i-5), min(len(lines), i+8)):
+                            line_check = lines[j].upper()
+                            # Check for explicit sport markers (these are more specific than RBL)
+                            if 'BASKETBALL / NBA' in line_check or '/ NBA' in line_check:
                                 sport = 'NBA'
                                 break
-                            elif 'NHL' in lines[j]:
+                            elif 'HOCKEY / NHL' in line_check or '/ NHL' in line_check:
                                 sport = 'NHL'
                                 break
+                            elif 'FOOTBALL / NFL' in line_check or '/ NFL' in line_check:
+                                sport = 'NFL'
+                                break
                         
+                        # If no explicit sport found, check for RBL (college basketball marker)
+                        if not sport:
+                            for j in range(max(0, i-3), min(len(lines), i+5)):
+                                if 'RBL' in lines[j] or 'College Basketball' in lines[j]:
+                                    sport = 'NCAAB'
+                                    break
+                        
+                        # Fall back to team name matching if still no sport
                         if not sport:
                             if is_nhl_team(away_team) and is_nhl_team(home_team):
                                 sport = 'NHL'
