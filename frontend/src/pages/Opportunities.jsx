@@ -981,14 +981,12 @@ export default function Opportunities() {
                       rowStyle = getRowStyle(game.recommendation);
                     }
                   } else {
-                    // For today/tomorrow - check for conflict or clear agreement
+                    // For today/tomorrow - highlight ALL games that meet edge threshold
+                    // Edge threshold: NBA >= 5, NHL >= 0.5, NCAAB >= 9
                     if (isNoBet) {
-                      rowStyle = '';
-                    } else if (hasConflict) {
-                      rowStyle = 'bg-yellow-500/20 border-yellow-500/50'; // Conflict/caution - yellow
-                    } else if (hasClearAgreement) {
-                      rowStyle = getRowStyle(game.recommendation); // Clear agreement - blue/orange
+                      rowStyle = '';  // Below threshold - no highlight
                     } else {
+                      // Above threshold - ALWAYS highlight based on recommendation
                       rowStyle = getRowStyle(game.recommendation);
                     }
                   }
