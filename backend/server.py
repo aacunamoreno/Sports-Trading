@@ -9004,7 +9004,8 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 home_short = convert_plays888_team_name(bet_home)
                 
                 game_key = f"{away_short.lower()}_{home_short.lower()}"
-                if game_key not in games_in_list:
+                game_key_reversed = f"{home_short.lower()}_{away_short.lower()}"
+                if game_key not in games_in_list and game_key_reversed not in games_in_list:
                     # This bet is for a game not in our list - add it
                     bet_line = bet.get('total_line', 220.0)
                     games_raw.append({
