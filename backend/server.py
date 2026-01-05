@@ -5928,7 +5928,7 @@ async def get_ncaab_opportunities():
         # Generate recommendation (NCAAB uses edge threshold of 9)
         recommendation = ''
         if edge is not None:
-            if edge >= 9:
+            if edge >= 10:
                 recommendation = 'OVER'
             elif edge <= -9:
                 recommendation = 'UNDER'
@@ -6380,7 +6380,7 @@ async def populate_ppg_and_dots_for_tomorrow():
     }
     
     # Edge thresholds by league (NFL eliminated)
-    edge_thresholds = {'NBA': 5, 'NHL': 0.5}
+    edge_thresholds = {'NBA': 8, 'NHL': 0.6}
     
     for league in ['NBA', 'NHL']:
         try:
@@ -6526,7 +6526,7 @@ async def populate_ppg_and_dots_for_tomorrow():
                     return '🔴'
             
             # NCAAB edge threshold is 9
-            ncaab_edge_threshold = 9
+            ncaab_edge_threshold = 10
             
             # Helper function to find team in PPG data with fuzzy matching
             def find_team_data(team_name, data_dict):
@@ -6933,7 +6933,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 
                 # Edge Record: Only count games with |edge| >= 5 (NBA threshold)
                 edge = game.get('edge') or 0
-                if abs(edge) >= 5:
+                if abs(edge) >= 8:
                     if game.get('result_hit') is True:
                         date_edge_hits += 1
                     elif game.get('result_hit') is False:
@@ -6980,7 +6980,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 
                 # Edge Record: Only count games with |edge| >= 0.5 (NHL threshold)
                 edge = game.get('edge') or 0
-                if abs(edge) >= 0.5:
+                if abs(edge) >= 0.6:
                     if game.get('result_hit') is True:
                         date_edge_hits += 1
                     elif game.get('result_hit') is False:
@@ -7026,7 +7026,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 
                 # Edge Record: Only count games with |edge| >= 9 (NCAAB threshold)
                 edge = game.get('edge') or 0
-                if abs(edge) >= 9:
+                if abs(edge) >= 10:
                     if game.get('result_hit') is True:
                         date_edge_hits += 1
                     elif game.get('result_hit') is False:
@@ -8247,21 +8247,21 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         # Update recommendation based on new edge
                         edge = game['edge']
                         if league.upper() == 'NCAAB':
-                            if edge >= 9:
+                            if edge >= 10:
                                 game['recommendation'] = 'OVER'
                             elif edge <= -9:
                                 game['recommendation'] = 'UNDER'
                             else:
                                 game['recommendation'] = ''
                         elif league.upper() == 'NBA':
-                            if edge >= 5:
+                            if edge >= 8:
                                 game['recommendation'] = 'OVER'
                             elif edge <= -5:
                                 game['recommendation'] = 'UNDER'
                             else:
                                 game['recommendation'] = ''
                         else:  # NHL
-                            if edge >= 0.5:
+                            if edge >= 0.6:
                                 game['recommendation'] = 'OVER'
                             elif edge <= -0.5:
                                 game['recommendation'] = 'UNDER'
@@ -9991,7 +9991,7 @@ async def refresh_ncaab_opportunities(day: str = "today"):
             # Generate recommendation (NCAAB uses edge threshold of 9)
             recommendation = ''
             if edge is not None:
-                if edge >= 9:
+                if edge >= 10:
                     recommendation = 'OVER'
                 elif edge <= -9:
                     recommendation = 'UNDER'
@@ -10267,7 +10267,7 @@ async def add_ncaab_manual_data(data: dict):
             
             recommendation = ''
             if edge is not None:
-                if edge >= 9:
+                if edge >= 10:
                     recommendation = 'OVER'
                 elif edge <= -9:
                     recommendation = 'UNDER'
@@ -10888,7 +10888,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
             
             rec = ''
             if edge:
-                if edge >= 9:
+                if edge >= 10:
                     rec = 'OVER'
                 elif edge <= -9:
                     rec = 'UNDER'
@@ -11054,7 +11054,7 @@ async def add_nba_manual_data(data: dict):
             
             recommendation = ''
             if edge is not None:
-                if edge >= 5:
+                if edge >= 8:
                     recommendation = 'OVER'
                 elif edge <= -5:
                     recommendation = 'UNDER'
@@ -11231,7 +11231,7 @@ async def update_nba_scores(date: str = None):
                     
                     # Check if recommendation hit (only for games with |edge| >= 5)
                     # If recommendation is missing but edge meets threshold, derive it from edge
-                    if abs(edge) >= 5:
+                    if abs(edge) >= 8:
                         if not recommendation:
                             recommendation = 'OVER' if edge >= 5 else 'UNDER'
                             game['recommendation'] = recommendation
@@ -12740,7 +12740,7 @@ async def add_nhl_manual_data(data: dict):
             
             recommendation = ''
             if edge is not None:
-                if edge >= 0.5:
+                if edge >= 0.6:
                     recommendation = 'OVER'
                 elif edge <= -0.5:
                     recommendation = 'UNDER'
