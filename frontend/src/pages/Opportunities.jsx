@@ -545,7 +545,7 @@ export default function Opportunities() {
       noEdgeRange: '13-17',
       underRange: '17.5-30',
       totalTeams: 30,
-      edgeThreshold: 5
+      edgeThreshold: 8
     },
     NHL: {
       statLabel: 'GPG',
@@ -563,7 +563,7 @@ export default function Opportunities() {
       noEdgeRange: '92-273',
       underRange: '274-365',
       totalTeams: 365,
-      edgeThreshold: 9
+      edgeThreshold: 10
     }
   };
 
