@@ -10883,8 +10883,14 @@ async def upload_ppg_excel(league: str, target_date: str = None):
             if away_avg_raw and home_avg_raw:
                 games_with_ppg += 1
             
+            # Use bet_line for edge calculation if bet is placed, otherwise use current line
             line = game.get('total') or game.get('opening_line')
-            edge = round(combined - float(line), 1) if combined and line else None
+            if game.get('has_bet') and game.get('bet_line'):
+                edge_line = float(game.get('bet_line'))
+            else:
+                edge_line = float(line) if line else None
+            
+            edge = round(combined - edge_line, 1) if combined and edge_line else None
             
             rec = ''
             if edge:
