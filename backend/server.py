@@ -6142,7 +6142,7 @@ async def refresh_nba_opportunities_scheduled():
 
 async def scrape_tomorrows_opening_lines():
     """
-    #1 - 8:00 PM Arizona: Scrape tomorrow's games from ScoresAndOdds
+    #1 - 8:00 PM Arizona: Scrape tomorrow's games and opening lines from CBS Sports
     These are the opening lines for each game.
     Creates full game documents in the opportunities collection.
     """
