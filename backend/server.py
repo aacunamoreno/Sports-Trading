@@ -6158,9 +6158,13 @@ async def scrape_tomorrows_opening_lines():
         
         for league in leagues:
             try:
-                # Use CBS Sports for NCAAB (more reliable), scoresandodds for others
+                # Use CBS Sports for all leagues (more reliable for opening lines)
                 if league == 'NCAAB':
                     games = await scrape_cbssports_ncaab(tomorrow)
+                elif league == 'NBA':
+                    games = await scrape_cbssports_nba(tomorrow)
+                elif league == 'NHL':
+                    games = await scrape_cbssports_nhl(tomorrow)
                 else:
                     games = await scrape_scoresandodds(league.upper(), tomorrow)
                 
