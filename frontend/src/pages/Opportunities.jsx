@@ -517,21 +517,21 @@ export default function Opportunities() {
 
   // Edge color based on league
   // Edge styling: Green if edge meets threshold (positive OR negative)
-  // NBA: Green if |edge| >= 5
-  // NHL: Green if |edge| >= 0.5
-  // NCAAB: Green if |edge| >= 9
+  // NBA: Green if |edge| >= 8
+  // NHL: Green if |edge| >= 0.6
+  // NCAAB: Green if |edge| >= 10
   // A negative edge like -16.4 is a strong UNDER play, so it should be green
   const getEdgeStyle = (edge, currentLeague = league) => {
     const absEdge = Math.abs(edge);
     if (currentLeague === 'NBA') {
-      if (absEdge >= 5) return 'text-green-400 font-bold';
+      if (absEdge >= 8) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
     } else if (currentLeague === 'NCAAB') {
-      if (absEdge >= 9) return 'text-green-400 font-bold';
+      if (absEdge >= 10) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
     } else {
       // NHL
-      if (absEdge >= 0.5) return 'text-green-400 font-bold';
+      if (absEdge >= 0.6) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
     }
   };
@@ -982,7 +982,7 @@ export default function Opportunities() {
                     }
                   } else {
                     // For today/tomorrow - highlight ALL games that meet edge threshold
-                    // Edge threshold: NBA >= 5, NHL >= 0.5, NCAAB >= 9
+                    // Edge threshold: NBA >= 8, NHL >= 0.6, NCAAB >= 10
                     if (isNoBet) {
                       rowStyle = '';  // Below threshold - no highlight
                     } else {
