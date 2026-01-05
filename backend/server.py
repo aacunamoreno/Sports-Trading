@@ -9209,10 +9209,14 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                 else:
                     game_data["user_bet_hit"] = None
             
-            # Calculate edge for all games (using closing line)
+            # Calculate edge for all games
+            # If bet is placed, use bet_line for edge; otherwise use current line
             # Positive edge = PPG > Line = OVER signal
             # Negative edge = PPG < Line = UNDER signal
-            edge = combined_ppg - g['total'] if has_line else 0
+            if game_data.get('has_bet') and game_data.get('bet_line'):
+                edge = combined_ppg - game_data.get('bet_line') if has_line else 0
+            else:
+                edge = combined_ppg - g['total'] if has_line else 0
             game_data["edge"] = round(edge, 1) if has_line else None
             
             games.append(game_data)
