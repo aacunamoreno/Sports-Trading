@@ -6198,8 +6198,8 @@ async def scrape_tomorrows_opening_lines():
                                 await store_opening_line(league, tomorrow, away, home, total)
                     
                     if processed_games:
-                        # Determine data source based on league
-                        data_source = "cbssports.com opening lines" if league == 'NCAAB' else "scoresandodds.com opening lines"
+                        # All leagues now use CBS Sports
+                        data_source = "cbssports.com opening lines"
                         
                         # Create or update the opportunities document
                         await collection.update_one(
