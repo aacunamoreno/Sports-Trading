@@ -9762,13 +9762,17 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 else:
                     game_data["user_bet_hit"] = None
             
-            games.append(game_data)
-            
             # Calculate edge for ALL games (for the table)
+            # If bet is placed, use bet_line for edge; otherwise use current line
             # Positive edge = GPG > Line = OVER signal
             # Negative edge = GPG < Line = UNDER signal
-            edge = combined_gpg - g['total'] if has_line else 0
+            if game_data.get('has_bet') and game_data.get('bet_line'):
+                edge = combined_gpg - game_data.get('bet_line') if has_line else 0
+            else:
+                edge = combined_gpg - g['total'] if has_line else 0
             game_data["edge"] = round(edge, 1) if has_line else None
+            
+            games.append(game_data)
             
             # Only add to plays if this game has an active bet (and not already in plays)
             if game_data.get("has_bet", False) and has_line:
