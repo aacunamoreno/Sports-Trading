@@ -10781,6 +10781,9 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 # V
                 'Va. Tech': 'Virginia Tech',
                 # W
+                'W. Michigan': 'Western Michigan',
+                'WESTERN MICHIGAN': 'W. Michigan',
+                'W Michigan': 'W. Michigan',
                 'W. Carolina': 'W Carolina',
                 'W. Kentucky': 'W Kentucky',
                 'Wash. St.': 'Washington St',
