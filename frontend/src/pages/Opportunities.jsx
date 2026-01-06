@@ -292,10 +292,13 @@ export default function Opportunities() {
     setScrapingOpeners(true);
     toast.info('Scraping tomorrow\'s opening lines...');
     try {
-      // Get tomorrow's date in Arizona timezone
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const targetDate = tomorrow.toISOString().split('T')[0];
+      // Get tomorrow's date in Arizona timezone (UTC-7, no DST)
+      const now = new Date();
+      // Get Arizona time by subtracting 7 hours from UTC
+      const arizonaOffset = -7 * 60; // -7 hours in minutes
+      const arizonaTime = new Date(now.getTime() + (arizonaOffset - now.getTimezoneOffset()) * 60000);
+      arizonaTime.setDate(arizonaTime.getDate() + 1);
+      const targetDate = arizonaTime.toISOString().split('T')[0];
       
       const response = await axios.post(`${API}/process/scrape-openers?target_date=${targetDate}`, {}, { timeout: 180000 });
       
