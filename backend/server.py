@@ -8269,6 +8269,9 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
             # Preserve cancelled flag - don't reset bet info for cancelled games
             is_cancelled = game.get('bet_cancelled', False)
             
+            # Preserve existing bet_line before reset - it should NEVER be overwritten by live line
+            preserved_bet_line = game.get('bet_line')
+            
             if not is_cancelled:
                 # Reset bet tracking for this refresh (only if not cancelled)
                 game['bet_types'] = []
@@ -8277,7 +8280,9 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                 game['has_bet'] = False
                 game['user_bet'] = False
                 game['bet_type'] = None
-                game['bet_line'] = None
+                # Preserve bet_line - it's the original line when bet was placed
+                # Only reset if no preserved line (new game with no historical bet)
+                game['bet_line'] = preserved_bet_line
             
             # Update live line (but preserve opening_line/total and PPG)
             # opening_line/total = the original line from 8pm scrape (never changes)
