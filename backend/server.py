@@ -7079,13 +7079,31 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 if game.get('final_score') is None:
                     continue
                 
-                # Edge Record: Only count games with |edge| >= 9 (NCAAB threshold)
+                # Edge Record: Only count games with |edge| >= 10 (NCAAB threshold)
                 edge = game.get('edge') or 0
                 if abs(edge) >= 10:
-                    if game.get('result_hit') is True:
-                        date_edge_hits += 1
-                    elif game.get('result_hit') is False:
-                        date_edge_misses += 1
+                    final_score = game.get('final_score')
+                    line = game.get('total') or game.get('opening_line') or 0
+                    
+                    if final_score and line:
+                        actual_result = 'OVER' if final_score > line else 'UNDER'
+                        recommendation = game.get('recommendation', '')
+                        
+                        if recommendation:
+                            if recommendation.upper() == actual_result:
+                                date_edge_hits += 1
+                            else:
+                                date_edge_misses += 1
+                        elif edge > 0:
+                            if actual_result == 'OVER':
+                                date_edge_hits += 1
+                            else:
+                                date_edge_misses += 1
+                        elif edge < 0:
+                            if actual_result == 'UNDER':
+                                date_edge_hits += 1
+                            else:
+                                date_edge_misses += 1
                 
                 # Betting Record (if no actual_bet_record)
                 if not actual_record and game.get('user_bet'):
