@@ -10684,6 +10684,9 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'N.J. Tech': 'NJIT',
                 # O
                 'Oregon St.': 'Oregon St',
+                'Okla. St.': 'Oklahoma St',
+                'Okla St': 'Oklahoma St',
+                'Oklahoma State': 'Oklahoma St',
                 # P
                 'PFW': 'Purdue FW',
                 # R
