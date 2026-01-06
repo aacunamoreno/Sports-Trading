@@ -10676,6 +10676,8 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'Missouri St.': 'Missouri St',
                 'Mt St Mary\'s': 'Mount St Mary\'s',
                 'Murray St.': 'Murray St',
+                'Massachusetts': 'UMass',
+                'MASS': 'UMass',
                 # N
                 'N. Dak. St.': 'N Dakota St',
                 'N. Iowa': 'Northern Iowa',
