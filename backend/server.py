@@ -8468,11 +8468,6 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         'CENT ARKANSAS': 'CENTRAL ARKANSAS',
                         'ARK. STATE': 'ARKANSAS STATE',
                         'ARK STATE': 'ARKANSAS STATE',
-                        # Miami schools - CRITICAL for bet matching
-                        'MIAMI (OHIO)': 'MIAMI OHIO',
-                        'MIAMI (OH)': 'MIAMI OHIO',
-                        'MIAMI-OHIO': 'MIAMI OHIO',
-                        'MIAMI OH': 'MIAMI OHIO',
                         # Other specific mappings
                         'LOYOLA CHI.': 'LOYOLA CHICAGO',
                         'LOYOLA CHI': 'LOYOLA CHICAGO',
@@ -8489,6 +8484,16 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     for abbrev, full in simple_mappings.items():
                         if abbrev in name:
                             name = name.replace(abbrev, full)
+                    
+                    # Miami Ohio normalization - do this AFTER other mappings to avoid double replacement
+                    # Normalize all variations to just "MIAMI OHIO"
+                    import re as re_inner
+                    name = re_inner.sub(r'MIAMI\s*\(OHIO\)', 'MIAMI OHIO', name)
+                    name = re_inner.sub(r'MIAMI\s*\(OH\)', 'MIAMI OHIO', name)
+                    name = re_inner.sub(r'MIAMI-OHIO', 'MIAMI OHIO', name)
+                    # Only replace "MIAMI OH" if it's not already "MIAMI OHIO"
+                    if 'MIAMI OHIO' not in name:
+                        name = re_inner.sub(r'MIAMI\s+OH\b', 'MIAMI OHIO', name)
                     
                     # NHL team name mappings (city abbreviations to full names)
                     nhl_mappings = {
