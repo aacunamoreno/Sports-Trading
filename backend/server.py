@@ -3375,12 +3375,13 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
                                 }
                             }
                             
-                            // Alternative: look for T column values (total scores are usually 3-digit numbers)
+                            // Alternative: look for T column values (total scores are usually 2-3 digit numbers)
                             if (scores.length < 2) {
                                 const allNums = rawText.match(/\\b(\\d{2,3})\\b/g) || [];
                                 const finalScores = allNums.filter(n => {
                                     const num = parseInt(n);
-                                    return num >= 70 && num <= 200;
+                                    // College basketball scores typically 40-150 per team
+                                    return num >= 40 && num <= 150;
                                 });
                                 // Take the last two valid scores (home and away totals)
                                 if (finalScores.length >= 2) {
@@ -3389,6 +3390,17 @@ async def scrape_cbssports_ncaab(target_date: str) -> List[Dict[str, Any]]:
                                     scores.push(parseInt(finalScores[finalScores.length - 2]));
                                     scores.push(parseInt(finalScores[finalScores.length - 1]));
                                 }
+                            }
+                            
+                            // Third attempt: look for score elements directly
+                            if (scores.length < 2) {
+                                const scoreEls = card.querySelectorAll('.total, .score, [class*="score"]');
+                                scoreEls.forEach(el => {
+                                    const num = parseInt(el.innerText.trim());
+                                    if (!isNaN(num) && num >= 40 && num <= 150) {
+                                        scores.push(num);
+                                    }
+                                });
                             }
                         }
                         
