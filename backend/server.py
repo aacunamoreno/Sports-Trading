@@ -8468,6 +8468,11 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         'CENT ARKANSAS': 'CENTRAL ARKANSAS',
                         'ARK. STATE': 'ARKANSAS STATE',
                         'ARK STATE': 'ARKANSAS STATE',
+                        # Miami schools - CRITICAL for bet matching
+                        'MIAMI (OHIO)': 'MIAMI OHIO',
+                        'MIAMI (OH)': 'MIAMI OHIO',
+                        'MIAMI-OHIO': 'MIAMI OHIO',
+                        'MIAMI OH': 'MIAMI OHIO',
                         # Other specific mappings
                         'LOYOLA CHI.': 'LOYOLA CHICAGO',
                         'LOYOLA CHI': 'LOYOLA CHICAGO',
