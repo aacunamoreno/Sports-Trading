@@ -2815,9 +2815,8 @@ class Plays888Service:
                 bet['total_risk'] = data['total_risk']
                 bet['total_win'] = data['total_win']
                 open_bets.append(bet)
-                # Log spread bets for debugging
-                if bet.get('is_spread'):
-                    logger.info(f"[OpenBets] Spread bet found: {bet.get('bet_type')} - {bet.get('away_team')} vs {bet.get('home_team')} (sport={bet.get('sport')})")
+                # Log ALL bets for debugging
+                logger.info(f"[OpenBets] Bet: {bet.get('away_team')} vs {bet.get('home_team')} - {bet.get('bet_type')} (sport={bet.get('sport')})")
             
             logger.info(f"Found {len(open_bets)} unique open bets (from {len(raw_bets)} total)")
             return open_bets
