@@ -2712,7 +2712,8 @@ class Plays888Service:
                             break
                     
                     # Extract team names from "Team1 vs Team2 / Game / Total"
-                    live_teams_match = re.search(r'(?:\d+\s*-\s*)?([A-Za-z\s\.]+?)\s+vs\s+([A-Za-z\s\.]+?)\s*/\s*Game', teams_text, re.IGNORECASE)
+                    # Handle team names with numbers like "76ers"
+                    live_teams_match = re.search(r'(?:\d+\s*-\s*)?([A-Za-z0-9\s\.\']+?)\s+vs\s+([A-Za-z0-9\s\.\']+?)\s*/\s*Game', teams_text, re.IGNORECASE)
                     
                     if live_teams_match:
                         away_team = live_teams_match.group(1).strip()
