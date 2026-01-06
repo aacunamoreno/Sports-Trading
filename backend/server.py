@@ -12626,6 +12626,27 @@ async def update_ncaab_bet_results(date: str = None):
                     logger.info(f"[NCAAB Bet Results] Matched: {game.get('away_team')} @ {game.get('home_team')} ({bet_type_str}) -> {bet['result']}")
                     break
         
+        # FALLBACK: For games with bets but no matched result (e.g., live bets)
+        for game in db_games:
+            if game.get('has_bet') and game.get('user_bet_hit') is None and game.get('final_score') and game.get('bet_line'):
+                final_score = game['final_score']
+                bet_line = game['bet_line']
+                bet_type = game.get('bet_type', '').upper()
+                
+                if 'OVER' in bet_type:
+                    game['user_bet_hit'] = final_score > bet_line
+                    game['result'] = 'OVER' if final_score > bet_line else 'UNDER'
+                elif 'UNDER' in bet_type:
+                    game['user_bet_hit'] = final_score < bet_line
+                    game['result'] = 'UNDER' if final_score < bet_line else 'OVER'
+                
+                if game.get('user_bet_hit') is not None:
+                    if game['user_bet_hit']:
+                        wins += 1
+                    else:
+                        losses += 1
+                    logger.info(f"[NCAAB Bet Results] Fallback calc: {game.get('away_team')} @ {game.get('home_team')} - {bet_type} {bet_line} vs {final_score} = {'HIT' if game['user_bet_hit'] else 'MISS'}")
+        
         # Save to database - also store the actual bet record from History
         await db.ncaab_opportunities.update_one(
             {"date": date},
