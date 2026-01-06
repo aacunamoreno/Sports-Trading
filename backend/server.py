@@ -8318,11 +8318,22 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     if not game.get('opening_line') and game.get('total'):
                         game['opening_line'] = game.get('total')
                     
-                    # Recalculate edge based on LIVE line
+                    # CRITICAL: Edge calculation logic
+                    # - If bet is placed: use bet_line (the line when bet was taken) - NEVER CHANGES
+                    # - If no bet: use live_line (current line)
                     combined_ppg = game.get('combined_ppg')
                     if combined_ppg:
-                        game['edge'] = round(combined_ppg - new_line, 1)
-                        # Update recommendation based on new edge
+                        # Check for existing bet_line (preserved from before or from database)
+                        bet_line_for_edge = game.get('bet_line')
+                        if bet_line_for_edge:
+                            # Edge is locked to bet_line - DOES NOT CHANGE WITH LIVE LINE
+                            game['edge'] = round(combined_ppg - bet_line_for_edge, 1)
+                            logger.info(f"[Refresh Lines] Edge locked to bet_line={bet_line_for_edge} for {away} @ {home}")
+                        else:
+                            # No bet - use live line for edge calculation
+                            game['edge'] = round(combined_ppg - new_line, 1)
+                        
+                        # Update recommendation based on edge
                         edge = game['edge']
                         if league.upper() == 'NCAAB':
                             if edge >= 10:
@@ -8347,7 +8358,7 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                                 game['recommendation'] = ''
                     
                     lines_updated += 1
-                    logger.info(f"[Refresh Lines] Updated live line {away} @ {home}: {old_live_line} -> {new_line} (opening: {game.get('opening_line') or game.get('total')})")
+                    logger.info(f"[Refresh Lines] Updated live line {away} @ {home}: {old_live_line} -> {new_line} (opening: {game.get('opening_line') or game.get('total')}, bet_line: {game.get('bet_line')})")
             
             # #3.75 - Match open bets to games and store bet_line
             for bet in open_bets:
