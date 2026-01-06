@@ -10737,6 +10737,9 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 'Murray St.': 'Murray St',
                 'Massachusetts': 'UMass',
                 'MASS': 'UMass',
+                'Miami Ohio': 'Miami (Ohio)',
+                'MIAMI OHIO': 'Miami (Ohio)',
+                'Miami (OH)': 'Miami (Ohio)',
                 # N
                 'N. Dak. St.': 'N Dakota St',
                 'N. Iowa': 'Northern Iowa',
