@@ -2565,7 +2565,9 @@ class Plays888Service:
                     # Extract team names from "(TEAM1 vrs TEAM2)" or "(TEAM1 REG.TIME vrs TEAM2 REG.TIME)"
                     # Also support live betting format: "TEAM1 vs TEAM2 / Game / Total"
                     # FIXED: Handle team names with parentheses like "Miami (Ohio)" or "Miami (OH)"
-                    teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+(.+?)\)$', teams_text, re.IGNORECASE)
+                    # Use a pattern that properly handles nested parentheses
+                    paren_match = re.search(r'\((.+?)\s+(?:REG\.TIME\s+)?vrs\s+(.+)\)', teams_text, re.IGNORECASE)
+                    teams_match = paren_match
                     
                     # If no match, try live betting format: "Team1 vs Team2 / Game / Total"
                     if not teams_match:
@@ -2574,7 +2576,7 @@ class Plays888Service:
                             teams_match = live_match
                     if teams_match:
                         away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
-                        home_team = teams_match.group(2).strip().replace(' REG.TIME', '').rstrip(')')
+                        home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
                         
                         # Check for international/European basketball (not NCAAB)
                         intl_patterns = ['CSM ', 'BC ', 'KK ', 'TARGU', 'PLOIESTI', 'BUCHAREST', 'CLUJ', 
