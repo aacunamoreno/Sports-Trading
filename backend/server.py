@@ -8602,6 +8602,11 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     logger.info(f"[DEBUG OKC] Game: {away} @ {home} -> {away_norm} @ {home_norm}")
                     logger.info(f"[DEBUG OKC] Bet: {bet_away} vs {bet_home} -> {bet_away_norm} vs {bet_home_norm}")
                 
+                # Debug logging for Michigan/Miami (common matching issue)
+                if 'MICHIGAN' in bet_away_norm or 'MICHIGAN' in bet_home_norm or 'MIAMI' in bet_away_norm or 'MIAMI' in bet_home_norm:
+                    logger.info(f"[DEBUG MICHIGAN/MIAMI] Game: {away} @ {home} -> {away_norm} @ {home_norm}")
+                    logger.info(f"[DEBUG MICHIGAN/MIAMI] Bet: {bet_away} vs {bet_home} -> {bet_away_norm} vs {bet_home_norm}")
+                
                 # Try various matching approaches
                 # IMPORTANT: Require BOTH teams to match for accurate bet tracking
                 if bet_away_norm and bet_home_norm:
