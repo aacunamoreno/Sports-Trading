@@ -10692,6 +10692,9 @@ async def upload_ppg_excel(league: str, target_date: str = None):
                 # R
                 # S
                 'S. Illinois': 'Southern Illinois',
+                'S. Carolina': 'South Carolina',
+                'S Carolina': 'South Carolina',
+                'SC': 'South Carolina',
                 'Saint Francis': 'St Francis PA',
                 "Saint Mary's": "Saint Mary's",
                 'Sam Houston': 'Sam Houston St',
