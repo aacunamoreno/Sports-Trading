@@ -7106,7 +7106,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                                 date_edge_misses += 1
                 
                 # Betting Record (if no actual_bet_record)
-                if not actual_record and game.get('user_bet'):
+                if not actual_record and game.get('has_bet'):
                     # Check for multi-bet games with bet_results array
                     if game.get('bet_results') and len(game.get('bet_results')) > 0:
                         for br in game.get('bet_results'):
