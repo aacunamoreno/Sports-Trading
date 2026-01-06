@@ -6948,16 +6948,36 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 if game.get('final_score') is None:
                     continue
                 
-                # Edge Record: Only count games with |edge| >= 5 (NBA threshold)
+                # Edge Record: Only count games with |edge| >= 8 (NBA threshold)
                 edge = game.get('edge') or 0
                 if abs(edge) >= 8:
-                    if game.get('result_hit') is True:
-                        date_edge_hits += 1
-                    elif game.get('result_hit') is False:
-                        date_edge_misses += 1
+                    # Determine actual result: OVER if final_score > line, UNDER if final_score < line
+                    final_score = game.get('final_score')
+                    line = game.get('total') or game.get('opening_line') or 0
+                    
+                    if final_score and line:
+                        actual_result = 'OVER' if final_score > line else 'UNDER'
+                        recommendation = game.get('recommendation', '')
+                        
+                        # Edge hit = recommendation matched actual result
+                        if recommendation:
+                            if recommendation.upper() == actual_result:
+                                date_edge_hits += 1
+                            else:
+                                date_edge_misses += 1
+                        elif edge > 0:  # Positive edge = OVER recommendation
+                            if actual_result == 'OVER':
+                                date_edge_hits += 1
+                            else:
+                                date_edge_misses += 1
+                        elif edge < 0:  # Negative edge = UNDER recommendation
+                            if actual_result == 'UNDER':
+                                date_edge_hits += 1
+                            else:
+                                date_edge_misses += 1
                 
                 # Betting Record: If no actual_bet_record, count from matched games
-                if not actual_record and game.get('user_bet'):
+                if not actual_record and game.get('has_bet'):
                     # The field is 'user_bet_hit' (True/False)
                     if game.get('user_bet_hit') is True:
                         date_bet_wins += 1
