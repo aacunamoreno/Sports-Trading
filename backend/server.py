@@ -8673,7 +8673,7 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                 else:
                     game['bet_lines'].append(None)
                 
-                game['bet_count'] += 1
+                game['bet_count'] += bet.get('bet_count', 1)  # Use bet's count (for x2 bets)
                 
                 # For backward compatibility, set the primary bet_type and bet_line
                 # If there's both spread and total, prioritize showing both in bet_type
