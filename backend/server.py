@@ -8708,6 +8708,17 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                 bets_added += 1
                 logger.info(f"[Refresh Bets] Added bet #{game['bet_count']} to {away} @ {home}: {bet_type_display}")
         
+        # CRITICAL: After all bets are matched, recalculate edge for games with bet_line
+        # This ensures edge is locked to bet_line, not live_line
+        for game in games:
+            if game.get('has_bet') and game.get('bet_line'):
+                combined_ppg = game.get('combined_ppg') or game.get('combined_gpg')
+                bet_line = game.get('bet_line')
+                if combined_ppg and bet_line:
+                    # Lock edge to bet_line - THIS IS THE EDGE THAT MATTERS
+                    game['edge'] = round(combined_ppg - bet_line, 1)
+                    logger.info(f"[Refresh Bets] Edge recalculated with bet_line={bet_line}: edge={game['edge']} for {game.get('away_team')} @ {game.get('home_team')}")
+        
         # Update plays array with games that have bets
         plays = []
         for game in games:
