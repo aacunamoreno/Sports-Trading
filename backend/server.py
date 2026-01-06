@@ -8636,6 +8636,13 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         
                         if away_word_match and home_word_match:
                             game_matches = True
+                            logger.info(f"[Refresh Bets] MATCHED: {away} @ {home} -> bet {bet_away} vs {bet_home}")
+                        else:
+                            # Log near matches that failed word overlap
+                            if 'MICHIGAN' in away_norm or 'MIAMI' in home_norm:
+                                logger.warning(f"[Refresh Bets] NEAR MISS (word overlap): {away} @ {home} vs bet {bet_away} vs {bet_home}")
+                                logger.warning(f"  away_words={away_words}, home_words={home_words}")
+                                logger.warning(f"  bet_away_words={bet_away_words}, bet_home_words={bet_home_words}")
                 elif bet_game:
                     # Fallback to combined game string
                     bet_game_norm = normalize_team_name(bet_game)
@@ -8643,6 +8650,9 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         game_matches = True
                 
                 if not game_matches:
+                    # Log unmatched bets for debugging
+                    if 'MICHIGAN' in bet_away_norm or 'MIAMI' in bet_home_norm:
+                        logger.warning(f"[Refresh Bets] UNMATCHED bet: {bet_away} vs {bet_home} (norm: {bet_away_norm} vs {bet_home_norm})")
                     continue
                 
                 # Skip cancelled games - don't add bets back
