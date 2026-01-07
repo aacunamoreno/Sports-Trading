@@ -12479,11 +12479,14 @@ async def update_nhl_bet_results(date: str = None):
                     elif bet['result'] == 'lost':
                         game['user_bet_hit'] = False
                         losses += 1
-                    else:
+                    elif bet['result'] == 'push':
                         game['user_bet_hit'] = None  # Push
+                        game['bet_result'] = 'push'
+                    else:
+                        game['user_bet_hit'] = None  # Unknown
                     
                     bets_matched += 1
-                    logger.info(f"[NHL Bet Results] Matched: {game.get('away_team')} @ {game.get('home_team')} -> {bet['result']}")
+                    logger.info(f"[NHL Bet Results] Matched: {game.get('away_team')} @ {game.get('home_team')} - bet_type={bet['bet_type']}, bet_line={bet['bet_line']} -> {bet['result']}")
                     break
         
         # FALLBACK: For games with bets but no matched result (e.g., live bets)
