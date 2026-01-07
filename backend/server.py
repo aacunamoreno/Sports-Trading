@@ -7278,6 +7278,89 @@ async def update_records_from_start_date(start_date: str = "2025-12-22"):
     }
 
 
+@api_router.post("/process/backfill-opening-lines")
+async def backfill_opening_lines(start_date: str = "2024-12-22", end_date: str = None):
+    """
+    Backfill opening_line field for historical games that don't have it.
+    Uses the 'total' field as the opening line if opening_line is not set.
+    
+    Args:
+        start_date: Start date in YYYY-MM-DD format (default: 2024-12-22)
+        end_date: End date in YYYY-MM-DD format (default: today)
+    """
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    
+    arizona_tz = ZoneInfo('America/Phoenix')
+    
+    if not end_date:
+        end_date = datetime.now(arizona_tz).strftime("%Y-%m-%d")
+    
+    results = {
+        "NBA": {"dates_processed": 0, "games_updated": 0},
+        "NHL": {"dates_processed": 0, "games_updated": 0},
+        "NCAAB": {"dates_processed": 0, "games_updated": 0}
+    }
+    
+    # Parse dates
+    current_date = datetime.strptime(start_date, "%Y-%m-%d")
+    end = datetime.strptime(end_date, "%Y-%m-%d")
+    
+    while current_date <= end:
+        date_str = current_date.strftime("%Y-%m-%d")
+        
+        for league in ["NBA", "NHL", "NCAAB"]:
+            collection_name = f"{league.lower()}_opportunities"
+            collection = db[collection_name]
+            
+            # Find document for this date
+            doc = await collection.find_one({"date": date_str})
+            
+            if doc and doc.get('games'):
+                games = doc['games']
+                updated = False
+                games_updated_count = 0
+                
+                for game in games:
+                    # If opening_line is not set but total exists, use total as opening_line
+                    if not game.get('opening_line') and game.get('total'):
+                        game['opening_line'] = game['total']
+                        updated = True
+                        games_updated_count += 1
+                    # If neither exists, try to use bet_line or live_line
+                    elif not game.get('opening_line') and not game.get('total'):
+                        if game.get('bet_line'):
+                            game['opening_line'] = game['bet_line']
+                            game['total'] = game['bet_line']
+                            updated = True
+                            games_updated_count += 1
+                        elif game.get('live_line'):
+                            game['opening_line'] = game['live_line']
+                            game['total'] = game['live_line']
+                            updated = True
+                            games_updated_count += 1
+                
+                if updated:
+                    await collection.update_one(
+                        {"date": date_str},
+                        {"$set": {"games": games}}
+                    )
+                    results[league]["games_updated"] += games_updated_count
+                
+                results[league]["dates_processed"] += 1
+        
+        current_date += timedelta(days=1)
+    
+    logger.info(f"[Backfill Opening Lines] Results: {results}")
+    
+    return {
+        "success": True,
+        "start_date": start_date,
+        "end_date": end_date,
+        "results": results
+    }
+
+
 @api_router.post("/process/scrape-openers")
 async def scrape_opening_lines_endpoint(target_date: str = None):
     """
