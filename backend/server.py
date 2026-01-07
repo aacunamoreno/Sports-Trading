@@ -3927,6 +3927,131 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
         return []
 
 
+async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Dict]:
+    """
+    Scrape betting consensus percentages from Covers.com
+    Returns a dict mapping team names to their consensus data
+    
+    Args:
+        league: 'NBA', 'NHL', or 'NCAAB'
+        target_date: Date in 'YYYY-MM-DD' format
+    
+    Returns:
+        Dict like: {'CLEVELAND': {'consensus_pct': 65, 'spread': -5.5}, 'INDIANA': {'consensus_pct': 35, 'spread': +5.5}}
+    """
+    from playwright.async_api import async_playwright
+    
+    # Map league to Covers.com URL format
+    league_map = {
+        'NBA': 'nba',
+        'NHL': 'nhl', 
+        'NCAAB': 'ncaab'
+    }
+    
+    league_url = league_map.get(league.upper(), 'nba')
+    url = f"https://contests.covers.com/consensus/topconsensus/{league_url}/overall/{target_date}"
+    
+    logger.info(f"[Covers Consensus] Scraping {url}")
+    
+    consensus_data = {}
+    
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            await page.goto(url, timeout=60000)
+            await page.wait_for_load_state("domcontentloaded")
+            await page.wait_for_timeout(3000)
+            
+            # Extract consensus data from the page
+            data = await page.evaluate("""() => {
+                const results = [];
+                
+                // Find all matchup rows - they contain team abbreviations and consensus %
+                const rows = document.querySelectorAll('tr, .consensus-row, [class*="matchup"]');
+                
+                // Also try to find by looking at the page structure
+                const text = document.body.innerText;
+                const lines = text.split('\\n');
+                
+                let currentGame = null;
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    
+                    // Look for team abbreviation patterns (2-4 uppercase letters)
+                    // followed by percentage patterns
+                    const teamMatch = line.match(/^([A-Z]{2,4})$/);
+                    const pctMatch = line.match(/^(\\d{1,2})%$/);
+                    const spreadMatch = line.match(/^([+-]?\\d+\\.?\\d*)$/);
+                    
+                    if (teamMatch) {
+                        if (!currentGame) {
+                            currentGame = { away: teamMatch[1], home: null, away_pct: null, home_pct: null, away_spread: null, home_spread: null };
+                        } else if (!currentGame.home) {
+                            currentGame.home = teamMatch[1];
+                        }
+                    }
+                    
+                    if (pctMatch && currentGame) {
+                        const pct = parseInt(pctMatch[1]);
+                        if (!currentGame.away_pct) {
+                            currentGame.away_pct = pct;
+                        } else if (!currentGame.home_pct) {
+                            currentGame.home_pct = pct;
+                        }
+                    }
+                    
+                    if (spreadMatch && currentGame) {
+                        const spread = parseFloat(spreadMatch[1]);
+                        if (currentGame.away_spread === null) {
+                            currentGame.away_spread = spread;
+                        } else if (currentGame.home_spread === null) {
+                            currentGame.home_spread = spread;
+                            // Game complete, add to results
+                            if (currentGame.away && currentGame.home && currentGame.away_pct && currentGame.home_pct) {
+                                results.push({...currentGame});
+                            }
+                            currentGame = null;
+                        }
+                    }
+                }
+                
+                return results;
+            }""")
+            
+            await browser.close()
+            
+            # Process the scraped data into a dictionary keyed by team name
+            for game in data:
+                away_team = game.get('away', '').upper()
+                home_team = game.get('home', '').upper()
+                
+                if away_team:
+                    consensus_data[away_team] = {
+                        'consensus_pct': game.get('away_pct'),
+                        'spread': game.get('away_spread'),
+                        'opponent': home_team
+                    }
+                
+                if home_team:
+                    consensus_data[home_team] = {
+                        'consensus_pct': game.get('home_pct'),
+                        'spread': game.get('home_spread'),
+                        'opponent': away_team
+                    }
+            
+            logger.info(f"[Covers Consensus] Scraped {len(consensus_data)} team consensus entries for {league} on {target_date}")
+            return consensus_data
+            
+    except Exception as e:
+        logger.error(f"[Covers Consensus] Error scraping: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
+
+
 async def scrape_cbssports_ncaab_with_team_urls(target_date: str) -> Tuple[List[Dict], Dict[str, str]]:
     """
     Scrape NCAAB games from CBS Sports including team URLs for Last 3 PPG lookup.
