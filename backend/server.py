@@ -11940,6 +11940,10 @@ async def update_nhl_scores(date: str = None):
         
         logger.info(f"[NHL Scores] Scraped {len(scraped_games)} games from CBS Sports")
         
+        # Scrape betting consensus from Covers.com
+        consensus_data = await scrape_covers_consensus('NHL', date)
+        logger.info(f"[NHL Scores] Scraped {len(consensus_data)} team consensus entries from Covers.com")
+        
         # Get database games
         db_data = await db.nhl_opportunities.find_one({"date": date}, {"_id": 0})
         if not db_data:
@@ -11950,6 +11954,50 @@ async def update_nhl_scores(date: str = None):
         
         # Create reverse mapping for NHL teams (city name -> team name)
         NHL_CITY_TO_TEAM = {v: k for k, v in NHL_TEAM_ALIASES.items()}
+        
+        # Helper to get team abbreviation for Covers lookup
+        def get_team_abbrev(team_name):
+            """Convert team name to abbreviation for Covers lookup"""
+            abbrevs = {
+                'COLORADO': 'COL', 'AVALANCHE': 'COL',
+                'TAMPA BAY': 'TB', 'LIGHTNING': 'TB',
+                'FLORIDA': 'FLA', 'PANTHERS': 'FLA',
+                'TORONTO': 'TOR', 'MAPLE LEAFS': 'TOR',
+                'NEW JERSEY': 'NJ', 'DEVILS': 'NJ',
+                'NY ISLANDERS': 'NYI', 'ISLANDERS': 'NYI',
+                'WASHINGTON': 'WAS', 'CAPITALS': 'WAS',
+                'DALLAS': 'DAL', 'STARS': 'DAL',
+                'CALGARY': 'CGY', 'FLAMES': 'CGY',
+                'MONTREAL': 'MTL', 'CANADIENS': 'MTL',
+                'ST. LOUIS': 'STL', 'BLUES': 'STL',
+                'UTAH': 'UTA',
+                'LOS ANGELES': 'LA', 'KINGS': 'LA',
+                'BOSTON': 'BOS', 'BRUINS': 'BOS',
+                'DETROIT': 'DET', 'RED WINGS': 'DET',
+                'CHICAGO': 'CHI', 'BLACKHAWKS': 'CHI',
+                'PITTSBURGH': 'PIT', 'PENGUINS': 'PIT',
+                'PHILADELPHIA': 'PHI', 'FLYERS': 'PHI',
+                'NY RANGERS': 'NYR', 'RANGERS': 'NYR',
+                'CAROLINA': 'CAR', 'HURRICANES': 'CAR',
+                'COLUMBUS': 'CBJ', 'BLUE JACKETS': 'CBJ',
+                'OTTAWA': 'OTT', 'SENATORS': 'OTT',
+                'BUFFALO': 'BUF', 'SABRES': 'BUF',
+                'MINNESOTA': 'MIN', 'WILD': 'MIN',
+                'WINNIPEG': 'WPG', 'JETS': 'WPG',
+                'EDMONTON': 'EDM', 'OILERS': 'EDM',
+                'VANCOUVER': 'VAN', 'CANUCKS': 'VAN',
+                'SEATTLE': 'SEA', 'KRAKEN': 'SEA',
+                'VEGAS': 'VGK', 'GOLDEN KNIGHTS': 'VGK',
+                'ARIZONA': 'ARI', 'COYOTES': 'ARI',
+                'SAN JOSE': 'SJ', 'SHARKS': 'SJ',
+                'ANAHEIM': 'ANA', 'DUCKS': 'ANA',
+                'NASHVILLE': 'NSH', 'PREDATORS': 'NSH',
+            }
+            team_upper = team_name.upper() if team_name else ''
+            for name, abbrev in abbrevs.items():
+                if name in team_upper:
+                    return abbrev
+            return team_upper[:3] if team_upper else ''
         
         # Helper function to normalize team names (converts to city name)
         def normalize_team(team_name):
