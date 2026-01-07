@@ -1214,24 +1214,24 @@ export default function Opportunities() {
                       {!showHistoricalColumns && (
                         <td className="py-3 px-2 text-center">
                           {league === 'NHL' ? (
-                            // NHL: Show opening moneyline
-                            game.opening_moneyline ? (
+                            // NHL: Show opening moneyline (fallback to moneyline if opening not set)
+                            (game.opening_moneyline || game.moneyline) ? (
                               <div className="flex flex-col items-center">
                                 <span className="text-xs text-gray-400">{game.opening_moneyline_team || game.moneyline_team || game.home_team}</span>
-                                <span className={`font-bold ${game.opening_moneyline < 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                  {game.opening_moneyline}
+                                <span className={`font-bold ${(game.opening_moneyline || game.moneyline) < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                  {game.opening_moneyline || game.moneyline}
                                 </span>
                               </div>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )
                           ) : (
-                            // NBA/NCAAB: Show opening spread
-                            game.opening_spread ? (
+                            // NBA/NCAAB: Show opening spread (fallback to spread if opening not set)
+                            (game.opening_spread || game.spread) ? (
                               <div className="flex flex-col items-center">
                                 <span className="text-xs text-gray-400">{game.opening_spread_team || game.spread_team || game.home_team}</span>
-                                <span className={`font-bold ${game.opening_spread < 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                  {game.opening_spread > 0 ? '+' : ''}{game.opening_spread}
+                                <span className={`font-bold ${(game.opening_spread || game.spread) < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                  {(game.opening_spread || game.spread) > 0 ? '+' : ''}{game.opening_spread || game.spread}
                                 </span>
                               </div>
                             ) : (
