@@ -1058,6 +1058,12 @@ export default function Opportunities() {
                       {/* Ranking PPG Selection Buttons */}
                       <td className="py-3 px-1">
                         <div className="flex flex-col gap-0.5">
+                          {/* Show consensus % above ranking for away team if they have higher % */}
+                          {showHistoricalColumns && game.away_consensus_pct && game.away_consensus_pct > (game.home_consensus_pct || 0) && (
+                            <span className="text-[10px] font-bold text-green-400 text-center mb-0.5">
+                              {game.away_consensus_pct}%
+                            </span>
+                          )}
                           {game.ranking_ppg ? (
                             // Show selected state - click to clear
                             <button
@@ -1090,15 +1096,27 @@ export default function Opportunities() {
                               </button>
                             </>
                           )}
+                          {/* Show consensus % below ranking for home team if they have higher % */}
+                          {showHistoricalColumns && game.home_consensus_pct && game.home_consensus_pct > (game.away_consensus_pct || 0) && (
+                            <span className="text-[10px] font-bold text-green-400 text-center mt-0.5">
+                              {game.home_consensus_pct}%
+                            </span>
+                          )}
                         </div>
                       </td>
-                      {/* Away Team with Rankings */}
+                      {/* Away Team with Rankings and Score */}
                       <td className={`py-3 px-2 ${textStyle}`}>
                         <div className="flex flex-col">
                           <span className="text-xs font-mono text-blue-400/70">
                             {game.away_ppg_rank || game.away_gpg_rank}/{game.away_last3_rank}
                           </span>
                           <span className="font-medium">{game.away_team}</span>
+                          {/* Show away team score below team name for historical */}
+                          {showHistoricalColumns && game.away_score !== undefined && game.away_score !== null && (
+                            <span className="text-sm font-bold text-purple-300 bg-purple-500/20 px-1.5 py-0.5 rounded mt-0.5 text-center">
+                              {game.away_score}
+                            </span>
+                          )}
                         </div>
                       </td>
                       {/* Colored Dots - All 4 together in the middle */}
