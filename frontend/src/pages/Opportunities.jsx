@@ -1164,10 +1164,27 @@ export default function Opportunities() {
                           );
                         })()}
                       </td>
-                      {/* Final Score column - PURPLE HIGHLIGHT */}
+                      {/* Final Score column - PURPLE HIGHLIGHT - Shows individual team scores and consensus */}
                       {showHistoricalColumns && (
                         <td className={`py-3 px-2 text-center font-mono font-bold bg-purple-500/20 text-purple-300`}>
-                          {game.final_score || '-'}
+                          {game.final_score ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              {/* Individual team scores */}
+                              <div className="flex items-center gap-1 text-sm">
+                                <span className="text-blue-300">{game.away_score || '?'}</span>
+                                <span className="text-gray-500">-</span>
+                                <span className="text-orange-300">{game.home_score || '?'}</span>
+                              </div>
+                              {/* Total score */}
+                              <span className="text-purple-200 text-xs">({game.final_score})</span>
+                              {/* Consensus % if available */}
+                              {game.public_pick_pct && (
+                                <div className="text-[10px] text-yellow-400/80" title={`${game.public_pick} had ${game.public_pick_pct}% of spread bets`}>
+                                  📊 {game.public_pick_pct}%
+                                </div>
+                              )}
+                            </div>
+                          ) : '-'}
                         </td>
                       )}
                       {showHistoricalColumns && (
