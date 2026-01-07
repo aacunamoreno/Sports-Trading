@@ -12934,14 +12934,23 @@ async def update_ncaab_bet_results(date: str = None):
                 bet_line = game['bet_line']
                 bet_type = game.get('bet_type', '').upper()
                 
-                if 'OVER' in bet_type:
+                # Check for PUSH first (final_score == bet_line)
+                if final_score == bet_line:
+                    game['user_bet_hit'] = None  # Push = neither hit nor miss
+                    game['result'] = 'PUSH'
+                    game['bet_result'] = 'push'
+                    logger.info(f"[NCAAB Bet Results] PUSH: {game.get('away_team')} @ {game.get('home_team')} - {bet_type} {bet_line} vs {final_score}")
+                elif 'OVER' in bet_type:
                     game['user_bet_hit'] = final_score > bet_line
                     game['result'] = 'OVER' if final_score > bet_line else 'UNDER'
+                    if game['user_bet_hit']:
+                        wins += 1
+                    else:
+                        losses += 1
+                    logger.info(f"[NCAAB Bet Results] Fallback calc: {game.get('away_team')} @ {game.get('home_team')} - {bet_type} {bet_line} vs {final_score} = {'HIT' if game['user_bet_hit'] else 'MISS'}")
                 elif 'UNDER' in bet_type:
                     game['user_bet_hit'] = final_score < bet_line
                     game['result'] = 'UNDER' if final_score < bet_line else 'OVER'
-                
-                if game.get('user_bet_hit') is not None:
                     if game['user_bet_hit']:
                         wins += 1
                     else:
