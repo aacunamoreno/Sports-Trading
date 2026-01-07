@@ -11722,6 +11722,10 @@ async def update_nba_scores(date: str = None):
         
         logger.info(f"[NBA Scores] Scraped {len(scraped_games)} games from CBS Sports")
         
+        # Scrape betting consensus from Covers.com
+        consensus_data = await scrape_covers_consensus('NBA', date)
+        logger.info(f"[NBA Scores] Scraped {len(consensus_data)} team consensus entries from Covers.com")
+        
         # Get database games
         db_data = await db.nba_opportunities.find_one({"date": date}, {"_id": 0})
         if not db_data:
@@ -11739,6 +11743,47 @@ async def update_nba_scores(date: str = None):
                 if alias.lower() in team_name.lower() or team_name.lower() in alias.lower():
                     return full_name
             return team_name
+        
+        # Helper to get team abbreviation for Covers lookup
+        def get_team_abbrev(team_name):
+            """Convert team name to abbreviation for Covers lookup"""
+            abbrevs = {
+                'CLEVELAND': 'CLE', 'CAVALIERS': 'CLE',
+                'INDIANA': 'IND', 'PACERS': 'IND',
+                'MEMPHIS': 'MEM', 'GRIZZLIES': 'MEM',
+                'SAN ANTONIO': 'SA', 'SPURS': 'SA',
+                'LA LAKERS': 'LAL', 'LOS ANGELES LAKERS': 'LAL', 'LAKERS': 'LAL',
+                'NEW ORLEANS': 'NO', 'PELICANS': 'NO',
+                'DALLAS': 'DAL', 'MAVERICKS': 'DAL',
+                'SACRAMENTO': 'SAC', 'KINGS': 'SAC',
+                'ORLANDO': 'ORL', 'MAGIC': 'ORL',
+                'WASHINGTON': 'WAS', 'WIZARDS': 'WAS',
+                'MIAMI': 'MIA', 'HEAT': 'MIA',
+                'MINNESOTA': 'MIN', 'TIMBERWOLVES': 'MIN',
+                'BOSTON': 'BOS', 'CELTICS': 'BOS',
+                'DENVER': 'DEN', 'NUGGETS': 'DEN',
+                'PHOENIX': 'PHO', 'PHX': 'PHO', 'SUNS': 'PHO',
+                'LA CLIPPERS': 'LAC', 'LOS ANGELES CLIPPERS': 'LAC', 'CLIPPERS': 'LAC',
+                'GOLDEN STATE': 'GS', 'GSW': 'GS', 'WARRIORS': 'GS',
+                'BROOKLYN': 'BKN', 'BK': 'BKN', 'NETS': 'BKN',
+                'NEW YORK': 'NY', 'NYK': 'NY', 'KNICKS': 'NY',
+                'PHILADELPHIA': 'PHI', '76ERS': 'PHI', 'SIXERS': 'PHI',
+                'CHICAGO': 'CHI', 'BULLS': 'CHI',
+                'DETROIT': 'DET', 'PISTONS': 'DET',
+                'ATLANTA': 'ATL', 'HAWKS': 'ATL',
+                'CHARLOTTE': 'CHA', 'HORNETS': 'CHA',
+                'TORONTO': 'TOR', 'RAPTORS': 'TOR',
+                'MILWAUKEE': 'MIL', 'BUCKS': 'MIL',
+                'OKLAHOMA CITY': 'OKC', 'THUNDER': 'OKC',
+                'PORTLAND': 'POR', 'TRAIL BLAZERS': 'POR', 'BLAZERS': 'POR',
+                'UTAH': 'UTA', 'JAZZ': 'UTA',
+                'HOUSTON': 'HOU', 'ROCKETS': 'HOU',
+            }
+            team_upper = team_name.upper() if team_name else ''
+            for name, abbrev in abbrevs.items():
+                if name in team_upper:
+                    return abbrev
+            return team_upper[:3] if team_upper else ''
         
         # Helper function to match games
         def match_game(db_game, scraped):
@@ -11770,6 +11815,25 @@ async def update_nba_scores(date: str = None):
                 game['final_score'] = final_score
                 game['away_score'] = matched.get('away_score')
                 game['home_score'] = matched.get('home_score')
+                
+                # Add consensus data
+                away_abbrev = get_team_abbrev(game.get('away_team', ''))
+                home_abbrev = get_team_abbrev(game.get('home_team', ''))
+                
+                away_consensus = consensus_data.get(away_abbrev, {})
+                home_consensus = consensus_data.get(home_abbrev, {})
+                
+                game['away_consensus_pct'] = away_consensus.get('consensus_pct')
+                game['home_consensus_pct'] = home_consensus.get('consensus_pct')
+                
+                # Determine which team has higher consensus (the "public pick")
+                if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
+                    if away_consensus['consensus_pct'] > home_consensus['consensus_pct']:
+                        game['public_pick'] = game.get('away_team')
+                        game['public_pick_pct'] = away_consensus['consensus_pct']
+                    else:
+                        game['public_pick'] = game.get('home_team')
+                        game['public_pick_pct'] = home_consensus['consensus_pct']
                 
                 line = game.get('total') or game.get('opening_line')
                 recommendation = game.get('recommendation')
