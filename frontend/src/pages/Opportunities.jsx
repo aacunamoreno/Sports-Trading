@@ -1275,13 +1275,15 @@ export default function Opportunities() {
                           // For historical dates OR completed games with user bets: show user's bet result (HIT/MISS)
                           game.user_bet ? (
                             <div className="flex flex-col items-center gap-1">
-                              {/* Show game result (OVER/UNDER) */}
+                              {/* Show what the user BET on (OVER/UNDER), not the game result */}
                               <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                game.result === 'OVER' ? 'bg-green-500/20 text-green-400' : 
-                                game.result === 'UNDER' ? 'bg-orange-500/20 text-orange-400' : 
+                                game.bet_type?.toUpperCase()?.includes('OVER') ? 'bg-green-500/20 text-green-400' : 
+                                game.bet_type?.toUpperCase()?.includes('UNDER') ? 'bg-orange-500/20 text-orange-400' : 
                                 'bg-gray-500/20 text-gray-400'
                               }`}>
-                                {game.result === 'OVER' ? '⬆️ OVER' : game.result === 'UNDER' ? '⬇️ UNDER' : game.result || '-'}
+                                {game.bet_type?.toUpperCase()?.includes('OVER') ? '⬆️ OVER' : 
+                                 game.bet_type?.toUpperCase()?.includes('UNDER') ? '⬇️ UNDER' : 
+                                 game.bet_type || '-'}
                               </span>
                               {/* Show individual bet results if multiple bets */}
                               {game.bet_results && game.bet_results.length > 1 ? (
