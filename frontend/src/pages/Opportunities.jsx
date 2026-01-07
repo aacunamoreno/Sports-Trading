@@ -1209,6 +1209,48 @@ export default function Opportunities() {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </td>
+                      {/* Spread (NBA/NCAAB) or Moneyline (NHL) column - only for non-historical */}
+                      {!showHistoricalColumns && (
+                        <td className="py-3 px-2 text-center">
+                          {league === 'NHL' ? (
+                            // NHL: Show moneyline
+                            game.moneyline ? (
+                              <div className="flex flex-col items-center">
+                                <span className="text-xs text-gray-400">{game.moneyline_team || game.home_team}</span>
+                                <span className={`font-bold ${game.moneyline < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                  {game.moneyline}
+                                </span>
+                                {/* Show opening moneyline if different from current */}
+                                {game.opening_moneyline && game.opening_moneyline !== game.moneyline && (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    Open: {game.opening_moneyline}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )
+                          ) : (
+                            // NBA/NCAAB: Show spread
+                            game.spread ? (
+                              <div className="flex flex-col items-center">
+                                <span className="text-xs text-gray-400">{game.spread_team || game.home_team}</span>
+                                <span className={`font-bold ${game.spread < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                  {game.spread > 0 ? '+' : ''}{game.spread}
+                                </span>
+                                {/* Show opening spread if different from current */}
+                                {game.opening_spread && game.opening_spread !== game.spread && (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    Open: {game.opening_spread > 0 ? '+' : ''}{game.opening_spread}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )
+                          )}
+                        </td>
+                      )}
                       <td className="py-3 px-2 text-center">
                         {(isHistorical || game.final_score) ? (
                           // For historical dates OR completed games with user bets: show user's bet result (HIT/MISS)
