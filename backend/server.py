@@ -12150,6 +12150,10 @@ async def update_ncaab_scores(date: str = None):
         
         logger.info(f"[NCAAB Scores] Scraped {len(scraped_games)} games from CBS Sports")
         
+        # Scrape betting consensus from Covers.com
+        consensus_data = await scrape_covers_consensus('NCAAB', date)
+        logger.info(f"[NCAAB Scores] Scraped {len(consensus_data)} team consensus entries from Covers.com")
+        
         # Get database games
         db_data = await db.ncaab_opportunities.find_one({"date": date}, {"_id": 0})
         if not db_data:
@@ -12166,6 +12170,31 @@ async def update_ncaab_scores(date: str = None):
             # Remove common prefixes/suffixes
             team_name = team_name.replace('State', 'St.').replace('University', '')
             return team_name
+        
+        # Helper to get team abbreviation for Covers lookup (NCAAB uses different abbrevs)
+        def get_team_abbrev(team_name):
+            """Convert team name to abbreviation for Covers lookup"""
+            if not team_name:
+                return ''
+            # NCAAB team abbreviations are often just the first few letters or specific codes
+            # This is a simplified version - Covers uses various abbreviations
+            team_upper = team_name.upper()
+            # Common mappings
+            abbrevs = {
+                'DUKE': 'DUKE', 'NORTH CAROLINA': 'UNC', 'KENTUCKY': 'UK', 'KANSAS': 'KU',
+                'GONZAGA': 'GONZ', 'UCLA': 'UCLA', 'VILLANOVA': 'NOVA', 'MICHIGAN': 'MICH',
+                'OHIO STATE': 'OSU', 'TEXAS': 'TEX', 'LOUISVILLE': 'LOU', 'INDIANA': 'IND',
+                'PURDUE': 'PUR', 'IOWA': 'IOWA', 'WISCONSIN': 'WIS', 'MINNESOTA': 'MINN',
+                'MICHIGAN STATE': 'MSU', 'PENN STATE': 'PSU', 'MARYLAND': 'MD',
+                'ALABAMA': 'BAMA', 'AUBURN': 'AUB', 'TENNESSEE': 'TENN', 'FLORIDA': 'FLA',
+                'GEORGIA': 'UGA', 'LSU': 'LSU', 'ARKANSAS': 'ARK', 'MISSISSIPPI': 'MISS',
+                'SYRACUSE': 'SYR', 'CLEMSON': 'CLEM', 'VIRGINIA': 'UVA', 'MIAMI': 'MIA',
+            }
+            for name, abbrev in abbrevs.items():
+                if name in team_upper:
+                    return abbrev
+            # Default: use first 4 chars
+            return team_upper.replace(' ', '')[:4]
         
         # Helper function to match games (fuzzy matching for NCAAB)
         def match_game(db_game, scraped):
