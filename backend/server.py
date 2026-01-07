@@ -7359,6 +7359,9 @@ async def scrape_opening_lines_endpoint(target_date: str = None):
                         total = game.get('total')
                         time = game.get('time', 'TBD')
                         spread = game.get('spread')
+                        spread_team = game.get('spread_team')
+                        moneyline = game.get('moneyline')
+                        moneyline_team = game.get('moneyline_team')
                         
                         if away and home:
                             game_doc = {
@@ -7367,10 +7370,24 @@ async def scrape_opening_lines_endpoint(target_date: str = None):
                                 'total': total,
                                 'opening_line': total,  # Store as opening line
                                 'time': time,
-                                'spread': spread,
                                 'date': target_date,
                                 'status': 'scheduled'
                             }
+                            
+                            # Add spread for NBA/NCAAB
+                            if league in ['NBA', 'NCAAB']:
+                                game_doc['spread'] = spread
+                                game_doc['spread_team'] = spread_team
+                                game_doc['opening_spread'] = spread
+                                game_doc['opening_spread_team'] = spread_team
+                            
+                            # Add moneyline for NHL
+                            if league == 'NHL':
+                                game_doc['moneyline'] = moneyline
+                                game_doc['moneyline_team'] = moneyline_team
+                                game_doc['opening_moneyline'] = moneyline
+                                game_doc['opening_moneyline_team'] = moneyline_team
+                            
                             processed_games.append(game_doc)
                             
                             # Also store in opening_lines collection for tracking
