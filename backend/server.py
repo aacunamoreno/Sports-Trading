@@ -3930,16 +3930,17 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
 async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Dict]:
     """
     Scrape betting consensus percentages from Covers.com
-    Returns a dict mapping team names to their consensus data
+    Returns a dict mapping team abbreviations to their consensus data
     
     Args:
         league: 'NBA', 'NHL', or 'NCAAB'
         target_date: Date in 'YYYY-MM-DD' format
     
     Returns:
-        Dict like: {'CLEVELAND': {'consensus_pct': 65, 'spread': -5.5}, 'INDIANA': {'consensus_pct': 35, 'spread': +5.5}}
+        Dict like: {'CLE': {'consensus_pct': 65, 'spread': -5.5}, 'IND': {'consensus_pct': 35, 'spread': 5.5}}
     """
     from playwright.async_api import async_playwright
+    import re
     
     # Map league to Covers.com URL format
     league_map = {
@@ -3961,86 +3962,63 @@ async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Di
             page = await browser.new_page()
             
             await page.goto(url, timeout=60000)
-            await page.wait_for_load_state("domcontentloaded")
+            await page.wait_for_load_state("networkidle")
             await page.wait_for_timeout(3000)
             
-            # Extract consensus data from the page
-            data = await page.evaluate("""() => {
+            # Extract data from the table rows
+            rows_data = await page.evaluate("""() => {
                 const results = [];
+                const rows = document.querySelectorAll('table tbody tr');
                 
-                // Find all matchup rows - they contain team abbreviations and consensus %
-                const rows = document.querySelectorAll('tr, .consensus-row, [class*="matchup"]');
-                
-                // Also try to find by looking at the page structure
-                const text = document.body.innerText;
-                const lines = text.split('\\n');
-                
-                let currentGame = null;
-                
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    
-                    // Look for team abbreviation patterns (2-4 uppercase letters)
-                    // followed by percentage patterns
-                    const teamMatch = line.match(/^([A-Z]{2,4})$/);
-                    const pctMatch = line.match(/^(\\d{1,2})%$/);
-                    const spreadMatch = line.match(/^([+-]?\\d+\\.?\\d*)$/);
-                    
-                    if (teamMatch) {
-                        if (!currentGame) {
-                            currentGame = { away: teamMatch[1], home: null, away_pct: null, home_pct: null, away_spread: null, home_spread: null };
-                        } else if (!currentGame.home) {
-                            currentGame.home = teamMatch[1];
-                        }
-                    }
-                    
-                    if (pctMatch && currentGame) {
-                        const pct = parseInt(pctMatch[1]);
-                        if (!currentGame.away_pct) {
-                            currentGame.away_pct = pct;
-                        } else if (!currentGame.home_pct) {
-                            currentGame.home_pct = pct;
-                        }
-                    }
-                    
-                    if (spreadMatch && currentGame) {
-                        const spread = parseFloat(spreadMatch[1]);
-                        if (currentGame.away_spread === null) {
-                            currentGame.away_spread = spread;
-                        } else if (currentGame.home_spread === null) {
-                            currentGame.home_spread = spread;
-                            // Game complete, add to results
-                            if (currentGame.away && currentGame.home && currentGame.away_pct && currentGame.home_pct) {
-                                results.push({...currentGame});
-                            }
-                            currentGame = null;
-                        }
-                    }
-                }
+                rows.forEach(row => {
+                    // Get each row's text content
+                    const rowText = row.innerText;
+                    results.push(rowText);
+                });
                 
                 return results;
             }""")
             
             await browser.close()
             
-            # Process the scraped data into a dictionary keyed by team name
-            for game in data:
-                away_team = game.get('away', '').upper()
-                home_team = game.get('home', '').upper()
+            # Parse each row
+            for row_text in rows_data:
+                # Split by tabs and newlines
+                parts = row_text.replace('\t', '\n').split('\n')
+                parts = [p.strip() for p in parts if p.strip()]
                 
-                if away_team:
-                    consensus_data[away_team] = {
-                        'consensus_pct': game.get('away_pct'),
-                        'spread': game.get('away_spread'),
-                        'opponent': home_team
-                    }
+                # Look for team abbreviations (2-4 uppercase letters)
+                # Format: NBA, TEAM1, TEAM2, Date, Consensus%, Spreads, etc.
+                teams = []
+                percentages = []
+                spreads = []
                 
-                if home_team:
-                    consensus_data[home_team] = {
-                        'consensus_pct': game.get('home_pct'),
-                        'spread': game.get('home_spread'),
-                        'opponent': away_team
+                for part in parts:
+                    # Team abbreviation (2-4 uppercase letters)
+                    if re.match(r'^[A-Z]{2,4}$', part) and part not in ['NBA', 'NHL', 'NCAAB', 'NFL', 'MLB']:
+                        teams.append(part)
+                    # Percentage (number followed by %)
+                    pct_match = re.match(r'^(\d+)%$', part)
+                    if pct_match:
+                        percentages.append(int(pct_match.group(1)))
+                    # Spread (+ or - followed by number)
+                    spread_match = re.match(r'^([+-]?\d+\.?\d*)$', part)
+                    if spread_match and '.' in part:  # Spreads usually have decimals
+                        spreads.append(float(spread_match.group(1)))
+                
+                # If we found 2 teams and 2 percentages, add to results
+                if len(teams) >= 2 and len(percentages) >= 2:
+                    consensus_data[teams[0]] = {
+                        'consensus_pct': percentages[0],
+                        'spread': spreads[0] if spreads else None,
+                        'opponent': teams[1]
                     }
+                    consensus_data[teams[1]] = {
+                        'consensus_pct': percentages[1],
+                        'spread': spreads[1] if len(spreads) > 1 else None,
+                        'opponent': teams[0]
+                    }
+                    logger.debug(f"[Covers] {teams[0]} {percentages[0]}% vs {teams[1]} {percentages[1]}%")
             
             logger.info(f"[Covers Consensus] Scraped {len(consensus_data)} team consensus entries for {league} on {target_date}")
             return consensus_data
