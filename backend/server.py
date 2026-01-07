@@ -8787,6 +8787,13 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     
                     # Other specific mappings (simple string replacements)
                     simple_mappings = {
+                        # Connecticut / UConn
+                        'CONNECTICUT': 'UCONN',
+                        'CONN': 'UCONN',
+                        # Virginia Commonwealth / VCU
+                        'VA COMMONWEALTH': 'VCU',
+                        'VIRGINIA COMMONWEALTH': 'VCU',
+                        'VA. COMMONWEALTH': 'VCU',
                         # Tennessee schools
                         'UT MARTIN': 'TENNESSEE MARTIN',
                         'TENNESSEE-MARTIN': 'TENNESSEE MARTIN',
@@ -8817,6 +8824,13 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         'CAL POLY SLO': 'CAL POLY',
                         'ILLINOIS ST.': 'ILLINOIS STATE',
                         'ILLINOIS ST': 'ILLINOIS STATE',
+                        # Saint / St abbreviations
+                        'SAINT LOUIS': 'ST LOUIS',
+                        'SAINT MARYS': 'ST MARYS',
+                        'SAINT JOHNS': 'ST JOHNS',
+                        'SAINT JOSEPHS': 'ST JOSEPHS',
+                        'SAINT PETERS': 'ST PETERS',
+                        'SAINT BONAVENTURE': 'ST BONAVENTURE',
                     }
                     for abbrev, full in simple_mappings.items():
                         if abbrev in name:
