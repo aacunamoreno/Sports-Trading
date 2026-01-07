@@ -43,7 +43,7 @@ export default function Layout() {
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b border-border p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-6 h-6 text-primary" strokeWidth={1.5} />
-          <h1 className="text-xl font-heading font-bold tracking-tight">BetBot</h1>
+          <h1 className="text-xl font-heading font-bold tracking-tight">SportsTrading</h1>
         </div>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -72,7 +72,7 @@ export default function Layout() {
         <div className="p-6 pt-20 lg:pt-6">
           <div className="hidden lg:flex items-center gap-2 mb-8">
             <TrendingUp className="w-8 h-8 text-primary" strokeWidth={1.5} />
-            <h1 className="text-2xl font-heading font-bold tracking-tight">BetBot</h1>
+            <h1 className="text-2xl font-heading font-bold tracking-tight">SportsTrading</h1>
           </div>
 
           {/* Connection Status */}
