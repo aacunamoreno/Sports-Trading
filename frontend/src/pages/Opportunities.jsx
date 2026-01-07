@@ -1127,9 +1127,17 @@ export default function Opportunities() {
                       {/* Home Team with Rankings and Score */}
                       <td className={`py-3 px-2 ${textStyle}`}>
                         <div className="flex flex-col">
-                          <span className="text-xs font-mono text-orange-400/70">
-                            {game.home_ppg_rank || game.home_gpg_rank}/{game.home_last3_rank}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-mono text-orange-400/70">
+                              {game.home_ppg_rank || game.home_gpg_rank}/{game.home_last3_rank}
+                            </span>
+                            {/* Show consensus % next to ranking if home team has higher % - in RED */}
+                            {showHistoricalColumns && game.home_consensus_pct && game.home_consensus_pct > (game.away_consensus_pct || 0) && (
+                              <span className="text-xs font-bold text-red-500">
+                                {game.home_consensus_pct}%
+                              </span>
+                            )}
+                          </div>
                           <span className="font-medium">{game.home_team}</span>
                           {/* Show home team score below team name for historical */}
                           {showHistoricalColumns && game.home_score !== undefined && game.home_score !== null && (
