@@ -1119,12 +1119,10 @@ export default function Opportunities() {
                           <span className="font-medium">{game.home_team}</span>
                         </div>
                       </td>
-                      {/* Opening Line column - only for non-historical */}
-                      {!showHistoricalColumns && (
-                        <td className={`py-3 px-2 text-center font-mono text-muted-foreground`}>
-                          {game.opening_line || game.total || '-'}
-                        </td>
-                      )}
+                      {/* Opening Line column - show for ALL views (Today, Tomorrow, Yesterday) */}
+                      <td className={`py-3 px-2 text-center font-mono text-muted-foreground`}>
+                        {game.opening_line || game.total || '-'}
+                      </td>
                       {/* Current/Live Line column */}
                       <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
                         {(() => {
@@ -1166,8 +1164,9 @@ export default function Opportunities() {
                           );
                         })()}
                       </td>
+                      {/* Final Score column - PURPLE HIGHLIGHT */}
                       {showHistoricalColumns && (
-                        <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
+                        <td className={`py-3 px-2 text-center font-mono font-bold bg-purple-500/20 text-purple-300`}>
                           {game.final_score || '-'}
                         </td>
                       )}
