@@ -9474,10 +9474,16 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
                     # Use the bet_line if available, otherwise fall back to closing line
                     line_for_evaluation = bet_time_line if bet_time_line else g.get('total')
                     if line_for_evaluation:
-                        if user_bet_type.upper() == "OVER":
-                            game_data["user_bet_hit"] = g['final_score'] > line_for_evaluation
+                        final_score = g['final_score']
+                        # Check for PUSH first
+                        if final_score == line_for_evaluation:
+                            game_data["user_bet_hit"] = None  # Push
+                            game_data["result"] = "PUSH"
+                            game_data["bet_result"] = "push"
+                        elif user_bet_type.upper() == "OVER":
+                            game_data["user_bet_hit"] = final_score > line_for_evaluation
                         elif user_bet_type.upper() == "UNDER":
-                            game_data["user_bet_hit"] = g['final_score'] < line_for_evaluation
+                            game_data["user_bet_hit"] = final_score < line_for_evaluation
                         else:
                             game_data["user_bet_hit"] = None
                     else:
