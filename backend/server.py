@@ -10035,10 +10035,17 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
                 
                 # Calculate if USER's bet hit (based on their actual bet direction)
                 if user_bet_type and g['final_score'] is not None:
-                    if user_bet_type.upper() == "OVER":
-                        game_data["user_bet_hit"] = g['final_score'] > g['total']
+                    final_score = g['final_score']
+                    bet_line = g.get('bet_line') or g['total']
+                    # Check for PUSH first
+                    if final_score == bet_line:
+                        game_data["user_bet_hit"] = None  # Push
+                        game_data["result"] = "PUSH"
+                        game_data["bet_result"] = "push"
+                    elif user_bet_type.upper() == "OVER":
+                        game_data["user_bet_hit"] = final_score > bet_line
                     elif user_bet_type.upper() == "UNDER":
-                        game_data["user_bet_hit"] = g['final_score'] < g['total']
+                        game_data["user_bet_hit"] = final_score < bet_line
                     else:
                         game_data["user_bet_hit"] = None
                 else:
