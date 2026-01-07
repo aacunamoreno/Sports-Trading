@@ -3779,30 +3779,54 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                         const timeMatch = rawText.match(/(\\d+:\\d+\\s*(am|pm)|[A-Z]{3}\\s+\\d+:\\d+\\s*(am|pm)?)/i);
                         if (timeMatch) time = timeMatch[0].trim();
                         
-                        // Get total
+                        // Get total from away team's odds cell
                         let total = null;
-                        const totalMatch = rawText.match(/o(\\d+\\.?\\d*)/);
-                        if (totalMatch) total = parseFloat(totalMatch[1]);
+                        const awayOddsEl = card.querySelector('.in-progress-odds-away');
+                        if (awayOddsEl) {
+                            const awayOddsText = awayOddsEl.innerText.trim();
+                            const totalMatch = awayOddsText.match(/o(\\d+\\.?\\d*)/);
+                            if (totalMatch) total = parseFloat(totalMatch[1]);
+                        }
+                        // Fallback
+                        if (!total) {
+                            const totalMatch = rawText.match(/o(\\d+\\.?\\d*)/);
+                            if (totalMatch) total = parseFloat(totalMatch[1]);
+                        }
                         
-                        // Get spread
-                        let spread = null;
-                        const spreadMatch = rawText.match(/([+-]\\d+\\.?\\d*)/);
-                        if (spreadMatch) spread = parseFloat(spreadMatch[1]);
+                        // Get moneyline from home team's odds cell
+                        // NHL uses moneyline (e.g., -141) instead of spread
+                        let moneyline = null;
+                        let moneylineTeam = null;
+                        const homeOddsEl = card.querySelector('.in-progress-odds-home');
+                        if (homeOddsEl) {
+                            const homeOddsText = homeOddsEl.innerText.trim();
+                            // Moneyline format: -141, +130, etc (3-digit number with sign)
+                            const mlMatch = homeOddsText.match(/([+-]\\d{3,})/);
+                            if (mlMatch) {
+                                moneyline = parseInt(mlMatch[1]);
+                                // Negative moneyline = favorite
+                                if (moneyline < 0) {
+                                    moneylineTeam = homeTeam;  // Home team is favorite
+                                } else {
+                                    moneylineTeam = awayTeam;  // Away team is favorite
+                                }
+                            }
+                        }
+                        // Fallback - look for 3+ digit number with sign
+                        if (!moneyline) {
+                            const mlMatch = rawText.match(/([+-]\\d{3,})/);
+                            if (mlMatch) moneyline = parseInt(mlMatch[1]);
+                        }
                         
-                        // Get scores if game is finished (look for FINAL text and total scores)
+                        // Get scores if game is finished
                         const scores = [];
                         const rawTextLines = rawText.split('\\n');
                         const isFinal = rawText.toLowerCase().includes('final');
                         
                         if (isFinal) {
-                            // Look for team rows with total scores
-                            // Format is like: "Hurricanes\\n24-12-3\\n0\\t1\\t0\\t1" where last number is total
-                            // The last number in each team's row is the total
                             for (let i = 0; i < rawTextLines.length; i++) {
                                 const line = rawTextLines[i].trim();
-                                // Skip if it's just a team name or record
                                 if (line === awayTeam || line === homeTeam) {
-                                    // Look ahead for the score line (contains tabs and numbers)
                                     for (let j = i + 1; j < Math.min(i + 4, rawTextLines.length); j++) {
                                         const scoreLine = rawTextLines[j];
                                         if (scoreLine.includes('\\t') || /^[\\d\\s]+$/.test(scoreLine.replace(/\\t/g, ' '))) {
@@ -3818,16 +3842,11 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                                 }
                             }
                             
-                            // Alternative: look for T column values - NHL scores are typically 0-12
                             if (scores.length < 2) {
-                                // For NHL, look for the "T" column values after team names
-                                // Format: "Hurricanes\\n24-12-3\\n0\\t1\\t0\\t1" where last number is total
                                 const lines = rawText.split('\\n');
                                 for (let i = 0; i < lines.length; i++) {
                                     const line = lines[i].trim();
-                                    // Look for record pattern (XX-XX-X) which precedes score line
                                     if (/^\\d+-\\d+-\\d+$/.test(line)) {
-                                        // Next line should have period scores ending with total
                                         if (i + 1 < lines.length) {
                                             const scoreLine = lines[i + 1].trim();
                                             const parts = scoreLine.split(/[\\t\\s]+/);
@@ -3849,7 +3868,10 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                             time: isFinal ? 'FINAL' : time,
                             total: total,
                             opening_line: total,
-                            spread: spread
+                            moneyline: moneyline,
+                            moneyline_team: moneylineTeam,  // Team the moneyline belongs to (favorite)
+                            opening_moneyline: moneyline,
+                            opening_moneyline_team: moneylineTeam
                         };
                         
                         if (scores.length >= 2) {
