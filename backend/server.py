@@ -3553,15 +3553,44 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
                         const timeMatch = rawText.match(/(\\d+:\\d+\\s*(am|pm)|[A-Z]{3}\\s+\\d+:\\d+\\s*(am|pm)?)/i);
                         if (timeMatch) time = timeMatch[0].trim();
                         
-                        // Get total (over/under line) - look for 'o' followed by number
+                        // Get total (over/under line) from away team's odds cell
                         let total = null;
-                        const totalMatch = rawText.match(/o(\\d+\\.?\\d*)/);
-                        if (totalMatch) total = parseFloat(totalMatch[1]);
+                        const awayOddsEl = card.querySelector('.in-progress-odds-away');
+                        if (awayOddsEl) {
+                            const awayOddsText = awayOddsEl.innerText.trim();
+                            const totalMatch = awayOddsText.match(/o(\\d+\\.?\\d*)/);
+                            if (totalMatch) total = parseFloat(totalMatch[1]);
+                        }
+                        // Fallback to rawText parsing
+                        if (!total) {
+                            const totalMatch = rawText.match(/o(\\d+\\.?\\d*)/);
+                            if (totalMatch) total = parseFloat(totalMatch[1]);
+                        }
                         
-                        // Get spread - look for +/- followed by number
+                        // Get spread from home team's odds cell (favorite's spread is shown)
+                        // Format: -10.5 means home team is favored by 10.5
                         let spread = null;
-                        const spreadMatch = rawText.match(/([+-]\\d+\\.?\\d*)/);
-                        if (spreadMatch) spread = parseFloat(spreadMatch[1]);
+                        let spreadTeam = null;  // Which team the spread belongs to
+                        const homeOddsEl = card.querySelector('.in-progress-odds-home');
+                        if (homeOddsEl) {
+                            const homeOddsText = homeOddsEl.innerText.trim();
+                            const spreadMatch = homeOddsText.match(/([+-]\\d+\\.?\\d*)/);
+                            if (spreadMatch) {
+                                spread = parseFloat(spreadMatch[1]);
+                                // Negative spread = this team is favorite
+                                // Home odds cell shows home team's line
+                                if (spread < 0) {
+                                    spreadTeam = homeTeam;  // Home team is favorite
+                                } else {
+                                    spreadTeam = awayTeam;  // Away team is favorite (spread shown as +)
+                                }
+                            }
+                        }
+                        // Fallback
+                        if (!spread) {
+                            const spreadMatch = rawText.match(/([+-]\\d+\\.?\\d*)/);
+                            if (spreadMatch) spread = parseFloat(spreadMatch[1]);
+                        }
                         
                         // Get scores if game is finished (look for FINAL text and total scores)
                         const scores = [];
@@ -3570,13 +3599,9 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
                         
                         if (isFinal) {
                             // Look for team rows with total scores
-                            // Format is like: "76ers\\n17-14\\n34\\t38\\t31\\t25\\t11\\t139"
-                            // The last number in each team's row is the total
                             for (let i = 0; i < rawTextLines.length; i++) {
                                 const line = rawTextLines[i].trim();
-                                // Skip if it's just a team name or record
                                 if (line === awayTeam || line === homeTeam) {
-                                    // Look ahead for the score line (contains tabs and numbers)
                                     for (let j = i + 1; j < Math.min(i + 4, rawTextLines.length); j++) {
                                         const scoreLine = rawTextLines[j];
                                         if (scoreLine.includes('\\t') || /^[\\d\\s]+$/.test(scoreLine.replace(/\\t/g, ' '))) {
@@ -3592,17 +3617,14 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
                                 }
                             }
                             
-                            // Alternative: look for T column values (total scores are usually 3-digit numbers)
                             if (scores.length < 2) {
                                 const allNums = rawText.match(/\\b(\\d{2,3})\\b/g) || [];
                                 const finalScores = allNums.filter(n => {
                                     const num = parseInt(n);
                                     return num >= 70 && num <= 200;
                                 });
-                                // Take the last two valid scores (home and away totals)
                                 if (finalScores.length >= 2) {
-                                    scores.length = 0;  // Clear any partial scores
-                                    // The totals are usually near the end of each team's row
+                                    scores.length = 0;
                                     scores.push(parseInt(finalScores[finalScores.length - 2]));
                                     scores.push(parseInt(finalScores[finalScores.length - 1]));
                                 }
@@ -3615,7 +3637,10 @@ async def scrape_cbssports_nba(target_date: str) -> List[Dict[str, Any]]:
                             time: isFinal ? 'FINAL' : time,
                             total: total,
                             opening_line: total,
-                            spread: spread
+                            spread: spread,
+                            spread_team: spreadTeam,  // Team the spread belongs to (favorite)
+                            opening_spread: spread,   // Opening spread line
+                            opening_spread_team: spreadTeam
                         };
                         
                         if (scores.length >= 2) {
