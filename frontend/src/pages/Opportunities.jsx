@@ -899,6 +899,7 @@ export default function Opportunities() {
                   {showHistoricalColumns && <th className="text-center py-3 px-2">Diff</th>}
                   <th className="text-center py-3 px-2">{league === 'NBA' || league === 'NCAAB' ? 'PPG' : 'GPG'} Avg</th>
                   <th className="text-center py-3 px-2">Edge</th>
+                  {!showHistoricalColumns && <th className="text-center py-3 px-2">{league === 'NHL' ? 'ML' : 'Sprd'}</th>}
                   <th className="text-center py-3 px-2">{showHistoricalColumns ? 'Result' : 'Bet'}</th>
                 </tr>
               </thead>
