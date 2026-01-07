@@ -8463,6 +8463,37 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     lines_updated += 1
                     logger.info(f"[Refresh Lines] Updated live line {away} @ {home}: {old_live_line} -> {new_line} (opening: {game.get('opening_line') or game.get('total')}, bet_line: {game.get('bet_line')})")
             
+            # Update live spread (NBA/NCAAB) or moneyline (NHL)
+            if key in live_spreads:
+                spread_data = live_spreads[key]
+                old_spread = game.get('spread')
+                new_spread = spread_data.get('spread')
+                new_spread_team = spread_data.get('spread_team')
+                
+                if new_spread and new_spread != old_spread:
+                    game['spread'] = new_spread
+                    game['spread_team'] = new_spread_team
+                    # Don't overwrite opening_spread if it exists
+                    if not game.get('opening_spread'):
+                        game['opening_spread'] = new_spread
+                        game['opening_spread_team'] = new_spread_team
+                    logger.info(f"[Refresh Lines] Updated spread for {away} @ {home}: {old_spread} -> {new_spread} ({new_spread_team})")
+            
+            if key in live_moneylines:
+                ml_data = live_moneylines[key]
+                old_ml = game.get('moneyline')
+                new_ml = ml_data.get('moneyline')
+                new_ml_team = ml_data.get('moneyline_team')
+                
+                if new_ml and new_ml != old_ml:
+                    game['moneyline'] = new_ml
+                    game['moneyline_team'] = new_ml_team
+                    # Don't overwrite opening_moneyline if it exists
+                    if not game.get('opening_moneyline'):
+                        game['opening_moneyline'] = new_ml
+                        game['opening_moneyline_team'] = new_ml_team
+                    logger.info(f"[Refresh Lines] Updated moneyline for {away} @ {home}: {old_ml} -> {new_ml} ({new_ml_team})")
+            
             # #3.75 - Match open bets to games and store bet_line
             for bet in open_bets:
                 bet_game = bet.get('game', '').upper()
