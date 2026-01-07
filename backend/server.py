@@ -13625,11 +13625,20 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
                     game["result_hit"] = None
                     
                 # Calculate user_bet_hit based on user's actual bet
+                # Use bet_line if available, otherwise use total
+                bet_line_for_eval = bet_data.get('bet_line') if bet_data else None
+                line_for_eval = bet_line_for_eval if bet_line_for_eval else total
+                
                 if has_bet and user_bet_type:
-                    if user_bet_type.upper() == "OVER":
-                        game["user_bet_hit"] = final_score > total
+                    # Check for PUSH first
+                    if final_score == line_for_eval:
+                        game["user_bet_hit"] = None  # Push
+                        game["result"] = "PUSH"
+                        game["bet_result"] = "push"
+                    elif user_bet_type.upper() == "OVER":
+                        game["user_bet_hit"] = final_score > line_for_eval
                     elif user_bet_type.upper() == "UNDER":
-                        game["user_bet_hit"] = final_score < total
+                        game["user_bet_hit"] = final_score < line_for_eval
                     else:
                         game["user_bet_hit"] = None
                 else:
