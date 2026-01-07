@@ -8917,6 +8917,31 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                 })
         
         # Save updated games and plays
+        # CRITICAL: Calculate bet results for completed games with final scores
+        # This ensures results are updated even for live bets that complete during the day
+        for game in games:
+            if game.get('has_bet') and game.get('final_score') and game.get('bet_line'):
+                final_score = game['final_score']
+                bet_line = game['bet_line']
+                bet_type = game.get('bet_type', '').upper()
+                
+                # Only calculate if user_bet_hit is not already set (don't overwrite existing results)
+                if game.get('user_bet_hit') is None and game.get('bet_result') != 'push':
+                    # Check for PUSH first
+                    if final_score == bet_line:
+                        game['user_bet_hit'] = None
+                        game['result'] = 'PUSH'
+                        game['bet_result'] = 'push'
+                        logger.info(f"[Refresh] PUSH: {game.get('away_team')} @ {game.get('home_team')} - {bet_type} {bet_line} vs {final_score}")
+                    elif 'OVER' in bet_type:
+                        game['user_bet_hit'] = final_score > bet_line
+                        game['result'] = 'OVER' if final_score > bet_line else 'UNDER'
+                        logger.info(f"[Refresh] Result: {game.get('away_team')} @ {game.get('home_team')} - OVER {bet_line} vs {final_score} = {'HIT' if game['user_bet_hit'] else 'MISS'}")
+                    elif 'UNDER' in bet_type:
+                        game['user_bet_hit'] = final_score < bet_line
+                        game['result'] = 'UNDER' if final_score < bet_line else 'OVER'
+                        logger.info(f"[Refresh] Result: {game.get('away_team')} @ {game.get('home_team')} - UNDER {bet_line} vs {final_score} = {'HIT' if game['user_bet_hit'] else 'MISS'}")
+        
         await collection.update_one(
             {"date": target_date},
             {"$set": {
