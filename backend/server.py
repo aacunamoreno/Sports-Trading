@@ -8240,6 +8240,8 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
         # Fetch live lines from CBS Sports (same source as opening lines)
         # plays888 is ONLY used for scraping bets (open bets / history)
         live_lines = {}
+        live_spreads = {}  # For NBA/NCAAB
+        live_moneylines = {}  # For NHL
         open_bets = []
         
         try:
@@ -8262,6 +8264,21 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                 if total and away and home:
                     key = f"{away.upper()}_{home.upper()}"
                     live_lines[key] = float(total) if isinstance(total, str) else total
+                    
+                    # Capture spread for NBA/NCAAB
+                    if league.upper() in ['NBA', 'NCAAB']:
+                        spread = game.get('spread')
+                        spread_team = game.get('spread_team')
+                        if spread:
+                            live_spreads[key] = {'spread': spread, 'spread_team': spread_team}
+                    
+                    # Capture moneyline for NHL
+                    if league.upper() == 'NHL':
+                        moneyline = game.get('moneyline')
+                        moneyline_team = game.get('moneyline_team')
+                        if moneyline:
+                            live_moneylines[key] = {'moneyline': moneyline, 'moneyline_team': moneyline_team}
+                    
                     logger.info(f"[Refresh Lines] CBS Sports line for {away} @ {home}: {total}")
             
             logger.info(f"[Refresh Lines] Fetched {len(live_lines)} live lines from CBS Sports")
