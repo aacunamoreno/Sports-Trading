@@ -12253,6 +12253,25 @@ async def update_ncaab_scores(date: str = None):
             else:
                 final_score = None
             
+            # Add consensus data
+            away_abbrev = get_team_abbrev(game.get('away_team', ''))
+            home_abbrev = get_team_abbrev(game.get('home_team', ''))
+            
+            away_consensus = consensus_data.get(away_abbrev, {})
+            home_consensus = consensus_data.get(home_abbrev, {})
+            
+            game['away_consensus_pct'] = away_consensus.get('consensus_pct')
+            game['home_consensus_pct'] = home_consensus.get('consensus_pct')
+            
+            # Determine which team has higher consensus (the "public pick")
+            if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
+                if away_consensus['consensus_pct'] > home_consensus['consensus_pct']:
+                    game['public_pick'] = game.get('away_team')
+                    game['public_pick_pct'] = away_consensus['consensus_pct']
+                else:
+                    game['public_pick'] = game.get('home_team')
+                    game['public_pick_pct'] = home_consensus['consensus_pct']
+            
             line = game.get('total') or game.get('opening_line')
             recommendation = game.get('recommendation')
             edge = game.get('edge', 0) or 0
