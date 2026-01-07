@@ -8787,9 +8787,8 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     
                     # Other specific mappings (simple string replacements)
                     simple_mappings = {
-                        # Connecticut / UConn - normalize both ways
+                        # Connecticut / UConn - normalize both ways (check CONNECTICUT first before CONN)
                         'CONNECTICUT': 'UCONN',
-                        'CONN': 'UCONN',
                         # Virginia Commonwealth / VCU - normalize both ways
                         'VA COMMONWEALTH': 'VCU',
                         'VIRGINIA COMMONWEALTH': 'VCU',
