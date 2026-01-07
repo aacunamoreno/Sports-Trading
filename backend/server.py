@@ -8787,13 +8787,20 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     
                     # Other specific mappings (simple string replacements)
                     simple_mappings = {
-                        # Connecticut / UConn
+                        # Connecticut / UConn - normalize both ways
                         'CONNECTICUT': 'UCONN',
                         'CONN': 'UCONN',
-                        # Virginia Commonwealth / VCU
+                        # Virginia Commonwealth / VCU - normalize both ways
                         'VA COMMONWEALTH': 'VCU',
                         'VIRGINIA COMMONWEALTH': 'VCU',
                         'VA. COMMONWEALTH': 'VCU',
+                        # Saint / St abbreviations - normalize to ST
+                        'SAINT LOUIS': 'ST LOUIS',
+                        'SAINT MARYS': 'ST MARYS',
+                        'SAINT JOHNS': 'ST JOHNS',
+                        'SAINT JOSEPHS': 'ST JOSEPHS',
+                        'SAINT PETERS': 'ST PETERS',
+                        'SAINT BONAVENTURE': 'ST BONAVENTURE',
                         # Tennessee schools
                         'UT MARTIN': 'TENNESSEE MARTIN',
                         'TENNESSEE-MARTIN': 'TENNESSEE MARTIN',
@@ -8824,13 +8831,18 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         'CAL POLY SLO': 'CAL POLY',
                         'ILLINOIS ST.': 'ILLINOIS STATE',
                         'ILLINOIS ST': 'ILLINOIS STATE',
-                        # Saint / St abbreviations
-                        'SAINT LOUIS': 'ST LOUIS',
-                        'SAINT MARYS': 'ST MARYS',
-                        'SAINT JOHNS': 'ST JOHNS',
-                        'SAINT JOSEPHS': 'ST JOSEPHS',
-                        'SAINT PETERS': 'ST PETERS',
-                        'SAINT BONAVENTURE': 'ST BONAVENTURE',
+                        # SMU / Southern Methodist
+                        'SOUTHERN METHODIST': 'SMU',
+                        'S. METHODIST': 'SMU',
+                        # BYU
+                        'BRIGHAM YOUNG': 'BYU',
+                        # TCU
+                        'TEXAS CHRISTIAN': 'TCU',
+                        # USC / Southern California
+                        'SOUTHERN CALIFORNIA': 'USC',
+                        'SOUTHERN CAL': 'USC',
+                        # Ole Miss
+                        'MISSISSIPPI': 'OLE MISS',
                     }
                     for abbrev, full in simple_mappings.items():
                         if abbrev in name:
