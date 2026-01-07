@@ -1128,13 +1128,19 @@ export default function Opportunities() {
                           <span className={`w-2.5 h-2.5 rounded-full ${getDotColor(game.home_last3_rank)}`}></span>
                         </div>
                       </td>
-                      {/* Home Team with Rankings */}
+                      {/* Home Team with Rankings and Score */}
                       <td className={`py-3 px-2 ${textStyle}`}>
                         <div className="flex flex-col">
                           <span className="text-xs font-mono text-orange-400/70">
                             {game.home_ppg_rank || game.home_gpg_rank}/{game.home_last3_rank}
                           </span>
                           <span className="font-medium">{game.home_team}</span>
+                          {/* Show home team score below team name for historical */}
+                          {showHistoricalColumns && game.home_score !== undefined && game.home_score !== null && (
+                            <span className="text-sm font-bold text-purple-300 bg-purple-500/20 px-1.5 py-0.5 rounded mt-0.5 text-center">
+                              {game.home_score}
+                            </span>
+                          )}
                         </div>
                       </td>
                       {/* Opening Line column - show for ALL views (Today, Tomorrow, Yesterday) */}
