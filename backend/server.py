@@ -7174,7 +7174,12 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
             
             for game in doc['games']:
                 # Check if game has final score (completed)
-                if game.get('final_score') is None:
+                final_score_raw = game.get('final_score')
+                if final_score_raw is None:
+                    continue
+                
+                final_score = parse_final_score(final_score_raw)
+                if final_score is None:
                     continue
                 
                 # Calculate TRUE edge using combined_ppg and the correct line
@@ -7200,7 +7205,6 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 # Only count games with edge >= threshold or <= -threshold
                 if true_edge >= NBA_THRESHOLD:
                     # OVER recommendation
-                    final_score = float(game.get('final_score'))
                     if final_score > line:
                         date_over_hits += 1
                     elif final_score < line:
@@ -7208,7 +7212,6 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                     # Push (equal) doesn't count
                 elif true_edge <= -NBA_THRESHOLD:
                     # UNDER recommendation
-                    final_score = float(game.get('final_score'))
                     if final_score < line:
                         date_under_hits += 1
                     elif final_score > line:
