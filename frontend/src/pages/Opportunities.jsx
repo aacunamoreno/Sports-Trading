@@ -1211,14 +1211,17 @@ export default function Opportunities() {
                               return <span className="text-muted-foreground">-</span>;
                             }
                             
-                            // Use away_spread if available (from Covers), otherwise calculate from home spread
+                            // Use CBS Sports LIVE LINE for spread (not Covers.com)
+                            // game.spread is the home team's spread from CBS Sports
                             let publicSpread = null;
-                            if (isAwayPublicPick) {
-                              publicSpread = game.away_spread !== null && game.away_spread !== undefined 
-                                ? game.away_spread 
-                                : (game.spread !== null && game.spread !== undefined ? -game.spread : null);
-                            } else {
-                              publicSpread = game.spread;
+                            if (game.spread !== null && game.spread !== undefined) {
+                              if (isAwayPublicPick) {
+                                // Away team's spread is the inverse of home team's spread
+                                publicSpread = -parseFloat(game.spread);
+                              } else {
+                                // Home team's spread is the CBS spread directly
+                                publicSpread = parseFloat(game.spread);
+                              }
                             }
                             
                             // Calculate if the public pick covered the spread
