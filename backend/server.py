@@ -7719,6 +7719,24 @@ async def update_records_from_start_date(start_date: str = "2025-12-22"):
         )
         logger.info(f"[#6] Updated {league} edge record: {edge['hits']}-{edge['misses']} (O:{edge['over_hits']}-{edge['over_misses']} U:{edge['under_hits']}-{edge['under_misses']})")
     
+    # Update public_records (Public Consensus Record) - uses 56%+ threshold with Covers.com spread
+    for league in ["NBA", "NHL", "NCAAB"]:
+        public = records[league]["public"]
+        await db.public_records.update_one(
+            {"league": league},
+            {"$set": {
+                "league": league,
+                "hits": public["hits"],
+                "misses": public["misses"],
+                "games": public.get("games", []),
+                "last_updated": now,
+                "start_date": start_date,
+                "threshold": "56%"
+            }},
+            upsert=True
+        )
+        logger.info(f"[#6] Updated {league} public record: {public['hits']}-{public['misses']}")
+    
     return {
         "status": "success",
         "records": records,
