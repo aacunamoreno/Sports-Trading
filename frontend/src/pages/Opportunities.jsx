@@ -310,6 +310,43 @@ export default function Opportunities() {
     }
   };
 
+  // Edit NHL Line function
+  const handleSaveLine = async (gameIndex, newLine) => {
+    if (!data.date || !data.games[gameIndex]) return;
+    
+    setSavingLine(true);
+    try {
+      const game = data.games[gameIndex];
+      const response = await axios.post(`${API}/games/update-line`, {
+        league: league.toLowerCase(),
+        date: data.date,
+        away_team: game.away_team,
+        home_team: game.home_team,
+        new_line: parseFloat(newLine)
+      });
+      
+      if (response.data.success) {
+        // Update local state
+        const updatedGames = [...data.games];
+        updatedGames[gameIndex] = {
+          ...updatedGames[gameIndex],
+          total: parseFloat(newLine),
+          opening_line: parseFloat(newLine)
+        };
+        setData({ ...data, games: updatedGames });
+        toast.success(`Line updated to ${newLine}`);
+        setEditingLine(null);
+      } else {
+        toast.error('Failed to update line');
+      }
+    } catch (error) {
+      console.error('Error updating line:', error);
+      toast.error('Failed to update line');
+    } finally {
+      setSavingLine(false);
+    }
+  };
+
   // Scrape Tomorrow's Opening Lines (8pm Job)
   const [scrapingOpeners, setScrapingOpeners] = useState(false);
   
