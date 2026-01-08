@@ -9117,9 +9117,10 @@ async def update_game_line(request: dict):
             
             if away_team.lower() in db_away or db_away in away_team.lower():
                 if home_team.lower() in db_home or db_home in home_team.lower():
-                    # Update the line
+                    # Update ALL line fields to ensure consistency
                     games[i]['total'] = float(new_line)
                     games[i]['opening_line'] = float(new_line)
+                    games[i]['live_line'] = float(new_line)  # Also update live_line
                     games[i]['line_manually_edited'] = True
                     game_found = True
                     logger.info(f"[Line Edit] Updated {away_team} @ {home_team} on {date} to {new_line}")
