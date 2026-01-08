@@ -1160,6 +1160,64 @@ export default function Opportunities() {
                           )}
                         </div>
                       </td>
+                      {/* Public Consensus Pick column - shows spread of team with higher consensus % and HIT/MISS */}
+                      {showHistoricalColumns && (
+                        <td className="py-3 px-2 text-center">
+                          {(() => {
+                            const awayPct = game.away_consensus_pct || 0;
+                            const homePct = game.home_consensus_pct || 0;
+                            
+                            // Determine which team has higher consensus
+                            if (awayPct === 0 && homePct === 0) {
+                              return <span className="text-muted-foreground">-</span>;
+                            }
+                            
+                            const isAwayPublicPick = awayPct >= homePct;
+                            const publicTeam = isAwayPublicPick ? game.away_team : game.home_team;
+                            const publicSpread = isAwayPublicPick ? game.spread : (game.spread ? -game.spread : null);
+                            
+                            // Calculate if the public pick covered the spread
+                            // Away team spread is shown as-is (e.g., +10.5)
+                            // Home team spread is the inverse (e.g., if away is +10.5, home is -10.5)
+                            let publicPickResult = null;
+                            
+                            if (game.away_score !== undefined && game.home_score !== undefined && publicSpread !== null) {
+                              const awayScore = parseFloat(game.away_score);
+                              const homeScore = parseFloat(game.home_score);
+                              
+                              if (isAwayPublicPick) {
+                                // Away team public pick: did away team + spread beat home team?
+                                // Away covers if: awayScore + spread > homeScore
+                                const awayCovered = awayScore + publicSpread > homeScore;
+                                const push = awayScore + publicSpread === homeScore;
+                                publicPickResult = push ? 'PUSH' : (awayCovered ? 'HIT' : 'MISS');
+                              } else {
+                                // Home team public pick: did home team + spread beat away team?
+                                // Home covers if: homeScore + publicSpread > awayScore (publicSpread is negative of game.spread)
+                                const homeCovered = homeScore + publicSpread > awayScore;
+                                const push = homeScore + publicSpread === awayScore;
+                                publicPickResult = push ? 'PUSH' : (homeCovered ? 'HIT' : 'MISS');
+                              }
+                            }
+                            
+                            return (
+                              <div className="flex flex-col items-center">
+                                <span className="font-mono font-bold">
+                                  {publicSpread !== null ? (publicSpread >= 0 ? '+' : '') + publicSpread : '-'}
+                                </span>
+                                {publicPickResult && (
+                                  <span className={`text-xs font-bold ${
+                                    publicPickResult === 'HIT' ? 'text-green-400' : 
+                                    publicPickResult === 'PUSH' ? 'text-yellow-400' : 'text-red-400'
+                                  }`}>
+                                    {publicPickResult}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </td>
+                      )}
                       {/* Opening Line column - show for ALL views (Today, Tomorrow, Yesterday) */}
                       <td className={`py-3 px-2 text-center font-mono text-muted-foreground`}>
                         {game.opening_line || game.total || '-'}
