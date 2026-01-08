@@ -7296,7 +7296,6 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                         date_over_misses += 1
                 elif true_edge <= -NHL_THRESHOLD:
                     # UNDER recommendation
-                    final_score = float(game.get('final_score'))
                     if final_score < line:
                         date_under_hits += 1
                     elif final_score > line:
