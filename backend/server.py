@@ -3929,7 +3929,7 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
 
 async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Dict]:
     """
-    Scrape betting consensus percentages from Covers.com
+    Scrape betting consensus percentages and spreads from Covers.com
     Returns a dict mapping team abbreviations to their consensus data
     
     Args:
@@ -3965,15 +3965,49 @@ async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Di
             await page.wait_for_load_state("networkidle")
             await page.wait_for_timeout(3000)
             
-            # Extract data from the table rows
+            # Extract data from the table using specific column selectors
             rows_data = await page.evaluate("""() => {
                 const results = [];
                 const rows = document.querySelectorAll('table tbody tr');
                 
                 rows.forEach(row => {
-                    // Get each row's text content
-                    const rowText = row.innerText;
-                    results.push(rowText);
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 5) {
+                        // Column 0: Matchup (teams)
+                        // Column 1: Date
+                        // Column 2: Consensus %
+                        // Column 3: Sides (spreads)
+                        // Column 4: Picks
+                        
+                        const matchupCell = cells[0];
+                        const consensusCell = cells[2];
+                        const sidesCell = cells[3];
+                        
+                        // Get team abbreviations from matchup
+                        const teamLinks = matchupCell.querySelectorAll('a');
+                        const teams = Array.from(teamLinks).map(a => a.textContent.trim());
+                        
+                        // Get consensus percentages
+                        const consensusText = consensusCell.innerText;
+                        const pctMatches = consensusText.match(/(\d+)%/g);
+                        const percentages = pctMatches ? pctMatches.map(p => parseInt(p)) : [];
+                        
+                        // Get spreads from Sides column
+                        const sidesText = sidesCell.innerText;
+                        const spreadMatches = sidesText.match(/[+-]?\d+\.?\d*/g);
+                        const spreads = spreadMatches ? spreadMatches.map(s => parseFloat(s)) : [];
+                        
+                        if (teams.length >= 2) {
+                            results.push({
+                                team1: teams[0],
+                                team2: teams[1],
+                                pct1: percentages[0] || null,
+                                pct2: percentages[1] || null,
+                                spread1: spreads[0] || null,
+                                spread2: spreads[1] || null
+                            });
+                        }
+                    }
                 });
                 
                 return results;
@@ -3981,44 +4015,27 @@ async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Di
             
             await browser.close()
             
-            # Parse each row
-            for row_text in rows_data:
-                # Split by tabs and newlines
-                parts = row_text.replace('\t', '\n').split('\n')
-                parts = [p.strip() for p in parts if p.strip()]
+            # Process extracted data
+            for row in rows_data:
+                team1 = row.get('team1', '').upper()
+                team2 = row.get('team2', '').upper()
+                pct1 = row.get('pct1')
+                pct2 = row.get('pct2')
+                spread1 = row.get('spread1')
+                spread2 = row.get('spread2')
                 
-                # Look for team abbreviations (2-4 uppercase letters)
-                # Format: NBA, TEAM1, TEAM2, Date, Consensus%, Spreads, etc.
-                teams = []
-                percentages = []
-                spreads = []
-                
-                for part in parts:
-                    # Team abbreviation (2-4 uppercase letters)
-                    if re.match(r'^[A-Z]{2,4}$', part) and part not in ['NBA', 'NHL', 'NCAAB', 'NFL', 'MLB']:
-                        teams.append(part)
-                    # Percentage (number followed by %)
-                    pct_match = re.match(r'^(\d+)%$', part)
-                    if pct_match:
-                        percentages.append(int(pct_match.group(1)))
-                    # Spread (+ or - followed by number)
-                    spread_match = re.match(r'^([+-]?\d+\.?\d*)$', part)
-                    if spread_match and '.' in part:  # Spreads usually have decimals
-                        spreads.append(float(spread_match.group(1)))
-                
-                # If we found 2 teams and 2 percentages, add to results
-                if len(teams) >= 2 and len(percentages) >= 2:
-                    consensus_data[teams[0]] = {
-                        'consensus_pct': percentages[0],
-                        'spread': spreads[0] if spreads else None,
-                        'opponent': teams[1]
+                if team1 and team2:
+                    consensus_data[team1] = {
+                        'consensus_pct': pct1,
+                        'spread': spread1,
+                        'opponent': team2
                     }
-                    consensus_data[teams[1]] = {
-                        'consensus_pct': percentages[1],
-                        'spread': spreads[1] if len(spreads) > 1 else None,
-                        'opponent': teams[0]
+                    consensus_data[team2] = {
+                        'consensus_pct': pct2,
+                        'spread': spread2,
+                        'opponent': team1
                     }
-                    logger.debug(f"[Covers] {teams[0]} {percentages[0]}% vs {teams[1]} {percentages[1]}%")
+                    logger.debug(f"[Covers] {team1} {pct1}% @ {spread1} vs {team2} {pct2}% @ {spread2}")
             
             logger.info(f"[Covers Consensus] Scraped {len(consensus_data)} team consensus entries for {league} on {target_date}")
             return consensus_data
