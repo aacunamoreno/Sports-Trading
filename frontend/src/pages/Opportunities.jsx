@@ -1191,7 +1191,7 @@ export default function Opportunities() {
                           )}
                         </div>
                       </td>
-                      {/* Public Consensus Pick column - shows spread of team with higher consensus % and HIT/MISS */}
+                      {/* Public Consensus Pick column - shows spread of team with higher consensus % (56%+) and HIT/MISS */}
                       {showHistoricalColumns && (
                         <td className="py-3 px-2 text-center">
                           {(() => {
@@ -1204,13 +1204,22 @@ export default function Opportunities() {
                             }
                             
                             const isAwayPublicPick = awayPct >= homePct;
+                            const publicPct = isAwayPublicPick ? awayPct : homePct;
                             
-                            // game.spread is stored as HOME team's spread
-                            // If away team is public pick, their spread is the inverse of game.spread
-                            // If home team is public pick, their spread is game.spread
-                            const homeSpread = game.spread;
-                            const awaySpread = homeSpread !== null && homeSpread !== undefined ? -homeSpread : null;
-                            const publicSpread = isAwayPublicPick ? awaySpread : homeSpread;
+                            // Only show if public pick has 56% or above
+                            if (publicPct < 56) {
+                              return <span className="text-muted-foreground">-</span>;
+                            }
+                            
+                            // Use away_spread if available (from Covers), otherwise calculate from home spread
+                            let publicSpread = null;
+                            if (isAwayPublicPick) {
+                              publicSpread = game.away_spread !== null && game.away_spread !== undefined 
+                                ? game.away_spread 
+                                : (game.spread !== null && game.spread !== undefined ? -game.spread : null);
+                            } else {
+                              publicSpread = game.spread;
+                            }
                             
                             // Calculate if the public pick covered the spread
                             let publicPickResult = null;
@@ -1220,14 +1229,10 @@ export default function Opportunities() {
                               const homeScore = parseFloat(game.home_score);
                               
                               if (isAwayPublicPick) {
-                                // Away team public pick: did away team + spread beat home team?
-                                // Away covers if: awayScore + awaySpread > homeScore
                                 const awayCovered = awayScore + publicSpread > homeScore;
                                 const push = awayScore + publicSpread === homeScore;
                                 publicPickResult = push ? 'PUSH' : (awayCovered ? 'HIT' : 'MISS');
                               } else {
-                                // Home team public pick: did home team + spread beat away team?
-                                // Home covers if: homeScore + homeSpread > awayScore
                                 const homeCovered = homeScore + publicSpread > awayScore;
                                 const push = homeScore + publicSpread === awayScore;
                                 publicPickResult = push ? 'PUSH' : (homeCovered ? 'HIT' : 'MISS');
