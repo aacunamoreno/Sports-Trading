@@ -12500,6 +12500,12 @@ async def update_nba_scores(date: str = None):
                 game['away_consensus_pct'] = away_consensus.get('consensus_pct')
                 game['home_consensus_pct'] = home_consensus.get('consensus_pct')
                 
+                # Store spreads from Covers.com for Public Record calculation
+                if away_consensus.get('spread') is not None:
+                    game['away_spread'] = away_consensus.get('spread')
+                if home_consensus.get('spread') is not None and game.get('spread') is None:
+                    game['spread'] = home_consensus.get('spread')
+                
                 # Determine which team has higher consensus (the "public pick")
                 if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
                     if away_consensus['consensus_pct'] > home_consensus['consensus_pct']:
@@ -12736,6 +12742,12 @@ async def update_nhl_scores(date: str = None):
                 
                 game['away_consensus_pct'] = away_consensus.get('consensus_pct')
                 game['home_consensus_pct'] = home_consensus.get('consensus_pct')
+                
+                # Store spreads from Covers.com for Public Record calculation
+                if away_consensus.get('spread') is not None:
+                    game['away_spread'] = away_consensus.get('spread')
+                if home_consensus.get('spread') is not None and game.get('spread') is None:
+                    game['spread'] = home_consensus.get('spread')
                 
                 # Determine which team has higher consensus (the "public pick")
                 if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
