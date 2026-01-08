@@ -668,6 +668,16 @@ export default function Opportunities() {
               </div>
             </div>
           </div>
+          {/* Public Consensus Record Badge */}
+          <div className="bg-gradient-to-r from-cyan-600/20 to-blue-600/20 border border-cyan-500/30 rounded-lg px-4 py-2">
+            <div className="text-xs text-muted-foreground text-center">📢 Public Record</div>
+            <div className="text-xl font-bold text-center">
+              <span className="text-green-400">{publicRecord.hits}</span>
+              <span className="text-muted-foreground mx-1">-</span>
+              <span className="text-red-400">{publicRecord.misses}</span>
+            </div>
+            <div className="text-[10px] text-muted-foreground text-center">Spread Picks</div>
+          </div>
           {/* Live Lines Toggle */}
           {day === 'today' && (
             <button
@@ -683,6 +693,10 @@ export default function Opportunities() {
               Live Lines
             </button>
           )}
+        </div>
+        
+        {/* Row 2: Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2 mt-3">
           <Button 
             onClick={handleRefresh} 
             disabled={refreshing}
@@ -692,10 +706,6 @@ export default function Opportunities() {
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh Lines & Bets
           </Button>
-        </div>
-        
-        {/* Row 2: Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2 mt-3">
           <Button 
             onClick={handleUpdateScores} 
             disabled={updatingScores}
