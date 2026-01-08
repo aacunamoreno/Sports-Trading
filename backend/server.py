@@ -7243,6 +7243,90 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                     elif game.get('user_bet_hit') is False:
                         date_bet_losses += 1
             
+            # Calculate Public Record for this date (consensus >= 56% threshold)
+            date_public_hits = 0
+            date_public_misses = 0
+            for game in doc['games']:
+                # Get consensus percentages
+                away_pct = game.get('away_consensus_pct') or 0
+                home_pct = game.get('home_consensus_pct') or 0
+                
+                # Skip if no consensus data
+                if away_pct == 0 and home_pct == 0:
+                    continue
+                
+                # Determine public pick and percentage
+                is_away_public_pick = away_pct >= home_pct
+                public_pct = away_pct if is_away_public_pick else home_pct
+                
+                # Only include if consensus >= 56%
+                if public_pct < PUBLIC_CONSENSUS_THRESHOLD:
+                    continue
+                
+                # Get scores - skip if game not completed
+                away_score = game.get('away_score')
+                home_score = game.get('home_score')
+                if away_score is None or home_score is None:
+                    continue
+                
+                # Get spread from Covers.com data
+                # CRITICAL: Use away_spread (from Covers "Sides" column) NOT the general spread field
+                if is_away_public_pick:
+                    # For away team public pick, use away_spread directly
+                    public_spread = game.get('away_spread')
+                    if public_spread is None:
+                        # Fallback: invert home spread if away_spread not available
+                        if game.get('spread') is not None:
+                            public_spread = -game.get('spread')
+                else:
+                    # For home team public pick, use spread (which is home team's spread)
+                    public_spread = game.get('spread')
+                
+                if public_spread is None:
+                    continue
+                
+                # Calculate if public pick covered the spread
+                try:
+                    away_score_f = float(away_score)
+                    home_score_f = float(home_score)
+                    spread_f = float(public_spread)
+                    
+                    if is_away_public_pick:
+                        # Away team needs to cover: away_score + spread > home_score
+                        covered = away_score_f + spread_f > home_score_f
+                        push = away_score_f + spread_f == home_score_f
+                    else:
+                        # Home team needs to cover: home_score + spread > away_score
+                        covered = home_score_f + spread_f > away_score_f
+                        push = home_score_f + spread_f == away_score_f
+                    
+                    if not push:
+                        if covered:
+                            date_public_hits += 1
+                            results["NBA"]["public"]["games"].append({
+                                "date": date,
+                                "game": f"{game.get('away_team')} @ {game.get('home_team')}",
+                                "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
+                                "consensus_pct": public_pct,
+                                "spread": public_spread,
+                                "result": "HIT"
+                            })
+                        else:
+                            date_public_misses += 1
+                            results["NBA"]["public"]["games"].append({
+                                "date": date,
+                                "game": f"{game.get('away_team')} @ {game.get('home_team')}",
+                                "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
+                                "consensus_pct": public_pct,
+                                "spread": public_spread,
+                                "result": "MISS"
+                            })
+                except (ValueError, TypeError):
+                    continue
+            
+            results["NBA"]["public"]["hits"] += date_public_hits
+            results["NBA"]["public"]["misses"] += date_public_misses
+            
             results["NBA"]["edge"]["over_hits"] += date_over_hits
             results["NBA"]["edge"]["over_misses"] += date_over_misses
             results["NBA"]["edge"]["under_hits"] += date_under_hits
@@ -7254,10 +7338,11 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
             results["NBA"]["dates_processed"].append({
                 "date": date,
                 "edge": f"O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}",
-                "betting": f"{date_bet_wins}W-{date_bet_losses}L"
+                "betting": f"{date_bet_wins}W-{date_bet_losses}L",
+                "public": f"{date_public_hits}-{date_public_misses}"
             })
             
-            logger.info(f"[#6] NBA {date}: Edge O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}, Betting {date_bet_wins}W-{date_bet_losses}L")
+            logger.info(f"[#6] NBA {date}: Edge O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}, Betting {date_bet_wins}W-{date_bet_losses}L, Public {date_public_hits}-{date_public_misses}")
     
     # Process NHL records (threshold: 0.6)
     NHL_THRESHOLD = 0.6
