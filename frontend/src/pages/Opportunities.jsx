@@ -19,7 +19,7 @@ export default function Opportunities() {
   const [useLiveLines, setUseLiveLines] = useState(true); // Default to using live lines
   const [bettingRecord, setBettingRecord] = useState({ hits: 0, misses: 0 });
   const [exporting, setExporting] = useState(false);
-  const [edgeRecord, setEdgeRecord] = useState({ hits: 0, misses: 0 });
+  const [edgeRecord, setEdgeRecord] = useState({ hits: 0, misses: 0, over: '0-0', under: '0-0' });
   const [updatingPPG, setUpdatingPPG] = useState(false);
   const [updatingScores, setUpdatingScores] = useState(false);
   const [updatingBetResults, setUpdatingBetResults] = useState(false);
