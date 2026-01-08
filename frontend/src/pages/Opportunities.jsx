@@ -1173,12 +1173,15 @@ export default function Opportunities() {
                             }
                             
                             const isAwayPublicPick = awayPct >= homePct;
-                            const publicTeam = isAwayPublicPick ? game.away_team : game.home_team;
-                            const publicSpread = isAwayPublicPick ? game.spread : (game.spread ? -game.spread : null);
+                            
+                            // game.spread is stored as HOME team's spread
+                            // If away team is public pick, their spread is the inverse of game.spread
+                            // If home team is public pick, their spread is game.spread
+                            const homeSpread = game.spread;
+                            const awaySpread = homeSpread !== null && homeSpread !== undefined ? -homeSpread : null;
+                            const publicSpread = isAwayPublicPick ? awaySpread : homeSpread;
                             
                             // Calculate if the public pick covered the spread
-                            // Away team spread is shown as-is (e.g., +10.5)
-                            // Home team spread is the inverse (e.g., if away is +10.5, home is -10.5)
                             let publicPickResult = null;
                             
                             if (game.away_score !== undefined && game.home_score !== undefined && publicSpread !== null) {
@@ -1187,13 +1190,13 @@ export default function Opportunities() {
                               
                               if (isAwayPublicPick) {
                                 // Away team public pick: did away team + spread beat home team?
-                                // Away covers if: awayScore + spread > homeScore
+                                // Away covers if: awayScore + awaySpread > homeScore
                                 const awayCovered = awayScore + publicSpread > homeScore;
                                 const push = awayScore + publicSpread === homeScore;
                                 publicPickResult = push ? 'PUSH' : (awayCovered ? 'HIT' : 'MISS');
                               } else {
                                 // Home team public pick: did home team + spread beat away team?
-                                // Home covers if: homeScore + publicSpread > awayScore (publicSpread is negative of game.spread)
+                                // Home covers if: homeScore + homeSpread > awayScore
                                 const homeCovered = homeScore + publicSpread > awayScore;
                                 const push = homeScore + publicSpread === awayScore;
                                 publicPickResult = push ? 'PUSH' : (homeCovered ? 'HIT' : 'MISS');
