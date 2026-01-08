@@ -1315,7 +1315,7 @@ export default function Opportunities() {
                       <td className={`py-3 px-2 text-center font-mono text-muted-foreground`}>
                         {game.opening_line || game.total || '-'}
                       </td>
-                      {/* Current/Live Line column */}
+                      {/* Current/Live Line column - with Edit option for NHL */}
                       <td className={`py-3 px-2 text-center font-mono ${textStyle}`}>
                         {(() => {
                           // For non-historical: show live_line if available, otherwise total/opening_line
@@ -1323,13 +1323,48 @@ export default function Opportunities() {
                           const openingLine = game.opening_line || game.total;
                           const lineMovement = currentLine && openingLine ? currentLine - openingLine : 0;
                           
+                          // Check if we're editing this game's line
+                          if (editingLine && editingLine.gameIndex === index && league === 'NHL') {
+                            return (
+                              <div className="flex items-center justify-center gap-1">
+                                <input
+                                  type="number"
+                                  step="0.5"
+                                  value={editingLine.value}
+                                  onChange={(e) => setEditingLine({ ...editingLine, value: e.target.value })}
+                                  className="w-16 px-1 py-0.5 text-center bg-gray-800 border border-gray-600 rounded text-sm"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveLine(index, editingLine.value);
+                                    if (e.key === 'Escape') setEditingLine(null);
+                                  }}
+                                />
+                                <button
+                                  onClick={() => handleSaveLine(index, editingLine.value)}
+                                  disabled={savingLine}
+                                  className="p-0.5 text-green-400 hover:text-green-300"
+                                  title="Save"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => setEditingLine(null)}
+                                  className="p-0.5 text-red-400 hover:text-red-300"
+                                  title="Cancel"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            );
+                          }
+                          
                           if (!currentLine) return <span className="text-gray-500 text-xs">NO LINE</span>;
                           
                           // Calculate bet line movement (if user bet, compare closing to bet line)
                           const betLineMovement = game.user_bet && game.bet_line ? currentLine - game.bet_line : 0;
                           
                           return (
-                            <div className="flex flex-col">
+                            <div className="flex flex-col items-center group relative">
                               {/* Current/closing line with movement indicator from bet line */}
                               <span className={betLineMovement !== 0 ? (betLineMovement > 0 ? 'text-green-400' : 'text-red-400') : (lineMovement !== 0 ? (lineMovement > 0 ? 'text-green-400' : 'text-red-400') : '')}>
                                 {currentLine}
@@ -1346,6 +1381,16 @@ export default function Opportunities() {
                                   </span>
                                 )}
                               </span>
+                              {/* Edit button for NHL - shows on hover */}
+                              {league === 'NHL' && (
+                                <button
+                                  onClick={() => setEditingLine({ gameIndex: index, value: currentLine?.toString() || '' })}
+                                  className="absolute -right-4 top-1/2 -translate-y-1/2 p-0.5 text-gray-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Edit line"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                              )}
                               {/* Show bet-time line if user bet on this game */}
                               {game.user_bet && game.bet_line && (
                                 <span className={`text-xs font-bold ${isSpreadBet ? 'text-purple-400' : 'text-yellow-400'}`} title={isSpreadBet ? 'Spread when bet was placed' : 'Line when bet was placed'}>
