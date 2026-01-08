@@ -7410,7 +7410,7 @@ async def update_records_from_start_date(start_date: str = "2025-12-22"):
         )
         logger.info(f"[#6] Updated {league} betting record: {betting['wins']}-{betting['losses']}")
     
-    # Update edge_records (Edge/Recommendation Record) - NFL eliminated
+    # Update edge_records (Edge/Recommendation Record) with Over/Under breakdown - NFL eliminated
     for league in ["NBA", "NHL", "NCAAB"]:
         edge = records[league]["edge"]
         await db.edge_records.update_one(
@@ -7419,12 +7419,16 @@ async def update_records_from_start_date(start_date: str = "2025-12-22"):
                 "league": league,
                 "hits": edge["hits"],
                 "misses": edge["misses"],
+                "over_hits": edge["over_hits"],
+                "over_misses": edge["over_misses"],
+                "under_hits": edge["under_hits"],
+                "under_misses": edge["under_misses"],
                 "last_updated": now,
                 "start_date": start_date
             }},
             upsert=True
         )
-        logger.info(f"[#6] Updated {league} edge record: {edge['hits']}-{edge['misses']}")
+        logger.info(f"[#6] Updated {league} edge record: {edge['hits']}-{edge['misses']} (O:{edge['over_hits']}-{edge['over_misses']} U:{edge['under_hits']}-{edge['under_misses']})")
     
     return {
         "status": "success",
