@@ -51,10 +51,12 @@ export default function Opportunities() {
           const edgeParts = summary[league].edge_record.split('-');
           setEdgeRecord({ 
             hits: parseInt(edgeParts[0]) || 0, 
-            misses: parseInt(edgeParts[1]) || 0 
+            misses: parseInt(edgeParts[1]) || 0,
+            over: summary[league].edge_over || '0-0',
+            under: summary[league].edge_under || '0-0'
           });
           
-          console.log(`${league} records - Betting: ${bettingParts[0]}-${bettingParts[1]}, Edge: ${edgeParts[0]}-${edgeParts[1]}`);
+          console.log(`${league} records - Betting: ${bettingParts[0]}-${bettingParts[1]}, Edge: ${edgeParts[0]}-${edgeParts[1]}, Over: ${summary[league].edge_over}, Under: ${summary[league].edge_under}`);
         }
       } catch (e) {
         console.error('Error fetching records summary:', e);
