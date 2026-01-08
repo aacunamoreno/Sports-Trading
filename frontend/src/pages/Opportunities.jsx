@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, TrendingUp, TrendingDown, Target, Wifi, Calendar, Download, Upload } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Target, Wifi, Calendar, Download, Upload, Pencil, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -26,6 +26,8 @@ export default function Opportunities() {
   const [updatingRecords, setUpdatingRecords] = useState(false);
   const [rankingPPGRecord, setRankingPPGRecord] = useState({ high: { hits: 0, misses: 0 }, low: { hits: 0, misses: 0 } });
   const [publicRecord, setPublicRecord] = useState({ hits: 0, misses: 0 });
+  const [editingLine, setEditingLine] = useState(null); // { gameIndex: number, value: string }
+  const [savingLine, setSavingLine] = useState(false);
 
   useEffect(() => {
     loadOpportunities();
