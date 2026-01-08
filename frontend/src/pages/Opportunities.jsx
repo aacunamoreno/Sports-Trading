@@ -326,12 +326,13 @@ export default function Opportunities() {
       });
       
       if (response.data.success) {
-        // Update local state
+        // Update local state - update ALL line fields
         const updatedGames = [...data.games];
         updatedGames[gameIndex] = {
           ...updatedGames[gameIndex],
           total: parseFloat(newLine),
-          opening_line: parseFloat(newLine)
+          opening_line: parseFloat(newLine),
+          live_line: parseFloat(newLine)  // Also update live_line
         };
         setData({ ...data, games: updatedGames });
         toast.success(`Line updated to ${newLine}`);
