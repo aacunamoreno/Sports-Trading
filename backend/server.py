@@ -9640,6 +9640,17 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         'CAL STATE FULLERTON': 'CS FULLERTON',
                         'CAL ST FULLERTON': 'CS FULLERTON',
                         'CAL ST. FULLERTON': 'CS FULLERTON',
+                        # SE Missouri State
+                        'SE MISSOURI STATE': 'SE MISSOURI ST',
+                        'SE MISSOURI ST.': 'SE MISSOURI ST',
+                        'SOUTHEAST MISSOURI STATE': 'SE MISSOURI ST',
+                        'SOUTHEAST MISSOURI ST': 'SE MISSOURI ST',
+                        'SEMO': 'SE MISSOURI ST',
+                        # Southern Indiana
+                        'SOUTHERN INDIANA': 'SO INDIANA',
+                        'S INDIANA': 'SO INDIANA',
+                        'S. INDIANA': 'SO INDIANA',
+                        'SO. INDIANA': 'SO INDIANA',
                     }
                     for abbrev, full in simple_mappings.items():
                         if abbrev in name:
