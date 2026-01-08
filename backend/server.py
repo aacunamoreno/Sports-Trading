@@ -15035,6 +15035,65 @@ async def get_public_records_summary():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.get("/records/public-detail/{league}")
+async def get_public_records_detail(league: str):
+    """
+    Get detailed Public Record breakdown by date and game for verification.
+    Uses 56%+ consensus threshold and Covers.com spread data.
+    """
+    try:
+        league_upper = league.upper()
+        if league_upper not in ['NBA', 'NHL', 'NCAAB']:
+            raise HTTPException(status_code=400, detail="Invalid league")
+        
+        record = await db.public_records.find_one({"league": league_upper})
+        
+        if not record:
+            return {
+                "league": league_upper,
+                "total_record": "0-0",
+                "hits": 0,
+                "misses": 0,
+                "games": [],
+                "by_date": {}
+            }
+        
+        games = record.get('games', [])
+        
+        # Group by date
+        by_date = {}
+        for g in games:
+            date = g.get('date', 'unknown')
+            if date not in by_date:
+                by_date[date] = {"hits": 0, "misses": 0, "games": []}
+            
+            if g.get('result') == 'HIT':
+                by_date[date]["hits"] += 1
+            else:
+                by_date[date]["misses"] += 1
+            
+            by_date[date]["games"].append({
+                "game": g.get('game'),
+                "public_pick": g.get('public_pick'),
+                "consensus_pct": g.get('consensus_pct'),
+                "spread": g.get('spread'),
+                "result": g.get('result')
+            })
+        
+        return {
+            "league": league_upper,
+            "total_record": f"{record.get('hits', 0)}-{record.get('misses', 0)}",
+            "hits": record.get('hits', 0),
+            "misses": record.get('misses', 0),
+            "threshold": "56%",
+            "spread_source": "covers.com",
+            "by_date": by_date
+        }
+    except Exception as e:
+        logger.error(f"Error getting public records detail: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 
 @api_router.get("/process/status")
