@@ -7630,17 +7630,27 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 if away_score is None or home_score is None:
                     continue
                 
-                # Get spread from CBS Sports LIVE LINE (not Covers.com)
-                cbs_spread = game.get('spread')
+                # Get spread - PRIORITY: Covers.com first, CBS Sports as fallback
+                public_spread = None
+                spread_source = None
                 
-                if cbs_spread is None:
-                    continue
-                
-                # Calculate spread for the public pick team
                 if is_away_public_pick:
-                    public_spread = -float(cbs_spread)
+                    if game.get('away_spread') is not None:
+                        public_spread = float(game.get('away_spread'))
+                        spread_source = "Covers.com"
+                    elif game.get('spread') is not None:
+                        public_spread = -float(game.get('spread'))
+                        spread_source = "CBS Sports"
                 else:
-                    public_spread = float(cbs_spread)
+                    if game.get('away_spread') is not None:
+                        public_spread = -float(game.get('away_spread'))
+                        spread_source = "Covers.com"
+                    elif game.get('spread') is not None:
+                        public_spread = float(game.get('spread'))
+                        spread_source = "CBS Sports"
+                
+                if public_spread is None:
+                    continue
                 
                 try:
                     away_score_f = float(away_score)
@@ -7663,7 +7673,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                                 "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
                                 "consensus_pct": public_pct,
                                 "spread": public_spread,
-                                "spread_source": "CBS Sports Live",
+                                "spread_source": spread_source,
                                 "result": "HIT"
                             })
                         else:
@@ -7674,7 +7684,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                                 "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
                                 "consensus_pct": public_pct,
                                 "spread": public_spread,
-                                "spread_source": "CBS Sports Live",
+                                "spread_source": spread_source,
                                 "result": "MISS"
                             })
                 except (ValueError, TypeError):
