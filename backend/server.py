@@ -15095,7 +15095,7 @@ async def get_public_records_detail(league: str):
             "hits": record.get('hits', 0),
             "misses": record.get('misses', 0),
             "threshold": "56%",
-            "spread_source": "covers.com",
+            "spread_source": "CBS Sports Live Line",
             "by_date": by_date
         }
     except Exception as e:
