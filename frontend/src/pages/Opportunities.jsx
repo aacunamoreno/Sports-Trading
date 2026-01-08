@@ -1269,15 +1269,6 @@ export default function Opportunities() {
                           {game.final_score || '-'}
                         </td>
                       )}
-                      {showHistoricalColumns && (
-                        <td className="py-3 px-2 text-center font-mono">
-                          {game.final_score && game.total ? (
-                            <span className={game.final_score > game.total ? 'text-green-400' : 'text-red-400'}>
-                              {game.final_score > game.total ? '⬆️' : '⬇️'} {game.final_score > game.total ? '+' : ''}{(game.final_score - game.total).toFixed(1)}
-                            </span>
-                          ) : '-'}
-                        </td>
-                      )}
                       <td className={`py-3 px-2 text-center font-bold ${textStyle}`}>
                         {/* For NCAAB, only show PPG if BOTH teams have data */}
                         {league === 'NCAAB' ? (
