@@ -1211,15 +1211,27 @@ export default function Opportunities() {
                               return <span className="text-muted-foreground">-</span>;
                             }
                             
-                            // Use CBS Sports LIVE LINE for spread (not Covers.com)
-                            // game.spread is the home team's spread from CBS Sports
+                            // PRIORITY: Covers.com spread first, CBS Sports as fallback
+                            // away_spread = Covers.com spread for away team
+                            // spread = CBS Sports live spread (home team's perspective)
                             let publicSpread = null;
-                            if (game.spread !== null && game.spread !== undefined) {
-                              if (isAwayPublicPick) {
-                                // Away team's spread is the inverse of home team's spread
+                            
+                            if (isAwayPublicPick) {
+                              // Away team is public pick
+                              if (game.away_spread !== null && game.away_spread !== undefined) {
+                                // Use Covers.com spread directly for away team
+                                publicSpread = parseFloat(game.away_spread);
+                              } else if (game.spread !== null && game.spread !== undefined) {
+                                // Fallback: CBS Sports (invert home spread for away)
                                 publicSpread = -parseFloat(game.spread);
-                              } else {
-                                // Home team's spread is the CBS spread directly
+                              }
+                            } else {
+                              // Home team is public pick
+                              if (game.away_spread !== null && game.away_spread !== undefined) {
+                                // Covers.com: home spread = -away_spread
+                                publicSpread = -parseFloat(game.away_spread);
+                              } else if (game.spread !== null && game.spread !== undefined) {
+                                // Fallback: CBS Sports spread directly for home
                                 publicSpread = parseFloat(game.spread);
                               }
                             }
