@@ -14480,6 +14480,34 @@ async def get_ranking_ppg_summary():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.get("/records/public-summary")
+async def get_public_records_summary():
+    """Get Public Consensus spread records summary for all leagues from stored records"""
+    try:
+        summary = {}
+        
+        for league in ['NBA', 'NHL', 'NCAAB']:
+            # Read from stored public_records collection
+            record = await db.public_records.find_one({"league": league})
+            
+            if record:
+                hits = record.get('hits', 0)
+                misses = record.get('misses', 0)
+            else:
+                hits = misses = 0
+            
+            summary[league] = {
+                "record": f"{hits}-{misses}",
+                "hits": hits,
+                "misses": misses
+            }
+        
+        return summary
+    except Exception as e:
+        logger.error(f"Error getting public records summary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 
 @api_router.get("/process/status")
