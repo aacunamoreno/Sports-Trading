@@ -7078,6 +7078,39 @@ async def morning_data_refresh():
 
 # ============== PROCESS #6: UPDATE RECORDS FROM 12/22/25 ==============
 
+def parse_final_score(final_score):
+    """
+    Parse final_score which could be:
+    - A number (e.g., 225)
+    - A string number (e.g., "225")
+    - Individual scores (e.g., "110-115" or "70-55")
+    Returns the total score as a float, or None if invalid.
+    """
+    if final_score is None:
+        return None
+    
+    # If it's already a number, return it
+    if isinstance(final_score, (int, float)):
+        return float(final_score)
+    
+    # If it's a string, try to parse it
+    if isinstance(final_score, str):
+        # Check if it contains a hyphen (individual scores)
+        if '-' in final_score:
+            try:
+                parts = final_score.split('-')
+                return float(parts[0]) + float(parts[1])
+            except:
+                return None
+        else:
+            try:
+                return float(final_score)
+            except:
+                return None
+    
+    return None
+
+
 async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
     """
     Calculate betting records and edge records from start_date to yesterday.
