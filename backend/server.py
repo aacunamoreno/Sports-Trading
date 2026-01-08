@@ -9110,6 +9110,7 @@ async def update_game_line(request: dict):
         
         games = doc.get('games', [])
         game_found = False
+        new_edge = None
         
         for i, game in enumerate(games):
             db_away = game.get('away_team', '').lower()
@@ -9122,6 +9123,41 @@ async def update_game_line(request: dict):
                     games[i]['opening_line'] = float(new_line)
                     games[i]['live_line'] = float(new_line)  # Also update live_line
                     games[i]['line_manually_edited'] = True
+                    
+                    # Recalculate Edge: Edge = Combined PPG - Line
+                    combined_ppg = game.get('combined_ppg')
+                    if combined_ppg is not None:
+                        new_edge = round(float(combined_ppg) - float(new_line), 1)
+                        games[i]['edge'] = new_edge
+                        
+                        # Update recommendation based on new edge
+                        # NHL threshold is 0.6
+                        if league == 'nhl':
+                            if new_edge >= 0.6:
+                                games[i]['recommendation'] = 'OVER'
+                            elif new_edge <= -0.6:
+                                games[i]['recommendation'] = 'UNDER'
+                            else:
+                                games[i]['recommendation'] = None
+                        # NBA threshold is 8
+                        elif league == 'nba':
+                            if new_edge >= 8:
+                                games[i]['recommendation'] = 'OVER'
+                            elif new_edge <= -8:
+                                games[i]['recommendation'] = 'UNDER'
+                            else:
+                                games[i]['recommendation'] = None
+                        # NCAAB threshold is 9
+                        elif league == 'ncaab':
+                            if new_edge >= 9:
+                                games[i]['recommendation'] = 'OVER'
+                            elif new_edge <= -9:
+                                games[i]['recommendation'] = 'UNDER'
+                            else:
+                                games[i]['recommendation'] = None
+                        
+                        logger.info(f"[Line Edit] Recalculated edge: {combined_ppg} - {new_line} = {new_edge}")
+                    
                     game_found = True
                     logger.info(f"[Line Edit] Updated {away_team} @ {home_team} on {date} to {new_line}")
                     break
@@ -9135,7 +9171,7 @@ async def update_game_line(request: dict):
             {"$set": {"games": games}}
         )
         
-        return {"success": True, "message": f"Line updated to {new_line}"}
+        return {"success": True, "message": f"Line updated to {new_line}", "new_edge": new_edge}
         
     except HTTPException:
         raise
