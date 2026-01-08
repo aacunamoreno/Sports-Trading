@@ -7720,6 +7720,127 @@ async def backfill_consensus_data(start_date: str = "2025-12-22", end_date: str 
     }
 
 
+@api_router.post("/process/backfill-scores")
+async def backfill_scores_from_cbs(start_date: str = "2025-12-22", end_date: str = None, league: str = "NBA"):
+    """
+    Backfill team scores from CBS Sports for historical dates.
+    This scrapes individual team scores (away_score, home_score) and updates the database.
+    
+    Args:
+        start_date: Start date in YYYY-MM-DD format (default: 2025-12-22)
+        end_date: End date in YYYY-MM-DD format (default: yesterday)
+        league: League to backfill (NBA, NHL, NCAAB)
+    """
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    
+    arizona_tz = ZoneInfo('America/Phoenix')
+    
+    if not end_date:
+        end_date = (datetime.now(arizona_tz) - timedelta(days=1)).strftime("%Y-%m-%d")
+    
+    league = league.upper()
+    collection_name = f"{league.lower()}_opportunities"
+    
+    results = {
+        "league": league,
+        "start_date": start_date,
+        "end_date": end_date,
+        "dates_processed": 0,
+        "games_updated": 0,
+        "dates_details": []
+    }
+    
+    # Parse dates
+    current_date = datetime.strptime(start_date, "%Y-%m-%d")
+    end = datetime.strptime(end_date, "%Y-%m-%d")
+    
+    while current_date <= end:
+        date_str = current_date.strftime("%Y-%m-%d")
+        date_display = current_date.strftime("%m/%d")
+        
+        logger.info(f"[Backfill Scores] Processing {league} for {date_str}")
+        
+        # Scrape scores from CBS Sports
+        if league == "NBA":
+            cbs_games = await scrape_cbssports_nba(date_str)
+        elif league == "NHL":
+            cbs_games = await scrape_cbssports_nhl(date_str)
+        elif league == "NCAAB":
+            cbs_games = await scrape_cbssports_ncaab(date_str)
+        else:
+            cbs_games = []
+        
+        if not cbs_games:
+            logger.warning(f"[Backfill Scores] No CBS data for {league} on {date_str}")
+            results["dates_details"].append({"date": date_display, "status": "no_cbs_data", "games_updated": 0})
+            current_date += timedelta(days=1)
+            continue
+        
+        # Find document for this date
+        doc = await db[collection_name].find_one({"date": date_str})
+        
+        if doc and doc.get('games'):
+            games = doc['games']
+            updated = False
+            games_updated_count = 0
+            
+            for game in games:
+                away_team = game.get('away_team', '').lower()
+                home_team = game.get('home_team', '').lower()
+                
+                # Find matching CBS game
+                for cbs_game in cbs_games:
+                    cbs_away = cbs_game.get('away_team', '').lower()
+                    cbs_home = cbs_game.get('home_team', '').lower()
+                    
+                    # Match games by team names
+                    if ((away_team in cbs_away or cbs_away in away_team) and
+                        (home_team in cbs_home or cbs_home in home_team)):
+                        
+                        # Update scores if CBS has them
+                        if cbs_game.get('away_score') is not None:
+                            game['away_score'] = cbs_game['away_score']
+                        if cbs_game.get('home_score') is not None:
+                            game['home_score'] = cbs_game['home_score']
+                        if cbs_game.get('final_score') is not None:
+                            game['final_score'] = cbs_game['final_score']
+                        
+                        # Also update spread if missing
+                        if cbs_game.get('spread') is not None and game.get('spread') is None:
+                            game['spread'] = cbs_game['spread']
+                        
+                        updated = True
+                        games_updated_count += 1
+                        logger.debug(f"[Backfill Scores] {away_team} @ {home_team}: {game.get('away_score')}-{game.get('home_score')}")
+                        break
+            
+            if updated:
+                await db[collection_name].update_one(
+                    {"date": date_str},
+                    {"$set": {"games": games}}
+                )
+                results["games_updated"] += games_updated_count
+            
+            results["dates_processed"] += 1
+            results["dates_details"].append({"date": date_display, "status": "success", "games_updated": games_updated_count})
+            logger.info(f"[Backfill Scores] {date_str}: Updated {games_updated_count} games with scores")
+        else:
+            results["dates_details"].append({"date": date_display, "status": "no_db_games", "games_updated": 0})
+        
+        current_date += timedelta(days=1)
+        
+        # Delay between requests
+        await asyncio.sleep(2)
+    
+    logger.info(f"[Backfill Scores] Results: {results}")
+    
+    return {
+        "success": True,
+        "results": results
+    }
+
+
 @api_router.post("/process/scrape-openers")
 async def scrape_opening_lines_endpoint(target_date: str = None):
     """
