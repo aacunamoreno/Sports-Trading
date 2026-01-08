@@ -326,16 +326,34 @@ export default function Opportunities() {
       });
       
       if (response.data.success) {
-        // Update local state - update ALL line fields
+        // Update local state - update ALL line fields and recalculate edge
         const updatedGames = [...data.games];
+        const combinedPpg = game.combined_ppg;
+        const newEdge = combinedPpg ? Math.round((combinedPpg - parseFloat(newLine)) * 10) / 10 : game.edge;
+        
+        // Determine new recommendation based on edge and league thresholds
+        let newRecommendation = null;
+        if (league === 'NHL' && newEdge !== null) {
+          if (newEdge >= 0.6) newRecommendation = 'OVER';
+          else if (newEdge <= -0.6) newRecommendation = 'UNDER';
+        } else if (league === 'NBA' && newEdge !== null) {
+          if (newEdge >= 8) newRecommendation = 'OVER';
+          else if (newEdge <= -8) newRecommendation = 'UNDER';
+        } else if (league === 'NCAAB' && newEdge !== null) {
+          if (newEdge >= 9) newRecommendation = 'OVER';
+          else if (newEdge <= -9) newRecommendation = 'UNDER';
+        }
+        
         updatedGames[gameIndex] = {
           ...updatedGames[gameIndex],
           total: parseFloat(newLine),
           opening_line: parseFloat(newLine),
-          live_line: parseFloat(newLine)  // Also update live_line
+          live_line: parseFloat(newLine),
+          edge: newEdge,
+          recommendation: newRecommendation
         };
         setData({ ...data, games: updatedGames });
-        toast.success(`Line updated to ${newLine}`);
+        toast.success(`Line updated to ${newLine}${newEdge !== game.edge ? `, Edge: ${newEdge}` : ''}`);
         setEditingLine(null);
       } else {
         toast.error('Failed to update line');
