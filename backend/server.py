@@ -7662,6 +7662,8 @@ async def get_records_summary():
             summary[league] = {
                 "betting_record": f"{betting.get('hits', 0)}-{betting.get('misses', 0)}" if betting else "0-0",
                 "edge_record": f"{edge.get('hits', 0)}-{edge.get('misses', 0)}" if edge else "0-0",
+                "edge_over": f"{edge.get('over_hits', 0)}-{edge.get('over_misses', 0)}" if edge else "0-0",
+                "edge_under": f"{edge.get('under_hits', 0)}-{edge.get('under_misses', 0)}" if edge else "0-0",
                 "betting_last_updated": betting.get('last_updated') if betting else None,
                 "edge_last_updated": edge.get('last_updated') if edge else None,
                 "start_date": betting.get('start_date', '2025-12-22') if betting else '2025-12-22'
