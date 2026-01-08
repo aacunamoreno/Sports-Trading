@@ -86,6 +86,26 @@ export default function Opportunities() {
     fetchRankingPPGRecords();
   }, [league]);
 
+  // Fetch Public Consensus records when league changes
+  useEffect(() => {
+    const fetchPublicRecords = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/records/public-summary`);
+        const summary = await res.json();
+        
+        if (summary[league]) {
+          setPublicRecord({
+            hits: summary[league].hits || 0,
+            misses: summary[league].misses || 0
+          });
+        }
+      } catch (e) {
+        console.error('Error fetching public records:', e);
+      }
+    };
+    fetchPublicRecords();
+  }, [league]);
+
   const loadOpportunities = async () => {
     setLoading(true);
     try {
