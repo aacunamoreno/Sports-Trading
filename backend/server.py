@@ -7580,6 +7580,76 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                     elif game.get('user_bet_hit') is False:
                         date_bet_losses += 1
             
+            # Calculate Public Record for NCAAB (consensus >= 56% threshold)
+            date_public_hits = 0
+            date_public_misses = 0
+            for game in doc['games']:
+                away_pct = game.get('away_consensus_pct') or 0
+                home_pct = game.get('home_consensus_pct') or 0
+                
+                if away_pct == 0 and home_pct == 0:
+                    continue
+                
+                is_away_public_pick = away_pct >= home_pct
+                public_pct = away_pct if is_away_public_pick else home_pct
+                
+                if public_pct < PUBLIC_CONSENSUS_THRESHOLD:
+                    continue
+                
+                away_score = game.get('away_score')
+                home_score = game.get('home_score')
+                if away_score is None or home_score is None:
+                    continue
+                
+                if is_away_public_pick:
+                    public_spread = game.get('away_spread')
+                    if public_spread is None and game.get('spread') is not None:
+                        public_spread = -game.get('spread')
+                else:
+                    public_spread = game.get('spread')
+                
+                if public_spread is None:
+                    continue
+                
+                try:
+                    away_score_f = float(away_score)
+                    home_score_f = float(home_score)
+                    spread_f = float(public_spread)
+                    
+                    if is_away_public_pick:
+                        covered = away_score_f + spread_f > home_score_f
+                        push = away_score_f + spread_f == home_score_f
+                    else:
+                        covered = home_score_f + spread_f > away_score_f
+                        push = home_score_f + spread_f == away_score_f
+                    
+                    if not push:
+                        if covered:
+                            date_public_hits += 1
+                            results["NCAAB"]["public"]["games"].append({
+                                "date": date,
+                                "game": f"{game.get('away_team')} @ {game.get('home_team')}",
+                                "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
+                                "consensus_pct": public_pct,
+                                "spread": public_spread,
+                                "result": "HIT"
+                            })
+                        else:
+                            date_public_misses += 1
+                            results["NCAAB"]["public"]["games"].append({
+                                "date": date,
+                                "game": f"{game.get('away_team')} @ {game.get('home_team')}",
+                                "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
+                                "consensus_pct": public_pct,
+                                "spread": public_spread,
+                                "result": "MISS"
+                            })
+                except (ValueError, TypeError):
+                    continue
+            
+            results["NCAAB"]["public"]["hits"] += date_public_hits
+            results["NCAAB"]["public"]["misses"] += date_public_misses
+            
             results["NCAAB"]["edge"]["over_hits"] += date_over_hits
             results["NCAAB"]["edge"]["over_misses"] += date_over_misses
             results["NCAAB"]["edge"]["under_hits"] += date_under_hits
@@ -7591,10 +7661,11 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
             results["NCAAB"]["dates_processed"].append({
                 "date": date,
                 "edge": f"O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}",
-                "betting": f"{date_bet_wins}W-{date_bet_losses}L"
+                "betting": f"{date_bet_wins}W-{date_bet_losses}L",
+                "public": f"{date_public_hits}-{date_public_misses}"
             })
             
-            logger.info(f"[#6] NCAAB {date}: Edge O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}, Betting {date_bet_wins}W-{date_bet_losses}L")
+            logger.info(f"[#6] NCAAB {date}: Edge O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}, Betting {date_bet_wins}W-{date_bet_losses}L, Public {date_public_hits}-{date_public_misses}")
     
     logger.info(f"[#6] Final calculated records: NBA={results['NBA']}, NHL={results['NHL']}, NCAAB={results['NCAAB']}")
     return results
