@@ -608,9 +608,15 @@ export default function Opportunities() {
             </div>
             <div className="text-[10px] text-muted-foreground text-center">Since 12/22</div>
             <div className="text-[10px] text-center mt-1 border-t border-primary/20 pt-1">
-              <span className="text-blue-400">O:{edgeRecord.over}</span>
+              <span className="text-blue-400">O:</span>
+              <span className="text-green-400">{edgeRecord.over.split('-')[0]}</span>
+              <span className="text-muted-foreground">-</span>
+              <span className="text-red-400">{edgeRecord.over.split('-')[1]}</span>
               <span className="text-muted-foreground mx-1">|</span>
-              <span className="text-orange-400">U:{edgeRecord.under}</span>
+              <span className="text-blue-400">U:</span>
+              <span className="text-green-400">{edgeRecord.under.split('-')[0]}</span>
+              <span className="text-muted-foreground">-</span>
+              <span className="text-red-400">{edgeRecord.under.split('-')[1]}</span>
             </div>
           </div>
           {/* Betting Record Badge */}
