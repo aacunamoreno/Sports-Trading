@@ -7563,6 +7563,140 @@ async def backfill_opening_lines(start_date: str = "2024-12-22", end_date: str =
     }
 
 
+@api_router.post("/process/backfill-consensus")
+async def backfill_consensus_data(start_date: str = "2025-12-22", end_date: str = None, league: str = "NBA"):
+    """
+    Backfill consensus percentage data from Covers.com for historical dates.
+    This scrapes the public betting consensus and spread data for each date.
+    
+    Args:
+        start_date: Start date in YYYY-MM-DD format (default: 2025-12-22)
+        end_date: End date in YYYY-MM-DD format (default: yesterday)
+        league: League to backfill (NBA, NHL, NCAAB)
+    """
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    
+    arizona_tz = ZoneInfo('America/Phoenix')
+    
+    if not end_date:
+        # Default to yesterday
+        end_date = (datetime.now(arizona_tz) - timedelta(days=1)).strftime("%Y-%m-%d")
+    
+    league = league.upper()
+    collection_name = f"{league.lower()}_opportunities"
+    
+    results = {
+        "league": league,
+        "start_date": start_date,
+        "end_date": end_date,
+        "dates_processed": 0,
+        "games_updated": 0,
+        "dates_details": []
+    }
+    
+    # Team abbreviation mapping for matching
+    team_abbrev_map = {
+        # NBA
+        'ATLANTA': 'ATL', 'BOSTON': 'BOS', 'BROOKLYN': 'BKN', 'CHARLOTTE': 'CHA',
+        'CHICAGO': 'CHI', 'CLEVELAND': 'CLE', 'DALLAS': 'DAL', 'DENVER': 'DEN',
+        'DETROIT': 'DET', 'GOLDEN STATE': 'GSW', 'HOUSTON': 'HOU', 'INDIANA': 'IND',
+        'LA CLIPPERS': 'LAC', 'LA LAKERS': 'LAL', 'MEMPHIS': 'MEM', 'MIAMI': 'MIA',
+        'MILWAUKEE': 'MIL', 'MINNESOTA': 'MIN', 'NEW ORLEANS': 'NOP', 'NEW YORK': 'NYK',
+        'OKLA CITY': 'OKC', 'OKLAHOMA CITY': 'OKC', 'ORLANDO': 'ORL', 'PHILADELPHIA': 'PHI',
+        'PHOENIX': 'PHX', 'PORTLAND': 'POR', 'SACRAMENTO': 'SAC', 'SAN ANTONIO': 'SAS',
+        'TORONTO': 'TOR', 'UTAH': 'UTA', 'WASHINGTON': 'WAS',
+        # NHL
+        'ANAHEIM': 'ANA', 'ARIZONA': 'ARI', 'BUFFALO': 'BUF', 'CALGARY': 'CGY',
+        'CAROLINA': 'CAR', 'COLORADO': 'COL', 'COLUMBUS': 'CBJ', 'EDMONTON': 'EDM',
+        'FLORIDA': 'FLA', 'LOS ANGELES': 'LAK', 'MONTREAL': 'MTL', 'NASHVILLE': 'NSH',
+        'NEW JERSEY': 'NJD', 'NY ISLANDERS': 'NYI', 'NY RANGERS': 'NYR', 'OTTAWA': 'OTT',
+        'PITTSBURGH': 'PIT', 'SAN JOSE': 'SJS', 'SEATTLE': 'SEA', 'ST LOUIS': 'STL',
+        'ST. LOUIS': 'STL', 'TAMPA BAY': 'TBL', 'VANCOUVER': 'VAN', 'VEGAS': 'VGK',
+        'WINNIPEG': 'WPG',
+    }
+    
+    # Parse dates
+    current_date = datetime.strptime(start_date, "%Y-%m-%d")
+    end = datetime.strptime(end_date, "%Y-%m-%d")
+    
+    while current_date <= end:
+        date_str = current_date.strftime("%Y-%m-%d")
+        date_display = current_date.strftime("%m/%d")
+        
+        logger.info(f"[Backfill Consensus] Processing {league} for {date_str}")
+        
+        # Scrape consensus data from Covers.com
+        consensus_data = await scrape_covers_consensus(league, date_str)
+        
+        if not consensus_data:
+            logger.warning(f"[Backfill Consensus] No consensus data for {league} on {date_str}")
+            results["dates_details"].append({"date": date_display, "status": "no_data", "games_updated": 0})
+            current_date += timedelta(days=1)
+            continue
+        
+        # Find document for this date
+        doc = await db[collection_name].find_one({"date": date_str})
+        
+        if doc and doc.get('games'):
+            games = doc['games']
+            updated = False
+            games_updated_count = 0
+            
+            for game in games:
+                away_team = game.get('away_team', '').upper()
+                home_team = game.get('home_team', '').upper()
+                
+                # Get abbreviations
+                away_abbrev = team_abbrev_map.get(away_team, away_team[:3])
+                home_abbrev = team_abbrev_map.get(home_team, home_team[:3])
+                
+                # Try to match with consensus data
+                away_consensus = consensus_data.get(away_abbrev, {})
+                home_consensus = consensus_data.get(home_abbrev, {})
+                
+                if away_consensus.get('consensus_pct') or home_consensus.get('consensus_pct'):
+                    game['away_consensus_pct'] = away_consensus.get('consensus_pct')
+                    game['home_consensus_pct'] = home_consensus.get('consensus_pct')
+                    
+                    # Determine public pick
+                    if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
+                        if away_consensus['consensus_pct'] > home_consensus['consensus_pct']:
+                            game['public_pick'] = game['away_team']
+                            game['public_pick_pct'] = away_consensus['consensus_pct']
+                        else:
+                            game['public_pick'] = game['home_team']
+                            game['public_pick_pct'] = home_consensus['consensus_pct']
+                    
+                    updated = True
+                    games_updated_count += 1
+            
+            if updated:
+                await db[collection_name].update_one(
+                    {"date": date_str},
+                    {"$set": {"games": games}}
+                )
+                results["games_updated"] += games_updated_count
+            
+            results["dates_processed"] += 1
+            results["dates_details"].append({"date": date_display, "status": "success", "games_updated": games_updated_count})
+            logger.info(f"[Backfill Consensus] {date_str}: Updated {games_updated_count} games")
+        else:
+            results["dates_details"].append({"date": date_display, "status": "no_games", "games_updated": 0})
+        
+        current_date += timedelta(days=1)
+        
+        # Small delay between requests to be nice to the server
+        await asyncio.sleep(2)
+    
+    logger.info(f"[Backfill Consensus] Results: {results}")
+    
+    return {
+        "success": True,
+        "results": results
+    }
+
+
 @api_router.post("/process/scrape-openers")
 async def scrape_opening_lines_endpoint(target_date: str = None):
     """
