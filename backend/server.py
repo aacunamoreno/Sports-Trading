@@ -7676,6 +7676,14 @@ async def backfill_consensus_data(start_date: str = "2025-12-22", end_date: str 
                     game['away_consensus_pct'] = away_consensus.get('consensus_pct')
                     game['home_consensus_pct'] = home_consensus.get('consensus_pct')
                     
+                    # Store spreads from Covers if available (and we don't have spread already)
+                    if away_consensus.get('spread') is not None and game.get('spread') is None:
+                        # away_consensus['spread'] is the AWAY team's spread
+                        # home_consensus['spread'] is the HOME team's spread
+                        # We store the home team's spread in the 'spread' field
+                        game['spread'] = home_consensus.get('spread')
+                        game['away_spread'] = away_consensus.get('spread')
+                    
                     # Determine public pick
                     if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
                         if away_consensus['consensus_pct'] > home_consensus['consensus_pct']:
