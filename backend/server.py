@@ -7085,6 +7085,10 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
     Betting Record: W-L record of actual user bets (from plays888.co History)
     Edge Record: W-L record of system recommendations (edge-based predictions)
     
+    IMPORTANT: Edge is calculated as PPG_Avg - Line (using bet_line or live line)
+    - Positive edge (>= threshold) = OVER recommendation
+    - Negative edge (<= -threshold) = UNDER recommendation
+    
     Args:
         start_date: Start date in 'YYYY-MM-DD' format (default: 12/22/25)
     
@@ -7100,9 +7104,9 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
     logger.info(f"[#6] Calculating records from {start_date} to {today}")
     
     results = {
-        "NBA": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}, "dates_processed": []},
-        "NHL": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}, "dates_processed": []},
-        "NCAAB": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0}, "dates_processed": []},
+        "NBA": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0, "over_hits": 0, "over_misses": 0, "under_hits": 0, "under_misses": 0}, "dates_processed": []},
+        "NHL": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0, "over_hits": 0, "over_misses": 0, "under_hits": 0, "under_misses": 0}, "dates_processed": []},
+        "NCAAB": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0, "over_hits": 0, "over_misses": 0, "under_hits": 0, "under_misses": 0}, "dates_processed": []},
     }
     
     # Generate list of dates from start_date to today (inclusive)
@@ -7117,12 +7121,15 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
     
     logger.info(f"[#6] Processing {len(dates)} dates: {dates}")
     
-    # Process NBA records
+    # Process NBA records (threshold: 8)
+    NBA_THRESHOLD = 8
     for date in dates:
         doc = await db.nba_opportunities.find_one({"date": date})
         if doc and doc.get('games'):
-            date_edge_hits = 0
-            date_edge_misses = 0
+            date_over_hits = 0
+            date_over_misses = 0
+            date_under_hits = 0
+            date_under_misses = 0
             date_bet_wins = 0
             date_bet_losses = 0
             
@@ -7137,60 +7144,75 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 if game.get('final_score') is None:
                     continue
                 
-                # Edge Record: Only count games with |edge| >= 8 (NBA threshold)
-                edge = game.get('edge') or 0
-                if abs(edge) >= 8:
-                    # Determine actual result: OVER if final_score > line, UNDER if final_score < line
-                    final_score = game.get('final_score')
-                    line = game.get('total') or game.get('opening_line') or 0
-                    
-                    if final_score and line:
-                        actual_result = 'OVER' if final_score > line else 'UNDER'
-                        recommendation = game.get('recommendation', '')
-                        
-                        # Edge hit = recommendation matched actual result
-                        if recommendation:
-                            if recommendation.upper() == actual_result:
-                                date_edge_hits += 1
-                            else:
-                                date_edge_misses += 1
-                        elif edge > 0:  # Positive edge = OVER recommendation
-                            if actual_result == 'OVER':
-                                date_edge_hits += 1
-                            else:
-                                date_edge_misses += 1
-                        elif edge < 0:  # Negative edge = UNDER recommendation
-                            if actual_result == 'UNDER':
-                                date_edge_hits += 1
-                            else:
-                                date_edge_misses += 1
+                # Calculate TRUE edge using combined_ppg and the correct line
+                combined_ppg = game.get('combined_ppg')
+                if combined_ppg is None:
+                    continue
+                
+                # Use bet_line if bet exists, otherwise use live line (total)
+                has_bet = game.get('has_bet', False)
+                bet_line = game.get('bet_line')
+                total = game.get('total')
+                
+                if has_bet and bet_line:
+                    line = float(bet_line)
+                elif total:
+                    line = float(total)
+                else:
+                    continue
+                
+                # Calculate true edge: PPG - Line
+                true_edge = round(float(combined_ppg) - line, 2)
+                
+                # Only count games with edge >= threshold or <= -threshold
+                if true_edge >= NBA_THRESHOLD:
+                    # OVER recommendation
+                    final_score = float(game.get('final_score'))
+                    if final_score > line:
+                        date_over_hits += 1
+                    elif final_score < line:
+                        date_over_misses += 1
+                    # Push (equal) doesn't count
+                elif true_edge <= -NBA_THRESHOLD:
+                    # UNDER recommendation
+                    final_score = float(game.get('final_score'))
+                    if final_score < line:
+                        date_under_hits += 1
+                    elif final_score > line:
+                        date_under_misses += 1
                 
                 # Betting Record: If no actual_bet_record, count from matched games
                 if not actual_record and game.get('has_bet'):
-                    # The field is 'user_bet_hit' (True/False)
                     if game.get('user_bet_hit') is True:
                         date_bet_wins += 1
                     elif game.get('user_bet_hit') is False:
                         date_bet_losses += 1
             
-            results["NBA"]["edge"]["hits"] += date_edge_hits
-            results["NBA"]["edge"]["misses"] += date_edge_misses
+            results["NBA"]["edge"]["over_hits"] += date_over_hits
+            results["NBA"]["edge"]["over_misses"] += date_over_misses
+            results["NBA"]["edge"]["under_hits"] += date_under_hits
+            results["NBA"]["edge"]["under_misses"] += date_under_misses
+            results["NBA"]["edge"]["hits"] += date_over_hits + date_under_hits
+            results["NBA"]["edge"]["misses"] += date_over_misses + date_under_misses
             results["NBA"]["betting"]["wins"] += date_bet_wins
             results["NBA"]["betting"]["losses"] += date_bet_losses
             results["NBA"]["dates_processed"].append({
                 "date": date,
-                "edge": f"{date_edge_hits}H-{date_edge_misses}M",
+                "edge": f"O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}",
                 "betting": f"{date_bet_wins}W-{date_bet_losses}L"
             })
             
-            logger.info(f"[#6] NBA {date}: Edge {date_edge_hits}H-{date_edge_misses}M, Betting {date_bet_wins}W-{date_bet_losses}L")
+            logger.info(f"[#6] NBA {date}: Edge O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}, Betting {date_bet_wins}W-{date_bet_losses}L")
     
-    # Process NHL records
+    # Process NHL records (threshold: 0.6)
+    NHL_THRESHOLD = 0.6
     for date in dates:
         doc = await db.nhl_opportunities.find_one({"date": date})
         if doc and doc.get('games'):
-            date_edge_hits = 0
-            date_edge_misses = 0
+            date_over_hits = 0
+            date_over_misses = 0
+            date_under_hits = 0
+            date_under_misses = 0
             date_bet_wins = 0
             date_bet_losses = 0
             
@@ -7204,31 +7226,41 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 if game.get('final_score') is None:
                     continue
                 
-                # Edge Record: Only count games with |edge| >= 0.6 (NHL threshold)
-                edge = game.get('edge') or 0
-                if abs(edge) >= 0.6:
-                    final_score = game.get('final_score')
-                    line = game.get('total') or game.get('opening_line') or 0
-                    
-                    if final_score and line:
-                        actual_result = 'OVER' if final_score > line else 'UNDER'
-                        recommendation = game.get('recommendation', '')
-                        
-                        if recommendation:
-                            if recommendation.upper() == actual_result:
-                                date_edge_hits += 1
-                            else:
-                                date_edge_misses += 1
-                        elif edge > 0:
-                            if actual_result == 'OVER':
-                                date_edge_hits += 1
-                            else:
-                                date_edge_misses += 1
-                        elif edge < 0:
-                            if actual_result == 'UNDER':
-                                date_edge_hits += 1
-                            else:
-                                date_edge_misses += 1
+                # Calculate TRUE edge using combined_gpg and the correct line
+                combined_gpg = game.get('combined_gpg') or game.get('combined_ppg')
+                if combined_gpg is None:
+                    continue
+                
+                # Use bet_line if bet exists, otherwise use live line (total)
+                has_bet = game.get('has_bet', False)
+                bet_line = game.get('bet_line')
+                total = game.get('total')
+                
+                if has_bet and bet_line:
+                    line = float(bet_line)
+                elif total:
+                    line = float(total)
+                else:
+                    continue
+                
+                # Calculate true edge: GPG - Line
+                true_edge = round(float(combined_gpg) - line, 2)
+                
+                # Only count games with edge >= threshold or <= -threshold
+                if true_edge >= NHL_THRESHOLD:
+                    # OVER recommendation
+                    final_score = float(game.get('final_score'))
+                    if final_score > line:
+                        date_over_hits += 1
+                    elif final_score < line:
+                        date_over_misses += 1
+                elif true_edge <= -NHL_THRESHOLD:
+                    # UNDER recommendation
+                    final_score = float(game.get('final_score'))
+                    if final_score < line:
+                        date_under_hits += 1
+                    elif final_score > line:
+                        date_under_misses += 1
                 
                 # Betting Record (if no actual_bet_record)
                 if not actual_record and game.get('has_bet'):
@@ -7237,24 +7269,31 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                     elif game.get('user_bet_hit') is False:
                         date_bet_losses += 1
             
-            results["NHL"]["edge"]["hits"] += date_edge_hits
-            results["NHL"]["edge"]["misses"] += date_edge_misses
+            results["NHL"]["edge"]["over_hits"] += date_over_hits
+            results["NHL"]["edge"]["over_misses"] += date_over_misses
+            results["NHL"]["edge"]["under_hits"] += date_under_hits
+            results["NHL"]["edge"]["under_misses"] += date_under_misses
+            results["NHL"]["edge"]["hits"] += date_over_hits + date_under_hits
+            results["NHL"]["edge"]["misses"] += date_over_misses + date_under_misses
             results["NHL"]["betting"]["wins"] += date_bet_wins
             results["NHL"]["betting"]["losses"] += date_bet_losses
             results["NHL"]["dates_processed"].append({
                 "date": date,
-                "edge": f"{date_edge_hits}H-{date_edge_misses}M",
+                "edge": f"O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}",
                 "betting": f"{date_bet_wins}W-{date_bet_losses}L"
             })
             
-            logger.info(f"[#6] NHL {date}: Edge {date_edge_hits}H-{date_edge_misses}M, Betting {date_bet_wins}W-{date_bet_losses}L")
+            logger.info(f"[#6] NHL {date}: Edge O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}, Betting {date_bet_wins}W-{date_bet_losses}L")
     
-    # Process NCAAB records
+    # Process NCAAB records (threshold: 10)
+    NCAAB_THRESHOLD = 10
     for date in dates:
         doc = await db.ncaab_opportunities.find_one({"date": date})
         if doc and doc.get('games'):
-            date_edge_hits = 0
-            date_edge_misses = 0
+            date_over_hits = 0
+            date_over_misses = 0
+            date_under_hits = 0
+            date_under_misses = 0
             date_bet_wins = 0
             date_bet_losses = 0
             
@@ -7268,31 +7307,41 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 if game.get('final_score') is None:
                     continue
                 
-                # Edge Record: Only count games with |edge| >= 10 (NCAAB threshold)
-                edge = game.get('edge') or 0
-                if abs(edge) >= 10:
-                    final_score = game.get('final_score')
-                    line = game.get('total') or game.get('opening_line') or 0
-                    
-                    if final_score and line:
-                        actual_result = 'OVER' if final_score > line else 'UNDER'
-                        recommendation = game.get('recommendation', '')
-                        
-                        if recommendation:
-                            if recommendation.upper() == actual_result:
-                                date_edge_hits += 1
-                            else:
-                                date_edge_misses += 1
-                        elif edge > 0:
-                            if actual_result == 'OVER':
-                                date_edge_hits += 1
-                            else:
-                                date_edge_misses += 1
-                        elif edge < 0:
-                            if actual_result == 'UNDER':
-                                date_edge_hits += 1
-                            else:
-                                date_edge_misses += 1
+                # Calculate TRUE edge using combined_ppg and the correct line
+                combined_ppg = game.get('combined_ppg')
+                if combined_ppg is None:
+                    continue
+                
+                # Use bet_line if bet exists, otherwise use live line (total)
+                has_bet = game.get('has_bet', False)
+                bet_line = game.get('bet_line')
+                total = game.get('total')
+                
+                if has_bet and bet_line:
+                    line = float(bet_line)
+                elif total:
+                    line = float(total)
+                else:
+                    continue
+                
+                # Calculate true edge: PPG - Line
+                true_edge = round(float(combined_ppg) - line, 2)
+                
+                # Only count games with edge >= threshold or <= -threshold
+                if true_edge >= NCAAB_THRESHOLD:
+                    # OVER recommendation
+                    final_score = float(game.get('final_score'))
+                    if final_score > line:
+                        date_over_hits += 1
+                    elif final_score < line:
+                        date_over_misses += 1
+                elif true_edge <= -NCAAB_THRESHOLD:
+                    # UNDER recommendation
+                    final_score = float(game.get('final_score'))
+                    if final_score < line:
+                        date_under_hits += 1
+                    elif final_score > line:
+                        date_under_misses += 1
                 
                 # Betting Record (if no actual_bet_record)
                 if not actual_record and game.get('has_bet'):
@@ -7313,17 +7362,21 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                     elif game.get('user_bet_hit') is False:
                         date_bet_losses += 1
             
-            results["NCAAB"]["edge"]["hits"] += date_edge_hits
-            results["NCAAB"]["edge"]["misses"] += date_edge_misses
+            results["NCAAB"]["edge"]["over_hits"] += date_over_hits
+            results["NCAAB"]["edge"]["over_misses"] += date_over_misses
+            results["NCAAB"]["edge"]["under_hits"] += date_under_hits
+            results["NCAAB"]["edge"]["under_misses"] += date_under_misses
+            results["NCAAB"]["edge"]["hits"] += date_over_hits + date_under_hits
+            results["NCAAB"]["edge"]["misses"] += date_over_misses + date_under_misses
             results["NCAAB"]["betting"]["wins"] += date_bet_wins
             results["NCAAB"]["betting"]["losses"] += date_bet_losses
             results["NCAAB"]["dates_processed"].append({
                 "date": date,
-                "edge": f"{date_edge_hits}H-{date_edge_misses}M",
+                "edge": f"O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}",
                 "betting": f"{date_bet_wins}W-{date_bet_losses}L"
             })
             
-            logger.info(f"[#6] NCAAB {date}: Edge {date_edge_hits}H-{date_edge_misses}M, Betting {date_bet_wins}W-{date_bet_losses}L")
+            logger.info(f"[#6] NCAAB {date}: Edge O:{date_over_hits}-{date_over_misses} U:{date_under_hits}-{date_under_misses}, Betting {date_bet_wins}W-{date_bet_losses}L")
     
     logger.info(f"[#6] Final calculated records: NBA={results['NBA']}, NHL={results['NHL']}, NCAAB={results['NCAAB']}")
     return results
