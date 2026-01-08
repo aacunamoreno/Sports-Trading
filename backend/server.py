@@ -7343,7 +7343,12 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 date_bet_losses = actual_record.get('losses', 0)
             
             for game in doc['games']:
-                if game.get('final_score') is None:
+                final_score_raw = game.get('final_score')
+                if final_score_raw is None:
+                    continue
+                
+                final_score = parse_final_score(final_score_raw)
+                if final_score is None:
                     continue
                 
                 # Calculate TRUE edge using combined_ppg and the correct line
@@ -7369,14 +7374,12 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 # Only count games with edge >= threshold or <= -threshold
                 if true_edge >= NCAAB_THRESHOLD:
                     # OVER recommendation
-                    final_score = float(game.get('final_score'))
                     if final_score > line:
                         date_over_hits += 1
                     elif final_score < line:
                         date_over_misses += 1
                 elif true_edge <= -NCAAB_THRESHOLD:
                     # UNDER recommendation
-                    final_score = float(game.get('final_score'))
                     if final_score < line:
                         date_under_hits += 1
                     elif final_score > line:
