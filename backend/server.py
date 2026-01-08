@@ -7434,16 +7434,18 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 if away_score is None or home_score is None:
                     continue
                 
-                # Get spread from Covers.com data
-                if is_away_public_pick:
-                    public_spread = game.get('away_spread')
-                    if public_spread is None and game.get('spread') is not None:
-                        public_spread = -game.get('spread')
-                else:
-                    public_spread = game.get('spread')
+                # Get spread from CBS Sports LIVE LINE (not Covers.com)
+                # The 'spread' field contains the CBS Sports live spread (home team's perspective)
+                cbs_spread = game.get('spread')
                 
-                if public_spread is None:
+                if cbs_spread is None:
                     continue
+                
+                # Calculate spread for the public pick team
+                if is_away_public_pick:
+                    public_spread = -float(cbs_spread)
+                else:
+                    public_spread = float(cbs_spread)
                 
                 try:
                     away_score_f = float(away_score)
@@ -7466,6 +7468,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                                 "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
                                 "consensus_pct": public_pct,
                                 "spread": public_spread,
+                                "spread_source": "CBS Sports Live",
                                 "result": "HIT"
                             })
                         else:
@@ -7476,6 +7479,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                                 "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
                                 "consensus_pct": public_pct,
                                 "spread": public_spread,
+                                "spread_source": "CBS Sports Live",
                                 "result": "MISS"
                             })
                 except (ValueError, TypeError):
