@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-01-08T17:38:53.109522",
+  "success": true,
+  "tests_run": 4,
+  "tests_passed": 4,
+  "test_results": [
+    {
+      "test": "POST /api/process/update-records",
+      "success": true,
+      "details": "Public records calculated: 30-41 with 71 games",
+      "timestamp": "2026-01-08T17:38:52.917050"
+    },
+    {
+      "test": "GET /api/records/public-summary",
+      "success": true,
+      "details": "NBA: 30-41, NHL: 2-3, NCAAB: 1-1",
+      "timestamp": "2026-01-08T17:38:52.953144"
+    },
+    {
+      "test": "GET /api/records/public-detail/NBA",
+      "success": true,
+      "details": "League: NBA, Record: 30-41, Dates: {'2025-12-22': '2-1 (3 games)', '2025-12-23': '1-4 (5 games)'}",
+      "timestamp": "2026-01-08T17:38:52.996149"
+    },
+    {
+      "test": "Public Record Calculation Verification",
+      "success": true,
+      "details": "All dates correct: {'2025-12-22': '\u2713 2-1', '2025-12-23': '\u2713 1-4'}",
+      "timestamp": "2026-01-08T17:38:53.107964"
+    }
+  ]
+}
