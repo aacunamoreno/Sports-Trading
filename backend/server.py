@@ -7153,10 +7153,13 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
     logger.info(f"[#6] Calculating records from {start_date} to {today}")
     
     results = {
-        "NBA": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0, "over_hits": 0, "over_misses": 0, "under_hits": 0, "under_misses": 0}, "dates_processed": []},
-        "NHL": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0, "over_hits": 0, "over_misses": 0, "under_hits": 0, "under_misses": 0}, "dates_processed": []},
-        "NCAAB": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0, "over_hits": 0, "over_misses": 0, "under_hits": 0, "under_misses": 0}, "dates_processed": []},
+        "NBA": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0, "over_hits": 0, "over_misses": 0, "under_hits": 0, "under_misses": 0}, "public": {"hits": 0, "misses": 0, "games": []}, "dates_processed": []},
+        "NHL": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0, "over_hits": 0, "over_misses": 0, "under_hits": 0, "under_misses": 0}, "public": {"hits": 0, "misses": 0, "games": []}, "dates_processed": []},
+        "NCAAB": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0, "over_hits": 0, "over_misses": 0, "under_hits": 0, "under_misses": 0}, "public": {"hits": 0, "misses": 0, "games": []}, "dates_processed": []},
     }
+    
+    # Public Record threshold: only consider games where consensus >= 56%
+    PUBLIC_CONSENSUS_THRESHOLD = 56
     
     # Generate list of dates from start_date to today (inclusive)
     start = datetime.strptime(start_date, '%Y-%m-%d')
