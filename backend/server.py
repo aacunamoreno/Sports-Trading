@@ -7259,7 +7259,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 is_away_public_pick = away_pct >= home_pct
                 public_pct = away_pct if is_away_public_pick else home_pct
                 
-                # Only include if consensus >= 56%
+                # Only include if consensus >= 57%
                 if public_pct < PUBLIC_CONSENSUS_THRESHOLD:
                     continue
                 
@@ -15100,7 +15100,7 @@ async def get_public_records_summary():
 async def get_public_records_detail(league: str):
     """
     Get detailed Public Record breakdown by date and game for verification.
-    Uses 56%+ consensus threshold and Covers.com spread data.
+    Uses 57%+ consensus threshold and Covers.com spread data.
     """
     try:
         league_upper = league.upper()
@@ -15146,7 +15146,7 @@ async def get_public_records_detail(league: str):
             "total_record": f"{record.get('hits', 0)}-{record.get('misses', 0)}",
             "hits": record.get('hits', 0),
             "misses": record.get('misses', 0),
-            "threshold": "56%",
+            "threshold": "57%",
             "spread_source": "CBS Sports Live Line",
             "by_date": by_date
         }
