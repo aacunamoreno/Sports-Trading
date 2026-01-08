@@ -9617,6 +9617,29 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         'SOUTHERN CAL': 'USC',
                         # Ole Miss
                         'MISSISSIPPI': 'OLE MISS',
+                        # North Alabama
+                        'NORTH ALABAMA': 'N ALABAMA',
+                        'N. ALABAMA': 'N ALABAMA',
+                        # Fairleigh Dickinson / FDU
+                        'FAIRLEIGH DICKINSON': 'FDU',
+                        'FAIRLEIGH': 'FDU',
+                        # Chicago State
+                        'CHICAGO STATE': 'CHICAGO ST',
+                        'CHICAGO ST.': 'CHICAGO ST',
+                        # Eastern Kentucky
+                        'EASTERN KENTUCKY': 'E KENTUCKY',
+                        'E. KENTUCKY': 'E KENTUCKY',
+                        # UMass Lowell
+                        'UMASS LOWELL': 'UMASS LOWELL',
+                        'MASSACHUSETTS LOWELL': 'UMASS LOWELL',
+                        # UC San Diego
+                        'UC SAN DIEGO': 'UC SAN DIEGO',
+                        'UCSD': 'UC SAN DIEGO',
+                        # CS Fullerton
+                        'CS FULLERTON': 'CS FULLERTON',
+                        'CAL STATE FULLERTON': 'CS FULLERTON',
+                        'CAL ST FULLERTON': 'CS FULLERTON',
+                        'CAL ST. FULLERTON': 'CS FULLERTON',
                     }
                     for abbrev, full in simple_mappings.items():
                         if abbrev in name:
