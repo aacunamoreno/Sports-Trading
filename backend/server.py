@@ -9076,6 +9076,73 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
         return []
 
 
+@api_router.post("/games/update-line")
+async def update_game_line(request: dict):
+    """
+    Update the line (total) for a specific game.
+    Used for manually correcting NHL lines.
+    
+    Request body:
+    {
+        "league": "nhl",
+        "date": "2026-01-07",
+        "away_team": "Team A",
+        "home_team": "Team B",
+        "new_line": 6.5
+    }
+    """
+    try:
+        league = request.get('league', '').lower()
+        date = request.get('date')
+        away_team = request.get('away_team')
+        home_team = request.get('home_team')
+        new_line = request.get('new_line')
+        
+        if not all([league, date, away_team, home_team, new_line is not None]):
+            raise HTTPException(status_code=400, detail="Missing required fields")
+        
+        collection_name = f"{league}_opportunities"
+        
+        # Find the document
+        doc = await db[collection_name].find_one({"date": date})
+        if not doc:
+            raise HTTPException(status_code=404, detail=f"No data found for {date}")
+        
+        games = doc.get('games', [])
+        game_found = False
+        
+        for i, game in enumerate(games):
+            db_away = game.get('away_team', '').lower()
+            db_home = game.get('home_team', '').lower()
+            
+            if away_team.lower() in db_away or db_away in away_team.lower():
+                if home_team.lower() in db_home or db_home in home_team.lower():
+                    # Update the line
+                    games[i]['total'] = float(new_line)
+                    games[i]['opening_line'] = float(new_line)
+                    games[i]['line_manually_edited'] = True
+                    game_found = True
+                    logger.info(f"[Line Edit] Updated {away_team} @ {home_team} on {date} to {new_line}")
+                    break
+        
+        if not game_found:
+            raise HTTPException(status_code=404, detail=f"Game not found: {away_team} @ {home_team}")
+        
+        # Save back to database
+        await db[collection_name].update_one(
+            {"date": date},
+            {"$set": {"games": games}}
+        )
+        
+        return {"success": True, "message": f"Line updated to {new_line}"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Line Edit] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/opportunities/refresh-lines")
 async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
     """
