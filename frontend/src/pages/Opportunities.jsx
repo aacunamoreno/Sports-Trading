@@ -607,6 +607,11 @@ export default function Opportunities() {
               <span className="text-red-400">{edgeRecord.misses}</span>
             </div>
             <div className="text-[10px] text-muted-foreground text-center">Since 12/22</div>
+            <div className="text-[10px] text-center mt-1 border-t border-primary/20 pt-1">
+              <span className="text-blue-400">O:{edgeRecord.over}</span>
+              <span className="text-muted-foreground mx-1">|</span>
+              <span className="text-orange-400">U:{edgeRecord.under}</span>
+            </div>
           </div>
           {/* Betting Record Badge */}
           <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/30 rounded-lg px-4 py-2">
