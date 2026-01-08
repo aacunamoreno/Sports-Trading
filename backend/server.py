@@ -8997,6 +8997,10 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
             
             # Look for TOTAL bets: "TOTAL o143-110" or "TOTAL u159-110"
             total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)(½)?[-+]\d+', line, re.IGNORECASE)
+            
+            # Also handle "o/u TOTAL 146½ -10" format (need to look at additional context for over/under)
+            ou_total_match = re.search(r'o/u\s+TOTAL\s+(\d+\.?\d*)(½)?\s*[-+]\d+', line, re.IGNORECASE)
+            
             if total_match:
                 bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
                 bet_line = float(total_match.group(2))
@@ -9024,6 +9028,46 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
                         "is_spread": False
                     })
                     logger.info(f"[History] Found TOTAL bet: {bet_type} {bet_line} ({away_team} vs {home_team})")
+            
+            elif ou_total_match:
+                # For "o/u TOTAL X" format, we need to look for additional context
+                # Check nearby lines for "UNDER" or "OVER" indicator, or use edge to determine
+                bet_line = float(ou_total_match.group(1))
+                if ou_total_match.group(2) == '½':
+                    bet_line += 0.5
+                
+                # Default to UNDER for college basketball (more common)
+                # But look for explicit indicators
+                bet_type = 'UNDER'  # Default to UNDER
+                
+                # Look in surrounding lines for OVER/UNDER indication
+                context_lines = ' '.join(lines[max(0, i-3):min(len(lines), i+3)]).upper()
+                if ' OVER ' in context_lines or 'OVER ' in line.upper():
+                    bet_type = 'OVER'
+                elif ' UNDER ' in context_lines or 'UNDER ' in line.upper():
+                    bet_type = 'UNDER'
+                
+                # Find team matchup
+                teams_text = ""
+                for j in range(max(0, i-2), min(len(lines), i+3)):
+                    if 'vrs' in lines[j].lower():
+                        teams_text = lines[j]
+                        break
+                
+                teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
+                if teams_match:
+                    away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
+                    home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                    
+                    raw_bets.append({
+                        "sport": sport or 'NCAAB',
+                        "away_team": away_team,
+                        "home_team": home_team,
+                        "bet_type": bet_type,
+                        "total_line": bet_line,
+                        "is_spread": False
+                    })
+                    logger.info(f"[History] Found o/u TOTAL bet: {bet_type} {bet_line} ({away_team} vs {home_team})")
             
             # Look for SPREAD bets: "[837] TEAM +/-XX-110"
             spread_match = re.search(r'\[\d+\]\s*([A-Z\s\.\']+?)\s*([+-]?\d+\.?\d*)(½)?[-+]\d+', line, re.IGNORECASE)
