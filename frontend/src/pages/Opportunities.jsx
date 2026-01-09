@@ -26,8 +26,32 @@ export default function Opportunities() {
   const [updatingRecords, setUpdatingRecords] = useState(false);
   const [rankingPPGRecord, setRankingPPGRecord] = useState({ high: { hits: 0, misses: 0 }, low: { hits: 0, misses: 0 } });
   const [publicRecord, setPublicRecord] = useState({ hits: 0, misses: 0 });
+  const [publicThreshold, setPublicThreshold] = useState(57);
+  const [loadingPublicRecord, setLoadingPublicRecord] = useState(false);
   const [editingLine, setEditingLine] = useState(null); // { gameIndex: number, value: string }
   const [savingLine, setSavingLine] = useState(false);
+
+  // Fetch public record when threshold changes
+  const fetchPublicRecordByThreshold = async (threshold) => {
+    setLoadingPublicRecord(true);
+    try {
+      const response = await axios.get(`${API}/records/public-by-threshold/${league}?threshold=${threshold}`);
+      setPublicRecord({
+        hits: response.data.hits,
+        misses: response.data.misses,
+        winPct: response.data.win_pct
+      });
+    } catch (error) {
+      console.error('Error fetching public record:', error);
+    } finally {
+      setLoadingPublicRecord(false);
+    }
+  };
+
+  // Update public record when threshold or league changes
+  useEffect(() => {
+    fetchPublicRecordByThreshold(publicThreshold);
+  }, [publicThreshold, league]);
 
   useEffect(() => {
     loadOpportunities();
