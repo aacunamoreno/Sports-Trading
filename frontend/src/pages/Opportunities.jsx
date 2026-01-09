@@ -1506,9 +1506,17 @@ export default function Opportunities() {
                             game.spread ? (
                               <div className="flex flex-col items-center">
                                 <span className="text-xs text-gray-400">{game.spread_team || game.home_team}</span>
-                                <span className={`font-bold ${game.spread < 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                  {game.spread > 0 ? '+' : ''}{game.spread}
-                                </span>
+                                {(() => {
+                                  // If spread_team is away team (favorite), we need to invert the spread
+                                  // because spread is stored as home team's perspective
+                                  const isAwayFavorite = game.spread_team && game.spread_team !== game.home_team;
+                                  const displaySpread = isAwayFavorite ? -game.spread : game.spread;
+                                  return (
+                                    <span className={`font-bold ${displaySpread < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                      {displaySpread > 0 ? '+' : ''}{displaySpread}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             ) : (
                               <span className="text-muted-foreground">-</span>
