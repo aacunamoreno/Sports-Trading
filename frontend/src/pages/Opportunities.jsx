@@ -633,7 +633,7 @@ export default function Opportunities() {
     }
   };
 
-  // League-specific config (NFL eliminated)
+  // League-specific config
   const leagueConfig = {
     NBA: {
       statLabel: 'PPG',
@@ -661,6 +661,15 @@ export default function Opportunities() {
       underRange: '274-365',
       totalTeams: 365,
       edgeThreshold: 10
+    },
+    NFL: {
+      statLabel: 'PPG',
+      combinedLabel: 'PPG Avg',
+      overRange: '1-12',
+      noEdgeRange: '13-20',
+      underRange: '21-32',
+      totalTeams: 32,
+      edgeThreshold: 6
     }
   };
 
