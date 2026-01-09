@@ -973,11 +973,11 @@ export default function Opportunities() {
             {(day === 'yesterday' || day === 'custom') && data.games?.length > 0 && (
               <>
                 <div><span className="text-muted-foreground">Hits:</span> <span className="font-mono text-green-400">{data.games.filter(g => {
-                  const edgeThreshold = league === 'NBA' ? 8 : league === 'NCAAB' ? 10 : 0.6;
+                  const edgeThreshold = league === 'NBA' ? 8 : league === 'NCAAB' ? 10 : league === 'NFL' ? 6 : 0.6;
                   return g.result_hit === true && g.edge !== null && g.edge !== undefined && Math.abs(g.edge) >= edgeThreshold;
                 }).length}</span></div>
                 <div><span className="text-muted-foreground">Misses:</span> <span className="font-mono text-red-400">{data.games.filter(g => {
-                  const edgeThreshold = league === 'NBA' ? 8 : league === 'NCAAB' ? 10 : 0.6;
+                  const edgeThreshold = league === 'NBA' ? 8 : league === 'NCAAB' ? 10 : league === 'NFL' ? 6 : 0.6;
                   return g.result_hit === false && g.edge !== null && g.edge !== undefined && Math.abs(g.edge) >= edgeThreshold;
                 }).length}</span></div>
                 <div className="border-l border-border pl-4 ml-2">
