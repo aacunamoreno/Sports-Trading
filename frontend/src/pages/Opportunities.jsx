@@ -1583,11 +1583,12 @@ export default function Opportunities() {
                               <div className="flex flex-col items-center">
                                 <span className="text-xs text-gray-400">{game.opening_spread_team || game.spread_team || game.home_team}</span>
                                 {(() => {
-                                  // If spread_team is away team (favorite), invert the spread
+                                  // Use helper function to determine if spread_team is home or away
                                   const spreadTeam = game.opening_spread_team || game.spread_team;
-                                  const isAwayFavorite = spreadTeam && spreadTeam !== game.home_team;
                                   const spreadValue = game.opening_spread || game.spread;
-                                  const displaySpread = isAwayFavorite ? -spreadValue : spreadValue;
+                                  // If spread_team is NOT the home team, invert the spread
+                                  const isHome = isSpreadTeamHome(spreadTeam, game.home_team, game.away_team);
+                                  const displaySpread = isHome ? spreadValue : -spreadValue;
                                   return (
                                     <span className={`font-bold ${displaySpread < 0 ? 'text-red-400' : 'text-green-400'}`}>
                                       {displaySpread > 0 ? '+' : ''}{displaySpread}
