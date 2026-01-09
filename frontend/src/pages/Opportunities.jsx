@@ -1034,7 +1034,7 @@ export default function Opportunities() {
                   <th className="text-center py-3 px-2">Open</th>
                   <th className="text-center py-3 px-2">Line</th>
                   {showHistoricalColumns && <th className="text-center py-3 px-2">Final</th>}
-                  <th className="text-center py-3 px-2">{league === 'NBA' || league === 'NCAAB' ? 'PPG' : 'GPG'} Avg</th>
+                  <th className="text-center py-3 px-2">{league === 'NBA' || league === 'NCAAB' || league === 'NFL' ? 'PPG' : 'GPG'} Avg</th>
                   <th className="text-center py-3 px-2">Edge</th>
                   {!showHistoricalColumns && <th className="text-center py-3 px-2" title="Opening spread/moneyline from Scrape Tomorrow">{league === 'NHL' ? 'Open ML' : 'Open Sprd'}</th>}
                   {!showHistoricalColumns && <th className="text-center py-3 px-2" title="Live spread/moneyline from Refresh Lines">{league === 'NHL' ? 'ML' : 'Sprd'}</th>}
@@ -1044,7 +1044,7 @@ export default function Opportunities() {
               <tbody>
                 {data.games.map((game, index) => {
                   // Check if edge is below threshold - if so, it's a "No Bet" game
-                  const edgeThreshold = league === 'NBA' ? 8 : league === 'NCAAB' ? 10 : 0.6;
+                  const edgeThreshold = league === 'NBA' ? 8 : league === 'NCAAB' ? 10 : league === 'NFL' ? 6 : 0.6;
                   const isNoBet = game.edge === null || game.edge === undefined || Math.abs(game.edge) < edgeThreshold;
                   
                   // Calculate dot-based recommendation
