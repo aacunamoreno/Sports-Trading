@@ -1476,9 +1476,18 @@ export default function Opportunities() {
                             (game.opening_spread || game.spread) ? (
                               <div className="flex flex-col items-center">
                                 <span className="text-xs text-gray-400">{game.opening_spread_team || game.spread_team || game.home_team}</span>
-                                <span className={`font-bold ${(game.opening_spread || game.spread) < 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                  {(game.opening_spread || game.spread) > 0 ? '+' : ''}{game.opening_spread || game.spread}
-                                </span>
+                                {(() => {
+                                  // If spread_team is away team (favorite), invert the spread
+                                  const spreadTeam = game.opening_spread_team || game.spread_team;
+                                  const isAwayFavorite = spreadTeam && spreadTeam !== game.home_team;
+                                  const spreadValue = game.opening_spread || game.spread;
+                                  const displaySpread = isAwayFavorite ? -spreadValue : spreadValue;
+                                  return (
+                                    <span className={`font-bold ${displaySpread < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                      {displaySpread > 0 ? '+' : ''}{displaySpread}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             ) : (
                               <span className="text-muted-foreground">-</span>
