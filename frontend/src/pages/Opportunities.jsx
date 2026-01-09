@@ -240,6 +240,7 @@ export default function Opportunities() {
       
       const endpoint = league === 'NBA' ? `/scores/nba/update?date=${dateStr}` 
                      : league === 'NHL' ? `/scores/nhl/update?date=${dateStr}`
+                     : league === 'NFL' ? `/scores/nfl/update?date=${dateStr}`
                      : `/scores/ncaab/update?date=${dateStr}`;
       
       const response = await axios.post(`${API}${endpoint}`, {}, { timeout: 120000 });
