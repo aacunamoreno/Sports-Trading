@@ -15089,6 +15089,86 @@ async def set_ranking_ppg(data: RankingPPGUpdate):
 
 # ================= BET CANCELLED FLAG =================
 
+@api_router.get("/records/public-by-threshold/{league}")
+async def get_public_records_by_threshold(league: str, threshold: int = 57):
+    """
+    Calculate Public Record dynamically based on consensus threshold.
+    Threshold can be 57-70%.
+    """
+    try:
+        league_upper = league.upper()
+        if league_upper not in ['NBA', 'NHL', 'NCAAB']:
+            raise HTTPException(status_code=400, detail="Invalid league")
+        
+        collection_name = f"{league_upper.lower()}_opportunities"
+        
+        # Get all documents
+        cursor = db[collection_name].find({})
+        docs = await cursor.to_list(length=1000)
+        
+        total_hits = 0
+        total_misses = 0
+        
+        for doc in docs:
+            games = doc.get('games', [])
+            
+            for g in games:
+                away_pct = g.get('away_consensus_pct') or 0
+                home_pct = g.get('home_consensus_pct') or 0
+                
+                is_away_public = away_pct >= home_pct
+                public_pct = away_pct if is_away_public else home_pct
+                
+                # Apply threshold filter
+                if public_pct < threshold:
+                    continue
+                
+                if is_away_public:
+                    public_spread = g.get('away_spread')
+                else:
+                    public_spread = g.get('spread')
+                
+                away_score = g.get('away_score')
+                home_score = g.get('home_score')
+                
+                if away_score is None or home_score is None or public_spread is None:
+                    continue
+                
+                try:
+                    if is_away_public:
+                        covered = float(away_score) + float(public_spread) > float(home_score)
+                        push = float(away_score) + float(public_spread) == float(home_score)
+                    else:
+                        covered = float(home_score) + float(public_spread) > float(away_score)
+                        push = float(home_score) + float(public_spread) == float(away_score)
+                    
+                    if push:
+                        continue
+                    
+                    if covered:
+                        total_hits += 1
+                    else:
+                        total_misses += 1
+                except (ValueError, TypeError):
+                    continue
+        
+        total_games = total_hits + total_misses
+        win_pct = (total_hits / total_games * 100) if total_games > 0 else 0
+        
+        return {
+            "league": league_upper,
+            "threshold": f"{threshold}%",
+            "record": f"{total_hits}-{total_misses}",
+            "hits": total_hits,
+            "misses": total_misses,
+            "total_games": total_games,
+            "win_pct": round(win_pct, 1)
+        }
+    except Exception as e:
+        logger.error(f"Error calculating public record by threshold: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 class BetCancelledUpdate(BaseModel):
     league: str
     date: str
