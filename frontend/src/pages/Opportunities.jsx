@@ -8,6 +8,65 @@ import { toast } from 'sonner';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// NBA team nickname to city/region mapping for spread comparison
+const NBA_TEAM_MAPPING = {
+  'Hawks': 'Atlanta',
+  'Celtics': 'Boston',
+  'Nets': 'Brooklyn',
+  'Hornets': 'Charlotte',
+  'Bulls': 'Chicago',
+  'Cavaliers': 'Cleveland',
+  'Mavericks': 'Dallas',
+  'Nuggets': 'Denver',
+  'Pistons': 'Detroit',
+  'Warriors': 'Golden State',
+  'Rockets': 'Houston',
+  'Pacers': 'Indiana',
+  'Clippers': 'LA Clippers',
+  'Lakers': 'LA Lakers',
+  'Grizzlies': 'Memphis',
+  'Heat': 'Miami',
+  'Bucks': 'Milwaukee',
+  'Timberwolves': 'Minnesota',
+  'Pelicans': 'New Orleans',
+  'Knicks': 'New York',
+  'Thunder': 'Okla City',
+  'Magic': 'Orlando',
+  '76ers': 'Philadelphia',
+  'Suns': 'Phoenix',
+  'Trail Blazers': 'Portland',
+  'Blazers': 'Portland',
+  'Kings': 'Sacramento',
+  'Spurs': 'San Antonio',
+  'Raptors': 'Toronto',
+  'Jazz': 'Utah',
+  'Wizards': 'Washington',
+};
+
+// Helper function to check if spread_team belongs to home team
+const isSpreadTeamHome = (spreadTeam, homeTeam, awayTeam) => {
+  if (!spreadTeam) return true; // Default to home if no spread_team
+  
+  // Direct match
+  if (spreadTeam === homeTeam) return true;
+  if (spreadTeam === awayTeam) return false;
+  
+  // Check if spread_team is a nickname that maps to home_team
+  const mappedCity = NBA_TEAM_MAPPING[spreadTeam];
+  if (mappedCity) {
+    if (mappedCity === homeTeam || homeTeam.includes(mappedCity) || mappedCity.includes(homeTeam)) return true;
+    if (mappedCity === awayTeam || awayTeam.includes(mappedCity) || mappedCity.includes(awayTeam)) return false;
+  }
+  
+  // Fallback: check if names contain each other
+  if (homeTeam.toLowerCase().includes(spreadTeam.toLowerCase()) || 
+      spreadTeam.toLowerCase().includes(homeTeam.toLowerCase())) return true;
+  if (awayTeam.toLowerCase().includes(spreadTeam.toLowerCase()) || 
+      spreadTeam.toLowerCase().includes(awayTeam.toLowerCase())) return false;
+  
+  return true; // Default to home
+};
+
 export default function Opportunities() {
   const [league, setLeague] = useState('NBA');
   const [day, setDay] = useState('today');
