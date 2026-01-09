@@ -15097,7 +15097,7 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57):
     """
     try:
         league_upper = league.upper()
-        if league_upper not in ['NBA', 'NHL', 'NCAAB']:
+        if league_upper not in ['NBA', 'NHL', 'NCAAB', 'NFL']:
             raise HTTPException(status_code=400, detail="Invalid league")
         
         collection_name = f"{league_upper.lower()}_opportunities"
@@ -15366,7 +15366,7 @@ async def get_public_records_detail(league: str):
     """
     try:
         league_upper = league.upper()
-        if league_upper not in ['NBA', 'NHL', 'NCAAB']:
+        if league_upper not in ['NBA', 'NHL', 'NCAAB', 'NFL']:
             raise HTTPException(status_code=400, detail="Invalid league")
         
         record = await db.public_records.find_one({"league": league_upper})
