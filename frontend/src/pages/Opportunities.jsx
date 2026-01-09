@@ -626,6 +626,9 @@ export default function Opportunities() {
     } else if (currentLeague === 'NCAAB') {
       if (absEdge >= 10) return 'text-green-400 font-bold';
       return 'text-red-400 font-bold';
+    } else if (currentLeague === 'NFL') {
+      if (absEdge >= 6) return 'text-green-400 font-bold';
+      return 'text-red-400 font-bold';
     } else {
       // NHL
       if (absEdge >= 0.6) return 'text-green-400 font-bold';
