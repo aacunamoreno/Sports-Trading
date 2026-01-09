@@ -352,6 +352,9 @@ export default function Opportunities() {
         } else if (league === 'NCAAB' && newEdge !== null) {
           if (newEdge >= 9) newRecommendation = 'OVER';
           else if (newEdge <= -9) newRecommendation = 'UNDER';
+        } else if (league === 'NFL' && newEdge !== null) {
+          if (newEdge >= 6) newRecommendation = 'OVER';
+          else if (newEdge <= -6) newRecommendation = 'UNDER';
         }
         
         updatedGames[gameIndex] = {
