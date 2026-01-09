@@ -750,15 +750,37 @@ export default function Opportunities() {
               </div>
             </div>
           </div>
-          {/* Public Consensus Record Badge */}
+          {/* Public Consensus Record Badge with Threshold Selector */}
           <div className="bg-gradient-to-r from-cyan-600/20 to-blue-600/20 border border-cyan-500/30 rounded-lg px-4 py-2">
-            <div className="text-xs text-muted-foreground text-center">📢 Public Record</div>
-            <div className="text-xl font-bold text-center">
-              <span className="text-green-400">{publicRecord.hits}</span>
-              <span className="text-muted-foreground mx-1">-</span>
-              <span className="text-red-400">{publicRecord.misses}</span>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xs text-muted-foreground">📢 Public</span>
+              <select
+                value={publicThreshold}
+                onChange={(e) => setPublicThreshold(parseInt(e.target.value))}
+                className="bg-gray-800 border border-gray-600 rounded px-1 py-0.5 text-xs text-cyan-400 focus:outline-none focus:border-cyan-500"
+                title="Consensus threshold"
+              >
+                {[57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70].map(t => (
+                  <option key={t} value={t}>{t}%+</option>
+                ))}
+              </select>
             </div>
-            <div className="text-[10px] text-muted-foreground text-center">Spread Picks</div>
+            <div className="text-xl font-bold text-center">
+              {loadingPublicRecord ? (
+                <span className="text-muted-foreground">...</span>
+              ) : (
+                <>
+                  <span className="text-green-400">{publicRecord.hits}</span>
+                  <span className="text-muted-foreground mx-1">-</span>
+                  <span className="text-red-400">{publicRecord.misses}</span>
+                </>
+              )}
+            </div>
+            {publicRecord.winPct !== undefined && !loadingPublicRecord && (
+              <div className={`text-[10px] text-center font-medium ${publicRecord.winPct >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                {publicRecord.winPct}% Win Rate
+              </div>
+            )}
           </div>
           {/* Live Lines Toggle */}
           {day === 'today' && (
