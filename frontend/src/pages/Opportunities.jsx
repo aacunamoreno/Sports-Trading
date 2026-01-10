@@ -92,6 +92,10 @@ export default function Opportunities() {
   const [showCompoundModal, setShowCompoundModal] = useState(false);
   const [compoundRecords, setCompoundRecords] = useState([]);
   const [loadingCompound, setLoadingCompound] = useState(false);
+  // NFL week selector state
+  const [nflWeeks, setNflWeeks] = useState([]);
+  const [selectedNflWeek, setSelectedNflWeek] = useState(null);
+  const [showWeekPicker, setShowWeekPicker] = useState(false);
 
   // Fetch compound public records for the modal
   const fetchCompoundRecords = async () => {
