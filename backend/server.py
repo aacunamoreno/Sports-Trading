@@ -10065,7 +10065,7 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
             }}
         )
         
-        logger.info(f"[Refresh Lines & Bets] Updated {lines_updated} lines, added {bets_added} bets, skipped {bets_skipped} duplicates, {len(plays)} plays")
+        logger.info(f"[Refresh Lines & Bets] Updated {lines_updated} lines, added {bets_added} bets, skipped {bets_skipped} duplicates, {consensus_updated} consensus, {len(plays)} plays")
         
         return {
             "success": True,
@@ -10074,6 +10074,7 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
             "lines_updated": lines_updated,
             "bets_added": bets_added,
             "bets_skipped_duplicates": bets_skipped,
+            "consensus_updated": consensus_updated,
             "total_games": original_count,
             "last_updated": now_arizona.strftime('%I:%M %p')
         }
