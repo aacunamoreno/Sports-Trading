@@ -9980,6 +9980,56 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     "bet_count": game.get('bet_count', 1)
                 })
         
+        # Scrape public consensus percentages from Covers.com
+        consensus_updated = 0
+        try:
+            logger.info(f"[Refresh Lines] Scraping consensus data from Covers.com for {league} on {target_date}")
+            consensus_data = await scrape_covers_consensus(league.upper(), target_date)
+            
+            if consensus_data:
+                logger.info(f"[Refresh Lines] Got consensus data for {len(consensus_data)} teams")
+                
+                for game in games:
+                    away = game.get('away_team', '').upper()
+                    home = game.get('home_team', '').upper()
+                    
+                    # Try to match teams in consensus data
+                    away_consensus = None
+                    home_consensus = None
+                    
+                    # Direct match first
+                    if away in consensus_data:
+                        away_consensus = consensus_data[away].get('consensus_pct')
+                    if home in consensus_data:
+                        home_consensus = consensus_data[home].get('consensus_pct')
+                    
+                    # Fuzzy match if direct match fails
+                    if away_consensus is None or home_consensus is None:
+                        for team_key, team_data in consensus_data.items():
+                            team_key_upper = team_key.upper()
+                            # Check if team names are similar
+                            if away_consensus is None and (away in team_key_upper or team_key_upper in away):
+                                away_consensus = team_data.get('consensus_pct')
+                                logger.debug(f"[Consensus] Fuzzy matched {away} -> {team_key}")
+                            if home_consensus is None and (home in team_key_upper or team_key_upper in home):
+                                home_consensus = team_data.get('consensus_pct')
+                                logger.debug(f"[Consensus] Fuzzy matched {home} -> {team_key}")
+                    
+                    # Update game with consensus data
+                    if away_consensus is not None or home_consensus is not None:
+                        if away_consensus is not None:
+                            game['away_consensus_pct'] = away_consensus
+                        if home_consensus is not None:
+                            game['home_consensus_pct'] = home_consensus
+                        consensus_updated += 1
+                        logger.info(f"[Consensus] Updated {away} ({away_consensus}%) @ {home} ({home_consensus}%)")
+                
+                logger.info(f"[Refresh Lines] Updated consensus for {consensus_updated} games")
+            else:
+                logger.warning(f"[Refresh Lines] No consensus data returned from Covers.com")
+        except Exception as e:
+            logger.warning(f"[Refresh Lines] Error fetching consensus data: {e}")
+        
         # Save updated games and plays
         # CRITICAL: Calculate bet results for completed games with final scores
         # This ensures results are updated even for live bets that complete during the day
