@@ -8317,12 +8317,12 @@ async def trigger_update_records(start_date: str = "2025-12-22"):
 async def get_records_summary():
     """
     Get a summary of both betting and edge records for all leagues.
-    NFL eliminated - only returns NBA, NHL, NCAAB
+    Returns NBA, NHL, NCAAB, and NFL
     """
     try:
         summary = {}
         
-        for league in ["NBA", "NHL", "NCAAB"]:
+        for league in ["NBA", "NHL", "NCAAB", "NFL"]:
             # Get betting record
             betting = await db.compound_records.find_one({"league": league}, {"_id": 0})
             # Get edge record  
