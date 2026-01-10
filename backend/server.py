@@ -15196,6 +15196,24 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57):
         if league_upper not in ['NBA', 'NHL', 'NCAAB', 'NFL']:
             raise HTTPException(status_code=400, detail="Invalid league")
         
+        # For NHL and NCAAB, return stored 0-0 record (no public betting tracking for these)
+        if league_upper in ['NHL', 'NCAAB']:
+            stored_record = await db.public_records.find_one({"league": league_upper})
+            if stored_record:
+                hits = stored_record.get('hits', 0)
+                misses = stored_record.get('misses', 0)
+                total = hits + misses
+                win_pct = (hits / total * 100) if total > 0 else 0
+                return {
+                    "league": league_upper,
+                    "threshold": f"{threshold}%",
+                    "record": f"{hits}-{misses}",
+                    "hits": hits,
+                    "misses": misses,
+                    "total_games": total,
+                    "win_pct": round(win_pct, 1)
+                }
+        
         collection_name = f"{league_upper.lower()}_opportunities"
         
         # Get all documents
