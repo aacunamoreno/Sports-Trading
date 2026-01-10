@@ -1,78 +1,99 @@
-# PRD - SportsTrading Betting Analysis System
+# BetScout - Automated Betting Analysis System
 
 ## Original Problem Statement
-Build an automated betting analysis system for `plays888.co` that:
-- Scrapes game data (lines, scores, spreads, moneylines)
-- Scrapes betting consensus data from multiple sources
-- Calculates betting edges
-- Tracks user bets
-- Displays all information in a unified dashboard
+Build an automated betting analysis system for `plays888.co` that scrapes game data (lines, scores, spreads, moneylines), betting consensus data, calculates betting edges, tracks user bets, and displays all information in a unified dashboard.
 
-## User Personas
-- Sports bettor who wants data-driven insights
-- Needs real-time and historical betting analysis
+## Core Features Implemented
 
-## Core Requirements
-1. Multi-sport support (NBA, NHL, NCAAB, NFL)
-2. Dynamic public record with adjustable consensus threshold (57%-70%)
-3. Edge calculations based on line movements
-4. Historical data tracking and backfill capability
-5. Integration with plays888.co for bet tracking
+### Data Scraping & Analysis
+- Live lines scraping from CBS Sports (NBA, NHL, NCAAB, NFL)
+- Public betting consensus scraping from Covers.com
+- User bet tracking from plays888.co
+- Edge calculation based on PPG (Points Per Game) averages
+- Automated bet monitoring with background loops
 
----
+### Dashboard Features
+- Multi-league support (NBA, NHL, NCAAB, NFL)
+- Today/Yesterday/Tomorrow views with calendar picker
+- NFL Week Selector (Weeks 1-18) for historical data
+- Edge Record, Betting Record, Ranking PPG, Public Record tracking
+- Compound Public Record Modal with percentage-range breakdown
+- Real-time line updates via "Refresh Lines & Bets" button
 
-## Changelog
+### Data Management
+- Full NFL historical data backfill (18 weeks)
+- Manual record update functionality
+- Excel file import for data corrections
+- MongoDB storage for all leagues
 
-### 2026-01-09
-- **Added NFL Support:**
-  - Parsed 261 NFL games from Excel file (corrected week offset)
-  - Scraped scores from ESPN for 2025 NFL season
-  - Added NFL to Public Record API endpoint
-  - Updated frontend with NFL tab and league-specific settings
-  - NFL Public Record: 50-119 at 57% threshold (29.6% win rate)
+## What's Been Implemented (Latest First)
 
-- **Fixed:** Public Record display showing 131-131 instead of correct 163-166 for NBA
-  - Removed conflicting useEffect that overwrote dynamic threshold data
+### January 10, 2026
+- **Public Consensus Scraping on Refresh**: Integrated `scrape_covers_consensus` into the "Refresh Lines & Bets" endpoint so clicking the button now scrapes and updates public betting percentages from Covers.com
+- **UI Update**: Consensus percentages now display for today's games (not just historical), showing in red next to team rankings
 
 ### Previous Session
-- Historical NBA data backfill (Oct 21 - Dec 21, 2025)
-- Dynamic Public Record threshold selector (57%-70%)
-- NHL Line editing feature with automatic Edge recalculation
-- Team name aliases for NCAAB
-- Spread display fix for favored away teams
-
----
-
-## P0 Issues (Critical)
-1. **OVER/UNDER Scraper Bug** - `plays888.co` scraper misidentifies "o/u TOTAL..." format bets
-
-## P1 Issues (High)
-1. **Refactor server.py** - 15,000+ line monolith needs to be broken into modules
-2. **Custom Betting Rules UI** - Allow users to create/manage rules
-
-## P2 Issues (Medium)
-1. **Regulation Time Bet Bug** - NHL bets with "REG.TIME" incorrectly result in PUSHes
-
----
+- Full NFL Data Overhaul (all 18 weeks)
+- NFL Week Selector component
+- Compound Public Record Modal
+- Spread display bug fix (home favorites)
+- Multiple data corrections per user
 
 ## Architecture
-```
-/app/
-├── backend/
-│   ├── server.py (monolithic - needs refactoring)
-│   └── requirements.txt
-├── frontend/
-│   └── src/pages/Opportunities.jsx (main UI)
-└── memory/PRD.md
-```
+
+### Backend: `/app/backend/server.py`
+- Monolithic FastAPI application
+- Playwright for web scraping
+- APScheduler for scheduled jobs
+- MongoDB via Motor (async)
+
+### Frontend: `/app/frontend/src/pages/Opportunities.jsx`
+- Single large React component
+- Uses Shadcn/UI components
+
+### Database: MongoDB (test_database)
+- Collections: `nba_opportunities`, `nhl_opportunities`, `ncaab_opportunities`, `nfl_opportunities`
+- Records: `compound_records`, `ranking_ppg_records`
 
 ## Key API Endpoints
-- `GET /api/records/public-by-threshold/{league}?threshold=57` - Dynamic public record
-- `GET /api/opportunities/nfl?day=today` - NFL opportunities
-- `POST /api/game/update-line` - Update game line
+- `POST /api/opportunities/refresh-lines` - Refresh lines, bets, AND consensus data
+- `GET /api/records/public-compound/{league}` - Compound public record data
+- `GET /api/opportunities/nfl/{week}` - NFL games by week
+- `GET /api/records/summary` - All record summaries
 
-## Database Collections
-- `nba_opportunities` - NBA game data
-- `nhl_opportunities` - NHL game data  
-- `ncaab_opportunities` - NCAAB game data
-- `nfl_opportunities` - NFL game data (18 documents, 261 games)
+## Known Issues (P1)
+
+### Issue 1: plays888.co OVER/UNDER Scraper Bug
+- The scraper incorrectly identifies bet types (OVER vs UNDER)
+- Status: NOT STARTED
+
+### Issue 2: plays888.co "Regulation Time" Bug
+- Bets marked "REG.TIME" not handled correctly
+- Affects NHL games especially
+- Status: NOT STARTED
+
+## Technical Debt (P1)
+
+### server.py Refactoring
+- File is extremely large and monolithic
+- Needs splitting into: `routes/`, `services/`, `scrapers/`
+- Status: NOT STARTED
+
+### Opportunities.jsx Refactoring
+- Component is over 2000 lines
+- Modal, week selector, data display should be separate components
+- Status: NOT STARTED
+
+## Upcoming Tasks
+- (P2) NCAAB records verification with user guidance
+- (P1) Custom betting rules UI
+
+## Credentials
+- plays888.co Betting: `jac075` / `acuna2025!`
+- plays888.co Lines: `jac083` / `acuna2025!`
+
+## 3rd Party Integrations
+- Playwright (web scraping)
+- BeautifulSoup (HTML parsing)
+- APScheduler (scheduled jobs)
+- openpyxl (Excel parsing)
