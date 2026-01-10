@@ -15505,15 +15505,25 @@ async def get_ranking_ppg_summary():
     try:
         summary = {}
         
-        for league in ['NBA', 'NHL', 'NCAAB']:
+        for league in ['NBA', 'NHL', 'NCAAB', 'NFL']:
             # Read from stored ranking_ppg_records collection
             record = await db.ranking_ppg_records.find_one({"league": league})
             
             if record:
-                high_hits = record.get('high_hits', 0)
-                high_misses = record.get('high_misses', 0)
-                low_hits = record.get('low_hits', 0)
-                low_misses = record.get('low_misses', 0)
+                # Handle both old format (high_hits) and new format (high: {hits, misses})
+                if 'high' in record and isinstance(record['high'], dict):
+                    high_hits = record['high'].get('hits', 0)
+                    high_misses = record['high'].get('misses', 0)
+                else:
+                    high_hits = record.get('high_hits', 0)
+                    high_misses = record.get('high_misses', 0)
+                    
+                if 'low' in record and isinstance(record['low'], dict):
+                    low_hits = record['low'].get('hits', 0)
+                    low_misses = record['low'].get('misses', 0)
+                else:
+                    low_hits = record.get('low_hits', 0)
+                    low_misses = record.get('low_misses', 0)
             else:
                 high_hits = high_misses = low_hits = low_misses = 0
             
