@@ -876,7 +876,7 @@ export default function Opportunities() {
           >
             <div className="flex items-center justify-center gap-2">
               <span className="text-xs text-muted-foreground">📢 Public</span>
-              <span className="text-xs text-cyan-400">{publicThreshold}%+</span>
+              <span className="text-[10px] bg-cyan-600/30 text-cyan-300 px-1.5 py-0.5 rounded">Breakdown</span>
             </div>
             <div className="text-xl font-bold text-center">
               {loadingPublicRecord ? (
