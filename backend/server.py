@@ -15169,6 +15169,112 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.get("/records/public-compound/{league}")
+async def get_public_compound_records(league: str):
+    """
+    Calculate compound Public Records for fade-the-public analysis.
+    Returns records for threshold ranges: 57-58, 59-60, 61-62, etc.
+    """
+    try:
+        league_upper = league.upper()
+        if league_upper not in ['NBA', 'NHL', 'NCAAB', 'NFL']:
+            raise HTTPException(status_code=400, detail="Invalid league")
+        
+        collection_name = f"{league_upper.lower()}_opportunities"
+        
+        # Get all documents
+        cursor = db[collection_name].find({})
+        docs = await cursor.to_list(length=1000)
+        
+        # Define threshold pairs
+        threshold_pairs = [
+            (57, 58), (59, 60), (61, 62), (63, 64),
+            (65, 66), (67, 68), (69, 70), (71, 72),
+            (73, 74), (75, 76), (77, 78), (79, 80),
+        ]
+        
+        results = []
+        
+        for low, high in threshold_pairs:
+            public_wins = 0
+            public_losses = 0
+            
+            for doc in docs:
+                games = doc.get('games', [])
+                
+                for g in games:
+                    away_pct = g.get('away_consensus_pct') or 0
+                    home_pct = g.get('home_consensus_pct') or 0
+                    
+                    # Determine public side - must be within threshold range
+                    public_side = None
+                    if low <= away_pct <= high:
+                        public_side = 'away'
+                    elif low <= home_pct <= high:
+                        public_side = 'home'
+                    else:
+                        continue
+                    
+                    # Get spread and scores
+                    spread = g.get('spread')  # Home team spread
+                    away_score = g.get('away_score')
+                    home_score = g.get('home_score')
+                    
+                    if away_score is None or home_score is None or spread is None:
+                        continue
+                    
+                    try:
+                        # Calculate result based on home spread
+                        home_result = float(home_score) + float(spread) - float(away_score)
+                        
+                        if home_result == 0:  # Push
+                            continue
+                        
+                        if public_side == 'home':
+                            if home_result > 0:
+                                public_wins += 1
+                            else:
+                                public_losses += 1
+                        else:  # away
+                            if home_result < 0:
+                                public_wins += 1
+                            else:
+                                public_losses += 1
+                    except (ValueError, TypeError):
+                        continue
+            
+            total = public_wins + public_losses
+            if total > 0:
+                public_win_pct = round(public_wins / total * 100, 1)
+                fade_win_pct = round(public_losses / total * 100, 1)
+                
+                results.append({
+                    "range": f"{low}-{high}%",
+                    "low": low,
+                    "high": high,
+                    "public_record": f"{public_wins}-{public_losses}",
+                    "fade_record": f"{public_losses}-{public_wins}",
+                    "public_wins": public_wins,
+                    "public_losses": public_losses,
+                    "fade_wins": public_losses,
+                    "fade_losses": public_wins,
+                    "public_win_pct": public_win_pct,
+                    "fade_win_pct": fade_win_pct,
+                    "total_games": total
+                })
+        
+        # Sort by fade win % (best fade opportunities first)
+        results.sort(key=lambda x: x['fade_win_pct'], reverse=True)
+        
+        return {
+            "league": league_upper,
+            "compound_records": results
+        }
+    except Exception as e:
+        logger.error(f"Error calculating compound public records: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 class BetCancelledUpdate(BaseModel):
     league: str
     date: str
