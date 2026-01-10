@@ -1190,9 +1190,10 @@ export default function Opportunities() {
         <CardContent className="pt-4 overflow-x-auto">
           {(() => {
             // Determine if we're viewing historical data (past dates with results)
-            const isHistorical = day === 'yesterday' || day === 'custom';
+            // For NFL, when viewing by week, it's always historical data
+            const isHistorical = day === 'yesterday' || day === 'custom' || (league === 'NFL' && selectedNflWeek);
             // Show historical columns if viewing past data OR if any game has final scores
-            const hasAnyFinalScores = data.games && data.games.some(g => g.final_score);
+            const hasAnyFinalScores = data.games && data.games.some(g => g.final_score || (g.away_score !== undefined && g.home_score !== undefined));
             const showHistoricalColumns = isHistorical || hasAnyFinalScores;
             
             return data.games && data.games.length > 0 ? (
