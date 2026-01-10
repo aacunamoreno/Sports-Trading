@@ -834,20 +834,15 @@ export default function Opportunities() {
               </div>
             </div>
           </div>
-          {/* Public Consensus Record Badge with Threshold Selector */}
-          <div className="bg-gradient-to-r from-cyan-600/20 to-blue-600/20 border border-cyan-500/30 rounded-lg px-4 py-2">
+          {/* Public Consensus Record Badge - Click to open compound breakdown */}
+          <div 
+            className="bg-gradient-to-r from-cyan-600/20 to-blue-600/20 border border-cyan-500/30 rounded-lg px-4 py-2 cursor-pointer hover:border-cyan-400/50 transition-all"
+            onClick={() => setShowCompoundModal(true)}
+            title="Click to view Fade The Public breakdown"
+          >
             <div className="flex items-center justify-center gap-2">
               <span className="text-xs text-muted-foreground">📢 Public</span>
-              <select
-                value={publicThreshold}
-                onChange={(e) => setPublicThreshold(parseInt(e.target.value))}
-                className="bg-gray-800 border border-gray-600 rounded px-1 py-0.5 text-xs text-cyan-400 focus:outline-none focus:border-cyan-500"
-                title="Consensus threshold"
-              >
-                {[57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70].map(t => (
-                  <option key={t} value={t}>{t}%+</option>
-                ))}
-              </select>
+              <span className="text-xs text-cyan-400">{publicThreshold}%+</span>
             </div>
             <div className="text-xl font-bold text-center">
               {loadingPublicRecord ? (
