@@ -140,9 +140,29 @@ export default function Opportunities() {
     }
   }, [showCompoundModal, league]);
 
+  // Fetch NFL weeks when league is NFL
+  useEffect(() => {
+    if (league === 'NFL') {
+      fetchNflWeeks();
+    }
+  }, [league]);
+
+  const fetchNflWeeks = async () => {
+    try {
+      const response = await axios.get(`${API}/opportunities/nfl/weeks`);
+      setNflWeeks(response.data.weeks || []);
+      // Set most recent week as default if not already set
+      if (!selectedNflWeek && response.data.weeks?.length > 0) {
+        setSelectedNflWeek(response.data.weeks[response.data.weeks.length - 1].week);
+      }
+    } catch (error) {
+      console.error('Error fetching NFL weeks:', error);
+    }
+  };
+
   useEffect(() => {
     loadOpportunities();
-  }, [league, day, customDate]);
+  }, [league, day, customDate, selectedNflWeek]);
   
   // Fetch records summary (from 12/22/25 to yesterday) when league changes
   useEffect(() => {
