@@ -89,6 +89,23 @@ export default function Opportunities() {
   const [loadingPublicRecord, setLoadingPublicRecord] = useState(false);
   const [editingLine, setEditingLine] = useState(null); // { gameIndex: number, value: string }
   const [savingLine, setSavingLine] = useState(false);
+  const [showCompoundModal, setShowCompoundModal] = useState(false);
+  const [compoundRecords, setCompoundRecords] = useState([]);
+  const [loadingCompound, setLoadingCompound] = useState(false);
+
+  // Fetch compound public records for the modal
+  const fetchCompoundRecords = async () => {
+    setLoadingCompound(true);
+    try {
+      const response = await axios.get(`${API}/records/public-compound/${league}`);
+      setCompoundRecords(response.data.compound_records || []);
+    } catch (error) {
+      console.error('Error fetching compound records:', error);
+      toast.error('Failed to load compound records');
+    } finally {
+      setLoadingCompound(false);
+    }
+  };
 
   // Fetch public record when threshold changes
   const fetchPublicRecordByThreshold = async (threshold) => {
@@ -111,6 +128,13 @@ export default function Opportunities() {
   useEffect(() => {
     fetchPublicRecordByThreshold(publicThreshold);
   }, [publicThreshold, league]);
+
+  // Fetch compound records when modal opens
+  useEffect(() => {
+    if (showCompoundModal) {
+      fetchCompoundRecords();
+    }
+  }, [showCompoundModal, league]);
 
   useEffect(() => {
     loadOpportunities();
