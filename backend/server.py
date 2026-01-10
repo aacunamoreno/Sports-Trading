@@ -14506,6 +14506,102 @@ async def add_nhl_manual_data(data: dict):
 
 # ================= NFL OPPORTUNITIES =================
 
+@api_router.get("/opportunities/nfl/weeks")
+async def get_nfl_weeks():
+    """Get list of available NFL weeks with their date ranges"""
+    try:
+        # Get all NFL data
+        cursor = db.nfl_opportunities.find({}, {"_id": 0})
+        all_docs = await cursor.to_list(length=100)
+        
+        # Build week info
+        week_info = {}
+        for doc in all_docs:
+            date = doc.get('date')
+            games = doc.get('games', [])
+            for game in games:
+                week = game.get('week')
+                if week and isinstance(week, int):
+                    if week not in week_info:
+                        week_info[week] = {
+                            'week': week,
+                            'dates': [],
+                            'game_count': 0
+                        }
+                    if date not in week_info[week]['dates']:
+                        week_info[week]['dates'].append(date)
+                    week_info[week]['game_count'] += 1
+        
+        # Sort and format
+        weeks = []
+        for week in sorted(week_info.keys()):
+            info = week_info[week]
+            dates = sorted(info['dates'])
+            weeks.append({
+                'week': week,
+                'dates': dates,
+                'date_range': f"{dates[0]} to {dates[-1]}" if len(dates) > 1 else dates[0],
+                'game_count': info['game_count']
+            })
+        
+        return {
+            "success": True,
+            "weeks": weeks,
+            "total_weeks": len(weeks)
+        }
+    except Exception as e:
+        logger.error(f"Error getting NFL weeks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/opportunities/nfl/week/{week_num}")
+async def get_nfl_opportunities_by_week(week_num: int):
+    """Get NFL betting opportunities for a specific week"""
+    try:
+        # Get all NFL data
+        cursor = db.nfl_opportunities.find({}, {"_id": 0})
+        all_docs = await cursor.to_list(length=100)
+        
+        # Filter games for the requested week
+        week_games = []
+        dates_in_week = set()
+        
+        for doc in all_docs:
+            date = doc.get('date')
+            games = doc.get('games', [])
+            
+            for game in games:
+                if game.get('week') == week_num:
+                    game_copy = dict(game)
+                    game_copy['date'] = date  # Include date in game object
+                    week_games.append(game_copy)
+                    dates_in_week.add(date)
+        
+        # Get compound record
+        record = await db.compound_records.find_one({"league": "NFL"}, {"_id": 0})
+        compound_record = {
+            "hits": record.get('hits', 0) if record else 0,
+            "misses": record.get('misses', 0) if record else 0
+        }
+        
+        dates_sorted = sorted(list(dates_in_week))
+        
+        return {
+            "success": True,
+            "week": week_num,
+            "dates": dates_sorted,
+            "date_range": f"{dates_sorted[0]} to {dates_sorted[-1]}" if len(dates_sorted) > 1 else (dates_sorted[0] if dates_sorted else "N/A"),
+            "last_updated": datetime.now().strftime('%H:%M %p'),
+            "games": week_games,
+            "plays": [],
+            "compound_record": compound_record,
+            "data_source": "historical"
+        }
+    except Exception as e:
+        logger.error(f"Error getting NFL opportunities by week: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.get("/opportunities/nfl")
 async def get_nfl_opportunities(day: str = "today"):
     """Get NFL betting opportunities. day parameter: 'yesterday', 'today', 'tomorrow', or a specific date 'YYYY-MM-DD'"""
