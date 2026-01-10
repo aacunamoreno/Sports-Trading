@@ -234,7 +234,12 @@ export default function Opportunities() {
       } else if (league === 'NCAAB') {
         endpoint = `/opportunities/ncaab?day=${dayParam}`;
       } else if (league === 'NFL') {
-        endpoint = `/opportunities/nfl?day=${dayParam}`;
+        // NFL uses week selection instead of day
+        if (selectedNflWeek) {
+          endpoint = `/opportunities/nfl/week/${selectedNflWeek}`;
+        } else {
+          endpoint = `/opportunities/nfl?day=${dayParam}`;
+        }
       }
       const response = await axios.get(`${API}${endpoint}`);
       setData(response.data);
@@ -251,6 +256,11 @@ export default function Opportunities() {
     setCustomDate(selectedDate);
     setDay('custom');
     setShowDatePicker(false);
+  };
+
+  const handleNflWeekSelect = (week) => {
+    setSelectedNflWeek(week);
+    setShowWeekPicker(false);
   };
 
   const handleRefresh = async () => {
