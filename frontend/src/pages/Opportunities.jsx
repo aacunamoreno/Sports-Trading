@@ -1031,51 +1031,95 @@ export default function Opportunities() {
         
         <div className="h-6 w-px bg-border hidden sm:block" />
         
-        {/* Day Tabs */}
+        {/* Day Tabs - Different for NFL (week selector) vs other leagues */}
         <div className="flex gap-2 items-center">
-          {/* Calendar Button */}
-          <div className="relative">
-            <button
-              onClick={() => setShowDatePicker(!showDatePicker)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${
-                day === 'custom'
-                  ? 'bg-green-600 text-white shadow-lg'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              {day === 'custom' && customDate ? customDate : '📅'}
-            </button>
-            {showDatePicker && (
-              <div className="absolute top-full left-0 mt-2 z-50 bg-card border border-border rounded-lg shadow-xl p-4 min-w-[200px]">
-                <label className="block text-sm text-muted-foreground mb-2">Select Date:</label>
-                <input
-                  type="date"
-                  defaultValue={customDate || new Date(Date.now() - 86400000).toISOString().split('T')[0]}
-                  onChange={handleDateSelect}
-                  max={new Date().toISOString().split('T')[0]}
-                  className="w-full bg-muted text-foreground px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                  style={{ colorScheme: 'dark' }}
-                />
+          {league === 'NFL' ? (
+            /* NFL Week Selector */
+            <div className="relative">
+              <button
+                onClick={() => setShowWeekPicker(!showWeekPicker)}
+                className="px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 bg-orange-600 text-white shadow-lg hover:bg-orange-700"
+              >
+                <Calendar className="w-4 h-4" />
+                {selectedNflWeek ? `Week ${selectedNflWeek}` : 'Select Week'}
+              </button>
+              {showWeekPicker && (
+                <div className="absolute top-full left-0 mt-2 z-50 bg-card border border-border rounded-lg shadow-xl p-2 min-w-[280px] max-h-[400px] overflow-auto">
+                  <div className="text-sm text-muted-foreground mb-2 px-2 font-medium">Select NFL Week:</div>
+                  <div className="grid grid-cols-3 gap-1">
+                    {nflWeeks.map((weekInfo) => (
+                      <button
+                        key={weekInfo.week}
+                        onClick={() => handleNflWeekSelect(weekInfo.week)}
+                        className={`px-3 py-2 rounded text-sm transition-all ${
+                          selectedNflWeek === weekInfo.week
+                            ? 'bg-orange-600 text-white'
+                            : 'bg-muted hover:bg-muted/80 text-foreground'
+                        }`}
+                        title={`${weekInfo.game_count} games | ${weekInfo.date_range}`}
+                      >
+                        Wk {weekInfo.week}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2 px-2 border-t border-border pt-2">
+                    {selectedNflWeek && nflWeeks.find(w => w.week === selectedNflWeek) && (
+                      <>
+                        <div>📅 {nflWeeks.find(w => w.week === selectedNflWeek).date_range}</div>
+                        <div>🏈 {nflWeeks.find(w => w.week === selectedNflWeek).game_count} games</div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Calendar Button for other leagues */
+            <>
+              <div className="relative">
+                <button
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${
+                    day === 'custom'
+                      ? 'bg-green-600 text-white shadow-lg'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  {day === 'custom' && customDate ? customDate : '📅'}
+                </button>
+                {showDatePicker && (
+                  <div className="absolute top-full left-0 mt-2 z-50 bg-card border border-border rounded-lg shadow-xl p-4 min-w-[200px]">
+                    <label className="block text-sm text-muted-foreground mb-2">Select Date:</label>
+                    <input
+                      type="date"
+                      defaultValue={customDate || new Date(Date.now() - 86400000).toISOString().split('T')[0]}
+                      onChange={handleDateSelect}
+                      max={new Date().toISOString().split('T')[0]}
+                      className="w-full bg-muted text-foreground px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                      style={{ colorScheme: 'dark' }}
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          
-          {/* Day selector for all leagues */}
-          {['yesterday', 'today', 'tomorrow'].map((d) => (
-            <button
-              key={d}
-              onClick={() => { setDay(d); setCustomDate(''); }}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                day === d
-                  ? d === 'yesterday' ? 'bg-purple-600 text-white shadow-lg' : 
-                    d === 'today' ? 'bg-blue-600 text-white shadow-lg' : 'bg-green-600 text-white shadow-lg'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {d === 'yesterday' ? '📊 Yesterday' : d === 'today' ? '📅 Today' : '📆 Tomorrow'}
-            </button>
-          ))}
+              
+              {/* Day selector for non-NFL leagues */}
+              {['yesterday', 'today', 'tomorrow'].map((d) => (
+                <button
+                  key={d}
+                  onClick={() => { setDay(d); setCustomDate(''); }}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    day === d
+                      ? d === 'yesterday' ? 'bg-purple-600 text-white shadow-lg' : 
+                        d === 'today' ? 'bg-blue-600 text-white shadow-lg' : 'bg-green-600 text-white shadow-lg'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {d === 'yesterday' ? '📊 Yesterday' : d === 'today' ? '📅 Today' : '📆 Tomorrow'}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
