@@ -9394,11 +9394,24 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
             # Preserve cancelled flag - don't reset bet info for cancelled games
             is_cancelled = game.get('bet_cancelled', False)
             
+            # CRITICAL: Check if game is already completed (has final score and result)
+            # If so, preserve ALL bet data - do NOT reset
+            is_game_completed = game.get('final_score') is not None or game.get('user_bet_hit') is not None
+            
             # Preserve existing bet_line before reset - it should NEVER be overwritten by live line
             preserved_bet_line = game.get('bet_line')
+            preserved_bet_type = game.get('bet_type')
+            preserved_bet_types = game.get('bet_types', [])
+            preserved_bet_lines = game.get('bet_lines', [])
+            preserved_bet_count = game.get('bet_count', 0)
+            preserved_has_bet = game.get('has_bet', False)
+            preserved_user_bet = game.get('user_bet', False)
+            preserved_user_bet_hit = game.get('user_bet_hit')
+            preserved_result = game.get('result')
+            preserved_bet_result = game.get('bet_result')
             
-            if not is_cancelled:
-                # Reset bet tracking for this refresh (only if not cancelled)
+            if not is_cancelled and not is_game_completed:
+                # Reset bet tracking for this refresh (only if not cancelled AND game not completed)
                 game['bet_types'] = []
                 game['bet_lines'] = []
                 game['bet_count'] = 0
@@ -9408,6 +9421,19 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                 # Preserve bet_line - it's the original line when bet was placed
                 # Only reset if no preserved line (new game with no historical bet)
                 game['bet_line'] = preserved_bet_line
+            elif is_game_completed:
+                # Game is completed - preserve ALL existing bet data
+                logger.info(f"[Refresh Lines] Preserving completed game data for {away} @ {home} (final_score={game.get('final_score')}, result={preserved_result})")
+                game['bet_line'] = preserved_bet_line
+                game['bet_type'] = preserved_bet_type
+                game['bet_types'] = preserved_bet_types
+                game['bet_lines'] = preserved_bet_lines
+                game['bet_count'] = preserved_bet_count
+                game['has_bet'] = preserved_has_bet
+                game['user_bet'] = preserved_user_bet
+                game['user_bet_hit'] = preserved_user_bet_hit
+                game['result'] = preserved_result
+                game['bet_result'] = preserved_bet_result
             
             # Update live line (but preserve opening_line/total and PPG)
             # opening_line/total = the original line from 8pm scrape (never changes)
