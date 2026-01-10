@@ -1853,6 +1853,77 @@ export default function Opportunities() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Fade The Public Compound Records Modal */}
+      {showCompoundModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowCompoundModal(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-cyan-400">📊 {league} Fade The Public Breakdown</h2>
+              <button 
+                onClick={() => setShowCompoundModal(false)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-gray-400 mb-4">
+              Higher fade win % = Better opportunity to bet AGAINST the public
+            </p>
+            
+            {loadingCompound ? (
+              <div className="text-center py-8 text-gray-400">Loading...</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-700">
+                      <th className="text-left py-2 px-3 text-gray-400">Range</th>
+                      <th className="text-center py-2 px-3 text-gray-400">Fade Record</th>
+                      <th className="text-center py-2 px-3 text-gray-400">Fade Win%</th>
+                      <th className="text-center py-2 px-3 text-gray-400">Games</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {compoundRecords.map((record, idx) => {
+                      const isHot = record.fade_win_pct >= 60;
+                      const isGood = record.fade_win_pct >= 55;
+                      return (
+                        <tr 
+                          key={idx} 
+                          className={`border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer ${isHot ? 'bg-green-900/20' : isGood ? 'bg-green-900/10' : ''}`}
+                          onClick={() => {
+                            setPublicThreshold(record.low);
+                            setShowCompoundModal(false);
+                          }}
+                        >
+                          <td className="py-2 px-3 font-medium">{record.range}</td>
+                          <td className="py-2 px-3 text-center">
+                            <span className="text-green-400">{record.fade_wins}</span>
+                            <span className="text-gray-500 mx-1">-</span>
+                            <span className="text-red-400">{record.fade_losses}</span>
+                          </td>
+                          <td className={`py-2 px-3 text-center font-bold ${isHot ? 'text-green-400' : isGood ? 'text-green-300' : record.fade_win_pct < 45 ? 'text-red-400' : 'text-gray-300'}`}>
+                            {record.fade_win_pct}%
+                            {isHot && ' 🔥'}
+                            {isGood && !isHot && ' ✅'}
+                          </td>
+                          <td className="py-2 px-3 text-center text-gray-400">{record.total_games}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            <div className="mt-4 pt-4 border-t border-gray-700 text-xs text-gray-500">
+              <p>🔥 = 60%+ fade win rate | ✅ = 55%+ fade win rate</p>
+              <p className="mt-1">Click a row to set that threshold range</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
