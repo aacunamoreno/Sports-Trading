@@ -1,177 +1,167 @@
 <analysis>**original_problem_statement:** The user wants to build an automated betting analysis system for the website . The system should scrape game data (lines, scores, spreads, moneylines), betting consensus data, calculate betting edges, track user bets, and display all information in a unified dashboard.
 
-The current focus is a large data-correction and backfill task. The user is guiding the agent, week by week, to scrape historical NFL data, present the calculated Public Record, and then provides manual corrections for game spreads. This process is also being applied to various other records (Edge, Betting, PPG) for NBA and NHL.
+The project has evolved into a hands-on, user-guided process of backfilling historical data for multiple sports leagues (NFL, NBA, NHL, NCAAB), correcting discrepancies, and adding new UI features to analyze this data.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application is a full-stack solution with a monolithic FastAPI backend () and a React frontend (). It scrapes data from , , and .
+A full-stack application with a React frontend and a monolithic FastAPI backend. The dashboard displays betting opportunities, historical data, and calculated records for NBA, NHL, NCAAB, and NFL.
 
-Key features and state:
--   **Multi-League Dashboard:** The UI displays betting opportunities and historical records for NBA, NHL, NCAAB, and now NFL.
--   **Dynamic Public Record:** The main dashboard includes a dropdown to dynamically calculate the public record based on a user-selected consensus threshold (e.g., 57%-70%). This is now functional for NFL as well.
--   **Historical Data:**
-    -   NBA data is fully backfilled.
-    -   NFL data from a user-provided Excel file has been inserted, and all corresponding scores have been scraped. The process of correcting spreads is ongoing.
--   **Record Tracking:** The dashboard displays several record types: Public Record, Edge Record, Betting Record, and Ranking PPG Record. The agent has recently implemented functionality and scripts to manually correct these records in the database per the user's request.
+Key features implemented:
+-   **Full NFL Data Backfill:** All 18 weeks of NFL historical data have been scraped, corrected using a user-provided Excel file from , and are displayed in the UI.
+-   **NFL Week Selector:** A custom week selector (Weeks 1-18) has replaced the daily calendar for the NFL, allowing users to view games on a weekly basis.
+-   **Compound Public Record Modal:** A Breakdown button on the Public Record badge opens a modal that displays a table of betting records grouped by consensus percentage ranges (e.g., 57-58%, 59-60%), sorted from highest to lowest percentage.
+-   **Spread Display Fix:** A critical UI bug was fixed where spreads for home favorites were displayed with the wrong sign (e.g., +10.5 instead of -10.5).
+-   **Manual Record Updates:** Functionality and scripts are in place to allow for manual updates of all record types (Edge, Betting, Ranks, Public) across all leagues, which has been used multiple times per user requests.
+-   **Data-driven UI:** The UI now correctly displays final scores, total lines, public consensus percentages, and HIT/MISS/PUSH results for historical games.
 
 **Last working item**:
--   **Last item agent was working:** The agent was systematically correcting the historical NFL Public Record, week by week, under the user's direction. The agent just processed Week 17 (Dec 25, 27, 28, 29), calculated a preliminary record of 4-7, and presented it to the user, highlighting several games with questionable spreads scraped from  that likely need manual correction.
--   **Status:** USER VERIFICATION PENDING
--   **Agent Testing Done:** Y
--   **Which testing method agent to use?** Manual testing via Python script to calculate records.
+-   **Last item agent was working:** The agent was adding a feature to scrape the public betting percentage from  whenever the refresh lines and bet button is clicked. The agent identified the relevant backend endpoint () and the existing consensus scraping function () and was about to integrate the two.
+-   **Status:** IN PROGRESS
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** Backend testing agent. The agent should test the  endpoint and verify that the  and  fields are updated in the database for the relevant games.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1:** NFL Historical Data Correction (Week 17) (P0)
--   **Issue 2:** The  scraper incorrectly identifies bet types (OVER/UNDER) (P1)
--   **Issue 3:** Refactor  monolith (P1)
--   **Issue 4:** The  scraper incorrectly handles Regulation Time bets (P2)
--   **Issue 5:** Finalize and persist total NFL Public Record (P2)
+-   **Issue 1:** The  scraper incorrectly identifies bet types (OVER/UNDER) (P1)
+-   **Issue 2:** Refactor  monolith (P1)
+-   **Issue 3:** The  scraper incorrectly handles Regulation Time bets (P2)
 
 **Issues Detail**:
--   **Issue 1: NFL Historical Data Correction (Week 17)**
-    -   **Description:** Awaiting user feedback on spread corrections for NFL games played on Dec 25, 27, 28, and 29. The agent's scrape produced some unlikely spreads (e.g., Patriots -33.5) that need to be fixed to calculate the Public Record accurately.
-    -   **Attempted fixes:** NA. The agent is waiting for user input.
+-   **Issue 1: The  scraper incorrectly identifies bet types (OVER/UNDER)**
+    -   **Attempted fixes:** None. This is a long-standing issue.
     -   **Next debug checklist:**
-        1.  Receive corrected spread values from the user for Week 17 games.
-        2.  Write/use a script to update the spreads for these games in the  collection in the .
-        3.  Recalculate and confirm the Public Record for Week 17.
-        4.  Await the user's instruction for the next date range to process.
-    -   **Why fix this issue and what will be achieved with the fix?** To ensure the historical NFL public record is accurate. This is a core part of the current user request.
-    -   **Status:** USER VERIFICATION PENDING
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** Backend (calculation script).
-    -   **Blocked on other issue:** User feedback.
-
--   **Issue 2: The  scraper incorrectly identifies bet types (OVER/UNDER)**
-    -   **Description:** A high-priority recurring issue. The scraper fails to correctly parse OVER/UNDER bets when the text is in a generic o/u TOTAL... format. This causes bets to be stored with the wrong direction.
-    -   **Next debug checklist:**
-        1.  In , examine the  function.
-        2.  Modify the parsing logic/regex to correctly handle the ambiguous o/u TOTAL format.
-    -   **Why fix this issue and what will be achieved with the fix?** To ensure accurate bet tracking, a core function of the app.
+        1.  In , locate the  function.
+        2.  Examine the parsing logic that handles bet descriptions like o/u TOTAL...
+        3.  Modify the logic (likely with improved regex or string splitting) to correctly determine if the bet is an OVER or UNDER.
+    -   **Why fix this issue and what will be achieved with the fix?** To ensure user-placed bets are tracked with the correct direction (Over/Under), which is fundamental to the application's purpose.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Backend.
+    -   **Blocked on other issue:** None.
 
--   **Issue 3: Refactor  monolith**
-    -   **Description:** The entire backend is in a single massive  file, creating significant technical debt and making maintenance difficult.
+-   **Issue 2: Refactor  monolith**
+    -   **Attempted fixes:** None.
+    -   **Next debug checklist:**
+        1.  Create new directories in : , , .
+        2.  Start by moving scraping-related functions (e.g., , ) from  into a new file like .
+        3.  Update  to import and use the functions from the new module.
+    -   **Why fix this issue and what will be achieved with the fix?** To reduce technical debt, improve code organization, and make the backend easier to maintain and extend.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Both.
+    -   **Should Test frontend/backend/both after fix?** Both (regression testing).
+    -   **Blocked on other issue:** None.
 
--   **Issue 4:  scraper incorrectly handles Regulation Time bets**
-    -   **Description:** The scraper does not differentiate Regulation Time Only bets, leading to incorrect PUSH results for sports like NHL.
+-   **Issue 3: The  scraper incorrectly handles Regulation Time bets**
+    -   **Attempted fixes:** None.
+    -   **Next debug checklist:**
+        1.  In  within the  function, add logic to detect REG.TIME or similar keywords in the bet description.
+        2.  Add a new field to the bet data model (e.g., ) to store this information.
+        3.  Update the bet grading logic to correctly handle PUSH outcomes for these bets.
+    -   **Why fix this issue and what will be achieved with the fix?** To prevent incorrect bet grading (especially for NHL games) and ensure accurate bet tracking.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Backend.
+    -   **Blocked on other issue:** None.
 
 **In progress Task List**:
--   **Task 1: NFL Historical Data Backfill and Correction**
-    -   **Description:** The overall task of backfilling and correcting all NFL historical data from the start of the season.
-    -   **Where to resume:** Awaiting user input for Week 17 spread corrections.
-    -   **What will be achieved with this?** A complete and accurate NFL public betting record in the database, matching the user's source of truth.
+-   **Task 1: Add Public Consensus Scraping to Refresh Lines Button (P0)**
+    -   **Where to resume:** In , within the  function, call the existing  function. Then, iterate through the results and update the  fields for the corresponding games in the database.
+    -   **What will be achieved with this?** Users will be able to get the latest public betting percentages on demand before a game starts by clicking the refresh button.
     -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** Backend for calculations, then Frontend once all data is finalized.
-    -   **Blocked on something:** User feedback.
+    -   **Should Test frontend/backend/both after fix?** Backend.
+    -   **Blocked on something:** None.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P0) Continue the week-by-week NFL data correction process with the user.
-    -   (P0) Begin the verification process for NCAAB records, as requested by the user.
-    -   (P1) Fix the  OVER/UNDER scraping bug (Issue #2).
-    -   (P1) Begin refactoring  (Issue #3).
+    -   (P2) Begin NCAAB records verification process with user guidance.
 -   **Future Tasks:**
     -   (P1) Implement a UI to create and manage custom betting rules.
-    -   (P2) Address the REG.TIME PUSH issue for NHL bets (Issue #4).
 
 **Completed work in this session**
--   **NFL Public Betting Feature:**
-    -   Parsed NFL data from a user Excel file, scraped all 261 historical scores from ESPN, and resolved season/week date mismatches.
-    -   Added NFL to the frontend league selector and backend API endpoints ().
-    -   Fixed a frontend rendering bug by adding NFL to the .
-    -   Resolved a critical bug where scripts wrote to the wrong database ( instead of ).
--   **Record Correction and Verification:**
-    -   Manually corrected the Edge, Betting, and Ranking PPG records for both NBA and NHL for Jan 7th and 8th to match user's confirmed totals.
-    -   Updated the backend logic and database collections (, ) to reflect these manual corrections.
--   **NCAAB PPG Data Correction:**
-    -   Processed a corrected Excel file for NCAAB PPG data to fix an error where NBA teams were listed.
-    -   Updated the database and recalculated the PPG and Edge values for all of today's NCAAB games, resolving a significant data error.
--   **NFL Data Correction Process:**
-    -   Established a workflow to scrape and correct NFL data day-by-day.
-    -   Processed and corrected data for 01/04, 01/03, and all of Week 17 (pending final user review).
+-   **NFL Data Overhaul:** Fully backfilled and corrected all 18 weeks of NFL historical data (spreads, scores, total lines) using a user-provided Excel file. Reset all NFL-specific records (Edge, Betting, PPG) to 0-0.
+-   **Frontend Feature - Compound Record Modal:** Implemented a modal that displays a breakdown of public betting records by consensus percentage ranges. The sorting was updated to be from highest to lowest percentage.
+-   **Frontend Feature - NFL Week Selector:** Replaced the standard calendar with a custom dropdown for selecting NFL games by week (1-18).
+-   **UI Bug Fix - Incorrect Spread Display:** Fixed a major bug in  where spreads for home favorites were shown with a positive sign instead of negative.
+-   **UI Bug Fix - NFL Historical Columns:** Fixed an issue where the new NFL week view was not showing historical data columns (Score, Public %, Result).
+-   **UI/UX Improvement:** Changed the Public Record button to show a Breakdown label instead of the consensus percentage.
+-   **Data Correction - NCAAB Edge Calculation:** Fixed a bug where NCAAB edge bets were graded against the PPG average instead of the actual game line, correcting a MISS to a HIT.
+-   **Data Correction - Bet Results:** Fixed multiple user-reported bet results, updating their status from PENDING or MISS to MISS or PUSH by correcting the underlying data in the database.
+-   **Record Management:** Updated all records for NBA, NHL, and NCAAB based on user-provided totals and set NHL/NCAAB public records to 0-0 as requested.
 
 **Earlier issues found/mentioned but not fixed**
--   **Issue 1:  OVER/UNDER scraper bug.** This is a known recurring issue that was not addressed in this session.
--   **Issue 2:  Regulation Time scraper bug.** This is another known recurring issue that was not addressed.
+-   **Issue 1:**  OVER/UNDER scraper bug.
+-   **Issue 2:**  Regulation Time scraper bug.
 
 **Known issue recurrence from previous fork**
 -   **Issue recurrence in previous fork:** The  scraper incorrectly identifies bet types (OVER/UNDER).
--   **Recurrence count:** High (present in last two handoffs).
+-   **Recurrence count:** High.
 -   **Status:** NOT STARTED
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Web Scraping:** Using Playwright and BeautifulSoup to get scores from ESPN and consensus/spreads from Covers.com.
--   **Data Correction Workflow:** A user-driven loop of scrape -> present -> receive corrections -> update DB -> recalculate.
--   **Manual DB Updates:** Writing and executing Python scripts to directly modify MongoDB collections (, , , ).
--   **Frontend State Management:** Debugging and fixing React  race conditions and adding new league configurations.
+-   **Web Scraping:** Using Playwright and BeautifulSoup for various sports data sites.
+-   **Data Parsing:** Extensive use of  to parse complex, user-provided Excel files, including reading cell formulas to extract data.
+-   **Monolithic Backend:** All business logic, API endpoints, database operations, and scraping tasks are located in a single  file.
+-   **React Frontend:** A single, large  component manages the state and rendering for the entire dashboard, including complex conditional rendering for different leagues and data states.
+-   **Team Name Mapping:** A dictionary was implemented in the frontend as a temporary solution to map NBA team nicknames (e.g., Celtics) to city names (e.g., Boston) to resolve a data inconsistency issue.
 
 **key DB schema**
--   ****: Collection holding historical NFL games. Each document represents a date and contains an array of game objects.
--   ****: Stores manually corrected totals for  and  for NBA and NHL.
--   ****: Stores manually corrected totals for ranking-based records.
--   ****: Stores team PPG data; was updated from a corrected user Excel file.
--   All data is stored in the **** database.
+-   ****: Collection holding historical NFL games. Each document represents a date and contains an array of game objects. Fully updated in this session.
+-   **, , **: Collections for other leagues, frequently updated with new lines, scores, and bet results.
+-   ****, ****: Collections storing manually adjusted record totals provided by the user.
+-   All data resides in the ****.
 
 **changes in tech stack**
 -   None.
 
 **All files of reference**
--   : The monolithic backend. All new API logic and scraping functions were added here.
--   : The main UI component. Updated to support NFL and display corrected records.
--   : Initial source for NFL data.
--   : Source for corrected NCAAB PPG data.
+-   : The monolithic backend. All new API endpoints and logic were added here.
+-   : The main UI component. Significantly modified to add the NFL week selector, compound record modal, and fix display logic.
+-   : The user-provided file used for the final, correct NFL data backfill.
 
 **Areas that need refactoring**:
--   : **CRITICAL.** The file continues to grow, making it increasingly fragile and difficult to maintain. Breaking it into modules (e.g., , , ) is urgent.
+-   : **CRITICAL.** The file is extremely large and complex, making it difficult to maintain and prone to errors. It urgently needs to be broken down into smaller modules (e.g., , , ).
+-   : This component has grown to over 2000 lines. The logic for the new modal, the week selector, and various data display sections should be extracted into their own smaller, reusable components to improve readability and maintainability.
 
 **key api endpoints**
--   ****: Extended to support 'NFL'.
--   ****: Used to fetch daily game data for the UI.
--   ****: Returns summary records (Edge, Betting). This endpoint was verified to reflect manual DB corrections.
--   ****: Returns ranking PPG records. Also verified after manual corrections.
+-   ****: Scrapes live lines and bets from . This is the endpoint for the current in-progress task.
+-   ****: (New) Fetches the data for the compound public record modal.
+-   ****: (New) Fetches NFL games by week number.
+-   ****: Modified to return stored 0-0 records for NHL/NCAAB.
+-   ****: Modified to include NFL records.
+-   ****: Modified to include NFL records.
 
 **Critical Info for New Agent**
--   **The primary workflow is user-driven data correction.** Your main job is to facilitate this process: scrape data for a given date range, present the results, receive corrections from the user, apply them to the database, and confirm the new calculations.
--   **Confirm Database Target:** The application server reads from the . Ensure any scripts you write to modify data target this database to avoid discrepancies. This was a bug that consumed significant time in the last session.
--   **User is the Source of Truth:** Trust the user's data corrections for spreads and records implicitly. The goal is to make the system's data match the user's verified numbers.
--   **Be Wary of Dates/Seasons:** Double-check years and week numbers when scraping. The last session involved significant debugging around mismatches between Excel data and live scraped data for NFL seasons. The user is the final arbiter on which season/week is correct.
--   **Known Scraper Bugs:** The  scraper has long-standing, unaddressed bugs regarding OVER/UNDER and Regulation Time bets. While the current focus is data correction, these are high-priority issues in the backlog.
+-   The user is the source of truth for all data corrections and record totals. Prioritize their requests and trust their provided data.
+-   The  file is a monolith and represents significant technical debt. While the user's feature requests often take priority, be prepared to address the pending refactoring task soon. Any modifications to this file should be made with extreme care.
+-   The  scraper has long-standing, known bugs related to parsing O/U and Regulation Time bets. These are high-priority fixes in the backlog.
+-   Be aware of data inconsistencies, such as the team name mismatch (Boston vs. Celtics), which required a hack in the frontend. Similar issues may exist elsewhere.
 
 **documents and test reports created in this job**
 -   None.
 
 **Last 10 User Messages and any pending HUMAN messages**
-10. **User:** Provides a corrected Excel file for NCAAB PPG data, as the previous one was wrong.
-9.  **User:** States that the UI is not yet showing the recalculated (corrected) NCAAB PPGs.
-8.  **User:** Provides the exact, correct final record totals for NBA & NHL Betting and Ranks, requesting a manual update.
-7.  **User:** Corrects the agent on the NBA Edge record total, providing the true number (25-21).
-6.  **User:** Approves the manual correction for NHL records and asks the agent to do the same for NBA.
-5.  **User:** Points out a discrepancy in the calculated NHL Edge record and asks for Betting/PPG records to also be updated.
-4.  **User:** Confirms they are asking for an update to the Edge, Betting, and Rank records for Jan 7th and 8th based on totals they had confirmed through Jan 6th.
-3.  **User:** Uploads screenshots showing confirmed records as of Jan 6th and asks for verification against data from Jan 7th and 8th.
-2.  **User:** Clarifies that the week numbers in the NFL Excel file are off by one (e.g., Week 17 is actually Week 18).
-1.  **User:** Starts the NFL spread correction process for date 01/04, provides specific corrections, and asks the agent to proceed day by day.
+10. **User:** Asks to scrape public consensus percentage when the refresh lines button is clicked.
+9.  **User:** States that a specific bet should be a PUSH, not a MISS.
+8.  **User:** Reports a user-placed bet is showing PENDING when it should be a MISS.
+7.  **User:** Provides the correct, final record totals for all leagues (NBA, NHL, NCAAB).
+6.  **User:** Reports an NCAAB edge bet is incorrectly marked as MISS when it should be a HIT, explaining the calculation logic (compare score to Line, not PPG).
+5.  **User:** Reports that three NCAAB games with a valid edge are not being highlighted correctly in the UI.
+4.  **User:** Requests that the Public Betting records for NHL and NCAAB be set to 0-0.
+3.  **User:** Asks to change the UI of the public record button from showing 57% to a simple Breakdown label.
+2.  **User:** Requests that the compound public record table be sorted by consensus percentage (high to low), not by fade win rate.
+1.  **User:** Provides a screenshot showing a manual update to the  file and asks the agent to use it to fill in the Line column and set NFL records to 0-0.
 
 **Project Health Check:**
 -   **Broken:**
-    -   The  scraper for parsing OVER/UNDER bets.
-    -   The  scraper for handling Regulation Time bets.
+    -   The  scraper's logic for parsing OVER/UNDER bets.
+    -   The  scraper's logic for handling Regulation Time bets.
 -   **Technical Debt:**
-    -   The  monolith is a critical point of failure.
+    -   The  monolith is a critical maintenance and stability risk.
+    -   The  frontend component is overly large and complex.
 
 **3rd Party Integrations**
 -   **Playwright:** For web scraping.
@@ -182,8 +172,8 @@ Key features and state:
 **Testing status**
 -   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
--   **Test files created:** None.
--   **Known regressions:** None.
+-   **Test files created:** None
+-   **Known regressions:** None
 
 **Credentials to test flow:**
 -   **Website:** 
@@ -192,4 +182,4 @@ Key features and state:
 
 **What agent forgot to execute**
 -   The critical refactoring of the  monolith was not started.
--   The root cause of the  scraper bugs was not fixed. These tasks were deferred to prioritize the user's active requests for data backfill and correction.</analysis>
+-   The root cause of the  scraper bugs was not fixed. These high-priority tasks were deferred in favor of the user's active requests for data correction and new UI features.</analysis>
