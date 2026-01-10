@@ -1127,7 +1127,14 @@ export default function Opportunities() {
       <Card className="glass-card border-primary/30">
         <CardContent className="pt-4">
           <div className="flex flex-wrap gap-4 text-sm">
-            <div><span className="text-muted-foreground">Date:</span> <span className="font-mono">{data.date || 'N/A'}</span></div>
+            {league === 'NFL' && selectedNflWeek ? (
+              <>
+                <div><span className="text-muted-foreground">Week:</span> <span className="font-mono text-orange-400">Week {selectedNflWeek}</span></div>
+                <div><span className="text-muted-foreground">Dates:</span> <span className="font-mono">{data.date_range || data.date || 'N/A'}</span></div>
+              </>
+            ) : (
+              <div><span className="text-muted-foreground">Date:</span> <span className="font-mono">{data.date || 'N/A'}</span></div>
+            )}
             <div><span className="text-muted-foreground">Last Updated:</span> <span className="font-mono">{data.last_updated || 'N/A'}</span></div>
             <div><span className="text-muted-foreground">Games:</span> <span className="font-mono">{data.games?.length || 0}</span></div>
             {data.data_source && (
