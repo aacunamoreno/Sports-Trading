@@ -15359,8 +15359,8 @@ async def get_public_compound_records(league: str):
                     "total_games": total
                 })
         
-        # Sort by fade win % (best fade opportunities first)
-        results.sort(key=lambda x: x['fade_win_pct'], reverse=True)
+        # Sort by threshold range (highest percentage first: 77-78%, 75-76%, etc.)
+        results.sort(key=lambda x: x['high'], reverse=True)
         
         return {
             "league": league_upper,
