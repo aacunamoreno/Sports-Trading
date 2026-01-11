@@ -4781,10 +4781,25 @@ async def monitor_single_account(conn: dict):
             to_win = bet_info.get('toWin', 0)
             sport = bet_info.get('sport', '')
             description = bet_info.get('description', '')
+            total_line_from_parser = bet_info.get('totalLine')  # From slash format parsing
+            
+            # Fix sport detection from description if RBL is just a generic marker
+            # Description may contain "Basketball / NBA" or "Hockey / NHL" etc.
+            if sport == 'RBL' and description:
+                desc_upper = description.upper()
+                if 'BASKETBALL / NBA' in desc_upper or '/ NBA' in desc_upper:
+                    sport = 'NBA'
+                    logger.info(f"Corrected sport from RBL to NBA based on description")
+                elif 'BASKETBALL / NCAAB' in desc_upper or 'COLLEGE' in desc_upper or '/ CBB' in desc_upper:
+                    sport = 'NCAAB'
+                elif 'HOCKEY / NHL' in desc_upper or '/ NHL' in desc_upper:
+                    sport = 'NHL'
+                elif 'FOOTBALL / NFL' in desc_upper or '/ NFL' in desc_upper:
+                    sport = 'NFL'
             
             # #3.75 BET LINE CAPTURE: Extract the line from bet_type (e.g., "TOTAL o228" -> 228)
-            bet_line = None
-            if bet_type:
+            bet_line = total_line_from_parser  # Use parser's extracted line first
+            if bet_line is None and bet_type:
                 # Pattern: "TOTAL o228" or "TOTAL u6.5" or "o228" or "u6"
                 line_match = re.search(r'[ou](\d+\.?\d*)', bet_type, re.IGNORECASE)
                 if line_match:
