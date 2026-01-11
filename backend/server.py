@@ -4621,9 +4621,37 @@ async def monitor_single_account(conn: dict):
                         // "STRAIGHT BET[2526] MILWAUKEE BUCKS 2H +1½-110"
                         // "STRAIGHT BET[297497888] Dallas Mavericks..."
                         // "PARLAY[123] Team A vs Team B..."
+                        // "G278190881 - STRAIGHT BET 302234312 - Cleveland Cavaliers vs Minnesota Timberwolves / Game / Total / Under 242.5 -113"
                         
                         let game = '';
                         let betType = '';
+                        let totalLine = null;
+                        
+                        // NEW FORMAT: Handle slash-separated format
+                        // "Team A vs Team B / Game / Total / Under 242.5"
+                        if (description.includes('/')) {
+                            const slashParts = description.split('/').map(p => p.trim());
+                            for (const part of slashParts) {
+                                // Look for team matchup
+                                if ((part.includes(' vs ') || part.includes(' vrs ')) && !game) {
+                                    // Extract just the team names
+                                    const teamMatch = part.match(/([A-Za-z][A-Za-z\\s]+)\\s+(?:vs|vrs)\\s+([A-Za-z][A-Za-z\\s]+)/i);
+                                    if (teamMatch) {
+                                        game = teamMatch[1].trim() + ' vs ' + teamMatch[2].trim();
+                                    } else {
+                                        game = part;
+                                    }
+                                }
+                                // Look for Over/Under with line
+                                const overUnderMatch = part.match(/(Over|Under)\\s+([\\d.½]+)/i);
+                                if (overUnderMatch) {
+                                    const ouType = overUnderMatch[1].toUpperCase().charAt(0);  // O or U
+                                    const line = overUnderMatch[2].replace('½', '.5');
+                                    betType = 'TOTAL ' + ouType + line;
+                                    totalLine = parseFloat(line);
+                                }
+                            }
+                        }
                         
                         // First, extract game name from parentheses (TEAM A vs TEAM B)
                         const vsMatch = description.match(/\\(([^)]*(?:vs|vrs)[^)]*)\\)/i);
