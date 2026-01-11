@@ -28,8 +28,11 @@ Build an automated betting analysis system for `plays888.co` that scrapes game d
 
 ## What's Been Implemented (Latest First)
 
-### January 10, 2026 (Session 2)
+### January 10-11, 2026 (Session 2)
 - **Bug Fix - Completed Games Preserved**: Fixed critical issue where completed games (with final_score) were disappearing when clicking "Refresh Lines & Bets". Now preserves all bet data (bet_type, bet_line, user_bet_hit, result) for finished games.
+- **Bug Fix - RBL Sport Parsing**: Fixed issue where bets marked as "RBL" (special plays888 line type) were not being matched to NBA games. Added logic to detect "Basketball / NBA" in bet descriptions.
+- **Bug Fix - Slash Format Bet Parsing**: Fixed bet parser to handle new plays888 format with slash separators (e.g., "Cleveland Cavaliers vs Minnesota Timberwolves / Game / Total / Under 242.5")
+- **Manual Fix - Minnesota vs Cleveland**: Manually added the UNDER 242.5 bet that was lost due to parsing issues.
 
 ### January 10, 2026 (Session 1)
 - **Public Consensus Scraping on Refresh**: Integrated `scrape_covers_consensus` into the "Refresh Lines & Bets" endpoint so clicking the button now scrapes and updates public betting percentages from Covers.com
