@@ -28,7 +28,10 @@ Build an automated betting analysis system for `plays888.co` that scrapes game d
 
 ## What's Been Implemented (Latest First)
 
-### January 10, 2026
+### January 10, 2026 (Session 2)
+- **Bug Fix - Completed Games Preserved**: Fixed critical issue where completed games (with final_score) were disappearing when clicking "Refresh Lines & Bets". Now preserves all bet data (bet_type, bet_line, user_bet_hit, result) for finished games.
+
+### January 10, 2026 (Session 1)
 - **Public Consensus Scraping on Refresh**: Integrated `scrape_covers_consensus` into the "Refresh Lines & Bets" endpoint so clicking the button now scrapes and updates public betting percentages from Covers.com
 - **UI Update**: Consensus percentages now display for today's games (not just historical), showing in red next to team rankings
 
@@ -56,7 +59,10 @@ Build an automated betting analysis system for `plays888.co` that scrapes game d
 - Records: `compound_records`, `ranking_ppg_records`
 
 ## Key API Endpoints
-- `POST /api/opportunities/refresh-lines` - Refresh lines, bets, AND consensus data
+- `POST /api/opportunities/refresh-lines` - Refresh lines, bets, AND consensus data (preserves completed games)
+- `POST /api/bets/nba/update-results` - Update NBA bet results from plays888 history
+- `POST /api/bets/nhl/update-results` - Update NHL bet results
+- `POST /api/bets/ncaab/update-results` - Update NCAAB bet results
 - `GET /api/records/public-compound/{league}` - Compound public record data
 - `GET /api/opportunities/nfl/{week}` - NFL games by week
 - `GET /api/records/summary` - All record summaries
