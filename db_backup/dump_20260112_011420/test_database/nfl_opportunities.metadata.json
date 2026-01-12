@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"}],"uuid":"645625fba7f5448d9c3f357221289860","collectionName":"nfl_opportunities","type":"collection"}

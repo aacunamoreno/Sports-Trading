@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"}],"uuid":"fff0750206f148d2bf25c87c39f6cc65","collectionName":"telegram_config","type":"collection"}
