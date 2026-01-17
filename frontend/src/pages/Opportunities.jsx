@@ -498,6 +498,7 @@ export default function Opportunities() {
 
   // Scrape Tomorrow's Opening Lines (8pm Job)
   const [scrapingOpeners, setScrapingOpeners] = useState(false);
+  const [scrapingToday, setScrapingToday] = useState(false);
   
   const handleScrapeOpeners = async () => {
     setScrapingOpeners(true);
@@ -532,6 +533,41 @@ export default function Opportunities() {
       toast.error('Failed to scrape opening lines');
     } finally {
       setScrapingOpeners(false);
+    }
+  };
+
+  // Scrape Today's Games (same as tomorrow but for today)
+  const handleScrapeToday = async () => {
+    setScrapingToday(true);
+    toast.info('Scraping today\'s games and lines...');
+    try {
+      // Get today's date in Arizona timezone (UTC-7, no DST)
+      const now = new Date();
+      const arizonaOffset = -7 * 60;
+      const arizonaTime = new Date(now.getTime() + (arizonaOffset - now.getTimezoneOffset()) * 60000);
+      const targetDate = arizonaTime.toISOString().split('T')[0];
+      
+      const response = await axios.post(`${API}/process/scrape-openers?target_date=${targetDate}`, {}, { timeout: 180000 });
+      
+      if (response.data.status === 'success' || response.data.status === 'partial') {
+        const leagues = response.data.leagues;
+        const summary = Object.entries(leagues)
+          .map(([l, d]) => `${l}: ${d.games_stored} games`)
+          .join(', ');
+        toast.success(`Today's games scraped! ${summary}`);
+        
+        // Refresh the data if viewing today
+        if (day === 'today') {
+          loadOpportunities();
+        }
+      } else {
+        toast.error('Failed to scrape today\'s games');
+      }
+    } catch (error) {
+      console.error('Error scraping today:', error);
+      toast.error('Failed to scrape today\'s games');
+    } finally {
+      setScrapingToday(false);
     }
   };
 
