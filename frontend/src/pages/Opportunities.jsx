@@ -1004,6 +1004,17 @@ export default function Opportunities() {
             {scrapingOpeners ? 'Scraping...' : 'Scrape Tomorrow'}
           </Button>
           <Button 
+            onClick={handleScrapeToday} 
+            disabled={scrapingToday}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2 border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+            data-testid="scrape-today-btn"
+          >
+            <Calendar className={`w-4 h-4 ${scrapingToday ? 'animate-pulse' : ''}`} />
+            {scrapingToday ? 'Scraping...' : 'Scrape Today'}
+          </Button>
+          <Button 
             onClick={handleExport} 
             disabled={exporting}
             variant="outline"
@@ -1013,7 +1024,7 @@ export default function Opportunities() {
             <Download className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} />
             {exporting ? 'Exporting...' : 'Export Excel'}
           </Button>
-          {league === 'NCAAB' && day === 'tomorrow' && (
+          {league === 'NCAAB' && (day === 'tomorrow' || day === 'today') && (
             <Button 
               onClick={handleNCAABPPGUpdate} 
               disabled={updatingPPG}
@@ -1025,7 +1036,7 @@ export default function Opportunities() {
               {updatingPPG ? 'Updating PPG...' : 'Update PPG (L3)'}
             </Button>
           )}
-          {day === 'tomorrow' && (
+          {(day === 'tomorrow' || day === 'today') && (
             <>
               <input
                 type="file"
