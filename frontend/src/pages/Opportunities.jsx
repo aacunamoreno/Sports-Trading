@@ -592,13 +592,19 @@ export default function Opportunities() {
         timeout: 30000
       });
       
-      // Get tomorrow's date in local timezone (not UTC)
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const targetDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+      // Get target date based on current view (today or tomorrow)
+      const now = new Date();
+      const arizonaOffset = -7 * 60;
+      const arizonaTime = new Date(now.getTime() + (arizonaOffset - now.getTimezoneOffset()) * 60000);
+      
+      // If viewing today, use today's date; if viewing tomorrow, use tomorrow's date
+      if (day === 'tomorrow') {
+        arizonaTime.setDate(arizonaTime.getDate() + 1);
+      }
+      const targetDate = `${arizonaTime.getFullYear()}-${String(arizonaTime.getMonth() + 1).padStart(2, '0')}-${String(arizonaTime.getDate()).padStart(2, '0')}`;
       
       // Process all 3 leagues
-      toast.info('Processing PPG for all leagues...');
+      toast.info(`Processing PPG for all leagues (${targetDate})...`);
       
       const results = [];
       for (const lg of ['NBA', 'NHL', 'NCAAB']) {
@@ -618,10 +624,8 @@ export default function Opportunities() {
       
       toast.success(`PPG Updated! ${results.join(', ')}`);
       
-      // Refresh data if viewing tomorrow
-      if (day === 'tomorrow') {
-        loadOpportunities();
-      }
+      // Refresh data
+      loadOpportunities();
     } catch (error) {
       console.error('Error uploading PPG:', error);
       toast.error('Failed to upload PPG Excel');
