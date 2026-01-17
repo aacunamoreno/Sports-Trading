@@ -11986,7 +11986,7 @@ async def upload_ppg_file(file: UploadFile):
 
 
 @api_router.post("/ppg/upload-excel")
-async def upload_ppg_excel(league: str, target_date: str = None):
+async def upload_ppg_excel(league: str, target_date: str = None, target_day: str = None):
     """
     Process PPG data from uploaded Excel file for a specific league.
     The Excel file should already be at /tmp/PPG.xlsx
@@ -11994,6 +11994,7 @@ async def upload_ppg_excel(league: str, target_date: str = None):
     Args:
         league: 'NBA', 'NHL', or 'NCAAB'
         target_date: Target date in 'YYYY-MM-DD' format. Defaults to tomorrow.
+        target_day: 'today' or 'tomorrow' - backend calculates date in Arizona timezone
     """
     import pandas as pd
     
@@ -12001,7 +12002,14 @@ async def upload_ppg_excel(league: str, target_date: str = None):
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
         
-        if not target_date:
+        # If target_day is provided, calculate date in Arizona timezone
+        if target_day:
+            now_arizona = datetime.now(arizona_tz)
+            if target_day == 'tomorrow':
+                target_date = (now_arizona + timedelta(days=1)).strftime('%Y-%m-%d')
+            else:  # 'today'
+                target_date = now_arizona.strftime('%Y-%m-%d')
+        elif not target_date:
             target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
         
         logger.info(f"[PPG Excel] Processing {league} PPG for {target_date}")
