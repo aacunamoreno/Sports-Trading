@@ -592,25 +592,17 @@ export default function Opportunities() {
         timeout: 30000
       });
       
-      // Get target date based on current view (today or tomorrow)
-      const now = new Date();
-      const arizonaOffset = -7 * 60;
-      const arizonaTime = new Date(now.getTime() + (arizonaOffset - now.getTimezoneOffset()) * 60000);
-      
-      // If viewing today, use today's date; if viewing tomorrow, use tomorrow's date
-      if (day === 'tomorrow') {
-        arizonaTime.setDate(arizonaTime.getDate() + 1);
-      }
-      const targetDate = `${arizonaTime.getFullYear()}-${String(arizonaTime.getMonth() + 1).padStart(2, '0')}-${String(arizonaTime.getDate()).padStart(2, '0')}`;
+      // Use 'today' or 'tomorrow' keyword - let backend determine the actual date in Arizona timezone
+      const targetDay = day === 'tomorrow' ? 'tomorrow' : 'today';
       
       // Process all 3 leagues
-      toast.info(`Processing PPG for all leagues (${targetDate})...`);
+      toast.info(`Processing PPG for all leagues (${targetDay})...`);
       
       const results = [];
       for (const lg of ['NBA', 'NHL', 'NCAAB']) {
         try {
           const response = await axios.post(
-            `${API}/ppg/upload-excel?league=${lg}&target_date=${targetDate}`,
+            `${API}/ppg/upload-excel?league=${lg}&target_day=${targetDay}`,
             {},
             { timeout: 60000 }
           );
