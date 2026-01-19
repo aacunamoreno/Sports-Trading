@@ -5808,7 +5808,7 @@ async def start_monitoring():
     if not scheduler.running:
         scheduler.start()
     
-    logger.info("Bet monitoring started - checking every 7-15 minutes randomly (paused 10:45 PM - 6:00 AM Arizona)")
+    logger.info("Bet monitoring started - checking every 5 minutes (paused 9:00 PM - 7:00 AM Arizona)")
     
     return {
         "success": True,
