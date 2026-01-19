@@ -921,6 +921,62 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
     bets = compilation['bets']
     total_result = compilation.get('total_result', 0)
     
+    # Sort bets by game time (earliest first, games without time at the end)
+    def parse_time_for_sort(bet):
+        """Convert time string to sortable value"""
+        time_str = bet.get('game_time', '')
+        date_str = bet.get('game_date', '')
+        if not time_str:
+            return (9999, 0)  # Put games without time at the end
+        
+        try:
+            # Parse time like "3:15 PM" or "10:00 AM"
+            time_str = time_str.upper().strip()
+            # Handle formats like "3:15PM" or "3:15 PM"
+            time_str = time_str.replace('AM', ' AM').replace('PM', ' PM').replace('  ', ' ')
+            
+            parts = time_str.replace(':', ' ').split()
+            hour = int(parts[0])
+            minute = int(parts[1]) if len(parts) > 1 else 0
+            is_pm = 'PM' in time_str.upper()
+            
+            # Convert to 24-hour for sorting
+            if is_pm and hour != 12:
+                hour += 12
+            elif not is_pm and hour == 12:
+                hour = 0
+            
+            # If game_date is provided, parse it for multi-day sorting
+            day_offset = 0
+            if date_str:
+                # date_str is like "Jan 19"
+                try:
+                    now = datetime.now(arizona_tz)
+                    month_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+                                 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
+                    parts = date_str.lower().split()
+                    if len(parts) >= 2:
+                        month = month_map.get(parts[0][:3], now.month)
+                        day = int(parts[1])
+                        if month < now.month or (month == now.month and day < now.day):
+                            # Past date or today
+                            day_offset = 0
+                        else:
+                            # Calculate days from now
+                            from datetime import date
+                            game_date = date(now.year, month, day)
+                            today_date = now.date()
+                            day_offset = (game_date - today_date).days
+                except:
+                    pass
+            
+            return (day_offset, hour * 60 + minute)
+        except:
+            return (9998, 0)  # Put unparseable times before "no time" items
+    
+    # Sort bets by time
+    bets_sorted = sorted(bets, key=parse_time_for_sort)
+    
     # For ENANO (jac075), get TIPSTER's bets to compare losses
     tipster_bet_keys = set()
     if account == "jac075":
@@ -940,7 +996,7 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
     else:
         lines = [f"👤 *{account_label}*", ""]
     
-    for i, bet in enumerate(bets, 1):
+    for i, bet in enumerate(bets_sorted, 1):
         # Use full game name for detailed, short for compact
         if detailed:
             game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
@@ -954,6 +1010,7 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
         to_win_short = bet.get('to_win_short', '$0')
         result = bet.get('result')
         game_time = bet.get('game_time', '')
+        country = bet.get('country', '')
         
         # Build line with game time if available
         if game_time:
