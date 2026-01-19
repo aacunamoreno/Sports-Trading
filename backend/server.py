@@ -5411,7 +5411,7 @@ async def monitor_single_account(conn: dict):
             sport = bet_info.get('sport', '')
             description = bet_info.get('description', '')
             total_line_from_parser = bet_info.get('totalLine')  # From slash format parsing
-            game_time = bet_info.get('gameTime', '')  # Game time from first column
+            game_time = adjust_time_for_arizona(bet_info.get('gameTime', ''))  # Game time adjusted to Arizona
             game_date = bet_info.get('gameDate', '')  # Game date from first column
             country = bet_info.get('country', '')  # Country/league from description
             
