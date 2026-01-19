@@ -1,73 +1,78 @@
-<analysis>**original_problem_statement:** The user wants to build an automated betting analysis system for the website . The system should scrape game data (lines, scores, spreads, moneylines), betting consensus data, calculate betting edges, track user bets, and display all information in a unified dashboard.
-
-The project has evolved into a hands-on, user-guided process of backfilling historical data for multiple sports leagues (NFL, NBA, NHL, NCAAB), correcting discrepancies, and adding new UI features to analyze this data.
+<analysis>**original_problem_statement:** The user wants to build an automated betting analysis system for the website . The system scrapes game data, consensus data, calculates betting edges, and tracks user bets across two separate accounts (TIPSTER and ENANO). A key feature is a Telegram notification system that provides a real-time dashboard of all placed bets, with a special comparison view for the ENANO account to help copy bets from the TIPSTER account.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A full-stack application with a React frontend and a monolithic FastAPI backend. The dashboard displays betting opportunities, historical data, and calculated records for NBA, NHL, NCAAB, and NFL.
-
-Key features implemented:
--   **Full NFL Data Backfill:** All 18 weeks of NFL historical data have been scraped, corrected using a user-provided Excel file from , and are displayed in the UI.
--   **NFL Week Selector:** A custom week selector (Weeks 1-18) has replaced the daily calendar for the NFL, allowing users to view games on a weekly basis.
--   **Compound Public Record Modal:** A Breakdown button on the Public Record badge opens a modal that displays a table of betting records grouped by consensus percentage ranges (e.g., 57-58%, 59-60%), sorted from highest to lowest percentage.
--   **Spread Display Fix:** A critical UI bug was fixed where spreads for home favorites were displayed with the wrong sign (e.g., +10.5 instead of -10.5).
--   **Manual Record Updates:** Functionality and scripts are in place to allow for manual updates of all record types (Edge, Betting, Ranks, Public) across all leagues, which has been used multiple times per user requests.
--   **Data-driven UI:** The UI now correctly displays final scores, total lines, public consensus percentages, and HIT/MISS/PUSH results for historical games.
+A full-stack application with a React frontend and a monolithic FastAPI backend (). The system scrapes game and consensus data, allowing users to view opportunities and track records. A sophisticated Telegram notification system is the core feature, running every 5 minutes from 7 AM to 10 PM Arizona time. It provides two views:
+1.  **TIPSTER ():** A detailed list of all bets placed, sorted by completion status, then date, and then time.
+2.  **ENANO ():** A comparison view against TIPSTER's bets, indicating which bets have been successfully copied (🔵), which are pending (🟡), and which were missed (🔴 started/completed and not bet).
 
 **Last working item**:
--   **Last item agent was working:** The agent was adding a feature to scrape the public betting percentage from  whenever the refresh lines and bet button is clicked. The agent identified the relevant backend endpoint () and the existing consensus scraping function () and was about to integrate the two.
+-   **Last item agent was working:** The agent was fixing the ENANO account's Telegram notification. The user reported that a short summary was still being sent in addition to the detailed one, and the Missed count was incorrect (showing 0 when it should have been 1).
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** Backend testing agent. The agent should test the  endpoint and verify that the  and  fields are updated in the database for the relevant games.
+-   **Which testing method agent to use?** Backend testing. The agent should directly test the  and  functions in . The test should confirm that only one message ID is stored/used for the ENANO account and that the Missed count logic correctly identifies completed games on the TIPSTER list that are not on the ENANO list.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1:** The  scraper incorrectly identifies bet types (OVER/UNDER) (P1)
--   **Issue 2:** Refactor  monolith (P1)
--   **Issue 3:** The  scraper incorrectly handles Regulation Time bets (P2)
+-   **Issue 1:** ENANO Telegram summary is incorrect (P0)
+-   **Issue 2:** The  scraper incorrectly identifies bet types (OVER/UNDER) (P1)
+-   **Issue 3:** Refactor  monolith (P1)
+-   **Issue 4:** The  scraper incorrectly handles Regulation Time bets (P2)
 
 **Issues Detail**:
--   **Issue 1: The  scraper incorrectly identifies bet types (OVER/UNDER)**
-    -   **Attempted fixes:** None. This is a long-standing issue.
+-   **Issue 1: ENANO Telegram summary is incorrect**
+    -   **Attempted fixes:** The agent identified the functions responsible for building and sending messages but hadn't implemented the final fix. The last action was searching for all usages of  to eliminate it for the ENANO account.
     -   **Next debug checklist:**
-        1.  In , locate the  function.
-        2.  Examine the parsing logic that handles bet descriptions like o/u TOTAL...
-        3.  Modify the logic (likely with improved regex or string splitting) to correctly determine if the bet is an OVER or UNDER.
-    -   **Why fix this issue and what will be achieved with the fix?** To ensure user-placed bets are tracked with the correct direction (Over/Under), which is fundamental to the application's purpose.
+        1.  In , find the  function. Remove all logic that sends a short message or stores a  for the  account ().
+        2.  In the  function, review the logic that calculates . It should count bets from the  list that have a final  (e.g., 'won', 'lost') or have passed their game time, and do NOT have a matching bet in the  list.
+    -   **Why fix this issue and what will be achieved with the fix?** To deliver the correct comparison tool the user needs to efficiently copy bets from the TIPSTER to the ENANO account.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** Backend.
+    -   **Blocked on other issue:** none
+
+-   **Issue 2: The  scraper incorrectly identifies bet types (OVER/UNDER)**
+    -   **Attempted fixes:** A patch was made for a specific STRAIGHT BET format, but a more general, robust solution is needed.
+    -   **Next debug checklist:**
+        1.  In , locate  and its internal JavaScript parser.
+        2.  Examine the parsing logic that handles various bet descriptions for Over and Under.
+        3.  Improve the regex or string splitting to handle different formats reliably.
+    -   **Why fix this issue and what will be achieved with the fix?** Ensures accurate tracking and grading of all user bets.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Backend.
-    -   **Blocked on other issue:** None.
+    -   **Blocked on other issue:** none
 
--   **Issue 2: Refactor  monolith**
+-   **Issue 3: Refactor  monolith**
     -   **Attempted fixes:** None.
     -   **Next debug checklist:**
-        1.  Create new directories in : , , .
-        2.  Start by moving scraping-related functions (e.g., , ) from  into a new file like .
-        3.  Update  to import and use the functions from the new module.
-    -   **Why fix this issue and what will be achieved with the fix?** To reduce technical debt, improve code organization, and make the backend easier to maintain and extend.
+        1.  Create directories: , , .
+        2.  Move scraping functions into a  module.
+        3.  Move Telegram-related functions into a .
+        4.  Refactor API endpoints into the  directory.
+    -   **Why fix this issue and what will be achieved with the fix?** To reduce technical debt and improve code organization, making the backend easier to maintain.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Both (regression testing).
-    -   **Blocked on other issue:** None.
+    -   **Blocked on other issue:** none
 
--   **Issue 3: The  scraper incorrectly handles Regulation Time bets**
+-   **Issue 4: The  scraper incorrectly handles Regulation Time bets**
     -   **Attempted fixes:** None.
     -   **Next debug checklist:**
-        1.  In  within the  function, add logic to detect REG.TIME or similar keywords in the bet description.
-        2.  Add a new field to the bet data model (e.g., ) to store this information.
-        3.  Update the bet grading logic to correctly handle PUSH outcomes for these bets.
-    -   **Why fix this issue and what will be achieved with the fix?** To prevent incorrect bet grading (especially for NHL games) and ensure accurate bet tracking.
+        1.  In  within , add logic to detect REG.TIME in bet descriptions.
+        2.  Add a field like  to the bet data model.
+        3.  Update bet grading logic to handle outcomes correctly (e.g., PUSH if the game goes to overtime).
+    -   **Why fix this issue and what will be achieved with the fix?** To prevent incorrect bet grading and ensure accurate bet tracking, especially for hockey.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Backend.
-    -   **Blocked on other issue:** None.
+    -   **Blocked on other issue:** none
 
 **In progress Task List**:
--   **Task 1: Add Public Consensus Scraping to Refresh Lines Button (P0)**
-    -   **Where to resume:** In , within the  function, call the existing  function. Then, iterate through the results and update the  fields for the corresponding games in the database.
-    -   **What will be achieved with this?** Users will be able to get the latest public betting percentages on demand before a game starts by clicking the refresh button.
+-   **Task 1: Finalize Telegram Notification Logic (P0)**
+    -   **Where to resume:** In , modify the  and  functions.
+    -   **What will be achieved with this?** The ENANO account will only receive the correct, detailed comparison message, and the summary counts (especially Missed) will be accurate.
     -   **Status:** IN PROGRESS
     -   **Should Test frontend/backend/both after fix?** Backend.
     -   **Blocked on something:** None.
@@ -77,21 +82,26 @@ Key features implemented:
     -   (P2) Begin NCAAB records verification process with user guidance.
 -   **Future Tasks:**
     -   (P1) Implement a UI to create and manage custom betting rules.
+    -   (P3) Backfill country/league data for all historical bets in the database.
 
 **Completed work in this session**
--   **NFL Data Overhaul:** Fully backfilled and corrected all 18 weeks of NFL historical data (spreads, scores, total lines) using a user-provided Excel file. Reset all NFL-specific records (Edge, Betting, PPG) to 0-0.
--   **Frontend Feature - Compound Record Modal:** Implemented a modal that displays a breakdown of public betting records by consensus percentage ranges. The sorting was updated to be from highest to lowest percentage.
--   **Frontend Feature - NFL Week Selector:** Replaced the standard calendar with a custom dropdown for selecting NFL games by week (1-18).
--   **UI Bug Fix - Incorrect Spread Display:** Fixed a major bug in  where spreads for home favorites were shown with a positive sign instead of negative.
--   **UI Bug Fix - NFL Historical Columns:** Fixed an issue where the new NFL week view was not showing historical data columns (Score, Public %, Result).
--   **UI/UX Improvement:** Changed the Public Record button to show a Breakdown label instead of the consensus percentage.
--   **Data Correction - NCAAB Edge Calculation:** Fixed a bug where NCAAB edge bets were graded against the PPG average instead of the actual game line, correcting a MISS to a HIT.
--   **Data Correction - Bet Results:** Fixed multiple user-reported bet results, updating their status from PENDING or MISS to MISS or PUSH by correcting the underlying data in the database.
--   **Record Management:** Updated all records for NBA, NHL, and NCAAB based on user-provided totals and set NHL/NCAAB public records to 0-0 as requested.
+-   **Feature: Telegram Notification Overhaul:**
+    -   Created the **ENANO vs. TIPSTER comparison view**, which is the central feature of the current workflow.
+    -   Implemented a complex sorting order for bets: 1. Completion Status, 2. Game Date, 3. Game Time.
+    -   Added game time, country/league, and a new bet indicator (🔵) to notifications.
+    -   Updated the notification schedule to run every 5 minutes from 7 AM to 10 PM Arizona time.
+-   **Bug Fix: Scraper & Data Integrity:**
+    -   Fixed a critical bug where refreshing lines would erase bet data for completed games.
+    -   Improved the scraper to handle a previously un-parsable bet format (RBL sport code), fixing a recurring user complaint about a missing bet.
+-   **Feature: UI/UX Enhancements:**
+    -   Added Scrape Today and Upload PPG Excel buttons to the UI for the current day's view.
+    -   Fixed a timezone bug with PPG file uploads.
+-   **Data Management:**
+    -   Performed numerous manual record and data updates (lines, scores, records) based on user requests.
+    -   Created a database backup dump file for the user.
 
 **Earlier issues found/mentioned but not fixed**
--   **Issue 1:**  OVER/UNDER scraper bug.
--   **Issue 2:**  Regulation Time scraper bug.
+-   Covered in the **All Pending/In progress Issue list**. The primary ones are the  scraper bugs for O/U and Regulation Time bets.
 
 **Known issue recurrence from previous fork**
 -   **Issue recurrence in previous fork:** The  scraper incorrectly identifies bet types (OVER/UNDER).
@@ -102,84 +112,73 @@ Key features implemented:
 
 
 **Key Technical Concepts**
--   **Web Scraping:** Using Playwright and BeautifulSoup for various sports data sites.
--   **Data Parsing:** Extensive use of  to parse complex, user-provided Excel files, including reading cell formulas to extract data.
--   **Monolithic Backend:** All business logic, API endpoints, database operations, and scraping tasks are located in a single  file.
--   **React Frontend:** A single, large  component manages the state and rendering for the entire dashboard, including complex conditional rendering for different leagues and data states.
--   **Team Name Mapping:** A dictionary was implemented in the frontend as a temporary solution to map NBA team nicknames (e.g., Celtics) to city names (e.g., Boston) to resolve a data inconsistency issue.
+-   **Monolithic Backend:** All logic (APIs, scraping, scheduling, notifications) is in .
+-   **Real-time Notifications:** An  job runs a monitoring loop that scrapes , compares bet states between two accounts, and sends richly formatted, sorted messages to Telegram.
+-   **Stateful Telegram Messages:** Telegram s are stored in the database to allow editing messages in place, creating a persistent dashboard within the chat application.
+-   **Complex Data Parsing:** Heavy use of string manipulation and regex in both Python and injected JavaScript to parse scraped bet information from inconsistent HTML structures.
 
 **key DB schema**
--   ****: Collection holding historical NFL games. Each document represents a date and contains an array of game objects. Fully updated in this session.
--   **, , **: Collections for other leagues, frequently updated with new lines, scores, and bet results.
--   ****, ****: Collections storing manually adjusted record totals provided by the user.
--   All data resides in the ****.
-
-**changes in tech stack**
--   None.
+-   ****: Caches the list of bets for each account ('jac075' for ENANO, 'jac083' for TIPSTER) to generate the daily Telegram message. Bet documents include , , , and .
+-   ****: Stores account credentials and the s for the Telegram messages being updated.
+-   ****: Collections holding game data for each league.
 
 **All files of reference**
--   : The monolithic backend. All new API endpoints and logic were added here.
--   : The main UI component. Significantly modified to add the NFL week selector, compound record modal, and fix display logic.
--   : The user-provided file used for the final, correct NFL data backfill.
+-   : The monolithic backend containing all business logic. Was heavily modified.
+-   : The main UI component. Was modified to add new buttons.
 
 **Areas that need refactoring**:
--   : **CRITICAL.** The file is extremely large and complex, making it difficult to maintain and prone to errors. It urgently needs to be broken down into smaller modules (e.g., , , ).
--   : This component has grown to over 2000 lines. The logic for the new modal, the week selector, and various data display sections should be extracted into their own smaller, reusable components to improve readability and maintainability.
+-   : **CRITICAL.** This file has grown excessively large and complex. The interconnected scraping and notification logic is difficult to debug and maintain. It urgently needs to be modularized.
 
 **key api endpoints**
--   ****: Scrapes live lines and bets from . This is the endpoint for the current in-progress task.
--   ****: (New) Fetches the data for the compound public record modal.
--   ****: (New) Fetches NFL games by week number.
--   ****: Modified to return stored 0-0 records for NHL/NCAAB.
--   ****: Modified to include NFL records.
--   ****: Modified to include NFL records.
+-   : Refreshes game lines and scrapes public consensus.
+-   : Handles upload of PPG data from Excel.
+-   : Endpoint triggered by the new Scrape Today button.
 
 **Critical Info for New Agent**
--   The user is the source of truth for all data corrections and record totals. Prioritize their requests and trust their provided data.
--   The  file is a monolith and represents significant technical debt. While the user's feature requests often take priority, be prepared to address the pending refactoring task soon. Any modifications to this file should be made with extreme care.
--   The  scraper has long-standing, known bugs related to parsing O/U and Regulation Time bets. These are high-priority fixes in the backlog.
--   Be aware of data inconsistencies, such as the team name mismatch (Boston vs. Celtics), which required a hack in the frontend. Similar issues may exist elsewhere.
+-   The user's primary focus is now the **Telegram bet-copying workflow**. The ENANO summary is a comparison tool to facilitate this. Accuracy of this summary is paramount.
+-   The sorting logic for Telegram messages is crucial and multi-layered: 1. **Completed** bets (win/loss), 2. **Game Date** (today before tomorrow), 3. **Game Time** (earliest first).
+-   The  file is a high-risk monolith. Any changes, especially to the notification functions ( and ), must be made with extreme care.
+-   The backend monitoring loop can be interrupted by server restarts (e.g., from code changes), which stops notifications. If the user reports no updates, the first step is to run backend: stopped
+backend: started.
 
 **documents and test reports created in this job**
--   None.
+-   
+-   
 
 **Last 10 User Messages and any pending HUMAN messages**
-10. **User:** Asks to scrape public consensus percentage when the refresh lines button is clicked.
-9.  **User:** States that a specific bet should be a PUSH, not a MISS.
-8.  **User:** Reports a user-placed bet is showing PENDING when it should be a MISS.
-7.  **User:** Provides the correct, final record totals for all leagues (NBA, NHL, NCAAB).
-6.  **User:** Reports an NCAAB edge bet is incorrectly marked as MISS when it should be a HIT, explaining the calculation logic (compare score to Line, not PPG).
-5.  **User:** Reports that three NCAAB games with a valid edge are not being highlighted correctly in the UI.
-4.  **User:** Requests that the Public Betting records for NHL and NCAAB be set to 0-0.
-3.  **User:** Asks to change the UI of the public record button from showing 57% to a simple Breakdown label.
-2.  **User:** Requests that the compound public record table be sorted by consensus percentage (high to low), not by fade win rate.
-1.  **User:** Provides a screenshot showing a manual update to the  file and asks the agent to use it to fill in the Line column and set NFL records to 0-0.
+10.  Reports ENANO summary is still showing a short version and the Missed count is wrong. (PENDING)
+9.  Asks to highlight new bets with a 🔵 emoji. (DONE)
+8.  Reports that notifications stopped. (RESOLVED - agent restarted backend)
+7.  Requests completed games appear at the top and ENANO only gets the detailed summary. (PARTIALLY DONE)
+6.  Reports sorting is incorrect for tomorrow's games and some times are missing. (RESOLVED)
+5.  Requests bets be sorted by game time and include country/league info. (DONE)
+4.  Requests game time be added to notifications. (DONE)
+3.  Requests notification schedule be extended to 10 PM. (DONE)
+2.  Requests notification schedule be changed to every 5 minutes from 7 AM to 9 PM. (DONE)
+1.  Reports PPG data not showing correctly after upload. (RESOLVED)
 
 **Project Health Check:**
 -   **Broken:**
-    -   The  scraper's logic for parsing OVER/UNDER bets.
-    -   The  scraper's logic for handling Regulation Time bets.
+    -   The ENANO Telegram notification logic is sending an extra message and has an incorrect Missed count.
+    -   Core  scraper logic for parsing OVER/UNDER and Regulation Time bets.
 -   **Technical Debt:**
-    -   The  monolith is a critical maintenance and stability risk.
-    -   The  frontend component is overly large and complex.
+    -   The  monolith represents a critical stability and maintenance risk.
 
 **3rd Party Integrations**
--   **Playwright:** For web scraping.
--   **BeautifulSoup:** For parsing HTML content.
--   **APScheduler:** For running scheduled jobs.
--   **openpyxl:** For parsing user-provided Excel files.
+-   **Playwright & BeautifulSoup:** Web scraping.
+-   **APScheduler:** Scheduled job execution.
+-   **python-telegram-bot:** Telegram notifications.
+-   **openpyxl:** Excel file parsing.
 
 **Testing status**
 -   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** None
--   **Known regressions:** None
+-   **Known regressions:** A server restart can interrupt the backend monitoring loop, requiring a manual restart to resume Telegram notifications.
 
 **Credentials to test flow:**
--   **Website:** 
-    -   **Betting Account:**  / 
-    -   **Lines-only Account:**  / 
+-   **TIPSTER Account (Master):**  / 
+-   **ENANO Account (Copy):**  / 
 
 **What agent forgot to execute**
--   The critical refactoring of the  monolith was not started.
--   The root cause of the  scraper bugs was not fixed. These high-priority tasks were deferred in favor of the user's active requests for data correction and new UI features.</analysis>
+-   The agent identified the two final issues with the ENANO summary (still sending a short message, incorrect missed count) but has not yet fully implemented the fix. The root cause of why the short message is still being sent needs to be found and removed.</analysis>
