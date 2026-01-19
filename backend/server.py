@@ -1455,8 +1455,10 @@ async def build_enano_comparison_message() -> str:
     # Add summary at the bottom
     total_tipster = len(tipster_bets)
     total_placed = sum(1 for b in tipster_bets if is_bet_placed_by_enano(b))
-    total_missed = sum(1 for b in tipster_bets if not is_bet_placed_by_enano(b) and is_game_started_or_ended(b))
-    total_pending = total_tipster - total_placed - total_missed
+    total_completed = len(completed_bets)
+    # Missed = games that started/ended but we didn't bet (excluding completed results)
+    total_missed = sum(1 for b in tipster_bets if not is_bet_placed_by_enano(b) and is_game_started_or_ended(b) and b.get('result') not in ['won', 'lost', 'push'])
+    total_pending = total_tipster - total_placed - total_completed - total_missed
     
     lines.append("")
     lines.append(f"*Copied: {total_placed}/{total_tipster}* | 🔴 Missed: {total_missed} | 🟡 Pending: {total_pending}")
