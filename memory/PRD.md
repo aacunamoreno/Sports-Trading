@@ -28,6 +28,14 @@ Build an automated betting analysis system for `plays888.co` that scrapes game d
 
 ## What's Been Implemented (Latest First)
 
+### January 19, 2026 (Session 3)
+- **Bug Fix - ENANO Telegram Summary**: Fixed two issues with the ENANO (jac075) Telegram notification:
+  1. Removed the "short" summary message - ENANO now only receives the detailed comparison view
+  2. Fixed "Missed" count calculation - now correctly counts TIPSTER bets that ENANO didn't copy where either:
+     - The game has a final result (won/lost/push)
+     - The game has already started (game time passed)
+- **Refactor - send_all_compilations API**: Updated the manual `/api/telegram/send-compilations` endpoint to send ENANO comparison view + TIPSTER detailed view only (2 messages instead of 3)
+
 ### January 10-11, 2026 (Session 2)
 - **Bug Fix - Completed Games Preserved**: Fixed critical issue where completed games (with final_score) were disappearing when clicking "Refresh Lines & Bets". Now preserves all bet data (bet_type, bet_line, user_bet_hit, result) for finished games.
 - **Bug Fix - RBL Sport Parsing**: Fixed issue where bets marked as "RBL" (special plays888 line type) were not being matched to NBA games. Added logic to detect "Basketball / NBA" in bet descriptions.
