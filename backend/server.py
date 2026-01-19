@@ -1208,13 +1208,33 @@ async def build_enano_comparison_message() -> str:
         Returns: (is_placed: bool, enano_line: str or None)
         - enano_line is returned when ENANO placed bet at different line
         """
+        import re
+        
         game = tipster_bet.get('game_short', tipster_bet.get('game', '')).upper()
         game_full = tipster_bet.get('game', '').upper()
         bet_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
         
-        # Check exact match first
+        def extract_number(s):
+            """Extract numeric value from bet type string like 'o142.5' or '+3.5'"""
+            match = re.search(r'([+-]?\d+\.?\d*)', s)
+            return float(match.group(1)) if match else None
+        
+        def get_direction(s):
+            """Get direction: 'O' for over, 'U' for under, '+' for plus spread, '-' for minus spread"""
+            s = s.upper()
+            if s.startswith('O') or 'OVER' in s:
+                return 'O'
+            if s.startswith('U') or 'UNDER' in s:
+                return 'U'
+            if '+' in s:
+                return '+'
+            if '-' in s:
+                return '-'
+            return None
+        
+        # Check exact match first (including number)
         if f"{game}|{bet_type}" in enano_bet_keys:
-            return True, None  # Same line
+            return True, None  # Exact same line
         
         # Check partial match (same game, possibly different line)
         for enano_bet in enano_bets:
@@ -1225,49 +1245,45 @@ async def build_enano_comparison_message() -> str:
             # Match by similar game name (short names)
             game_match = game in enano_game or enano_game in game
             
-            # Also check full game names for partial matches (handles cases like SIB vs ZAD/GKK when both have SIBENKA in full name)
+            # Also check full game names for partial matches
             if not game_match and game_full and enano_game_full:
-                # Extract key team names from full game names
                 tipster_words = set(game_full.replace('VS', ' ').replace('/', ' ').split())
                 enano_words = set(enano_game_full.replace('VS', ' ').replace('/', ' ').split())
-                # If there's significant overlap in team names, it's the same game
                 common_words = tipster_words & enano_words
-                # Filter out small common words
                 significant_common = [w for w in common_words if len(w) > 3]
                 if len(significant_common) >= 1:
                     game_match = True
             
             if game_match:
-                # Check if same bet type (exact match)
+                # Exact match
                 if bet_type == enano_type:
-                    return True, None  # Same line
-                
-                # Check if bet types are similar (same direction)
-                if bet_type in enano_type or enano_type in bet_type:
-                    # Same line essentially
                     return True, None
                 
-                # Check for same direction but different numbers (overs/unders)
-                if ('O' in bet_type and 'O' in enano_type) or ('U' in bet_type and 'U' in enano_type):
-                    # Same direction - return ENANO's line if different
-                    if bet_type != enano_type:
-                        return True, enano_type  # Different line
-                    return True, None
+                # Get directions and numbers
+                tipster_dir = get_direction(bet_type)
+                enano_dir = get_direction(enano_type)
+                tipster_num = extract_number(bet_type)
+                enano_num = extract_number(enano_type)
                 
-                # Check for same direction spreads (+/-)
-                if ('+' in bet_type and '+' in enano_type) or ('-' in bet_type and '-' in enano_type):
-                    # Same direction - return ENANO's line if different
-                    if bet_type != enano_type:
-                        return True, enano_type  # Different line
-                    return True, None
+                # Same direction match (O/O, U/U, +/+, -/-)
+                if tipster_dir and enano_dir and tipster_dir == enano_dir:
+                    # Same direction - check if numbers differ
+                    if tipster_num is not None and enano_num is not None:
+                        if tipster_num != enano_num:
+                            return True, enano_type  # Different line
+                        return True, None  # Same line
+                    # Direction matches but can't compare numbers
+                    return True, enano_type if enano_type != bet_type else None
                 
-                # If bet_type is "Straight" or similar generic, consider it a match if game matches
-                if enano_type in ['STRAIGHT', 'STRAIGHT BET', ''] or bet_type in ['STRAIGHT', 'STRAIGHT BET', '']:
-                    # Get the non-straight type as the line
-                    if enano_type not in ['STRAIGHT', 'STRAIGHT BET', '']:
-                        return True, enano_type  # ENANO has specific line
+                # Handle "Straight" generic type - match if game matches
+                if enano_type in ['STRAIGHT', 'STRAIGHT BET', '']:
+                    # ENANO has generic type, check if same direction
                     return True, None
+                if bet_type in ['STRAIGHT', 'STRAIGHT BET', '']:
+                    # TIPSTER has generic, ENANO has specific - show ENANO's line
+                    return True, enano_type
         
+        return False, None
         return False, None
     
     def is_game_started_or_ended(bet):
