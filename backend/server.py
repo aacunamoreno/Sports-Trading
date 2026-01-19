@@ -4835,6 +4835,8 @@ async def monitor_single_account(conn: dict):
             description = bet_info.get('description', '')
             total_line_from_parser = bet_info.get('totalLine')  # From slash format parsing
             game_time = bet_info.get('gameTime', '')  # Game time from first column
+            game_date = bet_info.get('gameDate', '')  # Game date from first column
+            country = bet_info.get('country', '')  # Country/league from description
             
             # Fix sport detection from description if RBL is just a generic marker
             # Description may contain "Basketball / NBA" or "Hockey / NHL" etc.
