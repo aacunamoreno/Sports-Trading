@@ -353,7 +353,7 @@ async def auto_start_monitoring():
                 # Start background monitoring loop
                 asyncio.create_task(monitoring_loop())
                 
-                logger.info("Bet monitoring auto-started with background loop (5 min intervals, paused 9:00 PM - 7:00 AM Arizona)")
+                logger.info("Bet monitoring auto-started with background loop (5 min intervals, paused 10:00 PM - 7:00 AM Arizona)")
             else:
                 logger.info("Bet monitoring not auto-started (disabled in config)")
         else:
@@ -403,7 +403,7 @@ async def monitoring_loop():
                 current_minute = now_arizona.minute
                 current_time_minutes = current_hour * 60 + current_minute
                 
-                sleep_start = 21 * 60 + 0   # 9:00 PM
+                sleep_start = 22 * 60 + 0   # 10:00 PM
                 sleep_end = 7 * 60 + 0       # 7:00 AM
                 
                 if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
@@ -1630,7 +1630,7 @@ async def send_activity_summary():
 {check_times_text}
 
 ✅ *System Status:* Active
-🕐 *Sleep Hours:* 9:00 PM - 7:00 AM
+🕐 *Sleep Hours:* 10:00 PM - 7:00 AM
 
 _Betting summaries follow..._
         """
@@ -4349,7 +4349,7 @@ async def watchdog_check():
     current_minute = now_arizona.minute
     current_time_minutes = current_hour * 60 + current_minute
     
-    sleep_start = 21 * 60 + 0   # 9:00 PM
+    sleep_start = 22 * 60 + 0   # 10:00 PM
     sleep_end = 7 * 60 + 0      # 7:00 AM
     
     if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
@@ -4507,7 +4507,7 @@ async def monitor_open_bets():
     current_time_minutes = current_hour * 60 + current_minute
     
     # Sleep window: 9:00 PM to 7:00 AM (active 7am-9pm)
-    sleep_start = 21 * 60 + 0   # 9:00 PM = 1260 minutes
+    sleep_start = 22 * 60 + 0   # 10:00 PM = 1260 minutes
     sleep_end = 7 * 60 + 0       # 7:00 AM = 420 minutes
     
     if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
@@ -5808,11 +5808,11 @@ async def start_monitoring():
     if not scheduler.running:
         scheduler.start()
     
-    logger.info("Bet monitoring started - checking every 5 minutes (paused 9:00 PM - 7:00 AM Arizona)")
+    logger.info("Bet monitoring started - checking every 5 minutes (paused 10:00 PM - 7:00 AM Arizona)")
     
     return {
         "success": True,
-        "message": "Bet monitoring started. Will check plays888.co every 5 minutes (paused during sleep hours 9:00 PM - 7:00 AM Arizona).",
+        "message": "Bet monitoring started. Will check plays888.co every 5 minutes (paused during sleep hours 10:00 PM - 7:00 AM Arizona).",
         "interval": "7-15 minutes (random)"
     }
 
@@ -5855,7 +5855,7 @@ async def monitoring_status():
     return {
         "enabled": monitoring_enabled,
         "interval": "7-15 minutes (random)",
-        "sleep_hours": "9:00 PM - 7:00 AM Arizona",
+        "sleep_hours": "10:00 PM - 7:00 AM Arizona",
         "running": scheduler.running,
         "next_check": next_check
     }
