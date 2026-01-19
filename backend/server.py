@@ -1302,15 +1302,8 @@ async def build_enano_comparison_message() -> str:
             return None
         
         matches = []
-        # Check exact match first
-        if f"{game}|{bet_type}" in enano_bet_keys:
-            # Find the matching ENANO bet
-            for enano_bet in enano_bets:
-                if enano_bet.get('game_short', '').upper() == game and enano_bet.get('bet_type_short', '').upper() == bet_type:
-                    return True, None, enano_bet
-            return True, None, None
         
-        # Check partial match
+        # Check all ENANO bets for matches
         for enano_bet in enano_bets:
             enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
             enano_game_full = enano_bet.get('game', '').upper()
@@ -1327,27 +1320,33 @@ async def build_enano_comparison_message() -> str:
                     game_match = True
             
             if game_match:
+                enano_line = None
+                type_match = False
+                
                 if bet_type == enano_type:
-                    return True, None, enano_bet
+                    type_match = True
+                else:
+                    tipster_dir = get_direction(bet_type)
+                    enano_dir = get_direction(enano_type)
+                    tipster_num = extract_number(bet_type)
+                    enano_num = extract_number(enano_type)
+                    
+                    if tipster_dir and enano_dir and tipster_dir == enano_dir:
+                        type_match = True
+                        if tipster_num is not None and enano_num is not None and tipster_num != enano_num:
+                            enano_line = enano_type
+                        elif enano_type != bet_type:
+                            enano_line = enano_type
+                    elif enano_type in ['STRAIGHT', 'STRAIGHT BET', '']:
+                        type_match = True
+                    elif bet_type in ['STRAIGHT', 'STRAIGHT BET', '']:
+                        type_match = True
+                        enano_line = enano_type
                 
-                tipster_dir = get_direction(bet_type)
-                enano_dir = get_direction(enano_type)
-                tipster_num = extract_number(bet_type)
-                enano_num = extract_number(enano_type)
-                
-                if tipster_dir and enano_dir and tipster_dir == enano_dir:
-                    if tipster_num is not None and enano_num is not None:
-                        if tipster_num != enano_num:
-                            return True, enano_type, enano_bet
-                        return True, None, enano_bet
-                    return True, enano_type if enano_type != bet_type else None, enano_bet
-                
-                if enano_type in ['STRAIGHT', 'STRAIGHT BET', '']:
-                    return True, None, enano_bet
-                if bet_type in ['STRAIGHT', 'STRAIGHT BET', '']:
-                    return True, enano_type, enano_bet
+                if type_match:
+                    matches.append((enano_bet, enano_line))
         
-        return False, None, None
+        return matches
     
     def is_game_started_or_ended(bet):
         """Check if game has started or ended based on time"""
