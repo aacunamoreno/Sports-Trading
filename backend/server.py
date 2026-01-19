@@ -4594,9 +4594,15 @@ async def monitor_single_account(conn: dict):
                     
                     // Extract game time from first column (format: "Ticket#:340605842 Jan 19 03:15 PM")
                     let gameTime = '';
+                    let gameDate = '';
                     const timeMatch = ticketCell.match(/(\\d{1,2}:\\d{2}\\s*(?:AM|PM))/i);
                     if (timeMatch) {
                         gameTime = timeMatch[1].trim();
+                    }
+                    // Extract date too (e.g., "Jan 19")
+                    const dateMatch = ticketCell.match(/([A-Za-z]{3})\\s+(\\d{1,2})/);
+                    if (dateMatch) {
+                        gameDate = dateMatch[1] + ' ' + dateMatch[2];
                     }
                     
                     if (ticketMatch) {
@@ -4606,6 +4612,36 @@ async def monitor_single_account(conn: dict):
                         const sport = cells[3] ? cells[3].textContent.trim() : '';
                         const description = cells[4] ? cells[4].textContent.trim() : '';
                         const riskWin = cells[5] ? cells[5].textContent.trim() : '';
+                        
+                        // Extract country/league from description
+                        // Format examples: "(Israel)", "(Uruguay)", "(Norway)", "(Croatia)"
+                        // Or from patterns like "Basketball / Israel" or "Hockey / Norway"
+                        let country = '';
+                        const countryMatch = description.match(/\\(([A-Za-z]+)\\)\\s*$/);
+                        if (countryMatch) {
+                            country = countryMatch[1];
+                        } else {
+                            // Try to find country after slash (e.g., "Basketball / Israel")
+                            const slashCountry = description.match(/\\/\\s*([A-Za-z]+)\\s*(?:\\/|$)/);
+                            if (slashCountry && slashCountry[1].length <= 15) {
+                                // Only take short names that could be countries
+                                const possibleCountry = slashCountry[1].trim();
+                                if (!['Game', 'Total', 'Spread', 'Money', 'Over', 'Under', 'NBA', 'NHL', 'NFL', 'CBB', 'NCAAB'].includes(possibleCountry)) {
+                                    country = possibleCountry;
+                                }
+                            }
+                        }
+                        // Check sport column for international leagues
+                        if (!country && sport) {
+                            const sportUpper = sport.toUpperCase();
+                            // Map sport codes to countries/regions
+                            const sportCountryMap = {
+                                'RBL': '', // Will need to extract from description
+                                'SOC': '', // Soccer - varies
+                                'HKI': '', // Hockey international
+                                'TEN': '', // Tennis
+                            };
+                        }
                         
                         // Parse risk/win amounts (format: "1100.00 / 1000.00" or "500.00 / 9500.00")
                         let wager = 0;
