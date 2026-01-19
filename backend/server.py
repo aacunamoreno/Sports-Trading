@@ -1273,12 +1273,16 @@ async def build_enano_comparison_message() -> str:
     # Build ENANO comparison message
     lines = ["📋 *ENANO* (vs TIPSTER)", ""]
     
-    # Split into today and tomorrow
+    # Split into: completed, today (not completed), tomorrow (not completed)
+    completed_bets = []
     today_bets = []
     tomorrow_bets = []
     
     for bet in tipster_sorted:
-        if is_tomorrow(bet):
+        result = bet.get('result')
+        if result in ['won', 'lost', 'push']:
+            completed_bets.append(bet)
+        elif is_tomorrow(bet):
             tomorrow_bets.append(bet)
         else:
             today_bets.append(bet)
