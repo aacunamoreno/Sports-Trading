@@ -1268,6 +1268,40 @@ async def build_enano_comparison_message() -> str:
                 return '-'
             return None
         
+        # Just return first match for backward compatibility
+        all_matches = get_all_matching_enano_bets(tipster_bet)
+        if all_matches:
+            enano_bet, enano_line = all_matches[0]
+            return True, enano_line, enano_bet
+        return False, None, None
+    
+    def get_all_matching_enano_bets(tipster_bet):
+        """Get ALL ENANO bets that match this TIPSTER bet (for duplicates)
+        Returns: list of (enano_bet, enano_line) tuples
+        """
+        import re
+        
+        game = tipster_bet.get('game_short', tipster_bet.get('game', '')).upper()
+        game_full = tipster_bet.get('game', '').upper()
+        bet_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
+        
+        def extract_number(s):
+            match = re.search(r'([+-]?\d+\.?\d*)', s)
+            return float(match.group(1)) if match else None
+        
+        def get_direction(s):
+            s = s.upper()
+            if s.startswith('O') or 'OVER' in s:
+                return 'O'
+            if s.startswith('U') or 'UNDER' in s:
+                return 'U'
+            if '+' in s:
+                return '+'
+            if '-' in s:
+                return '-'
+            return None
+        
+        matches = []
         # Check exact match first
         if f"{game}|{bet_type}" in enano_bet_keys:
             # Find the matching ENANO bet
