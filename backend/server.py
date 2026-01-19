@@ -1421,13 +1421,16 @@ async def build_enano_comparison_message() -> str:
         game_time = bet.get('game_time', '')
         country = bet.get('country', '')
         
-        # Determine emoji based on comparison
-        is_placed = is_bet_placed_by_enano(bet)
+        # Determine emoji based on comparison - now returns tuple (is_placed, enano_line)
+        is_placed, enano_line = is_bet_placed_by_enano(bet)
         game_started = is_game_started_or_ended(bet)
         
         # Today's pending bets (completed are handled above)
         if is_placed:
-            emoji = "🔵"  # Placed/copied
+            if enano_line:
+                emoji = f"🔵{enano_line}🟣"  # Placed with different line
+            else:
+                emoji = "🔵"  # Placed/copied with same line
         elif game_started:
             emoji = "🔴"  # Missed (game started, not placed)
         else:
