@@ -1097,13 +1097,15 @@ async def build_enano_comparison_message() -> str:
     """Build ENANO message comparing against TIPSTER bets
     
     Shows TIPSTER bets with indicators:
-    - 🔴 = TIPSTER bet we MISSED (game started/ended, we didn't bet)
-    - 🔵 = TIPSTER bet we PLACED (copied successfully with same line)
-    - 🔵{line}🟣 = TIPSTER bet we PLACED with DIFFERENT line
-    - 🟡 = TIPSTER bet we HAVEN'T placed yet (pending to copy)
+    - 🟢 = Placed and WON
+    - 🔴 = Placed and LOST
+    - 🟠 = MISSED (game started/ended, we didn't bet)
+    - 🔵 = Placed (game not finished yet)
+    - 🟡 = Pending (can still place)
+    - (line)🟣 = Line difference indicator
     
     Then shows ENANO-only bets at the bottom (separated)
-    Separates today's games from tomorrow's with a blank line
+    Shows ENANO's own Result and Record at the bottom
     """
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
@@ -1136,13 +1138,11 @@ async def build_enano_comparison_message() -> str:
     for bet in enano_bets:
         game = bet.get('game_short', bet.get('game', '')).upper()
         bet_type = bet.get('bet_type_short', bet.get('bet_type', '')).upper()
-        # Create multiple keys for matching
         enano_bet_keys.add(f"{game}|{bet_type}")
-        # Also add without bet type for broader matching
         enano_bet_keys.add(game)
     
     def parse_time_for_sort(bet):
-        """Sort by: completed first, then today, then tomorrow"""
+        """Sort by: completed first, then today by time, then tomorrow"""
         result = bet.get('result')
         time_str = bet.get('game_time', '')
         date_str = bet.get('game_date', '')
@@ -1159,7 +1159,7 @@ async def build_enano_comparison_message() -> str:
             time_str = time_str.replace('AM', ' AM').replace('PM', ' PM').replace('  ', ' ')
             parts = time_str.replace(':', ' ').split()
             hour = int(parts[0])
-            minute = int(parts[1]) if len(parts) > 1 else 0
+            minute = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
             is_pm = 'PM' in time_str.upper()
             if is_pm and hour != 12:
                 hour += 12
@@ -1196,7 +1196,7 @@ async def build_enano_comparison_message() -> str:
             time_str = time_str.replace('AM', ' AM').replace('PM', ' PM').replace('  ', ' ')
             parts = time_str.replace(':', ' ').split()
             hour = int(parts[0])
-            minute = int(parts[1]) if len(parts) > 1 else 0
+            minute = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
             is_pm = 'PM' in time_str.upper()
             if is_pm and hour != 12:
                 hour += 12
@@ -1208,8 +1208,7 @@ async def build_enano_comparison_message() -> str:
     
     def is_bet_placed_by_enano(tipster_bet):
         """Check if ENANO has placed this TIPSTER bet
-        Returns: (is_placed: bool, enano_line: str or None)
-        - enano_line is returned when ENANO placed bet at different line
+        Returns: (is_placed: bool, enano_line: str or None, enano_bet: dict or None)
         """
         import re
         
@@ -1218,12 +1217,10 @@ async def build_enano_comparison_message() -> str:
         bet_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
         
         def extract_number(s):
-            """Extract numeric value from bet type string like 'o142.5' or '+3.5'"""
             match = re.search(r'([+-]?\d+\.?\d*)', s)
             return float(match.group(1)) if match else None
         
         def get_direction(s):
-            """Get direction: 'O' for over, 'U' for under, '+' for plus spread, '-' for minus spread"""
             s = s.upper()
             if s.startswith('O') or 'OVER' in s:
                 return 'O'
@@ -1235,20 +1232,22 @@ async def build_enano_comparison_message() -> str:
                 return '-'
             return None
         
-        # Check exact match first (including number)
+        # Check exact match first
         if f"{game}|{bet_type}" in enano_bet_keys:
-            return True, None  # Exact same line
+            # Find the matching ENANO bet
+            for enano_bet in enano_bets:
+                if enano_bet.get('game_short', '').upper() == game and enano_bet.get('bet_type_short', '').upper() == bet_type:
+                    return True, None, enano_bet
+            return True, None, None
         
-        # Check partial match (same game, possibly different line)
+        # Check partial match
         for enano_bet in enano_bets:
             enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
             enano_game_full = enano_bet.get('game', '').upper()
             enano_type = enano_bet.get('bet_type_short', enano_bet.get('bet_type', '')).upper()
             
-            # Match by similar game name (short names)
             game_match = game in enano_game or enano_game in game
             
-            # Also check full game names for partial matches
             if not game_match and game_full and enano_game_full:
                 tipster_words = set(game_full.replace('VS', ' ').replace('/', ' ').split())
                 enano_words = set(enano_game_full.replace('VS', ' ').replace('/', ' ').split())
@@ -1258,36 +1257,27 @@ async def build_enano_comparison_message() -> str:
                     game_match = True
             
             if game_match:
-                # Exact match
                 if bet_type == enano_type:
-                    return True, None
+                    return True, None, enano_bet
                 
-                # Get directions and numbers
                 tipster_dir = get_direction(bet_type)
                 enano_dir = get_direction(enano_type)
                 tipster_num = extract_number(bet_type)
                 enano_num = extract_number(enano_type)
                 
-                # Same direction match (O/O, U/U, +/+, -/-)
                 if tipster_dir and enano_dir and tipster_dir == enano_dir:
-                    # Same direction - check if numbers differ
                     if tipster_num is not None and enano_num is not None:
                         if tipster_num != enano_num:
-                            return True, enano_type  # Different line
-                        return True, None  # Same line
-                    # Direction matches but can't compare numbers
-                    return True, enano_type if enano_type != bet_type else None
+                            return True, enano_type, enano_bet
+                        return True, None, enano_bet
+                    return True, enano_type if enano_type != bet_type else None, enano_bet
                 
-                # Handle "Straight" generic type - match if game matches
                 if enano_type in ['STRAIGHT', 'STRAIGHT BET', '']:
-                    # ENANO has generic type, check if same direction
-                    return True, None
+                    return True, None, enano_bet
                 if bet_type in ['STRAIGHT', 'STRAIGHT BET', '']:
-                    # TIPSTER has generic, ENANO has specific - show ENANO's line
-                    return True, enano_type
+                    return True, enano_type, enano_bet
         
-        return False, None
-        return False, None
+        return False, None, None
     
     def is_game_started_or_ended(bet):
         """Check if game has started or ended based on time"""
@@ -1296,7 +1286,6 @@ async def build_enano_comparison_message() -> str:
             return True
         
         date_str = bet.get('game_date', '')
-        # If tomorrow's game, not started
         if date_str:
             month_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
                          'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
@@ -1305,7 +1294,7 @@ async def build_enano_comparison_message() -> str:
                 month = month_map.get(parts[0][:3], today_month)
                 day = int(parts[1])
                 if day > today_day or month > today_month:
-                    return False  # Tomorrow's game
+                    return False
         
         game_time = get_game_time_minutes(bet)
         if game_time is None:
@@ -1347,10 +1336,8 @@ async def build_enano_comparison_message() -> str:
         else:
             today_bets.append(bet)
     
-    # Find ENANO-only bets (not in TIPSTER) - must also check full game names
+    # Find ENANO-only bets (not in TIPSTER)
     enano_only_bets = []
-    matched_enano_bets = set()  # Track which ENANO bets are matched to TIPSTER
-    
     for enano_bet in enano_bets:
         enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
         enano_game_full = enano_bet.get('game', '').upper()
@@ -1362,10 +1349,8 @@ async def build_enano_comparison_message() -> str:
             tipster_game_full = tipster_bet.get('game', '').upper()
             tipster_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
             
-            # Check short name match
             game_match = enano_game in tipster_game or tipster_game in enano_game
             
-            # Also check full game names for matches
             if not game_match and enano_game_full and tipster_game_full:
                 enano_words = set(enano_game_full.replace('VS', ' ').replace('/', ' ').split())
                 tipster_words = set(tipster_game_full.replace('VS', ' ').replace('/', ' ').split())
@@ -1375,7 +1360,6 @@ async def build_enano_comparison_message() -> str:
                     game_match = True
             
             if game_match:
-                # Same game - check bet type direction
                 if enano_type in tipster_type or tipster_type in enano_type:
                     found_in_tipster = True
                     break
@@ -1385,7 +1369,6 @@ async def build_enano_comparison_message() -> str:
                 if ('+' in enano_type and '+' in tipster_type) or ('-' in enano_type and '-' in tipster_type):
                     found_in_tipster = True
                     break
-                # If either is "Straight", consider it a match
                 if enano_type in ['STRAIGHT', 'STRAIGHT BET', ''] or tipster_type in ['STRAIGHT', 'STRAIGHT BET', '']:
                     found_in_tipster = True
                     break
@@ -1395,6 +1378,11 @@ async def build_enano_comparison_message() -> str:
     
     bet_num = 1
     
+    # Track ENANO's results
+    enano_wins = 0
+    enano_losses = 0
+    enano_result_amount = 0.0
+    
     # Process COMPLETED bets first
     for bet in completed_bets:
         game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
@@ -1402,17 +1390,49 @@ async def build_enano_comparison_message() -> str:
         bet_type_short = bet.get('bet_type_short', '')
         wager_short = bet.get('wager_short', '$0')
         to_win_short = bet.get('to_win_short', '$0')
-        result = bet.get('result')
+        tipster_result = bet.get('result')
         game_time = bet.get('game_time', '')
         country = bet.get('country', '')
         
-        # Completed game emoji based on result
-        if result == 'won':
-            emoji = "🟢"
-        elif result == 'lost':
-            emoji = "🔴"
+        is_placed, enano_line, enano_bet = is_bet_placed_by_enano(bet)
+        
+        if is_placed and enano_bet:
+            # ENANO placed this bet - check ENANO's result
+            enano_result = enano_bet.get('result')
+            enano_wager = enano_bet.get('wager', 0)
+            enano_to_win = enano_bet.get('to_win', 0)
+            
+            if enano_result == 'won':
+                emoji = "🟢"
+                if enano_line:
+                    emoji += f"({enano_line})🟣"
+                enano_wins += 1
+                enano_result_amount += enano_to_win
+            elif enano_result == 'lost':
+                emoji = "🔴"
+                if enano_line:
+                    emoji += f"({enano_line})🟣"
+                enano_losses += 1
+                enano_result_amount -= enano_wager
+            else:
+                # ENANO bet not graded yet but TIPSTER is - use TIPSTER result as proxy
+                if tipster_result == 'won':
+                    emoji = "🟢"
+                    if enano_line:
+                        emoji += f"({enano_line})🟣"
+                    enano_wins += 1
+                    enano_result_amount += enano_to_win
+                elif tipster_result == 'lost':
+                    emoji = "🔴"
+                    if enano_line:
+                        emoji += f"({enano_line})🟣"
+                    enano_losses += 1
+                    enano_result_amount -= enano_wager
+                else:
+                    emoji = "🔵"  # Push or unknown
         else:
-            emoji = "🔵"  # push
+            # ENANO missed this completed bet
+            emoji = "🟠"
         
         # Build line
         if game_time:
@@ -1436,24 +1456,21 @@ async def build_enano_comparison_message() -> str:
         bet_type_short = bet.get('bet_type_short', '')
         wager_short = bet.get('wager_short', '$0')
         to_win_short = bet.get('to_win_short', '$0')
-        result = bet.get('result')
         game_time = bet.get('game_time', '')
         country = bet.get('country', '')
         
-        # Determine emoji based on comparison - now returns tuple (is_placed, enano_line)
-        is_placed, enano_line = is_bet_placed_by_enano(bet)
+        is_placed, enano_line, enano_bet = is_bet_placed_by_enano(bet)
         game_started = is_game_started_or_ended(bet)
         
-        # Today's pending bets (completed are handled above)
         if is_placed:
             if enano_line:
-                emoji = f"🔵{enano_line}🟣"  # Placed with different line
+                emoji = f"🔵({enano_line})🟣"
             else:
-                emoji = "🔵"  # Placed/copied with same line
+                emoji = "🔵"
         elif game_started:
-            emoji = "🔴"  # Missed (game started, not placed)
+            emoji = "🟠"  # Missed (orange)
         else:
-            emoji = "🟡"  # Pending (can still place)
+            emoji = "🟡"  # Pending
         
         # Build line
         if game_time:
@@ -1472,7 +1489,7 @@ async def build_enano_comparison_message() -> str:
     
     # Add separator for tomorrow's bets
     if tomorrow_bets:
-        lines.append("")  # Blank line separator
+        lines.append("")
         
         for bet in tomorrow_bets:
             game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
@@ -1483,14 +1500,14 @@ async def build_enano_comparison_message() -> str:
             game_time = bet.get('game_time', '')
             country = bet.get('country', '')
             
-            is_placed, enano_line = is_bet_placed_by_enano(bet)
+            is_placed, enano_line, _ = is_bet_placed_by_enano(bet)
             if is_placed:
                 if enano_line:
-                    emoji = f"🔵{enano_line}🟣"  # Placed with different line
+                    emoji = f"🔵({enano_line})🟣"
                 else:
-                    emoji = "🔵"  # Placed with same line
+                    emoji = "🔵"
             else:
-                emoji = "🟡"  # Pending
+                emoji = "🟡"
             
             if game_time:
                 bet_line = f"#{bet_num} {game_time} {game_name}"
@@ -1506,9 +1523,9 @@ async def build_enano_comparison_message() -> str:
             lines.append(bet_line)
             bet_num += 1
     
-    # Add ENANO-only bets at the bottom (separated)
+    # Add ENANO-only bets at the bottom
     if enano_only_bets:
-        lines.append("")  # Blank line separator
+        lines.append("")
         lines.append("*ENANO Only:*")
         
         enano_only_sorted = sorted(enano_only_bets, key=parse_time_for_sort)
@@ -1521,11 +1538,17 @@ async def build_enano_comparison_message() -> str:
             result = bet.get('result')
             game_time = bet.get('game_time', '')
             country = bet.get('country', '')
+            wager = bet.get('wager', 0)
+            to_win = bet.get('to_win', 0)
             
             if result == 'won':
                 emoji = "🟢"
+                enano_wins += 1
+                enano_result_amount += to_win
             elif result == 'lost':
                 emoji = "🔴"
+                enano_losses += 1
+                enano_result_amount -= wager
             elif result == 'push':
                 emoji = "🔵"
             else:
@@ -1544,28 +1567,35 @@ async def build_enano_comparison_message() -> str:
             
             lines.append(bet_line)
             bet_num += 1
+    else:
+        lines.append("")
+        lines.append("*ENANO Only:*")
+        lines.append("-")
     
     # Add summary at the bottom
     total_tipster = len(tipster_bets)
     total_placed = sum(1 for b in tipster_bets if is_bet_placed_by_enano(b)[0])
     
-    # Missed = TIPSTER bets we didn't copy that have either:
-    # 1. Final result (won/lost/push) - game is over
-    # 2. Game time has passed but no result yet - game started/in progress
     total_missed = 0
     for b in tipster_bets:
-        is_placed, _ = is_bet_placed_by_enano(b)
+        is_placed, _, _ = is_bet_placed_by_enano(b)
         if is_placed:
-            continue  # Already placed, not missed
+            continue
         result = b.get('result')
-        # If game has a final result (completed) or game time has passed (started)
         if result in ['won', 'lost', 'push'] or is_game_started_or_ended(b):
             total_missed += 1
     
     total_pending = total_tipster - total_placed - total_missed
     
     lines.append("")
-    lines.append(f"*Copied: {total_placed}/{total_tipster}* | 🔴 Missed: {total_missed} | 🟡 Pending: {total_pending}")
+    lines.append(f"*Copied: {total_placed}/{total_tipster}* | 🟠 Missed: {total_missed} | 🟡 Pending: {total_pending}")
+    
+    # Add ENANO's own result and record if we have completed bets
+    if enano_wins > 0 or enano_losses > 0:
+        lines.append("")
+        result_sign = "+" if enano_result_amount >= 0 else ""
+        lines.append(f"*Result: {result_sign}${abs(enano_result_amount):,.2f}*")
+        lines.append(f"*Record: {enano_wins}-{enano_losses}*")
     
     return "\n".join(lines)
 
