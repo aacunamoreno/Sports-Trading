@@ -1630,7 +1630,7 @@ async def send_activity_summary():
 {check_times_text}
 
 ✅ *System Status:* Active
-🕐 *Sleep Hours:* 10:45 PM - 6:00 AM
+🕐 *Sleep Hours:* 9:00 PM - 7:00 AM
 
 _Betting summaries follow..._
         """
