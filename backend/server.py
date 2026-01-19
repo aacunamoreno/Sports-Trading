@@ -1095,7 +1095,8 @@ async def build_enano_comparison_message() -> str:
     
     Shows TIPSTER bets with indicators:
     - 🔴 = TIPSTER bet we MISSED (game started/ended, we didn't bet)
-    - 🔵 = TIPSTER bet we PLACED (copied successfully)  
+    - 🔵 = TIPSTER bet we PLACED (copied successfully with same line)
+    - 🔵{line}🟣 = TIPSTER bet we PLACED with DIFFERENT line
     - 🟡 = TIPSTER bet we HAVEN'T placed yet (pending to copy)
     
     Then shows ENANO-only bets at the bottom (separated)
