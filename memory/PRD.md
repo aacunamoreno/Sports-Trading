@@ -29,15 +29,20 @@ Build an automated betting analysis system for `plays888.co` that scrapes game d
 ## What's Been Implemented (Latest First)
 
 ### January 19, 2026 (Session 3)
-- **Bug Fix - ENANO Telegram Summary**: Fixed multiple issues with the ENANO (jac075) Telegram notification:
-  1. Removed the "short" summary message - ENANO now only receives the detailed comparison view
-  2. Fixed "Missed" count calculation - now correctly counts TIPSTER bets that ENANO didn't copy
-  3. Improved bet matching to compare full game names (fixes SIB vs ZAD/GKK matching via "SIBENKA")
-- **Feature - Line Difference Indicator**: When ENANO copies a bet at a different line, now shows:
-  - Format: `🔵{ENANO_line}🟣` (e.g., `🔵-140🟣` when TIPSTER has -115)
-  - Helps identify if ENANO got better or worse odds
-- **Bug Fix - ENANO Only Section**: Improved matching logic so bets like KK Zadar (ENANO) and KK Sibenka (TIPSTER) are correctly recognized as the same game and removed from "ENANO Only"
-- **Refactor - send_all_compilations API**: Updated to send ENANO comparison view + TIPSTER detailed view only (2 messages instead of 3)
+- **Bug Fix - ENANO Telegram Summary**: Complete overhaul of the ENANO comparison view:
+  1. **New emoji system:**
+     - 🟢 = Placed and WON
+     - 🔴 = Placed and LOST
+     - 🟠 = MISSED (game started/ended, didn't bet)
+     - 🔵 = Placed (game not finished)
+     - 🟡 = Pending (can still place)
+     - (line)🟣 = Line difference in parentheses
+  2. **ENANO records tracking** - Shows Result and Record at bottom based on ENANO's completed bets
+  3. **ENANO Only section** - Shows bets placed by ENANO that aren't in TIPSTER
+  4. **Line difference format** - Changed from `🔵-140🟣` to `🔵(-140)🟣`
+- **Bug Fix - Kenya Police time** - Fixed from 11:45 AM to 05:00 AM
+- **Bug Fix - Half-line handling** - Updated `extract_bet_type_short()` to convert ½ to .5
+- **Bug Fix - Bet matching** - Improved matching logic to compare full game names and extract numeric values for precise comparison
 
 ### January 10-11, 2026 (Session 2)
 - **Bug Fix - Completed Games Preserved**: Fixed critical issue where completed games (with final_score) were disappearing when clicking "Refresh Lines & Bets". Now preserves all bet data (bet_type, bet_line, user_bet_hit, result) for finished games.
