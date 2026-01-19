@@ -34,6 +34,10 @@ Build an automated betting analysis system for `plays888.co` that scrapes game d
   2. Fixed "Missed" count calculation - now correctly counts TIPSTER bets that ENANO didn't copy where either:
      - The game has a final result (won/lost/push)
      - The game has already started (game time passed)
+- **Bug Fix - Bet Matching Logic**: Improved the `is_bet_placed_by_enano()` function to better match bets between accounts:
+  - Added full game name comparison (e.g., "KK SIBENKA" matches "KK Zadar vs GKK Sibenka")
+  - Added handling for "Straight" bet types when game names match
+  - This fixes cases where the same bet was parsed differently between accounts
 - **Refactor - send_all_compilations API**: Updated the manual `/api/telegram/send-compilations` endpoint to send ENANO comparison view + TIPSTER detailed view only (2 messages instead of 3)
 
 ### January 10-11, 2026 (Session 2)
