@@ -1114,6 +1114,7 @@ async def add_bet_to_compilation(account: str, bet_details: dict):
     wager = bet_details.get('wager', 0)
     to_win = bet_details.get('potential_win', wager)
     ticket = bet_details.get('ticket_number', '')
+    game_time = bet_details.get('game_time', '')
     
     bet_entry = {
         "ticket": ticket,
@@ -1121,6 +1122,7 @@ async def add_bet_to_compilation(account: str, bet_details: dict):
         "game_short": extract_short_game_name(game, description),
         "bet_type": bet_type,
         "bet_type_short": extract_bet_type_short(bet_type),
+        "game_time": game_time,
         "wager": wager,
         "wager_short": format_amount_short(wager),
         "to_win": to_win,
