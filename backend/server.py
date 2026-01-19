@@ -4254,8 +4254,8 @@ scheduler = AsyncIOScheduler()
 monitoring_enabled = False
 
 # Random interval settings (in minutes)
-MIN_INTERVAL = 7
-MAX_INTERVAL = 15
+MIN_INTERVAL = 5
+MAX_INTERVAL = 5
 
 # Track last check time for watchdog
 last_check_time = None
