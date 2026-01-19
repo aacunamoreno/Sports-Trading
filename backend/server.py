@@ -743,23 +743,26 @@ def extract_short_game_name(game: str, description: str = "") -> str:
     return get_abbrev(text)
 
 def extract_bet_type_short(bet_type: str) -> str:
-    """Extract short bet type like 'u48' or 'o47' from bet description"""
+    """Extract short bet type like 'u48.5' or 'o47' from bet description"""
     import re
     
     if not bet_type:
         return ""
     
+    # First, convert ½ to .5 for consistent handling
+    bet_type_normalized = bet_type.replace('½', '.5')
+    
     # Look for over/under patterns
-    over_match = re.search(r'(?:over|o)\s*(\d+(?:\.\d+)?)', bet_type, re.IGNORECASE)
+    over_match = re.search(r'(?:over|o)\s*(\d+(?:\.\d+)?)', bet_type_normalized, re.IGNORECASE)
     if over_match:
         return f"o{over_match.group(1)}"
     
-    under_match = re.search(r'(?:under|u)\s*(\d+(?:\.\d+)?)', bet_type, re.IGNORECASE)
+    under_match = re.search(r'(?:under|u)\s*(\d+(?:\.\d+)?)', bet_type_normalized, re.IGNORECASE)
     if under_match:
         return f"u{under_match.group(1)}"
     
-    # Look for spread patterns
-    spread_match = re.search(r'([+-]?\d+(?:\.\d+)?)', bet_type)
+    # Look for spread patterns (like +3.5 or -7)
+    spread_match = re.search(r'([+-]\d+(?:\.\d+)?)', bet_type_normalized)
     if spread_match:
         return spread_match.group(1)
     
