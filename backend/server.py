@@ -1158,6 +1158,16 @@ async def update_compilation_message(account: str):
         )
         logger.info(f"Sent compilation for {account}: short={short_sent.message_id}, detailed={detailed_sent_id}")
         
+        # Clear the is_new flag for all bets after message is sent
+        # This way the 🔵 only shows on the first notification after bet is placed
+        bets = compilation.get('bets', [])
+        for bet in bets:
+            bet['is_new'] = False
+        await db.daily_compilations.update_one(
+            {"account": account, "date": today},
+            {"$set": {"bets": bets}}
+        )
+        
         # Clean up old compilations from database (keep only last 7 days)
         seven_days_ago = (datetime.now(arizona_tz) - timedelta(days=7)).strftime('%Y-%m-%d')
         await db.daily_compilations.delete_many({
