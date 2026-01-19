@@ -1555,30 +1555,55 @@ async def build_enano_comparison_message() -> str:
             game_time = bet.get('game_time', '')
             country = bet.get('country', '')
             
-            is_placed, enano_line, _ = is_bet_placed_by_enano(bet)
-            if is_placed:
-                if enano_line:
-                    emoji = f"🔵({enano_line})🟣"
-                else:
-                    emoji = "🔵"
+            # Get all matching ENANO bets for tomorrow's bet
+            all_matches = get_all_matching_enano_bets(bet)
+            if all_matches:
+                for enano_bet, enano_line in all_matches:
+                    enano_idx = enano_bets.index(enano_bet) if enano_bet in enano_bets else -1
+                    if enano_idx >= 0:
+                        shown_enano_indices.add(enano_idx)
+                    
+                    if enano_line:
+                        emoji = f"🔵({enano_line})🟣"
+                    else:
+                        emoji = "🔵"
+                    
+                    enano_wager_short = enano_bet.get('wager_short', wager_short)
+                    enano_to_win_short = enano_bet.get('to_win_short', to_win_short)
+                    
+                    if game_time:
+                        bet_line = f"#{bet_num} {game_time} {game_name}"
+                    else:
+                        bet_line = f"#{bet_num} {game_name}"
+                    
+                    if bet_type_short and 'Straight' not in bet_type_short:
+                        bet_line += f" {bet_type_short}"
+                    if country:
+                        bet_line += f" ({country})"
+                    bet_line += f" ({enano_wager_short}/{enano_to_win_short}){emoji}"
+                    
+                    lines.append(bet_line)
+                    bet_num += 1
             else:
                 emoji = "🟡"
-            
-            if game_time:
-                bet_line = f"#{bet_num} {game_time} {game_name}"
-            else:
-                bet_line = f"#{bet_num} {game_name}"
-            
-            if bet_type_short and 'Straight' not in bet_type_short:
-                bet_line += f" {bet_type_short}"
-            if country:
-                bet_line += f" ({country})"
-            bet_line += f" ({wager_short}/{to_win_short}){emoji}"
-            
-            lines.append(bet_line)
-            bet_num += 1
+                
+                if game_time:
+                    bet_line = f"#{bet_num} {game_time} {game_name}"
+                else:
+                    bet_line = f"#{bet_num} {game_name}"
+                
+                if bet_type_short and 'Straight' not in bet_type_short:
+                    bet_line += f" {bet_type_short}"
+                if country:
+                    bet_line += f" ({country})"
+                bet_line += f" ({wager_short}/{to_win_short}){emoji}"
+                
+                lines.append(bet_line)
+                bet_num += 1
     
-    # Add ENANO-only bets at the bottom
+    # Add ENANO-only bets (bets not shown above)
+    enano_only_bets = [eb for i, eb in enumerate(enano_bets) if i not in shown_enano_indices]
+    
     if enano_only_bets:
         lines.append("")
         lines.append("*ENANO Only:*")
