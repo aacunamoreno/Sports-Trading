@@ -1311,7 +1311,41 @@ async def build_enano_comparison_message() -> str:
     
     bet_num = 1
     
-    # Process TODAY's bets
+    # Process COMPLETED bets first
+    for bet in completed_bets:
+        game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
+        game_name = game_name.replace('REG.TIME', '').strip()
+        bet_type_short = bet.get('bet_type_short', '')
+        wager_short = bet.get('wager_short', '$0')
+        to_win_short = bet.get('to_win_short', '$0')
+        result = bet.get('result')
+        game_time = bet.get('game_time', '')
+        country = bet.get('country', '')
+        
+        # Completed game emoji based on result
+        if result == 'won':
+            emoji = "🟢"
+        elif result == 'lost':
+            emoji = "🔴"
+        else:
+            emoji = "🔵"  # push
+        
+        # Build line
+        if game_time:
+            bet_line = f"#{bet_num} {game_time} {game_name}"
+        else:
+            bet_line = f"#{bet_num} {game_name}"
+        
+        if bet_type_short and 'Straight' not in bet_type_short:
+            bet_line += f" {bet_type_short}"
+        if country:
+            bet_line += f" ({country})"
+        bet_line += f" ({wager_short}/{to_win_short}){emoji}"
+        
+        lines.append(bet_line)
+        bet_num += 1
+    
+    # Process TODAY's pending bets
     for bet in today_bets:
         game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
         game_name = game_name.replace('REG.TIME', '').strip()
