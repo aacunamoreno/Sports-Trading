@@ -1307,22 +1307,18 @@ async def build_enano_comparison_message() -> str:
                     return True
         return False
     
-    # Sort TIPSTER bets
+    # Sort TIPSTER bets by time
     tipster_sorted = sorted(tipster_bets, key=parse_time_for_sort)
     
     # Build ENANO comparison message
     lines = ["📋 *ENANO* (vs TIPSTER)", ""]
     
-    # Split into: completed, today (not completed), tomorrow (not completed)
-    completed_bets = []
+    # Split into today and tomorrow only (no separate completed section)
     today_bets = []
     tomorrow_bets = []
     
     for bet in tipster_sorted:
-        result = bet.get('result')
-        if result in ['won', 'lost', 'push']:
-            completed_bets.append(bet)
-        elif is_tomorrow(bet):
+        if is_tomorrow(bet):
             tomorrow_bets.append(bet)
         else:
             today_bets.append(bet)
@@ -1374,8 +1370,8 @@ async def build_enano_comparison_message() -> str:
     enano_losses = 0
     enano_result_amount = 0.0
     
-    # Process COMPLETED bets first
-    for bet in completed_bets:
+    # Process TODAY's bets (all sorted by time, including completed)
+    for bet in today_bets:
         game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
         game_name = game_name.replace('REG.TIME', '').strip()
         bet_type_short = bet.get('bet_type_short', '')
@@ -1386,82 +1382,45 @@ async def build_enano_comparison_message() -> str:
         country = bet.get('country', '')
         
         is_placed, enano_line, enano_bet = is_bet_placed_by_enano(bet)
+        game_started = is_game_started_or_ended(bet)
         
+        # Determine emoji based on status
         if is_placed and enano_bet:
-            # ENANO placed this bet - check ENANO's result
+            # ENANO placed this bet
             enano_result = enano_bet.get('result')
             enano_wager = enano_bet.get('wager', 0)
             enano_to_win = enano_bet.get('to_win', 0)
             
-            if enano_result == 'won':
+            if enano_result == 'won' or (not enano_result and tipster_result == 'won'):
                 emoji = "🟢"
                 if enano_line:
                     emoji += f"({enano_line})🟣"
                 enano_wins += 1
                 enano_result_amount += enano_to_win
-            elif enano_result == 'lost':
+            elif enano_result == 'lost' or (not enano_result and tipster_result == 'lost'):
                 emoji = "🔴"
                 if enano_line:
                     emoji += f"({enano_line})🟣"
                 enano_losses += 1
                 enano_result_amount -= enano_wager
-            else:
-                # ENANO bet not graded yet but TIPSTER is - use TIPSTER result as proxy
-                if tipster_result == 'won':
-                    emoji = "🟢"
-                    if enano_line:
-                        emoji += f"({enano_line})🟣"
-                    enano_wins += 1
-                    enano_result_amount += enano_to_win
-                elif tipster_result == 'lost':
-                    emoji = "🔴"
-                    if enano_line:
-                        emoji += f"({enano_line})🟣"
-                    enano_losses += 1
-                    enano_result_amount -= enano_wager
+            elif tipster_result in ['won', 'lost', 'push'] or game_started:
+                # Game completed/started but ENANO's bet not graded yet
+                if enano_line:
+                    emoji = f"🔵({enano_line})🟣"
                 else:
-                    emoji = "🔵"  # Push or unknown
-        else:
-            # ENANO missed this completed bet
-            emoji = "🟠"
-        
-        # Build line
-        if game_time:
-            bet_line = f"#{bet_num} {game_time} {game_name}"
-        else:
-            bet_line = f"#{bet_num} {game_name}"
-        
-        if bet_type_short and 'Straight' not in bet_type_short:
-            bet_line += f" {bet_type_short}"
-        if country:
-            bet_line += f" ({country})"
-        bet_line += f" ({wager_short}/{to_win_short}){emoji}"
-        
-        lines.append(bet_line)
-        bet_num += 1
-    
-    # Process TODAY's pending bets
-    for bet in today_bets:
-        game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
-        game_name = game_name.replace('REG.TIME', '').strip()
-        bet_type_short = bet.get('bet_type_short', '')
-        wager_short = bet.get('wager_short', '$0')
-        to_win_short = bet.get('to_win_short', '$0')
-        game_time = bet.get('game_time', '')
-        country = bet.get('country', '')
-        
-        is_placed, enano_line, enano_bet = is_bet_placed_by_enano(bet)
-        game_started = is_game_started_or_ended(bet)
-        
-        if is_placed:
-            if enano_line:
-                emoji = f"🔵({enano_line})🟣"
+                    emoji = "🔵"
             else:
-                emoji = "🔵"
+                # Game not started yet
+                if enano_line:
+                    emoji = f"🔵({enano_line})🟣"
+                else:
+                    emoji = "🔵"
         elif game_started:
-            emoji = "🟠"  # Missed (orange)
+            # ENANO missed (game started, not placed)
+            emoji = "🟠"
         else:
-            emoji = "🟡"  # Pending
+            # Pending (can still place)
+            emoji = "🟡"
         
         # Build line
         if game_time:
