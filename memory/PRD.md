@@ -81,13 +81,20 @@ Build an automated betting analysis system for `plays888.co` that scrapes game d
 ## Known Issues (P1)
 
 ### Issue 1: plays888.co OVER/UNDER Scraper Bug
-- The scraper incorrectly identifies bet types (OVER vs UNDER)
+- The scraper incorrectly identifies bet types (OVER vs UNDER) in some formats
 - Status: NOT STARTED
+- Impact: Incorrect bet tracking and grading
 
 ### Issue 2: plays888.co "Regulation Time" Bug
 - Bets marked "REG.TIME" not handled correctly
-- Affects NHL games especially
+- Affects NHL games especially (PUSH if game goes to overtime)
 - Status: NOT STARTED
+
+## Resolved Issues
+
+### ✅ ENANO Telegram Summary Bug (Fixed Jan 19, 2026)
+- Issue: ENANO was receiving an extra "short" summary message and "Missed" count was always 0
+- Fix: Removed short message logic for ENANO, fixed missed count to include both completed and started games
 
 ## Technical Debt (P1)
 
