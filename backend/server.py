@@ -1528,14 +1528,15 @@ async def build_enano_comparison_message() -> str:
     
     # Add summary at the bottom
     total_tipster = len(tipster_bets)
-    total_placed = sum(1 for b in tipster_bets if is_bet_placed_by_enano(b))
+    total_placed = sum(1 for b in tipster_bets if is_bet_placed_by_enano(b)[0])
     
     # Missed = TIPSTER bets we didn't copy that have either:
     # 1. Final result (won/lost/push) - game is over
     # 2. Game time has passed but no result yet - game started/in progress
     total_missed = 0
     for b in tipster_bets:
-        if is_bet_placed_by_enano(b):
+        is_placed, _ = is_bet_placed_by_enano(b)
+        if is_placed:
             continue  # Already placed, not missed
         result = b.get('result')
         # If game has a final result (completed) or game time has passed (started)
