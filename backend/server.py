@@ -1205,6 +1205,7 @@ async def build_enano_comparison_message() -> str:
     def is_bet_placed_by_enano(tipster_bet):
         """Check if ENANO has placed this TIPSTER bet"""
         game = tipster_bet.get('game_short', tipster_bet.get('game', '')).upper()
+        game_full = tipster_bet.get('game', '').upper()
         bet_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
         
         # Check exact match
@@ -1214,10 +1215,25 @@ async def build_enano_comparison_message() -> str:
         # Check partial match (same game)
         for enano_bet in enano_bets:
             enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
+            enano_game_full = enano_bet.get('game', '').upper()
             enano_type = enano_bet.get('bet_type_short', enano_bet.get('bet_type', '')).upper()
             
-            # Match by similar game name
-            if game in enano_game or enano_game in game:
+            # Match by similar game name (short names)
+            game_match = game in enano_game or enano_game in game
+            
+            # Also check full game names for partial matches (handles cases like SIB vs ZAD/GKK when both have SIBENKA in full name)
+            if not game_match and game_full and enano_game_full:
+                # Extract key team names from full game names
+                tipster_words = set(game_full.replace('VS', ' ').replace('/', ' ').split())
+                enano_words = set(enano_game_full.replace('VS', ' ').replace('/', ' ').split())
+                # If there's significant overlap in team names, it's the same game
+                common_words = tipster_words & enano_words
+                # Filter out small common words
+                significant_common = [w for w in common_words if len(w) > 3]
+                if len(significant_common) >= 1:
+                    game_match = True
+            
+            if game_match:
                 # Check if bet types are similar
                 if bet_type in enano_type or enano_type in bet_type:
                     return True
@@ -1225,6 +1241,9 @@ async def build_enano_comparison_message() -> str:
                 if ('O' in bet_type and 'O' in enano_type) or ('U' in bet_type and 'U' in enano_type):
                     return True
                 if ('+' in bet_type and '+' in enano_type) or ('-' in bet_type and '-' in enano_type):
+                    return True
+                # If bet_type is "Straight" or similar generic, consider it a match if game matches
+                if enano_type in ['STRAIGHT', 'STRAIGHT BET', ''] or bet_type in ['STRAIGHT', 'STRAIGHT BET', '']:
                     return True
         
         return False
