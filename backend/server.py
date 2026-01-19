@@ -1360,15 +1360,8 @@ async def build_enano_comparison_message() -> str:
         is_placed = is_bet_placed_by_enano(bet)
         game_started = is_game_started_or_ended(bet)
         
-        if result in ['won', 'lost', 'push']:
-            # Completed game
-            if result == 'won':
-                emoji = "🟢"
-            elif result == 'lost':
-                emoji = "🔴"
-            else:
-                emoji = "🔵"
-        elif is_placed:
+        # Today's pending bets (completed are handled above)
+        if is_placed:
             emoji = "🔵"  # Placed/copied
         elif game_started:
             emoji = "🔴"  # Missed (game started, not placed)
