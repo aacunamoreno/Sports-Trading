@@ -1090,7 +1090,10 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
     return "\n".join(lines)
 
 async def update_compilation_message(account: str):
-    """Update the Telegram message - ENANO gets short only, TIPSTER gets short + detail"""
+    """Update the Telegram message - Both accounts get detailed messages only
+    TIPSTER: Shows all bets with standard format
+    ENANO: Shows comparison view against TIPSTER bets
+    """
     if not telegram_bot or not telegram_chat_id:
         logger.info("Telegram not configured, skipping compilation update")
         return
@@ -1099,6 +1102,7 @@ async def update_compilation_message(account: str):
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
         today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        now = datetime.now(arizona_tz)
         
         compilation = await db.daily_compilations.find_one({
             "account": account,
@@ -1108,15 +1112,13 @@ async def update_compilation_message(account: str):
         if not compilation or not compilation.get('bets'):
             return
         
-        # Generate short message (for all accounts)
-        short_message = await build_compilation_message(account, detailed=False)
-        
-        # Generate detailed message ONLY for TIPSTER (jac083)
-        detailed_message = None
-        if account == "jac083":
+        # Generate detailed message based on account type
+        if account == "jac083":  # TIPSTER
             detailed_message = await build_compilation_message(account, detailed=True)
+        else:  # ENANO (jac075)
+            detailed_message = await build_enano_comparison_message()
         
-        if not short_message:
+        if not detailed_message:
             return
         
         # Delete ALL old messages for this account
@@ -1130,36 +1132,25 @@ async def update_compilation_message(account: str):
                     except Exception:
                         pass
         
-        # Send SHORT message
-        short_sent = await telegram_bot.send_message(
+        # Send DETAILED message only (no more short messages)
+        detailed_sent = await telegram_bot.send_message(
             chat_id=telegram_chat_id,
-            text=short_message,
+            text=detailed_message,
             parse_mode=ParseMode.MARKDOWN
         )
         
-        # Send DETAILED message only for TIPSTER
-        detailed_sent_id = None
-        if detailed_message:
-            detailed_sent = await telegram_bot.send_message(
-                chat_id=telegram_chat_id,
-                text=detailed_message,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            detailed_sent_id = detailed_sent.message_id
-        
-        # Store message IDs
+        # Store message ID
         await db.daily_compilations.update_one(
             {"account": account, "date": today},
             {"$set": {
-                "message_id_short": short_sent.message_id,
-                "message_id_detailed": detailed_sent_id,
+                "message_id_detailed": detailed_sent.message_id,
+                "message_id_short": None,
                 "message_id": None
             }}
         )
-        logger.info(f"Sent compilation for {account}: short={short_sent.message_id}, detailed={detailed_sent_id}")
+        logger.info(f"Sent detailed compilation for {account}: {detailed_sent.message_id}")
         
         # Clear the is_new flag for all bets after message is sent
-        # This way the 🔵 only shows on the first notification after bet is placed
         bets = compilation.get('bets', [])
         for bet in bets:
             bet['is_new'] = False
