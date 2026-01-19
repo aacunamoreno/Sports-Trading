@@ -4737,6 +4737,7 @@ async def monitor_single_account(conn: dict):
                             game: game,
                             betType: betType,
                             totalLine: totalLine,
+                            gameTime: gameTime,
                             odds: odds,
                             wager: wager,
                             toWin: toWin
