@@ -1543,8 +1543,10 @@ async def build_enano_comparison_message() -> str:
     # Add ENANO's own result and record if we have completed bets
     if enano_wins > 0 or enano_losses > 0:
         lines.append("")
-        result_sign = "+" if enano_result_amount >= 0 else ""
-        lines.append(f"*Result: {result_sign}${abs(enano_result_amount):,.2f}*")
+        if enano_result_amount >= 0:
+            lines.append(f"*Result: +${enano_result_amount:,.2f}*")
+        else:
+            lines.append(f"*Result: -${abs(enano_result_amount):,.2f}*")
         lines.append(f"*Record: {enano_wins}-{enano_losses}*")
     
     return "\n".join(lines)
