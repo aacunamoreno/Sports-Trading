@@ -1196,6 +1196,7 @@ async def add_bet_to_compilation(account: str, bet_details: dict):
         "to_win": to_win,
         "to_win_short": format_amount_short(to_win),
         "result": None,
+        "is_new": True,  # Flag to highlight new bets with 🔵
         "added_at": datetime.now(timezone.utc).isoformat()
     }
     
