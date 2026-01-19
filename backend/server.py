@@ -4852,6 +4852,7 @@ async def monitor_single_account(conn: dict):
                 "wager": wager,
                 "potential_win": to_win,
                 "ticket_number": ticket_num,
+                "game_time": game_time,
                 "status": "Placed",
                 "league": f"{sport} - Detected from mobile/web"
             }, account=username)
