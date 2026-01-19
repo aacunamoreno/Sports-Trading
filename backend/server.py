@@ -953,9 +953,13 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
         wager_short = bet.get('wager_short', '$0')
         to_win_short = bet.get('to_win_short', '$0')
         result = bet.get('result')
+        game_time = bet.get('game_time', '')
         
-        # Build line
-        bet_line = f"#{i} {game_name}"
+        # Build line with game time if available
+        if game_time:
+            bet_line = f"#{i} {game_time} {game_name}"
+        else:
+            bet_line = f"#{i} {game_name}"
         if bet_type_short:
             bet_line += f" {bet_type_short}"
         bet_line += f" ({wager_short}/{to_win_short})"
