@@ -4349,8 +4349,8 @@ async def watchdog_check():
     current_minute = now_arizona.minute
     current_time_minutes = current_hour * 60 + current_minute
     
-    sleep_start = 22 * 60 + 45  # 10:45 PM
-    sleep_end = 6 * 60 + 0      # 6:00 AM
+    sleep_start = 21 * 60 + 0   # 9:00 PM
+    sleep_end = 7 * 60 + 0      # 7:00 AM
     
     if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
         return  # Don't check during sleep hours
