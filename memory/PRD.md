@@ -121,3 +121,13 @@ Build an automated betting analysis system for `plays888.co` that scrapes game d
 - BeautifulSoup (HTML parsing)
 - APScheduler (scheduled jobs)
 - openpyxl (Excel parsing)
+- python-telegram-bot (Telegram notifications)
+
+## Telegram Notification System
+- **Schedule**: Every 5 minutes from 7 AM to 10 PM Arizona time
+- **TIPSTER (jac083)**: Detailed list of all bets sorted by completion status, date, and time
+- **ENANO (jac075)**: Comparison view against TIPSTER bets with indicators:
+  - 🔵 = Bet successfully copied
+  - 🟡 = Pending (can still place)
+  - 🔴 = Missed (game started/completed, not bet)
+- **Summary**: Shows Copied/Total, Missed count, Pending count
