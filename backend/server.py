@@ -1328,22 +1328,46 @@ async def build_enano_comparison_message() -> str:
         else:
             today_bets.append(bet)
     
-    # Find ENANO-only bets (not in TIPSTER)
+    # Find ENANO-only bets (not in TIPSTER) - must also check full game names
     enano_only_bets = []
+    matched_enano_bets = set()  # Track which ENANO bets are matched to TIPSTER
+    
     for enano_bet in enano_bets:
         enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
+        enano_game_full = enano_bet.get('game', '').upper()
         enano_type = enano_bet.get('bet_type_short', enano_bet.get('bet_type', '')).upper()
         
         found_in_tipster = False
         for tipster_bet in tipster_bets:
             tipster_game = tipster_bet.get('game_short', tipster_bet.get('game', '')).upper()
+            tipster_game_full = tipster_bet.get('game', '').upper()
             tipster_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
             
-            if enano_game in tipster_game or tipster_game in enano_game:
+            # Check short name match
+            game_match = enano_game in tipster_game or tipster_game in enano_game
+            
+            # Also check full game names for matches
+            if not game_match and enano_game_full and tipster_game_full:
+                enano_words = set(enano_game_full.replace('VS', ' ').replace('/', ' ').split())
+                tipster_words = set(tipster_game_full.replace('VS', ' ').replace('/', ' ').split())
+                common_words = enano_words & tipster_words
+                significant_common = [w for w in common_words if len(w) > 3]
+                if len(significant_common) >= 1:
+                    game_match = True
+            
+            if game_match:
+                # Same game - check bet type direction
                 if enano_type in tipster_type or tipster_type in enano_type:
                     found_in_tipster = True
                     break
                 if ('O' in enano_type and 'O' in tipster_type) or ('U' in enano_type and 'U' in tipster_type):
+                    found_in_tipster = True
+                    break
+                if ('+' in enano_type and '+' in tipster_type) or ('-' in enano_type and '-' in tipster_type):
+                    found_in_tipster = True
+                    break
+                # If either is "Straight", consider it a match
+                if enano_type in ['STRAIGHT', 'STRAIGHT BET', ''] or tipster_type in ['STRAIGHT', 'STRAIGHT BET', '']:
                     found_in_tipster = True
                     break
         
