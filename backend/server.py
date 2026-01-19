@@ -1593,14 +1593,30 @@ async def build_enano_comparison_message() -> str:
     lines.append("")
     lines.append(f"*Copied: {total_placed}/{total_tipster}* | 🟠 Missed: {total_missed} | 🟡 Pending: {total_pending}")
     
+    # Calculate ENANO's result from ALL ENANO bets (not just matched ones)
+    total_enano_wins = 0
+    total_enano_losses = 0
+    total_enano_result = 0.0
+    
+    for eb in enano_bets:
+        r = eb.get('result')
+        w = eb.get('wager', 0)
+        tw = eb.get('to_win', 0)
+        if r == 'won':
+            total_enano_wins += 1
+            total_enano_result += tw
+        elif r == 'lost':
+            total_enano_losses += 1
+            total_enano_result -= w
+    
     # Add ENANO's own result and record if we have completed bets
-    if enano_wins > 0 or enano_losses > 0:
+    if total_enano_wins > 0 or total_enano_losses > 0:
         lines.append("")
-        if enano_result_amount >= 0:
-            lines.append(f"*Result: +${enano_result_amount:,.2f}*")
+        if total_enano_result >= 0:
+            lines.append(f"*Result: +${total_enano_result:,.2f}*")
         else:
-            lines.append(f"*Result: -${abs(enano_result_amount):,.2f}*")
-        lines.append(f"*Record: {enano_wins}-{enano_losses}*")
+            lines.append(f"*Result: -${abs(total_enano_result):,.2f}*")
+        lines.append(f"*Record: {total_enano_wins}-{total_enano_losses}*")
     
     return "\n".join(lines)
 
