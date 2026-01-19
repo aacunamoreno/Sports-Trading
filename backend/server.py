@@ -1011,12 +1011,15 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
         result = bet.get('result')
         game_time = bet.get('game_time', '')
         country = bet.get('country', '')
+        is_new = bet.get('is_new', False)
         
         # Build line with game time if available
+        # Add 🔵 prefix for NEW bets
+        new_prefix = "🔵" if is_new else ""
         if game_time:
-            bet_line = f"#{i} {game_time} {game_name}"
+            bet_line = f"{new_prefix}#{i} {game_time} {game_name}"
         else:
-            bet_line = f"#{i} {game_name}"
+            bet_line = f"{new_prefix}#{i} {game_name}"
         if bet_type_short:
             bet_line += f" {bet_type_short}"
         # Add country if available
