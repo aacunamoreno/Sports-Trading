@@ -1142,17 +1142,12 @@ async def build_enano_comparison_message() -> str:
         enano_bet_keys.add(game)
     
     def parse_time_for_sort(bet):
-        """Sort by: completed first, then today by time, then tomorrow"""
-        result = bet.get('result')
+        """Sort by: today by time first, then tomorrow by time"""
         time_str = bet.get('game_time', '')
         date_str = bet.get('game_date', '')
         
-        is_completed = result in ['won', 'lost', 'push']
-        
         if not time_str:
-            if is_completed:
-                return (-1, 9999, 0)
-            return (9999, 9999, 0)
+            return (9999, 9999)
         
         try:
             time_str = time_str.upper().strip()
@@ -1178,13 +1173,9 @@ async def build_enano_comparison_message() -> str:
                     if day > today_day or month > today_month:
                         day_offset = 1
             
-            if is_completed:
-                return (-1, day_offset, time_minutes)
-            return (day_offset, 0, time_minutes)
+            return (day_offset, time_minutes)
         except:
-            if is_completed:
-                return (-1, 9998, 0)
-            return (9998, 9998, 0)
+            return (9998, 9998)
     
     def get_game_time_minutes(bet):
         """Get game time in minutes for comparison with current time"""
