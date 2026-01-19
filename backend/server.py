@@ -403,8 +403,8 @@ async def monitoring_loop():
                 current_minute = now_arizona.minute
                 current_time_minutes = current_hour * 60 + current_minute
                 
-                sleep_start = 22 * 60 + 45  # 10:45 PM
-                sleep_end = 6 * 60 + 0       # 6:00 AM
+                sleep_start = 21 * 60 + 0   # 9:00 PM
+                sleep_end = 7 * 60 + 0       # 7:00 AM
                 
                 if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
                     logger.info(f"[Loop #{loop_iteration}] Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - waiting 5 min...")
@@ -419,7 +419,7 @@ async def monitoring_loop():
                 except Exception as e:
                     logger.error(f"[Loop #{loop_iteration}] Monitoring cycle error (loop continues): {str(e)}", exc_info=True)
                 
-                # Random sleep between 7-15 minutes
+                # Fixed 5 minute interval
                 next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
                 next_check_time = now_arizona + timedelta(minutes=next_interval)
                 next_check_utc = datetime.now(timezone.utc) + timedelta(minutes=next_interval)
