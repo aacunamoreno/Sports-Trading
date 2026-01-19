@@ -1204,16 +1204,19 @@ async def build_enano_comparison_message() -> str:
             return None
     
     def is_bet_placed_by_enano(tipster_bet):
-        """Check if ENANO has placed this TIPSTER bet"""
+        """Check if ENANO has placed this TIPSTER bet
+        Returns: (is_placed: bool, enano_line: str or None)
+        - enano_line is returned when ENANO placed bet at different line
+        """
         game = tipster_bet.get('game_short', tipster_bet.get('game', '')).upper()
         game_full = tipster_bet.get('game', '').upper()
         bet_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
         
-        # Check exact match
+        # Check exact match first
         if f"{game}|{bet_type}" in enano_bet_keys:
-            return True
+            return True, None  # Same line
         
-        # Check partial match (same game)
+        # Check partial match (same game, possibly different line)
         for enano_bet in enano_bets:
             enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
             enano_game_full = enano_bet.get('game', '').upper()
@@ -1235,19 +1238,37 @@ async def build_enano_comparison_message() -> str:
                     game_match = True
             
             if game_match:
-                # Check if bet types are similar
+                # Check if same bet type (exact match)
+                if bet_type == enano_type:
+                    return True, None  # Same line
+                
+                # Check if bet types are similar (same direction)
                 if bet_type in enano_type or enano_type in bet_type:
-                    return True
-                # Check for same direction (both overs or both unders)
+                    # Same line essentially
+                    return True, None
+                
+                # Check for same direction but different numbers (overs/unders)
                 if ('O' in bet_type and 'O' in enano_type) or ('U' in bet_type and 'U' in enano_type):
-                    return True
+                    # Same direction - return ENANO's line if different
+                    if bet_type != enano_type:
+                        return True, enano_type  # Different line
+                    return True, None
+                
+                # Check for same direction spreads (+/-)
                 if ('+' in bet_type and '+' in enano_type) or ('-' in bet_type and '-' in enano_type):
-                    return True
+                    # Same direction - return ENANO's line if different
+                    if bet_type != enano_type:
+                        return True, enano_type  # Different line
+                    return True, None
+                
                 # If bet_type is "Straight" or similar generic, consider it a match if game matches
                 if enano_type in ['STRAIGHT', 'STRAIGHT BET', ''] or bet_type in ['STRAIGHT', 'STRAIGHT BET', '']:
-                    return True
+                    # Get the non-straight type as the line
+                    if enano_type not in ['STRAIGHT', 'STRAIGHT BET', '']:
+                        return True, enano_type  # ENANO has specific line
+                    return True, None
         
-        return False
+        return False, None
     
     def is_game_started_or_ended(bet):
         """Check if game has started or ended based on time"""
