@@ -1368,18 +1368,23 @@ async def build_enano_comparison_message() -> str:
         else:
             today_bets.append(bet)
     
-    # Find ENANO-only bets (not in TIPSTER)
+    # Find ENANO-only bets (not in TIPSTER) - track matched bets to handle duplicates
     enano_only_bets = []
-    for enano_bet in enano_bets:
-        enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
-        enano_game_full = enano_bet.get('game', '').upper()
-        enano_type = enano_bet.get('bet_type_short', enano_bet.get('bet_type', '')).upper()
+    matched_enano_indices = set()  # Track which ENANO bets were matched
+    
+    # First, identify which ENANO bets match TIPSTER bets
+    for tipster_bet in tipster_bets:
+        tipster_game = tipster_bet.get('game_short', tipster_bet.get('game', '')).upper()
+        tipster_game_full = tipster_bet.get('game', '').upper()
+        tipster_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
         
-        found_in_tipster = False
-        for tipster_bet in tipster_bets:
-            tipster_game = tipster_bet.get('game_short', tipster_bet.get('game', '')).upper()
-            tipster_game_full = tipster_bet.get('game', '').upper()
-            tipster_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
+        for i, enano_bet in enumerate(enano_bets):
+            if i in matched_enano_indices:
+                continue  # Already matched to another TIPSTER bet
+            
+            enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
+            enano_game_full = enano_bet.get('game', '').upper()
+            enano_type = enano_bet.get('bet_type_short', enano_bet.get('bet_type', '')).upper()
             
             game_match = enano_game in tipster_game or tipster_game in enano_game
             
@@ -1392,20 +1397,23 @@ async def build_enano_comparison_message() -> str:
                     game_match = True
             
             if game_match:
+                type_match = False
                 if enano_type in tipster_type or tipster_type in enano_type:
-                    found_in_tipster = True
-                    break
-                if ('O' in enano_type and 'O' in tipster_type) or ('U' in enano_type and 'U' in tipster_type):
-                    found_in_tipster = True
-                    break
-                if ('+' in enano_type and '+' in tipster_type) or ('-' in enano_type and '-' in tipster_type):
-                    found_in_tipster = True
-                    break
-                if enano_type in ['STRAIGHT', 'STRAIGHT BET', ''] or tipster_type in ['STRAIGHT', 'STRAIGHT BET', '']:
-                    found_in_tipster = True
-                    break
-        
-        if not found_in_tipster:
+                    type_match = True
+                elif ('O' in enano_type and 'O' in tipster_type) or ('U' in enano_type and 'U' in tipster_type):
+                    type_match = True
+                elif ('+' in enano_type and '+' in tipster_type) or ('-' in enano_type and '-' in tipster_type):
+                    type_match = True
+                elif enano_type in ['STRAIGHT', 'STRAIGHT BET', ''] or tipster_type in ['STRAIGHT', 'STRAIGHT BET', '']:
+                    type_match = True
+                
+                if type_match:
+                    matched_enano_indices.add(i)
+                    break  # Only match one ENANO bet per TIPSTER bet
+    
+    # Unmatched ENANO bets go to ENANO Only
+    for i, enano_bet in enumerate(enano_bets):
+        if i not in matched_enano_indices:
             enano_only_bets.append(enano_bet)
     
     bet_num = 1
