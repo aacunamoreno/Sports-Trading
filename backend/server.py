@@ -4506,9 +4506,9 @@ async def monitor_open_bets():
     current_minute = now_arizona.minute
     current_time_minutes = current_hour * 60 + current_minute
     
-    # Sleep window: 10:45 PM (22:45 = 1365 mins) to 6:00 AM (6:00 = 360 mins)
-    sleep_start = 22 * 60 + 45  # 10:45 PM = 1365 minutes
-    sleep_end = 6 * 60 + 0       # 6:00 AM = 330 minutes
+    # Sleep window: 9:00 PM to 7:00 AM (active 7am-9pm)
+    sleep_start = 21 * 60 + 0   # 9:00 PM = 1260 minutes
+    sleep_end = 7 * 60 + 0       # 7:00 AM = 420 minutes
     
     if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
         logger.info(f"Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - skipping bet check")
