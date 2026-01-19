@@ -742,6 +742,51 @@ def extract_short_game_name(game: str, description: str = "") -> str:
     # Single team (like spreads)
     return get_abbrev(text)
 
+def adjust_time_for_arizona(time_str: str) -> str:
+    """Add 1 hour to game time to convert from Plays888 time to Arizona time"""
+    if not time_str:
+        return time_str
+    
+    try:
+        time_str = time_str.strip()
+        # Parse the time
+        parts = time_str.upper().replace('AM', ' AM').replace('PM', ' PM').replace('  ', ' ').split()
+        time_part = parts[0]
+        period = parts[1] if len(parts) > 1 else 'AM'
+        
+        time_parts = time_part.split(':')
+        hour = int(time_parts[0])
+        minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+        
+        # Convert to 24-hour
+        if period == 'PM' and hour != 12:
+            hour += 12
+        elif period == 'AM' and hour == 12:
+            hour = 0
+        
+        # Add 1 hour for Arizona adjustment
+        hour += 1
+        if hour >= 24:
+            hour = hour - 24
+        
+        # Convert back to 12-hour format
+        if hour == 0:
+            new_hour = 12
+            new_period = 'AM'
+        elif hour < 12:
+            new_hour = hour
+            new_period = 'AM'
+        elif hour == 12:
+            new_hour = 12
+            new_period = 'PM'
+        else:
+            new_hour = hour - 12
+            new_period = 'PM'
+        
+        return f"{new_hour:02d}:{minute:02d} {new_period}"
+    except Exception:
+        return time_str
+
 def extract_bet_type_short(bet_type: str) -> str:
     """Extract short bet type like 'u48.5' or 'o47' from bet description"""
     import re
