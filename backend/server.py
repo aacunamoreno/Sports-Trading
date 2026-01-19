@@ -5812,7 +5812,7 @@ async def start_monitoring():
     
     return {
         "success": True,
-        "message": "Bet monitoring started. Will check plays888.co every 7-15 minutes randomly (paused during sleep hours 10:45 PM - 6:00 AM Arizona).",
+        "message": "Bet monitoring started. Will check plays888.co every 5 minutes (paused during sleep hours 9:00 PM - 7:00 AM Arizona).",
         "interval": "7-15 minutes (random)"
     }
 
