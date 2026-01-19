@@ -6040,7 +6040,7 @@ async def trigger_daily_summary():
 
 @api_router.post("/telegram/send-compilations")
 async def send_all_compilations():
-    """Send compilation messages: ENANO short, TIPSTER short, TIPSTER detail"""
+    """Send compilation messages: ENANO comparison view + TIPSTER detailed view"""
     if not telegram_bot or not telegram_chat_id:
         raise HTTPException(status_code=400, detail="Telegram not configured")
     
@@ -6068,29 +6068,18 @@ async def send_all_compilations():
         message_ids = {}
         sent_count = 0
         
-        # 1. ENANO short (jac075)
-        enano_short = await build_compilation_message("jac075", detailed=False)
-        if enano_short:
+        # 1. ENANO comparison view (detailed comparison against TIPSTER)
+        enano_comparison = await build_enano_comparison_message()
+        if enano_comparison:
             sent = await telegram_bot.send_message(
                 chat_id=telegram_chat_id,
-                text=enano_short,
+                text=enano_comparison,
                 parse_mode=ParseMode.MARKDOWN
             )
-            message_ids["jac075_short"] = sent.message_id
+            message_ids["jac075_detailed"] = sent.message_id
             sent_count += 1
         
-        # 2. TIPSTER short (jac083)
-        tipster_short = await build_compilation_message("jac083", detailed=False)
-        if tipster_short:
-            sent = await telegram_bot.send_message(
-                chat_id=telegram_chat_id,
-                text=tipster_short,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            message_ids["jac083_short"] = sent.message_id
-            sent_count += 1
-        
-        # 3. TIPSTER detail (jac083) - NO detail for ENANO
+        # 2. TIPSTER detailed view
         tipster_detail = await build_compilation_message("jac083", detailed=True)
         if tipster_detail:
             sent = await telegram_bot.send_message(
@@ -6101,20 +6090,20 @@ async def send_all_compilations():
             message_ids["jac083_detailed"] = sent.message_id
             sent_count += 1
         
-        # Update database with new message IDs
+        # Update database with new message IDs (no more short messages)
         await db.daily_compilations.update_one(
             {"account": "jac075", "date": today},
             {"$set": {
-                "message_id_short": message_ids.get("jac075_short"),
-                "message_id_detailed": None,
+                "message_id_detailed": message_ids.get("jac075_detailed"),
+                "message_id_short": None,
                 "message_id": None
             }}
         )
         await db.daily_compilations.update_one(
             {"account": "jac083", "date": today},
             {"$set": {
-                "message_id_short": message_ids.get("jac083_short"),
                 "message_id_detailed": message_ids.get("jac083_detailed"),
+                "message_id_short": None,
                 "message_id": None
             }}
         )
