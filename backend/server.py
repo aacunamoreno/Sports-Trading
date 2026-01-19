@@ -4586,6 +4586,13 @@ async def monitor_single_account(conn: dict):
                     const ticketCell = cells[0].textContent || '';
                     const ticketMatch = ticketCell.match(/Ticket#?[:\\s-]*(\\d+)/i);
                     
+                    // Extract game time from first column (format: "Ticket#:340605842 Jan 19 03:15 PM")
+                    let gameTime = '';
+                    const timeMatch = ticketCell.match(/(\\d{1,2}:\\d{2}\\s*(?:AM|PM))/i);
+                    if (timeMatch) {
+                        gameTime = timeMatch[1].trim();
+                    }
+                    
                     if (ticketMatch) {
                         const ticket = ticketMatch[1];
                         
