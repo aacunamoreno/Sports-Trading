@@ -353,7 +353,7 @@ async def auto_start_monitoring():
                 # Start background monitoring loop
                 asyncio.create_task(monitoring_loop())
                 
-                logger.info("Bet monitoring auto-started with background loop (7-15 min random intervals, paused 10:45 PM - 6:00 AM Arizona)")
+                logger.info("Bet monitoring auto-started with background loop (5 min intervals, paused 9:00 PM - 7:00 AM Arizona)")
             else:
                 logger.info("Bet monitoring not auto-started (disabled in config)")
         else:
