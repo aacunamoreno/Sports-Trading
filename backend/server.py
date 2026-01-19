@@ -1464,8 +1464,14 @@ async def build_enano_comparison_message() -> str:
             game_time = bet.get('game_time', '')
             country = bet.get('country', '')
             
-            is_placed = is_bet_placed_by_enano(bet)
-            emoji = "🔵" if is_placed else "🟡"
+            is_placed, enano_line = is_bet_placed_by_enano(bet)
+            if is_placed:
+                if enano_line:
+                    emoji = f"🔵{enano_line}🟣"  # Placed with different line
+                else:
+                    emoji = "🔵"  # Placed with same line
+            else:
+                emoji = "🟡"  # Pending
             
             if game_time:
                 bet_line = f"#{bet_num} {game_time} {game_name}"
