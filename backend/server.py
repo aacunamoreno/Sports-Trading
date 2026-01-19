@@ -1089,6 +1089,350 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
     
     return "\n".join(lines)
 
+
+async def build_enano_comparison_message() -> str:
+    """Build ENANO message comparing against TIPSTER bets
+    
+    Shows TIPSTER bets with indicators:
+    - 🔴 = TIPSTER bet we MISSED (game started/ended, we didn't bet)
+    - 🔵 = TIPSTER bet we PLACED (copied successfully)  
+    - 🟡 = TIPSTER bet we HAVEN'T placed yet (pending to copy)
+    
+    Then shows ENANO-only bets at the bottom (separated)
+    Separates today's games from tomorrow's with a blank line
+    """
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    now = datetime.now(arizona_tz)
+    today = now.strftime('%Y-%m-%d')
+    today_day = now.day
+    today_month = now.month
+    current_time_minutes = now.hour * 60 + now.minute
+    
+    # Get TIPSTER bets
+    tipster_comp = await db.daily_compilations.find_one({
+        "account": "jac083",
+        "date": today
+    })
+    
+    # Get ENANO bets
+    enano_comp = await db.daily_compilations.find_one({
+        "account": "jac075",
+        "date": today
+    })
+    
+    tipster_bets = tipster_comp.get('bets', []) if tipster_comp else []
+    enano_bets = enano_comp.get('bets', []) if enano_comp else []
+    
+    if not tipster_bets and not enano_bets:
+        return None
+    
+    # Create a lookup for ENANO bets by game_short and bet_type_short
+    enano_bet_keys = set()
+    for bet in enano_bets:
+        game = bet.get('game_short', bet.get('game', '')).upper()
+        bet_type = bet.get('bet_type_short', bet.get('bet_type', '')).upper()
+        # Create multiple keys for matching
+        enano_bet_keys.add(f"{game}|{bet_type}")
+        # Also add without bet type for broader matching
+        enano_bet_keys.add(game)
+    
+    def parse_time_for_sort(bet):
+        """Sort by: completed first, then today, then tomorrow"""
+        result = bet.get('result')
+        time_str = bet.get('game_time', '')
+        date_str = bet.get('game_date', '')
+        
+        is_completed = result in ['won', 'lost', 'push']
+        
+        if not time_str:
+            if is_completed:
+                return (-1, 9999, 0)
+            return (9999, 9999, 0)
+        
+        try:
+            time_str = time_str.upper().strip()
+            time_str = time_str.replace('AM', ' AM').replace('PM', ' PM').replace('  ', ' ')
+            parts = time_str.replace(':', ' ').split()
+            hour = int(parts[0])
+            minute = int(parts[1]) if len(parts) > 1 else 0
+            is_pm = 'PM' in time_str.upper()
+            if is_pm and hour != 12:
+                hour += 12
+            elif not is_pm and hour == 12:
+                hour = 0
+            time_minutes = hour * 60 + minute
+            
+            day_offset = 0
+            if date_str:
+                month_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+                             'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
+                parts = date_str.lower().split()
+                if len(parts) >= 2:
+                    month = month_map.get(parts[0][:3], today_month)
+                    day = int(parts[1])
+                    if day > today_day or month > today_month:
+                        day_offset = 1
+            
+            if is_completed:
+                return (-1, day_offset, time_minutes)
+            return (day_offset, 0, time_minutes)
+        except:
+            if is_completed:
+                return (-1, 9998, 0)
+            return (9998, 9998, 0)
+    
+    def get_game_time_minutes(bet):
+        """Get game time in minutes for comparison with current time"""
+        time_str = bet.get('game_time', '')
+        if not time_str:
+            return None
+        try:
+            time_str = time_str.upper().strip()
+            time_str = time_str.replace('AM', ' AM').replace('PM', ' PM').replace('  ', ' ')
+            parts = time_str.replace(':', ' ').split()
+            hour = int(parts[0])
+            minute = int(parts[1]) if len(parts) > 1 else 0
+            is_pm = 'PM' in time_str.upper()
+            if is_pm and hour != 12:
+                hour += 12
+            elif not is_pm and hour == 12:
+                hour = 0
+            return hour * 60 + minute
+        except:
+            return None
+    
+    def is_bet_placed_by_enano(tipster_bet):
+        """Check if ENANO has placed this TIPSTER bet"""
+        game = tipster_bet.get('game_short', tipster_bet.get('game', '')).upper()
+        bet_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
+        
+        # Check exact match
+        if f"{game}|{bet_type}" in enano_bet_keys:
+            return True
+        
+        # Check partial match (same game)
+        for enano_bet in enano_bets:
+            enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
+            enano_type = enano_bet.get('bet_type_short', enano_bet.get('bet_type', '')).upper()
+            
+            # Match by similar game name
+            if game in enano_game or enano_game in game:
+                # Check if bet types are similar
+                if bet_type in enano_type or enano_type in bet_type:
+                    return True
+                # Check for same direction (both overs or both unders)
+                if ('O' in bet_type and 'O' in enano_type) or ('U' in bet_type and 'U' in enano_type):
+                    return True
+                if ('+' in bet_type and '+' in enano_type) or ('-' in bet_type and '-' in enano_type):
+                    return True
+        
+        return False
+    
+    def is_game_started_or_ended(bet):
+        """Check if game has started or ended based on time"""
+        result = bet.get('result')
+        if result in ['won', 'lost', 'push']:
+            return True
+        
+        date_str = bet.get('game_date', '')
+        # If tomorrow's game, not started
+        if date_str:
+            month_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+                         'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
+            parts = date_str.lower().split()
+            if len(parts) >= 2:
+                month = month_map.get(parts[0][:3], today_month)
+                day = int(parts[1])
+                if day > today_day or month > today_month:
+                    return False  # Tomorrow's game
+        
+        game_time = get_game_time_minutes(bet)
+        if game_time is None:
+            return False
+        
+        return current_time_minutes >= game_time
+    
+    def is_tomorrow(bet):
+        """Check if bet is for tomorrow"""
+        date_str = bet.get('game_date', '')
+        if date_str:
+            month_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+                         'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
+            parts = date_str.lower().split()
+            if len(parts) >= 2:
+                month = month_map.get(parts[0][:3], today_month)
+                day = int(parts[1])
+                if day > today_day or month > today_month:
+                    return True
+        return False
+    
+    # Sort TIPSTER bets
+    tipster_sorted = sorted(tipster_bets, key=parse_time_for_sort)
+    
+    # Build ENANO comparison message
+    lines = ["📋 *ENANO* (vs TIPSTER)", ""]
+    
+    # Split into today and tomorrow
+    today_bets = []
+    tomorrow_bets = []
+    
+    for bet in tipster_sorted:
+        if is_tomorrow(bet):
+            tomorrow_bets.append(bet)
+        else:
+            today_bets.append(bet)
+    
+    # Find ENANO-only bets (not in TIPSTER)
+    enano_only_bets = []
+    for enano_bet in enano_bets:
+        enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
+        enano_type = enano_bet.get('bet_type_short', enano_bet.get('bet_type', '')).upper()
+        
+        found_in_tipster = False
+        for tipster_bet in tipster_bets:
+            tipster_game = tipster_bet.get('game_short', tipster_bet.get('game', '')).upper()
+            tipster_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
+            
+            if enano_game in tipster_game or tipster_game in enano_game:
+                if enano_type in tipster_type or tipster_type in enano_type:
+                    found_in_tipster = True
+                    break
+                if ('O' in enano_type and 'O' in tipster_type) or ('U' in enano_type and 'U' in tipster_type):
+                    found_in_tipster = True
+                    break
+        
+        if not found_in_tipster:
+            enano_only_bets.append(enano_bet)
+    
+    bet_num = 1
+    
+    # Process TODAY's bets
+    for bet in today_bets:
+        game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
+        game_name = game_name.replace('REG.TIME', '').strip()
+        bet_type_short = bet.get('bet_type_short', '')
+        wager_short = bet.get('wager_short', '$0')
+        to_win_short = bet.get('to_win_short', '$0')
+        result = bet.get('result')
+        game_time = bet.get('game_time', '')
+        country = bet.get('country', '')
+        
+        # Determine emoji based on comparison
+        is_placed = is_bet_placed_by_enano(bet)
+        game_started = is_game_started_or_ended(bet)
+        
+        if result in ['won', 'lost', 'push']:
+            # Completed game
+            if result == 'won':
+                emoji = "🟢"
+            elif result == 'lost':
+                emoji = "🔴"
+            else:
+                emoji = "🔵"
+        elif is_placed:
+            emoji = "🔵"  # Placed/copied
+        elif game_started:
+            emoji = "🔴"  # Missed (game started, not placed)
+        else:
+            emoji = "🟡"  # Pending (can still place)
+        
+        # Build line
+        if game_time:
+            bet_line = f"#{bet_num} {game_time} {game_name}"
+        else:
+            bet_line = f"#{bet_num} {game_name}"
+        
+        if bet_type_short and 'Straight' not in bet_type_short:
+            bet_line += f" {bet_type_short}"
+        if country:
+            bet_line += f" ({country})"
+        bet_line += f" ({wager_short}/{to_win_short}){emoji}"
+        
+        lines.append(bet_line)
+        bet_num += 1
+    
+    # Add separator for tomorrow's bets
+    if tomorrow_bets:
+        lines.append("")  # Blank line separator
+        
+        for bet in tomorrow_bets:
+            game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
+            game_name = game_name.replace('REG.TIME', '').strip()
+            bet_type_short = bet.get('bet_type_short', '')
+            wager_short = bet.get('wager_short', '$0')
+            to_win_short = bet.get('to_win_short', '$0')
+            game_time = bet.get('game_time', '')
+            country = bet.get('country', '')
+            
+            is_placed = is_bet_placed_by_enano(bet)
+            emoji = "🔵" if is_placed else "🟡"
+            
+            if game_time:
+                bet_line = f"#{bet_num} {game_time} {game_name}"
+            else:
+                bet_line = f"#{bet_num} {game_name}"
+            
+            if bet_type_short and 'Straight' not in bet_type_short:
+                bet_line += f" {bet_type_short}"
+            if country:
+                bet_line += f" ({country})"
+            bet_line += f" ({wager_short}/{to_win_short}){emoji}"
+            
+            lines.append(bet_line)
+            bet_num += 1
+    
+    # Add ENANO-only bets at the bottom (separated)
+    if enano_only_bets:
+        lines.append("")  # Blank line separator
+        lines.append("*ENANO Only:*")
+        
+        enano_only_sorted = sorted(enano_only_bets, key=parse_time_for_sort)
+        for bet in enano_only_sorted:
+            game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
+            game_name = game_name.replace('REG.TIME', '').strip()
+            bet_type_short = bet.get('bet_type_short', '')
+            wager_short = bet.get('wager_short', '$0')
+            to_win_short = bet.get('to_win_short', '$0')
+            result = bet.get('result')
+            game_time = bet.get('game_time', '')
+            country = bet.get('country', '')
+            
+            if result == 'won':
+                emoji = "🟢"
+            elif result == 'lost':
+                emoji = "🔴"
+            elif result == 'push':
+                emoji = "🔵"
+            else:
+                emoji = "🟡"
+            
+            if game_time:
+                bet_line = f"#{bet_num} {game_time} {game_name}"
+            else:
+                bet_line = f"#{bet_num} {game_name}"
+            
+            if bet_type_short and 'Straight' not in bet_type_short:
+                bet_line += f" {bet_type_short}"
+            if country:
+                bet_line += f" ({country})"
+            bet_line += f" ({wager_short}/{to_win_short}){emoji}"
+            
+            lines.append(bet_line)
+            bet_num += 1
+    
+    # Add summary at the bottom
+    total_tipster = len(tipster_bets)
+    total_placed = sum(1 for b in tipster_bets if is_bet_placed_by_enano(b))
+    total_missed = sum(1 for b in tipster_bets if not is_bet_placed_by_enano(b) and is_game_started_or_ended(b))
+    total_pending = total_tipster - total_placed - total_missed
+    
+    lines.append("")
+    lines.append(f"*Copied: {total_placed}/{total_tipster}* | 🔴 Missed: {total_missed} | 🟡 Pending: {total_pending}")
+    
+    return "\n".join(lines)
+
+
 async def update_compilation_message(account: str):
     """Update the Telegram message - Both accounts get detailed messages only
     TIPSTER: Shows all bets with standard format
