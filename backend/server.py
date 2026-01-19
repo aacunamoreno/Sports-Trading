@@ -1019,6 +1019,9 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
             bet_line = f"#{i} {game_name}"
         if bet_type_short:
             bet_line += f" {bet_type_short}"
+        # Add country if available
+        if country:
+            bet_line += f" ({country})"
         bet_line += f" ({wager_short}/{to_win_short})"
         
         # Add result emoji
