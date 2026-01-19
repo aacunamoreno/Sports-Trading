@@ -3,30 +3,33 @@
 **User's preferred language**: English
 
 **what currently exists?**
-A full-stack application with a React frontend and a monolithic FastAPI backend (). The system scrapes game and consensus data, allowing users to view opportunities and track records. A sophisticated Telegram notification system is the core feature, running every 5 minutes from 7 AM to 10 PM Arizona time. It provides two views:
-1.  **TIPSTER ():** A detailed list of all bets placed, sorted by completion status, then date, and then time.
-2.  **ENANO ():** A comparison view against TIPSTER's bets, indicating which bets have been successfully copied (🔵), which are pending (🟡), and which were missed (🔴 started/completed and not bet).
+A full-stack application with a React frontend and a monolithic FastAPI backend (). The system scrapes game and consensus data from . Its core feature is a sophisticated Telegram notification system that runs every 5 minutes (from 7 AM to 10 PM Arizona time). This system provides two distinct views:
+1.  **TIPSTER ():** A detailed list of all bets placed, sorted by time.
+2.  **ENANO ():** A comparison view against TIPSTER's bets, indicating bet status with emojis: placed and won (🟢), placed and lost (🔴), placed and pending (🔵), missed (🟠), and not yet placed (🟡). It also highlights line differences with a 🟣 icon and an accompanying value (e.g., ).
 
 **Last working item**:
--   **Last item agent was working:** The agent was fixing the ENANO account's Telegram notification. The user reported that a short summary was still being sent in addition to the detailed one, and the Missed count was incorrect (showing 0 when it should have been 1).
+-   **Last item agent was working:** The user wants duplicate bets on the ENANO account (e.g., betting on the same game twice) to appear together in the main comparison list, rather than having the second bet relegated to the ENANO Only section. The agent began refactoring  to handle this but did not complete the implementation.
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** Backend testing. The agent should directly test the  and  functions in . The test should confirm that only one message ID is stored/used for the ENANO account and that the Missed count logic correctly identifies completed games on the TIPSTER list that are not on the ENANO list.
+-   **Which testing method agent to use?** backend testing agent. The agent should write a test for the  function in . The test should use mock data containing one TIPSTER bet and two corresponding ENANO bets for the same game. It must verify that both ENANO bets are rendered in the main list under the single TIPSTER bet entry and that the ENANO Only list is empty.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1:** ENANO Telegram summary is incorrect (P0)
--   **Issue 2:** The  scraper incorrectly identifies bet types (OVER/UNDER) (P1)
+-   **Issue 1:** Show duplicate ENANO bets in the main comparison list (P0)
+-   **Issue 2:** The  scraper incorrectly identifies bet types for OVER/UNDER bets (P1)
 -   **Issue 3:** Refactor  monolith (P1)
 -   **Issue 4:** The  scraper incorrectly handles Regulation Time bets (P2)
+-   **Issue 5:** The scraper fails to parse the betting line for some formats, defaulting to Straight (P2)
 
 **Issues Detail**:
--   **Issue 1: ENANO Telegram summary is incorrect**
-    -   **Attempted fixes:** The agent identified the functions responsible for building and sending messages but hadn't implemented the final fix. The last action was searching for all usages of  to eliminate it for the ENANO account.
+-   **Issue 1: Show duplicate ENANO bets in the main comparison list**
+    -   **Attempted fixes:** The agent created a new function  to return all matching bets instead of just the first one. The agent then started refactoring the main  loop to iterate through these matches. The work is incomplete.
     -   **Next debug checklist:**
-        1.  In , find the  function. Remove all logic that sends a short message or stores a  for the  account ().
-        2.  In the  function, review the logic that calculates . It should count bets from the  list that have a final  (e.g., 'won', 'lost') or have passed their game time, and do NOT have a matching bet in the  list.
-    -   **Why fix this issue and what will be achieved with the fix?** To deliver the correct comparison tool the user needs to efficiently copy bets from the TIPSTER to the ENANO account.
+        1.  In , locate the  function.
+        2.  Complete the refactor of the main loop (today's and tomorrow's bets) to process and render all matches returned by .
+        3.  Ensure the  set is populated correctly with the indices of all rendered ENANO bets.
+        4.  Update the ENANO Only section's filtering logic to use this set ().
+    -   **Why fix this issue and what will be achieved with the fix?** To meet the user's requirement of seeing all placed bets, including duplicates, in the primary comparison view for accurate tracking.
     -   **Status:** IN PROGRESS
     -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?** Backend.
@@ -69,10 +72,22 @@ A full-stack application with a React frontend and a monolithic FastAPI backend 
     -   **Should Test frontend/backend/both after fix?** Backend.
     -   **Blocked on other issue:** none
 
+-   **Issue 5: Scraper fails to parse lines for some bet formats**
+    -   **Attempted fixes:** The agent manually updated one bet from Straight to the correct  line. A long-term fix is needed.
+    -   **Next debug checklist:**
+        1.  In , locate the JavaScript within .
+        2.  Analyze the  block that defaults .
+        3.  Add more robust regex or DOM traversal to find the bet line from different parts of the row/cell.
+    -   **Why fix this issue and what will be achieved with the fix?** To ensure accurate line difference tracking and prevent the need for manual data correction.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Backend.
+    -   **Blocked on other issue:** none
+
 **In progress Task List**:
--   **Task 1: Finalize Telegram Notification Logic (P0)**
-    -   **Where to resume:** In , modify the  and  functions.
-    -   **What will be achieved with this?** The ENANO account will only receive the correct, detailed comparison message, and the summary counts (especially Missed) will be accurate.
+-   **Task 1: Refactor  for duplicate bets (P0)**
+    -   **Where to resume:** In , complete the refactoring of the  function, specifically the ENANO Only filtering logic.
+    -   **What will be achieved with this?** Both PENN/HARVARD bets placed by ENANO will appear in the main list, associated with the single TIPSTER PENN/HARVARD bet, and the ENANO Only list will be accurate.
     -   **Status:** IN PROGRESS
     -   **Should Test frontend/backend/both after fix?** Backend.
     -   **Blocked on something:** None.
@@ -85,23 +100,21 @@ A full-stack application with a React frontend and a monolithic FastAPI backend 
     -   (P3) Backfill country/league data for all historical bets in the database.
 
 **Completed work in this session**
--   **Feature: Telegram Notification Overhaul:**
-    -   Created the **ENANO vs. TIPSTER comparison view**, which is the central feature of the current workflow.
-    -   Implemented a complex sorting order for bets: 1. Completion Status, 2. Game Date, 3. Game Time.
-    -   Added game time, country/league, and a new bet indicator (🔵) to notifications.
-    -   Updated the notification schedule to run every 5 minutes from 7 AM to 10 PM Arizona time.
--   **Bug Fix: Scraper & Data Integrity:**
-    -   Fixed a critical bug where refreshing lines would erase bet data for completed games.
-    -   Improved the scraper to handle a previously un-parsable bet format (RBL sport code), fixing a recurring user complaint about a missing bet.
--   **Feature: UI/UX Enhancements:**
-    -   Added Scrape Today and Upload PPG Excel buttons to the UI for the current day's view.
-    -   Fixed a timezone bug with PPG file uploads.
--   **Data Management:**
-    -   Performed numerous manual record and data updates (lines, scores, records) based on user requests.
-    -   Created a database backup dump file for the user.
+-   **Feature: Complete Overhaul of ENANO Telegram View**
+    -   Implemented a new emoji system: 🟢(Won), 🔴(Lost), 🔵(Placed/Pending), 🟠(Missed), 🟡(Not Yet Placed).
+    -   Implemented a line-difference indicator: .
+    -   Added an ENANO-specific  and  summary (e.g., , ).
+    -   Refactored sorting logic to be based purely on game time.
+-   **Bug Fixes & Data Integrity:**
+    -   Corrected numerous bet matching inconsistencies by comparing full game names and handling  characters in bet lines.
+    -   Fixed the result calculation to display negative values correctly.
+    -   Resolved an issue where newly placed bets were skipped by duplicate prevention logic.
+    -   Manually updated dozens of bet records (results, times, lines) based on user feedback, including adding missing bets.
+-   **Feature: Timezone Adjustment**
+    -   Added a +1 hour offset to all scraped game times to align with the user's Arizona timezone, applying the fix to both existing data and the ongoing scraper logic.
 
 **Earlier issues found/mentioned but not fixed**
--   Covered in the **All Pending/In progress Issue list**. The primary ones are the  scraper bugs for O/U and Regulation Time bets.
+-   Covered in the **All Pending/In progress Issue list**.
 
 **Known issue recurrence from previous fork**
 -   **Issue recurrence in previous fork:** The  scraper incorrectly identifies bet types (OVER/UNDER).
@@ -113,56 +126,52 @@ A full-stack application with a React frontend and a monolithic FastAPI backend 
 
 **Key Technical Concepts**
 -   **Monolithic Backend:** All logic (APIs, scraping, scheduling, notifications) is in .
--   **Real-time Notifications:** An  job runs a monitoring loop that scrapes , compares bet states between two accounts, and sends richly formatted, sorted messages to Telegram.
--   **Stateful Telegram Messages:** Telegram s are stored in the database to allow editing messages in place, creating a persistent dashboard within the chat application.
--   **Complex Data Parsing:** Heavy use of string manipulation and regex in both Python and injected JavaScript to parse scraped bet information from inconsistent HTML structures.
+-   **Complex Data Parsing:** Heavy use of string manipulation, regex, and injected JavaScript to parse scraped bet information from inconsistent HTML structures.
+-   **Stateful Telegram Messages:** Telegram s are stored to edit messages in place, creating a persistent dashboard.
+-   **Multi-level Bet Matching:** The logic to associate ENANO bets with TIPSTER bets now involves multiple layers of comparison: exact game/bet type, fuzzy game name, and moneyline sign matching.
 
 **key DB schema**
--   ****: Caches the list of bets for each account ('jac075' for ENANO, 'jac083' for TIPSTER) to generate the daily Telegram message. Bet documents include , , , and .
--   ****: Stores account credentials and the s for the Telegram messages being updated.
--   ****: Collections holding game data for each league.
+-   ****: Caches the list of bets for each account ('jac075' for ENANO, 'jac083' for TIPSTER) to generate the daily Telegram message.
+-   ****: Stores account credentials and Telegram s.
+-   ****: A persistent log of all bets, used for duplicate prevention and result tracking.
 
 **All files of reference**
--   : The monolithic backend containing all business logic. Was heavily modified.
--   : The main UI component. Was modified to add new buttons.
+-   : The monolithic backend containing all business logic. It was heavily modified throughout the session.
+-   : Updated multiple times to reflect completed work and new requirements.
 
 **Areas that need refactoring**:
--   : **CRITICAL.** This file has grown excessively large and complex. The interconnected scraping and notification logic is difficult to debug and maintain. It urgently needs to be modularized.
+-   : **CRITICAL.** This file's complexity, particularly the  function, has grown to an unsustainable level. It is difficult to debug and maintain, and the user's frequent requests for changes highlight the urgent need for modularization.
 
 **key api endpoints**
--   : Refreshes game lines and scrapes public consensus.
--   : Handles upload of PPG data from Excel.
--   : Endpoint triggered by the new Scrape Today button.
+-   : Used frequently by the agent to test and send messages.
+-   : Used to trigger a manual scrape cycle.
 
 **Critical Info for New Agent**
--   The user's primary focus is now the **Telegram bet-copying workflow**. The ENANO summary is a comparison tool to facilitate this. Accuracy of this summary is paramount.
--   The sorting logic for Telegram messages is crucial and multi-layered: 1. **Completed** bets (win/loss), 2. **Game Date** (today before tomorrow), 3. **Game Time** (earliest first).
--   The  file is a high-risk monolith. Any changes, especially to the notification functions ( and ), must be made with extreme care.
--   The backend monitoring loop can be interrupted by server restarts (e.g., from code changes), which stops notifications. If the user reports no updates, the first step is to run backend: stopped
-backend: started.
+-   The user's primary focus is the exact presentation of the **ENANO Telegram message**. Every detail matters: sorting, emojis, line formats, counts, and results. Be prepared for very specific feedback.
+-   The  function in  is now extremely complex and is in an **incomplete refactoring state**. You must complete this refactor before addressing other issues.
+-   The scraping logic in  is brittle. The user frequently relies on the agent to perform manual data correction for scraped bets. Fixing the underlying scraper issues (O/U, Regulation Time, missed lines) should be a high priority after the current task.
 
 **documents and test reports created in this job**
--   
--   
+-    (updated)
 
 **Last 10 User Messages and any pending HUMAN messages**
-10.  Reports ENANO summary is still showing a short version and the Missed count is wrong. (PENDING)
-9.  Asks to highlight new bets with a 🔵 emoji. (DONE)
-8.  Reports that notifications stopped. (RESOLVED - agent restarted backend)
-7.  Requests completed games appear at the top and ENANO only gets the detailed summary. (PARTIALLY DONE)
-6.  Reports sorting is incorrect for tomorrow's games and some times are missing. (RESOLVED)
-5.  Requests bets be sorted by game time and include country/league info. (DONE)
-4.  Requests game time be added to notifications. (DONE)
-3.  Requests notification schedule be extended to 10 PM. (DONE)
-2.  Requests notification schedule be changed to every 5 minutes from 7 AM to 9 PM. (DONE)
-1.  Reports PPG data not showing correctly after upload. (RESOLVED)
+-   **10. Still isnt showing twice in the list the Penssylvania bet** (PENDING - This is the current P0 task).
+-   9. Provides a screenshot of an incorrect summary, asks to add the second PENN/HARVARD bet, and reports the result should be -50.00. (Partially fixed).
+-   8. Asks to add +1 hour to all game times. (DONE).
+-   7. Reports result is still wrong ( instead of ). (DONE).
+-   6. Reports several issues: Kenya Police time is wrong, wants new emoji system (🟢/🔴/🟠), wants ENANO record tracking. (DONE).
+-   5. Reports YALE -9.5 is not showing as a missed bet. (Resolved).
+-   4. Reports a new ENANO bet was placed but no notification received. (Resolved).
+-   3. Reports errors in line matching for several bets ( differences). (DONE).
+-   2. Asks for ENANO-only bets to be moved to the main list and for line differences to be shown with a 🟣 emoji. (DONE).
+-   1. Placed a live bet and reported that the scraper parsed it incorrectly, causing a matching failure. (DONE).
 
 **Project Health Check:**
 -   **Broken:**
-    -   The ENANO Telegram notification logic is sending an extra message and has an incorrect Missed count.
-    -   Core  scraper logic for parsing OVER/UNDER and Regulation Time bets.
+    -   The ENANO Telegram view does not correctly display duplicate bets from the ENANO account in the main list.
 -   **Technical Debt:**
     -   The  monolith represents a critical stability and maintenance risk.
+    -   The  scraper logic is brittle and a constant source of bugs, requiring frequent manual data corrections.
 
 **3rd Party Integrations**
 -   **Playwright & BeautifulSoup:** Web scraping.
@@ -174,11 +183,11 @@ backend: started.
 -   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** None
--   **Known regressions:** A server restart can interrupt the backend monitoring loop, requiring a manual restart to resume Telegram notifications.
+-   **Known regressions:** The reliance on manual data fixes indicates the scraper has regressions or was never robust enough to handle all cases.
 
 **Credentials to test flow:**
 -   **TIPSTER Account (Master):**  / 
 -   **ENANO Account (Copy):**  / 
 
 **What agent forgot to execute**
--   The agent identified the two final issues with the ENANO summary (still sending a short message, incorrect missed count) but has not yet fully implemented the fix. The root cause of why the short message is still being sent needs to be found and removed.</analysis>
+-   The agent started a major refactor of  to handle duplicate ENANO bets but did not finish it. The logic to filter the ENANO Only list based on the newly rendered duplicates in the main list is the final missing piece.</analysis>
