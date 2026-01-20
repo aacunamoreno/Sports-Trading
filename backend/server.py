@@ -5437,31 +5437,45 @@ async def monitor_single_account(conn: dict):
                         // Extract country/league from description
                         // Format examples: "(Israel)", "(Uruguay)", "(Norway)", "(Croatia)"
                         // Or from patterns like "Basketball / Israel" or "Hockey / Norway"
+                        // Or sport column might have "BASKETBALL / ISRAEL" etc.
                         let country = '';
-                        const countryMatch = description.match(/\\(([A-Za-z]+)\\)\\s*$/);
-                        if (countryMatch) {
-                            country = countryMatch[1];
-                        } else {
-                            // Try to find country after slash (e.g., "Basketball / Israel")
-                            const slashCountry = description.match(/\\/\\s*([A-Za-z]+)\\s*(?:\\/|$)/);
-                            if (slashCountry && slashCountry[1].length <= 15) {
-                                // Only take short names that could be countries
-                                const possibleCountry = slashCountry[1].trim();
-                                if (!['Game', 'Total', 'Spread', 'Money', 'Over', 'Under', 'NBA', 'NHL', 'NFL', 'CBB', 'NCAAB'].includes(possibleCountry)) {
+                        
+                        // First check the sport column for international leagues
+                        const sportText = sport.toUpperCase();
+                        if (sportText.includes('/')) {
+                            // Format like "BASKETBALL / ISRAEL" or "HOCKEY / NORWAY"
+                            const parts = sportText.split('/');
+                            if (parts.length >= 2) {
+                                const possibleCountry = parts[1].trim();
+                                // Exclude common non-country values
+                                if (!['NBA', 'NHL', 'NFL', 'MLB', 'CBB', 'NCAAB', 'CFB', 'OT INCLUDED', 'REG TIME', 'REGULAR', 'SOCCER'].includes(possibleCountry) && possibleCountry.length > 0) {
                                     country = possibleCountry;
                                 }
                             }
                         }
-                        // Check sport column for international leagues
-                        if (!country && sport) {
-                            const sportUpper = sport.toUpperCase();
-                            // Map sport codes to countries/regions
-                            const sportCountryMap = {
-                                'RBL': '', // Will need to extract from description
-                                'SOC': '', // Soccer - varies
-                                'HKI': '', // Hockey international
-                                'TEN': '', // Tennis
-                            };
+                        
+                        // Then try description
+                        if (!country) {
+                            const countryMatch = description.match(/\\(([A-Za-z]+)\\)\\s*$/);
+                            if (countryMatch) {
+                                country = countryMatch[1];
+                            }
+                        }
+                        
+                        // Check for Tennis format like "AUSTRALIAN OPEN" in description
+                        if (!country && description.toUpperCase().includes('AUSTRALIAN OPEN')) {
+                            country = 'Tennis/AO';
+                        } else if (!country && sportText.includes('TEN')) {
+                            country = 'Tennis';
+                        }
+                        
+                        // Map sport codes to leagues
+                        if (!country) {
+                            if (sportText === 'NBA') country = 'NBA';
+                            else if (sportText === 'NHL') country = 'NHL';
+                            else if (sportText === 'NFL') country = 'NFL';
+                            else if (sportText === 'CBB' || sportText === 'NCAAB') country = 'NCAAB';
+                            else if (sportText === 'SOC' || sportText.includes('SOCCER')) country = 'Soccer';
                         }
                         
                         // Parse risk/win amounts (format: "1100.00 / 1000.00" or "500.00 / 9500.00")
