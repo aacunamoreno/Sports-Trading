@@ -5646,16 +5646,18 @@ async def monitor_single_account(conn: dict):
                 to_win_short = f"${to_win/1000:.1f}K" if to_win >= 1000 else f"${to_win:.0f}" if to_win else "$0"
                 
                 # Also update bet_history with fresh values if they were missing
+                update_fields = {}
                 if wager and not existing_bet.get('wager'):
+                    update_fields["wager"] = wager
+                    update_fields["wager_short"] = wager_short
+                    update_fields["to_win"] = to_win
+                    update_fields["to_win_short"] = to_win_short
+                if country and not existing_bet.get('country'):
+                    update_fields["country"] = country
+                if update_fields:
                     await db.bet_history.update_one(
                         {"bet_slip_id": ticket_num},
-                        {"$set": {
-                            "wager": wager,
-                            "wager_short": wager_short,
-                            "to_win": to_win,
-                            "to_win_short": to_win_short,
-                            "country": country
-                        }}
+                        {"$set": update_fields}
                     )
                 
                 compilation = await db.daily_compilations.find_one({'account': username, 'date': today})
