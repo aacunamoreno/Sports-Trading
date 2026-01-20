@@ -1513,7 +1513,7 @@ async def build_enano_comparison_message() -> str:
             else:
                 bet_line = f"#{bet_num} {game_name}"
             
-            if bet_type_short and 'Straight' not in bet_type_short:
+            if bet_type_short and 'Straight' not in bet_type_short and bet_type_short not in game_name:
                 bet_line += f" {bet_type_short}"
             if country:
                 bet_line += f" ({country})"
@@ -1619,7 +1619,7 @@ async def build_enano_comparison_message() -> str:
             else:
                 bet_line = f"#{bet_num} {game_name}"
             
-            if bet_type_short and 'Straight' not in bet_type_short:
+            if bet_type_short and 'Straight' not in bet_type_short and bet_type_short not in game_name:
                 bet_line += f" {bet_type_short}"
             if country:
                 bet_line += f" ({country})"
