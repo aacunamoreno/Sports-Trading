@@ -2491,31 +2491,70 @@ async def check_results_for_account(conn: dict):
         
         logger.info(f"Found {len(settled_bets)} settled bets for {username}")
         
-        # Update database with results
+        # Update database with results and sync to today's compilation
         results_updated = 0
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
         for bet in settled_bets:
             ticket_num = bet.get('ticket')
             result = bet.get('result')
             win_amount = bet.get('winAmount', 0)
+            game_date = bet.get('gameDate', '')
+            
+            # Check if this is a bet from today (game date matches)
+            today_str = datetime.now(arizona_tz).strftime('%b %d').replace(' 0', ' ')  # e.g., "Jan 20"
+            is_today = today_str in game_date
             
             # Find and update the bet in database
             existing_bet = await db.bet_history.find_one({"bet_slip_id": ticket_num})
             
-            if existing_bet and existing_bet.get('result') != result:
-                # Update the result
-                await db.bet_history.update_one(
-                    {"bet_slip_id": ticket_num},
-                    {"$set": {
-                        "result": result,
-                        "win_amount": win_amount,
-                        "result_updated_at": datetime.now(timezone.utc).isoformat()
-                    }}
-                )
-                results_updated += 1
-                logger.info(f"Updated Ticket#{ticket_num}: {result}")
+            if existing_bet:
+                if existing_bet.get('result') != result:
+                    # Update the result
+                    await db.bet_history.update_one(
+                        {"bet_slip_id": ticket_num},
+                        {"$set": {
+                            "result": result,
+                            "win_amount": win_amount,
+                            "result_updated_at": datetime.now(timezone.utc).isoformat()
+                        }}
+                    )
+                    results_updated += 1
+                    logger.info(f"Updated Ticket#{ticket_num}: {result}")
+                    
+                    # Send Telegram notification for result
+                    await send_result_notification(existing_bet, result, win_amount, username)
                 
-                # Send Telegram notification for result
-                await send_result_notification(existing_bet, result, win_amount, username)
+                # If game is today, sync to today's compilation
+                if is_today:
+                    compilation = await db.daily_compilations.find_one({'account': username, 'date': today})
+                    existing_tickets = []
+                    if compilation:
+                        existing_tickets = [b.get('ticket') for b in compilation.get('bets', [])]
+                    
+                    if ticket_num not in existing_tickets:
+                        # Add settled bet to today's compilation
+                        bet_details = {
+                            "ticket_number": ticket_num,
+                            "ticket": ticket_num,
+                            "game": existing_bet.get('game', ''),
+                            "game_short": existing_bet.get('game_short', ''),
+                            "bet_type": existing_bet.get('bet_type', ''),
+                            "bet_type_short": existing_bet.get('bet_type_short', ''),
+                            "game_time": bet.get('gameTime', ''),
+                            "game_date": game_date,
+                            "country": existing_bet.get('country', ''),
+                            "wager": existing_bet.get('wager', 0),
+                            "wager_short": existing_bet.get('wager_short', ''),
+                            "to_win": existing_bet.get('to_win', 0),
+                            "to_win_short": existing_bet.get('to_win_short', ''),
+                            "result": result,
+                            "is_new": False,
+                        }
+                        await add_bet_to_compilation(username, bet_details)
+                        logger.info(f"Synced settled bet to today's compilation: Ticket#{ticket_num}")
         
         await results_service.close()
         logger.info(f"Results check complete for {username}: {results_updated} bets updated")
