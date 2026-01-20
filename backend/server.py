@@ -2452,6 +2452,13 @@ async def check_results_for_account(conn: dict):
                         gameTime = timeMatch[1];
                     }
                     
+                    // Extract game name - look for text after STRAIGHT BET or similar
+                    let gameName = '';
+                    const gameMatch = rowText.match(/(?:STRAIGHT BET|PARLAY|TEASER)\\s*\\[\\d+\\]\\s*([^\\d]+?)(?:\\s*[+-]?\\d|\\s*\\d{4}\\.)/i);
+                    if (gameMatch) {
+                        gameName = gameMatch[1].trim();
+                    }
+                    
                     // Look for result indicators
                     // plays888 shows "WINWIN" or "LOSELOSE" at the end of each row
                     let result = 'pending';
@@ -2483,10 +2490,12 @@ async def check_results_for_account(conn: dict):
                     // Also get the wager amount from Risk/Win format "2200.00 / 2000.00"
                     const riskWinMatch = rowText.match(/([\\d,]+\\.\\d+)\\s*\\/\\s*([\\d,]+\\.\\d+)/);
                     let wagerAmount = 0;
+                    let toWinAmount = 0;
                     if (riskWinMatch) {
                         wagerAmount = parseFloat(riskWinMatch[1].replace(/,/g, ''));
+                        toWinAmount = parseFloat(riskWinMatch[2].replace(/,/g, ''));
                         if (result === 'won' && winAmount === 0) {
-                            winAmount = parseFloat(riskWinMatch[2].replace(/,/g, ''));
+                            winAmount = toWinAmount;
                         }
                     }
                     
@@ -2495,9 +2504,12 @@ async def check_results_for_account(conn: dict):
                             ticket: ticket,
                             result: result,
                             winAmount: winAmount,
+                            wagerAmount: wagerAmount,
+                            toWinAmount: toWinAmount,
                             gameDate: gameDate,
                             gameTime: gameTime,
-                            rowText: rowText.substring(0, 200)  // For debugging
+                            gameName: gameName,
+                            rowText: rowText.substring(0, 300)  // For debugging
                         });
                     }
                 }
