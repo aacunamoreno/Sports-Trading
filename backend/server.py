@@ -5748,6 +5748,12 @@ async def monitor_single_account(conn: dict):
                 # Try to extract game from description
                 game = description[:50] + '...' if len(description) > 50 else description
             
+            # Generate short display formats for wager, to_win, game, and bet_type
+            wager_short = f"${wager/1000:.1f}K" if wager >= 1000 else f"${wager:.0f}" if wager else "$0"
+            to_win_short = f"${to_win/1000:.1f}K" if to_win >= 1000 else f"${to_win:.0f}" if to_win else "$0"
+            game_short = game[:20] + '...' if len(game) > 20 else game
+            bet_type_short = bet_type[:15] if len(bet_type) > 15 else bet_type
+            
             # Store in database with account info for filtering
             bet_doc = {
                 "id": str(uuid.uuid4()),
