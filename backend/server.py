@@ -5748,6 +5748,15 @@ async def monitor_single_account(conn: dict):
                 "total_line": bet_line,  # #3.75: Store the numeric line value
                 "bet_slip_id": ticket_num,
                 "account": username,
+                "country": country,  # Store country/league info
+                "game_time": game_time,
+                "game_date": game_date,
+                "wager": wager,
+                "wager_short": wager_short,
+                "to_win": to_win,
+                "to_win_short": to_win_short,
+                "game_short": game_short,
+                "bet_type_short": bet_type_short,
                 "notes": f"Account: {username}. Auto-detected from plays888.co. Sport: {sport}"
             }
             await db.bet_history.insert_one(bet_doc)
