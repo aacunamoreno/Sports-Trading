@@ -5468,36 +5468,37 @@ async def monitor_single_account(conn: dict):
             game_date = bet_info.get('gameDate', '')
             
             if existing_bet:
-                # Ticket exists in bet_history, but check if it's in today's compilation
-                # This handles the case where bets were placed yesterday but games are today
+                # Ticket exists in bet_history - sync to today's compilation if not already there
                 from zoneinfo import ZoneInfo
                 arizona_tz = ZoneInfo('America/Phoenix')
                 today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
                 
                 compilation = await db.daily_compilations.find_one({'account': username, 'date': today})
+                existing_tickets = []
                 if compilation:
                     existing_tickets = [b.get('ticket') for b in compilation.get('bets', [])]
-                    if ticket_num not in existing_tickets:
-                        # Add existing bet to today's compilation
-                        bet_details = {
-                            "ticket_number": ticket_num,
-                            "ticket": ticket_num,
-                            "game": existing_bet.get('game', game),
-                            "game_short": existing_bet.get('game_short', ''),
-                            "bet_type": existing_bet.get('bet_type', bet_type),
-                            "bet_type_short": existing_bet.get('bet_type_short', ''),
-                            "game_time": game_time,
-                            "game_date": game_date,
-                            "country": existing_bet.get('country', ''),
-                            "wager": existing_bet.get('wager', 0),
-                            "wager_short": existing_bet.get('wager_short', ''),
-                            "to_win": existing_bet.get('to_win', 0),
-                            "to_win_short": existing_bet.get('to_win_short', ''),
-                            "result": existing_bet.get('result'),
-                            "is_new": False,
-                        }
-                        await add_bet_to_compilation(username, bet_details)
-                        logger.info(f"Synced existing bet to today's compilation: Ticket#{ticket_num}")
+                
+                if ticket_num not in existing_tickets:
+                    # Add existing bet to today's compilation (creates compilation if needed)
+                    bet_details = {
+                        "ticket_number": ticket_num,
+                        "ticket": ticket_num,
+                        "game": existing_bet.get('game', game),
+                        "game_short": existing_bet.get('game_short', ''),
+                        "bet_type": existing_bet.get('bet_type', bet_type),
+                        "bet_type_short": existing_bet.get('bet_type_short', ''),
+                        "game_time": game_time,
+                        "game_date": game_date,
+                        "country": existing_bet.get('country', ''),
+                        "wager": existing_bet.get('wager', 0),
+                        "wager_short": existing_bet.get('wager_short', ''),
+                        "to_win": existing_bet.get('to_win', 0),
+                        "to_win_short": existing_bet.get('to_win_short', ''),
+                        "result": existing_bet.get('result'),
+                        "is_new": False,
+                    }
+                    await add_bet_to_compilation(username, bet_details)
+                    logger.info(f"Synced existing bet to today's compilation: Ticket#{ticket_num}")
                 continue
             
             # #3.5 ADDITIONAL DUPLICATE CHECK: Only check for EXACT same ticket
