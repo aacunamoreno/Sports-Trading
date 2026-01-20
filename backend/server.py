@@ -2509,19 +2509,25 @@ async def check_results_for_account(conn: dict):
         
         # Update database with results and sync to today's compilation
         results_updated = 0
+        settled_synced = 0
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
         today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        today_str = datetime.now(arizona_tz).strftime('%b %d').replace(' 0', ' ')  # e.g., "Jan 20"
+        
+        logger.info(f"Processing {len(settled_bets)} settled bets for {username}, looking for game date: {today_str}")
         
         for bet in settled_bets:
             ticket_num = bet.get('ticket')
             result = bet.get('result')
             win_amount = bet.get('winAmount', 0)
             game_date = bet.get('gameDate', '')
+            game_time = bet.get('gameTime', '')
             
             # Check if this is a bet from today (game date matches)
-            today_str = datetime.now(arizona_tz).strftime('%b %d').replace(' 0', ' ')  # e.g., "Jan 20"
             is_today = today_str in game_date
+            
+            logger.debug(f"Settled bet Ticket#{ticket_num}: gameDate={game_date}, is_today={is_today}, result={result}")
             
             # Find and update the bet in database
             existing_bet = await db.bet_history.find_one({"bet_slip_id": ticket_num})
@@ -2538,7 +2544,7 @@ async def check_results_for_account(conn: dict):
                         }}
                     )
                     results_updated += 1
-                    logger.info(f"Updated Ticket#{ticket_num}: {result}")
+                    logger.info(f"Updated result Ticket#{ticket_num}: {result}")
                     
                     # Send Telegram notification for result
                     await send_result_notification(existing_bet, result, win_amount, username)
@@ -2559,7 +2565,7 @@ async def check_results_for_account(conn: dict):
                             "game_short": existing_bet.get('game_short', ''),
                             "bet_type": existing_bet.get('bet_type', ''),
                             "bet_type_short": existing_bet.get('bet_type_short', ''),
-                            "game_time": bet.get('gameTime', ''),
+                            "game_time": game_time,
                             "game_date": game_date,
                             "country": existing_bet.get('country', ''),
                             "wager": existing_bet.get('wager', 0),
