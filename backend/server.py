@@ -1768,28 +1768,36 @@ async def add_bet_to_compilation(account: str, bet_details: dict):
     game = bet_details.get('game', '')
     description = bet_details.get('description', '')
     bet_type = bet_details.get('bet_type', '')
-    wager = bet_details.get('wager', 0)
-    to_win = bet_details.get('potential_win', wager)
-    ticket = bet_details.get('ticket_number', '')
+    wager = bet_details.get('wager', 0) or bet_details.get('to_win', 0)  # Fallback
+    to_win = bet_details.get('to_win', 0) or bet_details.get('potential_win', wager)
+    ticket = bet_details.get('ticket_number', '') or bet_details.get('ticket', '')
     game_time = bet_details.get('game_time', '')
     game_date = bet_details.get('game_date', '')
     country = bet_details.get('country', '')
+    result = bet_details.get('result')
+    is_new = bet_details.get('is_new', True)
+    
+    # Use provided short values if available, otherwise generate
+    game_short = bet_details.get('game_short') or extract_short_game_name(game, description)
+    bet_type_short = bet_details.get('bet_type_short') or extract_bet_type_short(bet_type)
+    wager_short = bet_details.get('wager_short') or format_amount_short(wager)
+    to_win_short = bet_details.get('to_win_short') or format_amount_short(to_win)
     
     bet_entry = {
         "ticket": ticket,
         "game": game,
-        "game_short": extract_short_game_name(game, description),
+        "game_short": game_short,
         "bet_type": bet_type,
-        "bet_type_short": extract_bet_type_short(bet_type),
+        "bet_type_short": bet_type_short,
         "game_time": game_time,
         "game_date": game_date,
         "country": country,
         "wager": wager,
-        "wager_short": format_amount_short(wager),
+        "wager_short": wager_short,
         "to_win": to_win,
-        "to_win_short": format_amount_short(to_win),
-        "result": None,
-        "is_new": True,  # Flag to highlight new bets with 🔵
+        "to_win_short": to_win_short,
+        "result": result,
+        "is_new": is_new,
         "added_at": datetime.now(timezone.utc).isoformat()
     }
     
@@ -1809,6 +1817,12 @@ async def add_bet_to_compilation(account: str, bet_details: dict):
             "created_at": datetime.now(timezone.utc)
         }
         await db.daily_compilations.insert_one(compilation)
+    else:
+        # Check if ticket already exists in compilation - prevent duplicates
+        existing_tickets = [b.get('ticket') for b in compilation.get('bets', [])]
+        if ticket in existing_tickets:
+            logger.debug(f"Ticket {ticket} already in compilation for {account}, skipping")
+            return
     
     # Add bet to compilation
     await db.daily_compilations.update_one(
