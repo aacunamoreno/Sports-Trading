@@ -2533,13 +2533,14 @@ async def check_results_for_account(conn: dict):
             ticket_num = bet.get('ticket')
             result = bet.get('result')
             win_amount = bet.get('winAmount', 0)
+            wager_amount = bet.get('wagerAmount', 0)
+            to_win_amount = bet.get('toWinAmount', 0)
             game_date = bet.get('gameDate', '')
             game_time = bet.get('gameTime', '')
+            game_name = bet.get('gameName', '')
             
             # Check if this is a bet from today (game date matches)
             is_today = today_str in game_date
-            
-            logger.debug(f"Settled bet Ticket#{ticket_num}: gameDate={game_date}, is_today={is_today}, result={result}")
             
             # Find and update the bet in database
             existing_bet = await db.bet_history.find_one({"bet_slip_id": ticket_num})
@@ -2604,6 +2605,66 @@ async def check_results_for_account(conn: dict):
                         )
                         settled_synced += 1
                         logger.info(f"Updated result in compilation: Ticket#{ticket_num} ({result})")
+            
+            elif is_today:
+                # Bet doesn't exist in bet_history but is from today - create it
+                # This handles bets that were placed and settled before we ever scraped them
+                logger.info(f"New settled bet from today not in history: Ticket#{ticket_num}, game={game_name}, result={result}")
+                
+                # Create bet_history entry
+                wager_short = f"${wager_amount/1000:.1f}K" if wager_amount >= 1000 else f"${wager_amount:.0f}"
+                to_win_short = f"${to_win_amount/1000:.1f}K" if to_win_amount >= 1000 else f"${to_win_amount:.0f}"
+                
+                # Generate game_short from game_name
+                game_short = ''
+                if game_name:
+                    words = game_name.upper().replace(',', '').split()
+                    if len(words) >= 1:
+                        game_short = words[0][:3]
+                
+                new_bet = {
+                    "bet_slip_id": ticket_num,
+                    "account": username,
+                    "game": game_name,
+                    "game_short": game_short,
+                    "bet_type": game_name,
+                    "bet_type_short": "Straight",
+                    "game_time": game_time,
+                    "game_date": game_date,
+                    "wager": wager_amount,
+                    "wager_short": wager_short,
+                    "to_win": to_win_amount,
+                    "to_win_short": to_win_short,
+                    "result": result,
+                    "win_amount": win_amount,
+                    "placed_at": datetime.now(timezone.utc).isoformat(),
+                }
+                
+                await db.bet_history.insert_one(new_bet)
+                results_updated += 1
+                logger.info(f"Created new bet_history entry: Ticket#{ticket_num}")
+                
+                # Add to today's compilation
+                bet_details = {
+                    "ticket_number": ticket_num,
+                    "ticket": ticket_num,
+                    "game": game_name,
+                    "game_short": game_short,
+                    "bet_type": game_name,
+                    "bet_type_short": "Straight",
+                    "game_time": game_time,
+                    "game_date": game_date,
+                    "country": "",
+                    "wager": wager_amount,
+                    "wager_short": wager_short,
+                    "to_win": to_win_amount,
+                    "to_win_short": to_win_short,
+                    "result": result,
+                    "is_new": False,
+                }
+                await add_bet_to_compilation(username, bet_details)
+                settled_synced += 1
+                logger.info(f"Added new settled bet to compilation: Ticket#{ticket_num} ({result})")
         
         await results_service.close()
         logger.info(f"Results check complete for {username}: {results_updated} results updated, {settled_synced} settled bets synced to today")
