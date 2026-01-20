@@ -1492,8 +1492,13 @@ async def build_enano_comparison_message() -> str:
                 # Match moneyline bets on same game even with different odds (+127 vs -102)
                 elif is_pure_moneyline(enano_type) and is_pure_moneyline(tipster_type):
                     type_match = True
+                # STRAIGHT should only match STRAIGHT or moneyline, not O/U bets
                 elif enano_type in ['STRAIGHT', 'STRAIGHT BET', ''] or tipster_type in ['STRAIGHT', 'STRAIGHT BET', '']:
-                    type_match = True
+                    # Don't match STRAIGHT with Over/Under bets
+                    has_ou_enano = any(x in enano_type for x in ['O', 'U', 'OVER', 'UNDER'])
+                    has_ou_tipster = any(x in tipster_type for x in ['O', 'U', 'OVER', 'UNDER'])
+                    if not has_ou_enano and not has_ou_tipster:
+                        type_match = True
                 
                 if type_match:
                     matched_enano_indices.add(i)
