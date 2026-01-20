@@ -5700,6 +5700,12 @@ async def monitor_single_account(conn: dict):
                     }
                     await add_bet_to_compilation(username, bet_details)
                     logger.info(f"Synced existing bet to today's compilation: Ticket#{ticket_num}")
+                elif country:
+                    # Ticket already in compilation - update country if we have fresh value and compilation's is empty
+                    await db.daily_compilations.update_one(
+                        {"account": username, "date": today, "bets.ticket": ticket_num, "bets.country": ""},
+                        {"$set": {"bets.$.country": country}}
+                    )
                 continue
             
             # #3.5 ADDITIONAL DUPLICATE CHECK: Only check for EXACT same ticket
