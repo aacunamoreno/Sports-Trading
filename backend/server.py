@@ -5462,12 +5462,43 @@ async def monitor_single_account(conn: dict):
             # #3.5 DUPLICATE PREVENTION: Check if this ticket already exists in our database
             existing_bet = await db.bet_history.find_one({"bet_slip_id": ticket_num})
             
-            if existing_bet:
-                # Skip - ticket already recorded
-                continue
-            
             game = bet_info.get('game', '') or 'Unknown Game'
             bet_type = bet_info.get('betType', '') or 'Unknown'
+            game_time = adjust_time_for_arizona(bet_info.get('gameTime', ''))
+            game_date = bet_info.get('gameDate', '')
+            
+            if existing_bet:
+                # Ticket exists in bet_history, but check if it's in today's compilation
+                # This handles the case where bets were placed yesterday but games are today
+                from zoneinfo import ZoneInfo
+                arizona_tz = ZoneInfo('America/Phoenix')
+                today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+                
+                compilation = await db.daily_compilations.find_one({'account': username, 'date': today})
+                if compilation:
+                    existing_tickets = [b.get('ticket') for b in compilation.get('bets', [])]
+                    if ticket_num not in existing_tickets:
+                        # Add existing bet to today's compilation
+                        bet_details = {
+                            "ticket_number": ticket_num,
+                            "ticket": ticket_num,
+                            "game": existing_bet.get('game', game),
+                            "game_short": existing_bet.get('game_short', ''),
+                            "bet_type": existing_bet.get('bet_type', bet_type),
+                            "bet_type_short": existing_bet.get('bet_type_short', ''),
+                            "game_time": game_time,
+                            "game_date": game_date,
+                            "country": existing_bet.get('country', ''),
+                            "wager": existing_bet.get('wager', 0),
+                            "wager_short": existing_bet.get('wager_short', ''),
+                            "to_win": existing_bet.get('to_win', 0),
+                            "to_win_short": existing_bet.get('to_win_short', ''),
+                            "result": existing_bet.get('result'),
+                            "is_new": False,
+                        }
+                        await add_bet_to_compilation(username, bet_details)
+                        logger.info(f"Synced existing bet to today's compilation: Ticket#{ticket_num}")
+                continue
             
             # #3.5 ADDITIONAL DUPLICATE CHECK: Only check for EXACT same ticket
             # Removed overly aggressive game+bet_type regex check that was blocking legitimate new bets
