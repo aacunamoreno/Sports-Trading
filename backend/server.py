@@ -1420,43 +1420,9 @@ async def build_enano_comparison_message() -> str:
                     game_match = True
             
             if game_match:
-                type_match = False
-                
-                # Check if both are pure moneyline bets (odds >= 100)
-                def is_pure_moneyline(s):
-                    """Check if bet type is a pure moneyline (odds >= 100, like +127, -102)
-                    NOT a spread (like +3, -7.5)"""
-                    s = s.upper().strip()
-                    if not s:
-                        return False
-                    if s.startswith(('+', '-')) and not any(x in s for x in ['O', 'U', 'OVER', 'UNDER']):
-                        try:
-                            num = abs(float(s))
-                            return num >= 100
-                        except:
-                            return False
-                    return False
-                
-                if enano_type in tipster_type or tipster_type in enano_type:
-                    type_match = True
-                elif ('O' in enano_type and 'O' in tipster_type) or ('U' in enano_type and 'U' in tipster_type):
-                    type_match = True
-                elif ('+' in enano_type and '+' in tipster_type) or ('-' in enano_type and '-' in tipster_type):
-                    type_match = True
-                # Match moneyline bets on same game even with different odds (+127 vs -102)
-                elif is_pure_moneyline(enano_type) and is_pure_moneyline(tipster_type):
-                    type_match = True
-                # STRAIGHT should only match STRAIGHT or moneyline, not O/U bets
-                elif enano_type in ['STRAIGHT', 'STRAIGHT BET', ''] or tipster_type in ['STRAIGHT', 'STRAIGHT BET', '']:
-                    # Don't match STRAIGHT with Over/Under bets
-                    has_ou_enano = any(x in enano_type for x in ['O', 'U', 'OVER', 'UNDER'])
-                    has_ou_tipster = any(x in tipster_type for x in ['O', 'U', 'OVER', 'UNDER'])
-                    if not has_ou_enano and not has_ou_tipster:
-                        type_match = True
-                
-                if type_match:
-                    matched_enano_indices.add(i)
-                    break  # Only match one ENANO bet per TIPSTER bet
+                # Same game = match (regardless of bet type)
+                matched_enano_indices.add(i)
+                break  # Only match one ENANO bet per TIPSTER bet
     
     # Unmatched ENANO bets go to ENANO Only
     for i, enano_bet in enumerate(enano_bets):
