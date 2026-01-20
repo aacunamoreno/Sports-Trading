@@ -2438,6 +2438,20 @@ async def check_results_for_account(conn: dict):
                 if (ticketMatch && cells.length >= 3) {
                     const ticket = ticketMatch[1];
                     
+                    // Extract game date (e.g., "Jan 20" or "Jan 19")
+                    let gameDate = '';
+                    const dateMatch = rowText.match(/([A-Za-z]{3})\\s+(\\d{1,2})\\s+\\d{1,2}:\\d{2}/);
+                    if (dateMatch) {
+                        gameDate = dateMatch[1] + ' ' + dateMatch[2];
+                    }
+                    
+                    // Extract game time
+                    let gameTime = '';
+                    const timeMatch = rowText.match(/(\\d{1,2}:\\d{2}\\s*(?:AM|PM))/i);
+                    if (timeMatch) {
+                        gameTime = timeMatch[1];
+                    }
+                    
                     // Look for result indicators
                     // plays888 shows "WINWIN" or "LOSELOSE" at the end of each row
                     let result = 'pending';
@@ -2481,6 +2495,8 @@ async def check_results_for_account(conn: dict):
                             ticket: ticket,
                             result: result,
                             winAmount: winAmount,
+                            gameDate: gameDate,
+                            gameTime: gameTime,
                             rowText: rowText.substring(0, 200)  // For debugging
                         });
                     }
