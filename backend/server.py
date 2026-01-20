@@ -5469,18 +5469,9 @@ async def monitor_single_account(conn: dict):
             game = bet_info.get('game', '') or 'Unknown Game'
             bet_type = bet_info.get('betType', '') or 'Unknown'
             
-            # #3.5 ADDITIONAL DUPLICATE CHECK: Check for same game + bet_type + account placed today
-            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-            duplicate_bet = await db.bet_history.find_one({
-                "game": {"$regex": game.replace("@", ".*"), "$options": "i"},
-                "bet_type": {"$regex": bet_type, "$options": "i"},
-                "account": username,
-                "placed_at": {"$gte": today_start.isoformat()}
-            })
-            
-            if duplicate_bet:
-                logger.warning(f"#3.5 DUPLICATE PREVENTION: Skipping duplicate bet on same game: {game} - {bet_type}")
-                continue
+            # #3.5 ADDITIONAL DUPLICATE CHECK: Only check for EXACT same ticket
+            # Removed overly aggressive game+bet_type regex check that was blocking legitimate new bets
+            # The ticket number check above is sufficient for duplicate prevention
                 
             # New bet detected! 
             logger.info(f"New bet detected: Ticket#{ticket_num}")
