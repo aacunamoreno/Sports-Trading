@@ -1363,11 +1363,16 @@ async def build_enano_comparison_message() -> str:
                     elif is_pure_moneyline(bet_type) and is_pure_moneyline(enano_type):
                         type_match = True
                         enano_line = enano_type
+                    # STRAIGHT should only match STRAIGHT or moneyline, not O/U bets
                     elif enano_type in ['STRAIGHT', 'STRAIGHT BET', '']:
-                        type_match = True
+                        # Don't match STRAIGHT with Over/Under bets
+                        if not any(x in bet_type for x in ['O', 'U', 'OVER', 'UNDER']):
+                            type_match = True
                     elif bet_type in ['STRAIGHT', 'STRAIGHT BET', '']:
-                        type_match = True
-                        enano_line = enano_type
+                        # Don't match STRAIGHT with Over/Under bets
+                        if not any(x in enano_type for x in ['O', 'U', 'OVER', 'UNDER']):
+                            type_match = True
+                            enano_line = enano_type
                 
                 if type_match:
                     matches.append((enano_bet, enano_line))
