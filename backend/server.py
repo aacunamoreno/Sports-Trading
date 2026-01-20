@@ -2576,10 +2576,11 @@ async def check_results_for_account(conn: dict):
                             "is_new": False,
                         }
                         await add_bet_to_compilation(username, bet_details)
-                        logger.info(f"Synced settled bet to today's compilation: Ticket#{ticket_num}")
+                        settled_synced += 1
+                        logger.info(f"Synced settled bet to today's compilation: Ticket#{ticket_num} ({result})")
         
         await results_service.close()
-        logger.info(f"Results check complete for {username}: {results_updated} bets updated")
+        logger.info(f"Results check complete for {username}: {results_updated} results updated, {settled_synced} settled bets synced to today")
         
     except Exception as e:
         logger.error(f"Error checking results for {username}: {str(e)}")
