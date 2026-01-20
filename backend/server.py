@@ -1427,8 +1427,13 @@ async def build_enano_comparison_message() -> str:
             game_match = enano_game in tipster_game or tipster_game in enano_game
             
             if not game_match and enano_game_full and tipster_game_full:
-                enano_words = set(enano_game_full.replace('VS', ' ').replace('/', ' ').split())
-                tipster_words = set(tipster_game_full.replace('VS', ' ').replace('/', ' ').split())
+                # Exclude common words that don't identify specific games
+                exclude_words = {'GAMES', 'GAME', 'TOTAL', 'OVER', 'UNDER', 'STRAIGHT', 'BET', 'VRS', 'THE'}
+                enano_words = set(enano_game_full.replace('VS', ' ').replace('/', ' ').replace(',', ' ').split())
+                tipster_words = set(tipster_game_full.replace('VS', ' ').replace('/', ' ').replace(',', ' ').split())
+                # Filter out common/excluded words
+                enano_words = {w for w in enano_words if w not in exclude_words}
+                tipster_words = {w for w in tipster_words if w not in exclude_words}
                 common_words = enano_words & tipster_words
                 significant_common = [w for w in common_words if len(w) > 3]
                 if len(significant_common) >= 1:
