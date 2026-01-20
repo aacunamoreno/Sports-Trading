@@ -5622,6 +5622,28 @@ async def monitor_single_account(conn: dict):
                 arizona_tz = ZoneInfo('America/Phoenix')
                 today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
                 
+                # Get fresh values from the scraped data
+                wager = bet_info.get('wager', 0) or existing_bet.get('wager', 0)
+                to_win = bet_info.get('toWin', 0) or existing_bet.get('to_win', 0)
+                country = bet_info.get('country', '') or existing_bet.get('country', '')
+                
+                # Generate wager_short and to_win_short
+                wager_short = f"${wager/1000:.1f}K" if wager >= 1000 else f"${wager:.0f}" if wager else "$0"
+                to_win_short = f"${to_win/1000:.1f}K" if to_win >= 1000 else f"${to_win:.0f}" if to_win else "$0"
+                
+                # Also update bet_history with fresh values if they were missing
+                if wager and not existing_bet.get('wager'):
+                    await db.bet_history.update_one(
+                        {"bet_slip_id": ticket_num},
+                        {"$set": {
+                            "wager": wager,
+                            "wager_short": wager_short,
+                            "to_win": to_win,
+                            "to_win_short": to_win_short,
+                            "country": country
+                        }}
+                    )
+                
                 compilation = await db.daily_compilations.find_one({'account': username, 'date': today})
                 existing_tickets = []
                 if compilation:
@@ -5638,11 +5660,11 @@ async def monitor_single_account(conn: dict):
                         "bet_type_short": existing_bet.get('bet_type_short', ''),
                         "game_time": game_time,
                         "game_date": game_date,
-                        "country": existing_bet.get('country', ''),
-                        "wager": existing_bet.get('wager', 0),
-                        "wager_short": existing_bet.get('wager_short', ''),
-                        "to_win": existing_bet.get('to_win', 0),
-                        "to_win_short": existing_bet.get('to_win_short', ''),
+                        "country": country,
+                        "wager": wager,
+                        "wager_short": wager_short,
+                        "to_win": to_win,
+                        "to_win_short": to_win_short,
                         "result": existing_bet.get('result'),
                         "is_new": False,
                     }
