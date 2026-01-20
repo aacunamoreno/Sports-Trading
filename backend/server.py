@@ -1338,14 +1338,17 @@ async def build_enano_comparison_message() -> str:
                     
                     # Check if both are pure moneyline bets (just +/- followed by number, no O/U)
                     def is_pure_moneyline(s):
+                        """Check if bet type is a pure moneyline (odds >= 100, like +127, -102)
+                        NOT a spread (like +3, -7.5)"""
                         s = s.upper().strip()
                         if not s:
                             return False
-                        # Pure moneyline: starts with + or - and is just a number (no O/U/OVER/UNDER)
-                        if s.startswith(('+', '-')) and not any(x in s for x in ['O', 'U', 'OVER', 'UNDER', '.5']):
+                        # Pure moneyline: starts with + or - and is just a number >= 100
+                        if s.startswith(('+', '-')) and not any(x in s for x in ['O', 'U', 'OVER', 'UNDER']):
                             try:
-                                float(s)
-                                return True
+                                num = abs(float(s))
+                                # Moneylines are >= 100, spreads are < 100
+                                return num >= 100
                             except:
                                 return False
                         return False
