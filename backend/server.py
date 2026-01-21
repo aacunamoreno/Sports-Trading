@@ -1983,6 +1983,7 @@ async def add_bet_to_compilation(account: str, bet_details: dict):
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
     today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    tomorrow_str = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%b %d').replace(' 0', ' ')
     
     # Prepare bet entry
     game = bet_details.get('game', '')
@@ -1996,6 +1997,7 @@ async def add_bet_to_compilation(account: str, bet_details: dict):
     country = bet_details.get('country', '')
     result = bet_details.get('result')
     is_new = bet_details.get('is_new', True)
+    is_tomorrow = bet_details.get('is_tomorrow', False) or (tomorrow_str.lower() in game_date.lower() if game_date else False)
     
     # Use provided short values if available, otherwise generate
     game_short = bet_details.get('game_short') or extract_short_game_name(game, description)
@@ -2018,6 +2020,7 @@ async def add_bet_to_compilation(account: str, bet_details: dict):
         "to_win_short": to_win_short,
         "result": result,
         "is_new": is_new,
+        "is_tomorrow": is_tomorrow,
         "added_at": datetime.now(timezone.utc).isoformat()
     }
     
