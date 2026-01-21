@@ -1761,33 +1761,40 @@ async def build_enano_comparison_message() -> str:
             
             # Get all matching ENANO bets for tomorrow's bet
             all_matches = get_all_matching_enano_bets(bet)
-            if all_matches:
-                for enano_bet, enano_line in all_matches:
-                    enano_idx = enano_bets.index(enano_bet) if enano_bet in enano_bets else -1
-                    if enano_idx >= 0:
-                        shown_enano_indices.add(enano_idx)
-                    
-                    if enano_line:
-                        emoji = f"🔵({enano_line})🟣"
-                    else:
-                        emoji = "🔵"
-                    
-                    enano_wager_short = enano_bet.get('wager_short', wager_short)
-                    enano_to_win_short = enano_bet.get('to_win_short', to_win_short)
-                    
-                    if game_time:
-                        bet_line = f"#{bet_num} {game_time} {game_name}"
-                    else:
-                        bet_line = f"#{bet_num} {game_name}"
-                    
-                    if bet_type_short and 'Straight' not in bet_type_short:
-                        bet_line += f" {bet_type_short}"
-                    if country:
-                        bet_line += f" ({country})"
-                    bet_line += f" ({enano_wager_short}/{enano_to_win_short}){emoji}"
-                    
-                    lines.append(bet_line)
-                    bet_num += 1
+            
+            # Filter out already-shown ENANO bets
+            unseen_matches = []
+            for enano_bet, enano_line in all_matches:
+                enano_idx = enano_bets.index(enano_bet) if enano_bet in enano_bets else -1
+                if enano_idx >= 0 and enano_idx not in shown_enano_indices:
+                    unseen_matches.append((enano_bet, enano_line, enano_idx))
+            
+            if unseen_matches:
+                # Show only ONE ENANO bet per TIPSTER bet
+                enano_bet, enano_line, enano_idx = unseen_matches[0]
+                shown_enano_indices.add(enano_idx)
+                
+                if enano_line:
+                    emoji = f"🔵({enano_line})🟣"
+                else:
+                    emoji = "🔵"
+                
+                enano_wager_short = enano_bet.get('wager_short', wager_short)
+                enano_to_win_short = enano_bet.get('to_win_short', to_win_short)
+                
+                if game_time:
+                    bet_line = f"#{bet_num} {game_time} {game_name}"
+                else:
+                    bet_line = f"#{bet_num} {game_name}"
+                
+                if bet_type_short and 'Straight' not in bet_type_short:
+                    bet_line += f" {bet_type_short}"
+                if country:
+                    bet_line += f" ({country})"
+                bet_line += f" ({enano_wager_short}/{enano_to_win_short}){emoji}"
+                
+                lines.append(bet_line)
+                bet_num += 1
             else:
                 emoji = "🟡"
                 
