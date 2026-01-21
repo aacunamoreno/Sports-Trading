@@ -549,43 +549,144 @@ async def startup_recovery():
         logger.error(f"Startup recovery error: {str(e)}")
 
 
-async def rebuild_today_compilations():
-    """Rebuild today's daily compilations from bet_history for all accounts.
-    This ensures that after a server restart, ALL bets from today (12:01 AM) are shown.
+async def send_yesterday_recap():
+    """Send yesterday's final results recap to Telegram.
+    This is sent first on server restart/new day startup.
     """
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
-        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
-        today_start = datetime.now(arizona_tz).replace(hour=0, minute=1, second=0, microsecond=0)
+        yesterday = (datetime.now(arizona_tz) - timedelta(days=1))
+        yesterday_date = yesterday.strftime('%Y-%m-%d')
+        yesterday_str = yesterday.strftime('%b %d').replace(' 0', ' ')  # "Jan 20"
         
-        logger.info(f"Rebuilding daily compilations for {today}...")
+        logger.info(f"Generating yesterday's recap for {yesterday_str}...")
+        
+        if not telegram_bot or not telegram_chat_id:
+            logger.info("Telegram not configured, skipping yesterday recap")
+            return
         
         for account, label in [("jac083", "TIPSTER"), ("jac075", "ENANO")]:
-            # Get ALL bets from bet_history for this account from today
-            # Use game_date to match today's format (e.g., "Jan 21")
-            today_str = datetime.now(arizona_tz).strftime('%b %d').replace(' 0', ' ')  # "Jan 21"
+            # Get all bets from yesterday (by game_date)
+            bets_cursor = db.bet_history.find({
+                "account": account,
+                "game_date": {"$regex": yesterday_str, "$options": "i"}
+            })
             
-            # Find all bets for this account that were placed today OR have game_date matching today
+            bets = await bets_cursor.to_list(length=200)
+            
+            if not bets:
+                logger.info(f"No bets found for {label} on {yesterday_str}")
+                continue
+            
+            # Calculate results
+            total_won = 0
+            total_lost = 0
+            wins = 0
+            losses = 0
+            pushes = 0
+            
+            lines = [f"📊 *{label} - Yesterday's Recap* ({yesterday_str})", ""]
+            
+            for i, bet in enumerate(bets, 1):
+                game = bet.get('game_short', bet.get('game', 'GAME'))[:25]
+                bet_type = bet.get('bet_type_short', '')[:15]
+                country = bet.get('country', '')
+                wager = bet.get('wager', 0) or bet.get('wager_amount', 0)
+                to_win = bet.get('to_win', 0)
+                result = bet.get('result')
+                
+                wager_short = f"${wager/1000:.1f}K" if wager >= 1000 else f"${wager:.0f}" if wager else "$0"
+                to_win_short = f"${to_win/1000:.1f}K" if to_win >= 1000 else f"${to_win:.0f}" if to_win else "$0"
+                
+                bet_line = f"#{i} {game}"
+                if bet_type:
+                    bet_line += f" {bet_type}"
+                if country:
+                    bet_line += f" ({country})"
+                bet_line += f" ({wager_short}/{to_win_short})"
+                
+                if result == 'won':
+                    bet_line += "🟢"
+                    wins += 1
+                    total_won += to_win
+                elif result == 'lost':
+                    bet_line += "🔴"
+                    losses += 1
+                    total_lost += wager
+                elif result == 'push':
+                    bet_line += "🔵"
+                    pushes += 1
+                else:
+                    bet_line += "🟡"  # Still pending from yesterday
+                
+                lines.append(bet_line)
+            
+            # Summary
+            net_result = total_won - total_lost
+            result_str = f"+${net_result/1000:.1f}K" if net_result >= 0 else f"-${abs(net_result)/1000:.1f}K"
+            
+            lines.append("")
+            lines.append(f"*Final Result: {result_str}*")
+            lines.append(f"*Record: {wins}-{losses}*" + (f"-{pushes}" if pushes else ""))
+            
+            message = "\n".join(lines)
+            
+            try:
+                await telegram_bot.send_message(
+                    chat_id=telegram_chat_id,
+                    text=message,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.info(f"Sent yesterday's recap for {label}: {len(bets)} bets")
+            except Exception as e:
+                logger.error(f"Failed to send yesterday recap for {label}: {e}")
+        
+    except Exception as e:
+        logger.error(f"Error sending yesterday recap: {str(e)}")
+
+
+async def rebuild_today_compilations():
+    """Rebuild today's daily compilations from bet_history for all accounts.
+    Only includes bets with game_date = today OR game_date = tomorrow (for early placed bets).
+    Excludes yesterday's bets.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        now = datetime.now(arizona_tz)
+        today = now.strftime('%Y-%m-%d')
+        today_str = now.strftime('%b %d').replace(' 0', ' ')  # "Jan 21"
+        tomorrow = (now + timedelta(days=1))
+        tomorrow_str = tomorrow.strftime('%b %d').replace(' 0', ' ')  # "Jan 22"
+        yesterday_str = (now - timedelta(days=1)).strftime('%b %d').replace(' 0', ' ')  # "Jan 20"
+        
+        logger.info(f"Rebuilding daily compilations for {today}...")
+        logger.info(f"Including game_dates: today={today_str}, tomorrow={tomorrow_str}. Excluding: {yesterday_str}")
+        
+        for account, label in [("jac083", "TIPSTER"), ("jac075", "ENANO")]:
+            # Get bets with game_date = today OR game_date = tomorrow
+            # This captures: today's games + tomorrow's games that were placed early
             bets_cursor = db.bet_history.find({
                 "account": account,
                 "$or": [
                     {"game_date": {"$regex": today_str, "$options": "i"}},
-                    {"placed_at": {"$gte": today_start.isoformat()}}
+                    {"game_date": {"$regex": tomorrow_str, "$options": "i"}}
                 ]
             })
             
             bets = await bets_cursor.to_list(length=200)
-            logger.info(f"Found {len(bets)} bets for {label} ({account}) on {today}")
-            
-            if not bets:
-                continue
+            logger.info(f"Found {len(bets)} bets for {label} ({account}) - today/tomorrow games")
             
             # Clear existing compilation for today (we'll rebuild it)
             await db.daily_compilations.delete_one({"account": account, "date": today})
             
-            # Create new compilation
-            compilation_bets = []
+            if not bets:
+                continue
+            
+            # Separate into today's bets and tomorrow's bets
+            today_bets = []
+            tomorrow_bets = []
             seen_tickets = set()
             
             for bet in bets:
@@ -594,19 +695,21 @@ async def rebuild_today_compilations():
                     continue
                 seen_tickets.add(ticket)
                 
+                game_date = bet.get('game_date', '')
+                
                 wager = bet.get('wager', 0) or bet.get('wager_amount', 0)
                 to_win = bet.get('to_win', 0)
                 wager_short = f"${wager/1000:.1f}K" if wager >= 1000 else f"${wager:.0f}" if wager else "$0"
                 to_win_short = f"${to_win/1000:.1f}K" if to_win >= 1000 else f"${to_win:.0f}" if to_win else "$0"
                 
-                compilation_bets.append({
+                bet_entry = {
                     "ticket": ticket,
                     "game": bet.get('game', ''),
                     "game_short": bet.get('game_short', ''),
                     "bet_type": bet.get('bet_type', ''),
                     "bet_type_short": bet.get('bet_type_short', ''),
                     "game_time": bet.get('game_time', ''),
-                    "game_date": bet.get('game_date', ''),
+                    "game_date": game_date,
                     "country": bet.get('country', ''),
                     "wager": wager,
                     "wager_short": wager_short,
@@ -614,8 +717,18 @@ async def rebuild_today_compilations():
                     "to_win_short": to_win_short,
                     "result": bet.get('result'),
                     "is_new": False,
+                    "is_tomorrow": tomorrow_str.lower() in game_date.lower() if game_date else False,
                     "added_at": bet.get('placed_at', datetime.now(timezone.utc).isoformat())
-                })
+                }
+                
+                # Check if this is a tomorrow bet
+                if tomorrow_str.lower() in game_date.lower():
+                    tomorrow_bets.append(bet_entry)
+                else:
+                    today_bets.append(bet_entry)
+            
+            # Combine: today's bets first, then tomorrow's bets at the end
+            compilation_bets = today_bets + tomorrow_bets
             
             # Insert new compilation
             if compilation_bets:
@@ -627,7 +740,7 @@ async def rebuild_today_compilations():
                     "total_result": 0,
                     "created_at": datetime.now(timezone.utc)
                 })
-                logger.info(f"Rebuilt compilation for {label}: {len(compilation_bets)} bets")
+                logger.info(f"Rebuilt compilation for {label}: {len(today_bets)} today + {len(tomorrow_bets)} tomorrow")
         
         # Send updated compilation messages to Telegram
         for account in ["jac083", "jac075"]:
