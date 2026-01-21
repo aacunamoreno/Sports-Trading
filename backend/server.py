@@ -5929,7 +5929,17 @@ async def monitor_single_account(conn: dict):
                 if compilation:
                     existing_tickets = [b.get('ticket') for b in compilation.get('bets', [])]
                 
-                if ticket_num not in existing_tickets:
+                # Only add to today's compilation if the game is TODAY or TOMORROW
+                # Skip yesterday's games
+                today_str = datetime.now(arizona_tz).strftime('%b %d').replace(' 0', ' ')  # "Jan 21"
+                tomorrow_str = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%b %d').replace(' 0', ' ')
+                
+                is_today_or_tomorrow = (
+                    today_str.lower() in game_date.lower() or 
+                    tomorrow_str.lower() in game_date.lower()
+                ) if game_date else True  # If no game_date, include it
+                
+                if ticket_num not in existing_tickets and is_today_or_tomorrow:
                     # Add existing bet to today's compilation (creates compilation if needed)
                     bet_details = {
                         "ticket_number": ticket_num,
@@ -5947,10 +5957,11 @@ async def monitor_single_account(conn: dict):
                         "to_win_short": to_win_short,
                         "result": existing_bet.get('result'),
                         "is_new": False,
+                        "is_tomorrow": tomorrow_str.lower() in game_date.lower() if game_date else False,
                     }
                     await add_bet_to_compilation(username, bet_details)
                     logger.info(f"Synced existing bet to today's compilation: Ticket#{ticket_num}")
-                elif country:
+                elif ticket_num in existing_tickets and country:
                     # Ticket already in compilation - update country if we have fresh value and compilation's is empty
                     await db.daily_compilations.update_one(
                         {"account": username, "date": today, "bets.ticket": ticket_num, "bets.country": ""},
