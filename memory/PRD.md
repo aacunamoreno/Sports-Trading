@@ -1,141 +1,73 @@
-# BetScout - Automated Betting Analysis System
+# Betting Analysis System - Product Requirements Document
 
 ## Original Problem Statement
-Build an automated betting analysis system for `plays888.co` that scrapes game data (lines, scores, spreads, moneylines), betting consensus data, calculates betting edges, tracks user bets, and displays all information in a unified dashboard.
-
-## Core Features Implemented
-
-### Data Scraping & Analysis
-- Live lines scraping from CBS Sports (NBA, NHL, NCAAB, NFL)
-- Public betting consensus scraping from Covers.com
-- User bet tracking from plays888.co
-- Edge calculation based on PPG (Points Per Game) averages
-- Automated bet monitoring with background loops
-
-### Dashboard Features
-- Multi-league support (NBA, NHL, NCAAB, NFL)
-- Today/Yesterday/Tomorrow views with calendar picker
-- NFL Week Selector (Weeks 1-18) for historical data
-- Edge Record, Betting Record, Ranking PPG, Public Record tracking
-- Compound Public Record Modal with percentage-range breakdown
-- Real-time line updates via "Refresh Lines & Bets" button
-
-### Data Management
-- Full NFL historical data backfill (18 weeks)
-- Manual record update functionality
-- Excel file import for data corrections
-- MongoDB storage for all leagues
-
-## What's Been Implemented (Latest First)
-
-### January 19, 2026 (Session 3)
-- **Bug Fix - ENANO Telegram Summary**: Complete overhaul of the ENANO comparison view:
-  1. **New emoji system:**
-     - 🟢 = Placed and WON
-     - 🔴 = Placed and LOST
-     - 🟠 = MISSED (game started/ended, didn't bet)
-     - 🔵 = Placed (game not finished)
-     - 🟡 = Pending (can still place)
-     - (line)🟣 = Line difference in parentheses
-  2. **ENANO records tracking** - Shows Result and Record at bottom based on ENANO's completed bets
-  3. **ENANO Only section** - Shows bets placed by ENANO that aren't in TIPSTER
-  4. **Line difference format** - Changed from `🔵-140🟣` to `🔵(-140)🟣`
-- **Bug Fix - Kenya Police time** - Fixed from 11:45 AM to 05:00 AM
-- **Bug Fix - Half-line handling** - Updated `extract_bet_type_short()` to convert ½ to .5
-- **Bug Fix - Bet matching** - Improved matching logic to compare full game names and extract numeric values for precise comparison
-
-### January 10-11, 2026 (Session 2)
-- **Bug Fix - Completed Games Preserved**: Fixed critical issue where completed games (with final_score) were disappearing when clicking "Refresh Lines & Bets". Now preserves all bet data (bet_type, bet_line, user_bet_hit, result) for finished games.
-- **Bug Fix - RBL Sport Parsing**: Fixed issue where bets marked as "RBL" (special plays888 line type) were not being matched to NBA games. Added logic to detect "Basketball / NBA" in bet descriptions.
-- **Bug Fix - Slash Format Bet Parsing**: Fixed bet parser to handle new plays888 format with slash separators (e.g., "Cleveland Cavaliers vs Minnesota Timberwolves / Game / Total / Under 242.5")
-- **Manual Fix - Minnesota vs Cleveland**: Manually added the UNDER 242.5 bet that was lost due to parsing issues.
-
-### January 10, 2026 (Session 1)
-- **Public Consensus Scraping on Refresh**: Integrated `scrape_covers_consensus` into the "Refresh Lines & Bets" endpoint so clicking the button now scrapes and updates public betting percentages from Covers.com
-- **UI Update**: Consensus percentages now display for today's games (not just historical), showing in red next to team rankings
-
-### Previous Session
-- Full NFL Data Overhaul (all 18 weeks)
-- NFL Week Selector component
-- Compound Public Record Modal
-- Spread display bug fix (home favorites)
-- Multiple data corrections per user
+Build an automated betting analysis system for the website `plays888.co`. The system:
+- Scrapes game data and consensus data
+- Calculates betting edges
+- Tracks user bets across two accounts: "TIPSTER" (jac083) and "ENANO" (jac075)
+- Provides Telegram notifications with a real-time dashboard of all placed bets
+- ENANO account displays a comparison view against TIPSTER to help copy bets
 
 ## Architecture
+```
+/app/
+├── backend/
+│   ├── .env
+│   ├── requirements.txt
+│   └── server.py             # Monolithic FastAPI backend
+└── frontend/
+    └── src/
+        └── pages/
+            └── Opportunities.jsx
+```
 
-### Backend: `/app/backend/server.py`
-- Monolithic FastAPI application
-- Playwright for web scraping
-- APScheduler for scheduled jobs
-- MongoDB via Motor (async)
-
-### Frontend: `/app/frontend/src/pages/Opportunities.jsx`
-- Single large React component
-- Uses Shadcn/UI components
-
-### Database: MongoDB (test_database)
-- Collections: `nba_opportunities`, `nhl_opportunities`, `ncaab_opportunities`, `nfl_opportunities`
-- Records: `compound_records`, `ranking_ppg_records`
-
-## Key API Endpoints
-- `POST /api/opportunities/refresh-lines` - Refresh lines, bets, AND consensus data (preserves completed games)
-- `POST /api/bets/nba/update-results` - Update NBA bet results from plays888 history
-- `POST /api/bets/nhl/update-results` - Update NHL bet results
-- `POST /api/bets/ncaab/update-results` - Update NCAAB bet results
-- `GET /api/records/public-compound/{league}` - Compound public record data
-- `GET /api/opportunities/nfl/{week}` - NFL games by week
-- `GET /api/records/summary` - All record summaries
-
-## Known Issues (P1)
-
-### Issue 1: plays888.co OVER/UNDER Scraper Bug
-- The scraper incorrectly identifies bet types (OVER vs UNDER) in some formats
-- Status: NOT STARTED
-- Impact: Incorrect bet tracking and grading
-
-### Issue 2: plays888.co "Regulation Time" Bug
-- Bets marked "REG.TIME" not handled correctly
-- Affects NHL games especially (PUSH if game goes to overtime)
-- Status: NOT STARTED
-
-## Resolved Issues
-
-### ✅ ENANO Telegram Summary Bug (Fixed Jan 19, 2026)
-- Issue: ENANO was receiving an extra "short" summary message and "Missed" count was always 0
-- Fix: Removed short message logic for ENANO, fixed missed count to include both completed and started games
-
-## Technical Debt (P1)
-
-### server.py Refactoring
-- File is extremely large and monolithic
-- Needs splitting into: `routes/`, `services/`, `scrapers/`
-- Status: NOT STARTED
-
-### Opportunities.jsx Refactoring
-- Component is over 2000 lines
-- Modal, week selector, data display should be separate components
-- Status: NOT STARTED
-
-## Upcoming Tasks
-- (P2) NCAAB records verification with user guidance
-- (P1) Custom betting rules UI
+## Key Technical Components
+- **Playwright & BeautifulSoup**: Web scraping
+- **APScheduler**: Scheduled job execution (7 AM - 11 PM Arizona time)
+- **python-telegram-bot**: Telegram notifications
+- **MongoDB**: Data persistence (test_database)
 
 ## Credentials
-- plays888.co Betting: `jac075` / `acuna2025!`
-- plays888.co Lines: `jac083` / `acuna2025!`
+- TIPSTER: `jac083` / `acuna2025!`
+- ENANO: `jac075` / `acuna2025!`
 
-## 3rd Party Integrations
-- Playwright (web scraping)
-- BeautifulSoup (HTML parsing)
-- APScheduler (scheduled jobs)
-- openpyxl (Excel parsing)
-- python-telegram-bot (Telegram notifications)
+## Key Collections
+- `daily_compilations`: Daily bet cache for Telegram messages
+- `connections`: Account credentials and Telegram message IDs
+- `bet_history`: Persistent log of all scraped bets (source of truth)
 
-## Telegram Notification System
-- **Schedule**: Every 5 minutes from 7 AM to 10 PM Arizona time
-- **TIPSTER (jac083)**: Detailed list of all bets sorted by completion status, date, and time
-- **ENANO (jac075)**: Comparison view against TIPSTER bets with indicators:
-  - 🔵 = Bet successfully copied
-  - 🟡 = Pending (can still place)
-  - 🔴 = Missed (game started/completed, not bet)
-- **Summary**: Shows Copied/Total, Missed count, Pending count
+---
+
+## What's Been Implemented
+
+### 2026-01-20/21: Country/League Fix
+- Fixed Python variable scoping error (`wager_short`, `to_win_short`, `game_short`, `bet_type_short`)
+- Added country update logic for existing compilation bets
+- Added country extraction to settled bets scraper
+- Country/league now displays correctly in Telegram (NCAAB, NHL, Soccer, Tennis/AO, etc.)
+
+### Previous Session Work
+- Telegram notification system (5-minute intervals, 7AM-11PM Arizona)
+- TIPSTER view: detailed bet list sorted by time
+- ENANO view: comparison view against TIPSTER (loose matching - any bet on same game)
+- Open/settled bet sync logic
+- Deduplication in daily_compilations
+
+---
+
+## P0 - Critical (Done)
+- ✅ Country/league information in Telegram messages
+
+## P1 - High Priority
+- Refactor data scraping/sync pipeline (idempotent sync function)
+- Fix OVER/UNDER bet type identification
+- Refactor `server.py` monolith
+
+## P2 - Medium Priority  
+- NCAAB records verification
+- Fix "Regulation Time" bet parsing
+- Fix betting line format edge cases
+
+## P3 - Backlog
+- Backfill country data for historical bets
+- Custom betting rules UI
