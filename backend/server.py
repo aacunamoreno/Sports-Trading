@@ -532,12 +532,16 @@ async def startup_recovery():
                 if hours_since_last > 1 or check_was_missed:  # More than 1 hour gap OR missed scheduled check
                     logger.warning(f"Startup recovery: {hours_since_last:.1f} hours since last check.")
                     
-                    # REBUILD and SEND today's compilations from bet_history
-                    # This ensures all bets from today (12:01 AM) are shown after restart
+                    # STEP 1: Send yesterday's recap FIRST
+                    logger.info("Sending yesterday's recap...")
+                    await send_yesterday_recap()
+                    
+                    # STEP 2: Rebuild and send today's compilations from bet_history
+                    # Only includes today's and tomorrow's games (excludes yesterday)
                     logger.info("Rebuilding today's compilations from bet_history...")
                     await rebuild_today_compilations()
                     
-                    # Also trigger immediate bet check to get any new bets
+                    # STEP 3: Trigger immediate bet check to get any new bets
                     logger.info("Triggering immediate catch-up bet check...")
                     asyncio.create_task(monitor_and_reschedule())
                 else:
