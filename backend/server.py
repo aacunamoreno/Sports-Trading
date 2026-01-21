@@ -560,6 +560,96 @@ async def startup_recovery():
         logger.error(f"Startup recovery error: {str(e)}")
 
 
+async def rebuild_today_compilations():
+    """Rebuild today's daily compilations from bet_history for all accounts.
+    This ensures that after a server restart, ALL bets from today (12:01 AM) are shown.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        today_start = datetime.now(arizona_tz).replace(hour=0, minute=1, second=0, microsecond=0)
+        
+        logger.info(f"Rebuilding daily compilations for {today}...")
+        
+        for account, label in [("jac083", "TIPSTER"), ("jac075", "ENANO")]:
+            # Get ALL bets from bet_history for this account from today
+            # Use game_date to match today's format (e.g., "Jan 21")
+            today_str = datetime.now(arizona_tz).strftime('%b %d').replace(' 0', ' ')  # "Jan 21"
+            
+            # Find all bets for this account that were placed today OR have game_date matching today
+            bets_cursor = db.bet_history.find({
+                "account": account,
+                "$or": [
+                    {"game_date": {"$regex": today_str, "$options": "i"}},
+                    {"placed_at": {"$gte": today_start.isoformat()}}
+                ]
+            })
+            
+            bets = await bets_cursor.to_list(length=200)
+            logger.info(f"Found {len(bets)} bets for {label} ({account}) on {today}")
+            
+            if not bets:
+                continue
+            
+            # Clear existing compilation for today (we'll rebuild it)
+            await db.daily_compilations.delete_one({"account": account, "date": today})
+            
+            # Create new compilation
+            compilation_bets = []
+            seen_tickets = set()
+            
+            for bet in bets:
+                ticket = bet.get('bet_slip_id', '')
+                if ticket in seen_tickets:
+                    continue
+                seen_tickets.add(ticket)
+                
+                wager = bet.get('wager', 0) or bet.get('wager_amount', 0)
+                to_win = bet.get('to_win', 0)
+                wager_short = f"${wager/1000:.1f}K" if wager >= 1000 else f"${wager:.0f}" if wager else "$0"
+                to_win_short = f"${to_win/1000:.1f}K" if to_win >= 1000 else f"${to_win:.0f}" if to_win else "$0"
+                
+                compilation_bets.append({
+                    "ticket": ticket,
+                    "game": bet.get('game', ''),
+                    "game_short": bet.get('game_short', ''),
+                    "bet_type": bet.get('bet_type', ''),
+                    "bet_type_short": bet.get('bet_type_short', ''),
+                    "game_time": bet.get('game_time', ''),
+                    "game_date": bet.get('game_date', ''),
+                    "country": bet.get('country', ''),
+                    "wager": wager,
+                    "wager_short": wager_short,
+                    "to_win": to_win,
+                    "to_win_short": to_win_short,
+                    "result": bet.get('result'),
+                    "is_new": False,
+                    "added_at": bet.get('placed_at', datetime.now(timezone.utc).isoformat())
+                })
+            
+            # Insert new compilation
+            if compilation_bets:
+                await db.daily_compilations.insert_one({
+                    "account": account,
+                    "date": today,
+                    "message_id": None,
+                    "bets": compilation_bets,
+                    "total_result": 0,
+                    "created_at": datetime.now(timezone.utc)
+                })
+                logger.info(f"Rebuilt compilation for {label}: {len(compilation_bets)} bets")
+        
+        # Send updated compilation messages to Telegram
+        for account in ["jac083", "jac075"]:
+            await update_compilation_message(account)
+        
+        logger.info("Daily compilations rebuilt and sent to Telegram")
+        
+    except Exception as e:
+        logger.error(f"Error rebuilding daily compilations: {str(e)}")
+
+
 # Models
 class ConnectionConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
