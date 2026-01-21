@@ -503,7 +503,7 @@ async def run_monitoring_cycle():
 
 
 async def startup_recovery():
-    """Check if we missed overnight period and send catch-up notifications"""
+    """Check if we missed overnight period and rebuild/send today's compilations"""
     try:
         from zoneinfo import ZoneInfo
         arizona_tz = ZoneInfo('America/Phoenix')
@@ -542,13 +542,14 @@ async def startup_recovery():
                             logger.warning(f"Startup recovery: Scheduled check was {minutes_overdue:.0f} minutes overdue!")
                 
                 if hours_since_last > 1 or check_was_missed:  # More than 1 hour gap OR missed scheduled check
-                    logger.warning(f"Startup recovery: {hours_since_last:.1f} hours since last check. Sending catch-up notification...")
+                    logger.warning(f"Startup recovery: {hours_since_last:.1f} hours since last check.")
                     
-                    # DISABLED: SYSTEM RESTART notification to keep chat clean
-                    # User only wants compilation messages
-                    logger.info(f"System restart detected after {hours_since_last:.1f} hours - running catch-up check (no notification sent)")
+                    # REBUILD and SEND today's compilations from bet_history
+                    # This ensures all bets from today (12:01 AM) are shown after restart
+                    logger.info("Rebuilding today's compilations from bet_history...")
+                    await rebuild_today_compilations()
                     
-                    # Trigger immediate bet check (use the full cycle with notification)
+                    # Also trigger immediate bet check to get any new bets
                     logger.info("Triggering immediate catch-up bet check...")
                     asyncio.create_task(monitor_and_reschedule())
                 else:
