@@ -2466,6 +2466,29 @@ async def check_results_for_account(conn: dict):
                         gameTime = timeMatch[1];
                     }
                     
+                    // Extract sport/country from the sport column (cells[3])
+                    // Format: "CBB", "NBA", "SOCCER / SCOTLAND", "BASKETBALL / ISRAEL"
+                    let country = '';
+                    const sport = cells[3] ? cells[3].textContent.trim().toUpperCase() : '';
+                    if (sport.includes('/')) {
+                        const parts = sport.split('/');
+                        if (parts.length >= 2) {
+                            const possibleCountry = parts[1].trim();
+                            if (!['NBA', 'NHL', 'NFL', 'MLB', 'CBB', 'NCAAB', 'CFB', 'OT INCLUDED', 'REG TIME', 'REGULAR', 'SOCCER'].includes(possibleCountry) && possibleCountry.length > 0) {
+                                country = possibleCountry;
+                            }
+                        }
+                    }
+                    // Map sport codes to leagues if no country found
+                    if (!country) {
+                        if (sport === 'NBA') country = 'NBA';
+                        else if (sport === 'NHL') country = 'NHL';
+                        else if (sport === 'NFL') country = 'NFL';
+                        else if (sport === 'CBB' || sport === 'NCAAB') country = 'NCAAB';
+                        else if (sport === 'SOC' || sport.includes('SOCCER')) country = 'Soccer';
+                        else if (sport.includes('TEN')) country = 'Tennis';
+                    }
+                    
                     // Extract game name - look for text after STRAIGHT BET or similar
                     let gameName = '';
                     const gameMatch = rowText.match(/(?:STRAIGHT BET|PARLAY|TEASER)\\s*\\[\\d+\\]\\s*([^\\d]+?)(?:\\s*[+-]?\\d|\\s*\\d{4}\\.)/i);
