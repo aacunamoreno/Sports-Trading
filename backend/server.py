@@ -2576,6 +2576,7 @@ async def check_results_for_account(conn: dict):
             game_date = bet.get('gameDate', '')
             game_time = bet.get('gameTime', '')
             game_name = bet.get('gameName', '')
+            country = bet.get('country', '')
             
             # Check if this is a bet from today (game date matches)
             is_today = today_str in game_date
