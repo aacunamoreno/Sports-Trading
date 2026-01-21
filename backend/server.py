@@ -1496,7 +1496,12 @@ async def build_enano_comparison_message() -> str:
         return False, None, None
     
     def get_all_matching_enano_bets(tipster_bet):
-        """Get ALL ENANO bets that match this TIPSTER bet (for duplicates)
+        """Get ALL ENANO bets that match this TIPSTER bet
+        
+        Matching priority:
+        1. Same game AND same bet type category (GAMES->GAMES, TOTAL->TOTAL, MONEYLINE->MONEYLINE)
+        2. Same game with different bet type only if no same-type match exists
+        
         Returns: list of (enano_bet, enano_line) tuples
         """
         import re
@@ -1505,53 +1510,71 @@ async def build_enano_comparison_message() -> str:
         game_full = tipster_bet.get('game', '').upper()
         bet_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
         
-        def extract_number(s):
-            match = re.search(r'([+-]?\d+\.?\d*)', s)
-            return float(match.group(1)) if match else None
+        def get_bet_category(bt):
+            """Categorize bet type: GAMES, TOTAL, SPREAD, MONEYLINE"""
+            bt = bt.upper()
+            if 'GAME' in bt:
+                return 'GAMES'
+            if 'TOTAL' in bt or bt.startswith('O') or bt.startswith('U'):
+                return 'TOTAL'
+            if '½' in bt or '.5' in bt:
+                # Could be spread or total - check for O/U
+                if 'O' in bt or 'U' in bt:
+                    return 'TOTAL'
+                return 'SPREAD'
+            # Moneyline bets are typically just +/- with whole numbers
+            if re.match(r'^[+-]?\d+$', bt.replace(' ', '')):
+                return 'MONEYLINE'
+            return 'OTHER'
         
-        def get_direction(s):
-            s = s.upper()
-            if s.startswith('O') or 'OVER' in s:
-                return 'O'
-            if s.startswith('U') or 'UNDER' in s:
-                return 'U'
-            if '+' in s:
-                return '+'
-            if '-' in s:
-                return '-'
-            return None
+        tipster_category = get_bet_category(bet_type)
         
-        matches = []
-        
-        # Check all ENANO bets for matches
-        for enano_bet in enano_bets:
+        def is_game_match(enano_bet):
+            """Check if this ENANO bet is on the same game as TIPSTER bet"""
             enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
             enano_game_full = enano_bet.get('game', '').upper()
-            enano_type = enano_bet.get('bet_type_short', enano_bet.get('bet_type', '')).upper()
             
-            game_match = game in enano_game or enano_game in game
+            if game in enano_game or enano_game in game:
+                return True
             
-            if not game_match and game_full and enano_game_full:
-                # Exclude common words that don't identify specific games
+            if game_full and enano_game_full:
                 exclude_words = {'GAMES', 'GAME', 'TOTAL', 'OVER', 'UNDER', 'STRAIGHT', 'BET', 'VRS', 'THE'}
                 tipster_words = set(game_full.replace('VS', ' ').replace('/', ' ').replace(',', ' ').split())
                 enano_words = set(enano_game_full.replace('VS', ' ').replace('/', ' ').replace(',', ' ').split())
-                # Filter out common/excluded words
                 tipster_words = {w for w in tipster_words if w not in exclude_words}
                 enano_words = {w for w in enano_words if w not in exclude_words}
                 common_words = tipster_words & enano_words
                 significant_common = [w for w in common_words if len(w) > 3]
                 if len(significant_common) >= 1:
-                    game_match = True
+                    return True
             
-            if game_match:
-                # Same game = match, show line difference if bet types differ
-                enano_line = None
-                if bet_type != enano_type:
-                    enano_line = enano_type
-                matches.append((enano_bet, enano_line))
+            return False
         
-        return matches
+        # Separate matches into same-category and different-category
+        same_category_matches = []
+        diff_category_matches = []
+        
+        for enano_bet in enano_bets:
+            if not is_game_match(enano_bet):
+                continue
+            
+            enano_type = enano_bet.get('bet_type_short', enano_bet.get('bet_type', '')).upper()
+            enano_category = get_bet_category(enano_type)
+            
+            enano_line = None
+            if bet_type != enano_type:
+                enano_line = enano_type
+            
+            if tipster_category == enano_category:
+                same_category_matches.append((enano_bet, enano_line))
+            else:
+                diff_category_matches.append((enano_bet, enano_line))
+        
+        # Return same-category matches if available, otherwise return different-category
+        # This ensures GAMES bets match GAMES, MONEYLINE matches MONEYLINE, etc.
+        if same_category_matches:
+            return same_category_matches
+        return diff_category_matches
     
     def is_game_started_or_ended(bet):
         """Check if game has started or ended based on time"""
