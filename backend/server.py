@@ -1152,6 +1152,8 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
     today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    today_str = datetime.now(arizona_tz).strftime('%b %d').replace(' 0', ' ')  # "Jan 21"
+    tomorrow_str = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%b %d').replace(' 0', ' ')  # "Jan 22"
     
     compilation = await db.daily_compilations.find_one({
         "account": account,
@@ -1164,6 +1166,17 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
     account_label = ACCOUNT_LABELS.get(account, account)
     bets = compilation['bets']
     total_result = compilation.get('total_result', 0)
+    
+    # Separate today's bets from tomorrow's bets
+    today_bets = []
+    tomorrow_bets = []
+    for bet in bets:
+        game_date = bet.get('game_date', '')
+        is_tomorrow = bet.get('is_tomorrow', False) or (tomorrow_str.lower() in game_date.lower() if game_date else False)
+        if is_tomorrow:
+            tomorrow_bets.append(bet)
+        else:
+            today_bets.append(bet)
     
     # Sort bets by game time (earliest first, games without time at the end)
     def parse_time_for_sort(bet):
@@ -1218,8 +1231,9 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
         except:
             return (9998, 0)  # Put unparseable times before "no time" items
     
-    # Sort bets by time
-    bets_sorted = sorted(bets, key=parse_time_for_sort)
+    # Sort today's and tomorrow's bets separately
+    today_bets_sorted = sorted(today_bets, key=parse_time_for_sort)
+    tomorrow_bets_sorted = sorted(tomorrow_bets, key=parse_time_for_sort)
     
     # For ENANO (jac075), get TIPSTER's bets to compare losses
     tipster_bet_keys = set()
@@ -1236,88 +1250,40 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
     
     # Header differs for short vs detailed
     if detailed:
-        lines = [f"📋 *{account_label}* (Detail)", ""]
+        lines = [f"📋 *{account_label}* ({today_str})", ""]
     else:
-        lines = [f"👤 *{account_label}*", ""]
+        lines = [f"👤 *{account_label}* ({today_str})", ""]
     
-    for i, bet in enumerate(bets_sorted, 1):
-        # Use full game name for detailed, short for compact
-        if detailed:
-            game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
-            # Clean up the game name
-            game_name = game_name.replace('REG.TIME', '').strip()
-        else:
-            game_name = bet.get('game_short', 'GAME')
-        
-        bet_type_short = bet.get('bet_type_short', '')
-        wager_short = bet.get('wager_short', '$0')
-        to_win_short = bet.get('to_win_short', '$0')
-        result = bet.get('result')
-        game_time = bet.get('game_time', '')
-        country = bet.get('country', '')
-        is_new = bet.get('is_new', False)
-        
-        # Build line with game time if available
-        # Add 🔵 prefix for NEW bets
-        new_prefix = "🔵" if is_new else ""
-        if game_time:
-            bet_line = f"{new_prefix}#{i} {game_time} {game_name}"
-        else:
-            bet_line = f"{new_prefix}#{i} {game_name}"
-        if bet_type_short:
-            bet_line += f" {bet_type_short}"
-        # Add country if available
-        if country:
-            bet_line += f" ({country})"
-        bet_line += f" ({wager_short}/{to_win_short})"
-        
-        # Add result emoji
-        if result == 'won':
-            bet_line += "🟢"
-        elif result == 'lost':
-            # For ENANO: color-code losses by bet amount
-            if account == "jac075":
-                wager_short = bet.get('wager_short', '')
-                if wager_short.startswith('$5') or wager_short.startswith('$6'):
-                    bet_line += "🟤"  # Brown: Loss for $.5K bets
-                elif wager_short.startswith('$1'):
-                    bet_line += "🟣"  # Purple: Loss for $1K bets
-                else:
-                    bet_line += "🔴"  # Red: Loss for $2K+ bets
-            else:
-                bet_line += "🔴"
-        elif result == 'push':
-            bet_line += "🔵"
-        else:
-            bet_line += "🟡"
-        
+    # Build today's bets
+    for i, bet in enumerate(today_bets_sorted, 1):
+        bet_line = build_bet_line(bet, i, detailed, account)
         lines.append(bet_line)
     
-    # Add result total if any bets are settled
-    settled_bets = [b for b in bets if b.get('result') in ['won', 'lost', 'push']]
+    # Add result total for today's bets if any are settled
+    settled_bets = [b for b in today_bets if b.get('result') in ['won', 'lost', 'push']]
     if settled_bets:
         lines.append("")
         result_sign = "+" if total_result >= 0 else ""
         lines.append(f"*Result: {result_sign}{format_amount_short(total_result)}*")
         
-        # Add records
+        # Add records for today's bets only
         if account == "jac075":
             # ENANO: Show 3 records (overall, $2K bets, $1K bets)
-            overall_wins = len([b for b in bets if b.get('result') == 'won'])
-            overall_losses = len([b for b in bets if b.get('result') == 'lost'])
+            overall_wins = len([b for b in today_bets if b.get('result') == 'won'])
+            overall_losses = len([b for b in today_bets if b.get('result') == 'lost'])
             
             # $2K bets (includes $2K, $2.2K, etc.)
-            bets_2k = [b for b in bets if b.get('wager_short', '').startswith('$2')]
+            bets_2k = [b for b in today_bets if b.get('wager_short', '').startswith('$2')]
             wins_2k = len([b for b in bets_2k if b.get('result') == 'won'])
             losses_2k = len([b for b in bets_2k if b.get('result') == 'lost'])
             
             # $1K bets (includes $1K, $1.3K, etc.)
-            bets_1k = [b for b in bets if b.get('wager_short', '').startswith('$1')]
+            bets_1k = [b for b in today_bets if b.get('wager_short', '').startswith('$1')]
             wins_1k = len([b for b in bets_1k if b.get('result') == 'won'])
             losses_1k = len([b for b in bets_1k if b.get('result') == 'lost'])
             
             # $.5K bets ($500-$999 range, typically $500-$600)
-            bets_05k = [b for b in bets if b.get('wager_short', '').startswith('$5') or b.get('wager_short', '').startswith('$6')]
+            bets_05k = [b for b in today_bets if b.get('wager_short', '').startswith('$5') or b.get('wager_short', '').startswith('$6')]
             wins_05k = len([b for b in bets_05k if b.get('result') == 'won'])
             losses_05k = len([b for b in bets_05k if b.get('result') == 'lost'])
             
@@ -1327,11 +1293,69 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
             lines.append(f"*$.5K: {wins_05k}-{losses_05k}*")
         else:
             # TIPSTER: Single overall record
-            wins = len([b for b in bets if b.get('result') == 'won'])
-            losses = len([b for b in bets if b.get('result') == 'lost'])
+            wins = len([b for b in today_bets if b.get('result') == 'won'])
+            losses = len([b for b in today_bets if b.get('result') == 'lost'])
             lines.append(f"*Record: {wins}-{losses}*")
     
+    # Add tomorrow's bets section if any exist
+    if tomorrow_bets_sorted:
+        lines.append("")
+        lines.append(f"📅 *Tomorrow ({tomorrow_str}):*")
+        for i, bet in enumerate(tomorrow_bets_sorted, 1):
+            bet_line = build_bet_line(bet, i, detailed, account, prefix="  ")
+            lines.append(bet_line)
+    
     return "\n".join(lines)
+
+
+def build_bet_line(bet: dict, index: int, detailed: bool, account: str, prefix: str = "") -> str:
+    """Helper function to build a single bet line for display"""
+    if detailed:
+        game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
+        game_name = game_name.replace('REG.TIME', '').strip()
+    else:
+        game_name = bet.get('game_short', 'GAME')
+    
+    bet_type_short = bet.get('bet_type_short', '')
+    wager_short = bet.get('wager_short', '$0')
+    to_win_short = bet.get('to_win_short', '$0')
+    result = bet.get('result')
+    game_time = bet.get('game_time', '')
+    country = bet.get('country', '')
+    is_new = bet.get('is_new', False)
+    
+    # Build line with game time if available
+    new_prefix = "🔵" if is_new else ""
+    if game_time:
+        bet_line = f"{prefix}{new_prefix}#{index} {game_time} {game_name}"
+    else:
+        bet_line = f"{prefix}{new_prefix}#{index} {game_name}"
+    if bet_type_short:
+        bet_line += f" {bet_type_short}"
+    if country:
+        bet_line += f" ({country})"
+    bet_line += f" ({wager_short}/{to_win_short})"
+    
+    # Add result emoji
+    if result == 'won':
+        bet_line += "🟢"
+    elif result == 'lost':
+        if account == "jac075":
+            wager_short = bet.get('wager_short', '')
+            if wager_short.startswith('$5') or wager_short.startswith('$6'):
+                bet_line += "🟤"
+            elif wager_short.startswith('$1'):
+                bet_line += "🟣"
+            else:
+                bet_line += "🔴"
+        else:
+            bet_line += "🔴"
+    elif result == 'push':
+        bet_line += "🔵"
+    else:
+        bet_line += "🟡"
+    
+    return bet_line
 
 
 async def build_enano_comparison_message() -> str:
