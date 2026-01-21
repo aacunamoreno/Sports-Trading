@@ -2619,7 +2619,7 @@ async def check_results_for_account(conn: dict):
                             "bet_type_short": existing_bet.get('bet_type_short', ''),
                             "game_time": game_time,
                             "game_date": game_date,
-                            "country": existing_bet.get('country', ''),
+                            "country": existing_bet.get('country', '') or country,
                             "wager": existing_bet.get('wager', 0),
                             "wager_short": existing_bet.get('wager_short', ''),
                             "to_win": existing_bet.get('to_win', 0),
@@ -2631,16 +2631,20 @@ async def check_results_for_account(conn: dict):
                         settled_synced += 1
                         logger.info(f"Synced settled bet to today's compilation: Ticket#{ticket_num} ({result})")
                     else:
-                        # Ticket exists in compilation - update its result if needed
+                        # Ticket exists in compilation - update its result and country if needed
+                        update_fields = {
+                            'bets.$.result': result,
+                            'bets.$.wager': existing_bet.get('wager', 0),
+                            'bets.$.wager_short': existing_bet.get('wager_short', ''),
+                            'bets.$.to_win': existing_bet.get('to_win', 0),
+                            'bets.$.to_win_short': existing_bet.get('to_win_short', ''),
+                        }
+                        # Also update country if we have fresh value
+                        if country:
+                            update_fields['bets.$.country'] = country
                         await db.daily_compilations.update_one(
                             {'account': username, 'date': today, 'bets.ticket': ticket_num},
-                            {'$set': {
-                                'bets.$.result': result,
-                                'bets.$.wager': existing_bet.get('wager', 0),
-                                'bets.$.wager_short': existing_bet.get('wager_short', ''),
-                                'bets.$.to_win': existing_bet.get('to_win', 0),
-                                'bets.$.to_win_short': existing_bet.get('to_win_short', ''),
-                            }}
+                            {'$set': update_fields}
                         )
                         settled_synced += 1
                         logger.info(f"Updated result in compilation: Ticket#{ticket_num} ({result})")
