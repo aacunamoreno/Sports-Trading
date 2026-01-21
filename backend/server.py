@@ -2546,6 +2546,7 @@ async def check_results_for_account(conn: dict):
                             gameDate: gameDate,
                             gameTime: gameTime,
                             gameName: gameName,
+                            country: country,
                             rowText: rowText.substring(0, 300)  // For debugging
                         });
                     }
