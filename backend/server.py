@@ -2674,6 +2674,7 @@ async def check_results_for_account(conn: dict):
                     "bet_type_short": "Straight",
                     "game_time": game_time,
                     "game_date": game_date,
+                    "country": country,
                     "wager": wager_amount,
                     "wager_short": wager_short,
                     "to_win": to_win_amount,
