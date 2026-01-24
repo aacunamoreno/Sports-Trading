@@ -17083,6 +17083,329 @@ async def get_process_status():
 
 NHL_API_BASE = "https://api-web.nhle.com/v1"
 
+# NHL team abbreviations for 1st Period bets display
+NHL_TEAM_ABBREV = {
+    'ANAHEIM': 'ANA', 'ARIZONA': 'ARI', 'BOSTON': 'BOS', 'BUFFALO': 'BUF',
+    'CALGARY': 'CGY', 'CAROLINA': 'CAR', 'CHICAGO': 'CHI', 'COLORADO': 'COL',
+    'COLUMBUS': 'CBJ', 'DALLAS': 'DAL', 'DETROIT': 'DET', 'EDMONTON': 'EDM',
+    'FLORIDA': 'FLA', 'LOS ANGELES': 'LAK', 'MINNESOTA': 'MIN', 'MONTREAL': 'MTL',
+    'NASHVILLE': 'NSH', 'NEW JERSEY': 'NJD', 'NY ISLANDERS': 'NYI', 'NY RANGERS': 'NYR',
+    'NEW YORK ISLANDERS': 'NYI', 'NEW YORK RANGERS': 'NYR',
+    'OTTAWA': 'OTT', 'PHILADELPHIA': 'PHI', 'PITTSBURGH': 'PIT', 'SAN JOSE': 'SJS',
+    'SEATTLE': 'SEA', 'ST. LOUIS': 'STL', 'ST LOUIS': 'STL', 'TAMPA BAY': 'TBL',
+    'TORONTO': 'TOR', 'UTAH': 'UTA', 'VANCOUVER': 'VAN', 'VEGAS': 'VGK',
+    'WASHINGTON': 'WSH', 'WINNIPEG': 'WPG',
+    # Common variations
+    'DUCKS': 'ANA', 'COYOTES': 'ARI', 'BRUINS': 'BOS', 'SABRES': 'BUF',
+    'FLAMES': 'CGY', 'HURRICANES': 'CAR', 'BLACKHAWKS': 'CHI', 'AVALANCHE': 'COL',
+    'BLUE JACKETS': 'CBJ', 'STARS': 'DAL', 'RED WINGS': 'DET', 'OILERS': 'EDM',
+    'PANTHERS': 'FLA', 'KINGS': 'LAK', 'WILD': 'MIN', 'CANADIENS': 'MTL',
+    'PREDATORS': 'NSH', 'DEVILS': 'NJD', 'ISLANDERS': 'NYI', 'RANGERS': 'NYR',
+    'SENATORS': 'OTT', 'FLYERS': 'PHI', 'PENGUINS': 'PIT', 'SHARKS': 'SJS',
+    'KRAKEN': 'SEA', 'BLUES': 'STL', 'LIGHTNING': 'TBL', 'MAPLE LEAFS': 'TOR',
+    'MAMMOTH': 'UTA', 'CANUCKS': 'VAN', 'GOLDEN KNIGHTS': 'VGK', 'CAPITALS': 'WSH',
+    'JETS': 'WPG'
+}
+
+def get_nhl_abbrev(team_name):
+    """Convert NHL team name to abbreviation"""
+    team_upper = team_name.upper().strip()
+    # Remove common suffixes
+    team_upper = team_upper.replace(' 1ST PERIOD', '').replace(' REG.TIME', '').strip()
+    
+    # Try direct match first
+    for key, abbrev in NHL_TEAM_ABBREV.items():
+        if key in team_upper or team_upper in key:
+            return abbrev
+    
+    # Return first 3 chars if no match
+    return team_upper[:3]
+
+async def scrape_first_period_bets_enano():
+    """
+    Scrape 1st Period NHL bets from plays888.co History page for ENANO (jac075).
+    Returns list of bets grouped by game with U1.5, U2.5, U3.5, U4.5 columns.
+    """
+    import re
+    from collections import defaultdict
+    
+    try:
+        # Get ENANO credentials
+        connection = await db.connections.find_one({"username": "jac075"})
+        if not connection:
+            logger.error("ENANO (jac075) connection not found")
+            return {"bets": [], "summary": {}}
+        
+        # Initialize browser service
+        service = Plays888Service()
+        await service.initialize()
+        
+        # Login
+        login_result = await service.login(connection["username"], connection["password"])
+        if not login_result.get("success"):
+            logger.error("Failed to login to plays888.co for ENANO")
+            await service.close()
+            return {"bets": [], "summary": {}}
+        
+        # Navigate to History page
+        await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
+        await service.page.wait_for_load_state('networkidle')
+        await service.page.wait_for_timeout(3000)
+        
+        # Extract all rows from the history table using JavaScript
+        bets_data = await service.page.evaluate('''() => {
+            const rows = document.querySelectorAll('tr');
+            const bets = [];
+            
+            rows.forEach(row => {
+                const text = row.innerText.toUpperCase();
+                // Look for 1ST PERIOD bets
+                if (text.includes('1ST PERIOD') && (text.includes('UNDER') || text.includes(' U') || text.includes('TOTAL U'))) {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 6) {
+                        bets.push({
+                            fullText: row.innerText,
+                            date: cells[1]?.innerText?.trim() || '',
+                            description: cells[3]?.innerText?.trim() || '',
+                            riskWin: cells[4]?.innerText?.trim() || '',
+                            amount: cells[5]?.innerText?.trim() || '',
+                            result: cells[6]?.innerText?.trim() || ''
+                        });
+                    }
+                }
+            });
+            
+            return bets;
+        }''')
+        
+        await service.close()
+        
+        logger.info(f"Found {len(bets_data)} 1st period bets from plays888")
+        
+        # Process the scraped data
+        games = defaultdict(lambda: {
+            "date": "", 
+            "away": "", 
+            "home": "", 
+            "u15": None, 
+            "u25": None, 
+            "u35": None, 
+            "u45": None,
+            "result": 0
+        })
+        
+        for bet in bets_data:
+            text = bet.get('description', '') + ' ' + bet.get('fullText', '')
+            text_upper = text.upper()
+            
+            # Extract teams - Pattern 1: "TEAM1 1ST PERIOD vrs TEAM2 1ST PERIOD"
+            teams_match = re.search(r'([A-Z][A-Z\s\.]+?)\s*1ST PERIOD\s*(?:vrs|vs)\s*([A-Z][A-Z\s\.]+?)\s*1ST PERIOD', text_upper)
+            
+            # Pattern 2: "Team1 vs Team2 / 1st Period"
+            if not teams_match:
+                teams_match = re.search(r'([A-Za-z][A-Za-z\s\.]+?)\s*vs\s*([A-Za-z][A-Za-z\s\.]+?)\s*/\s*1st Period', text, re.IGNORECASE)
+            
+            if not teams_match:
+                continue
+            
+            away_team = teams_match.group(1).strip()
+            home_team = teams_match.group(2).strip()
+            
+            away_abbrev = get_nhl_abbrev(away_team)
+            home_abbrev = get_nhl_abbrev(home_team)
+            game_key = f"{away_abbrev}@{home_abbrev}"
+            
+            # Extract date (format: Jan 22 or 01/22)
+            date_text = bet.get('date', '')
+            date_match = re.search(r'(\d{1,2}/\d{1,2})', date_text)
+            if date_match:
+                games[game_key]["date"] = date_match.group(1)
+            else:
+                # Try "Jan 22" format
+                month_match = re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})', date_text, re.IGNORECASE)
+                if month_match:
+                    months = {'jan':'01','feb':'02','mar':'03','apr':'04','may':'05','jun':'06',
+                              'jul':'07','aug':'08','sep':'09','oct':'10','nov':'11','dec':'12'}
+                    m = months.get(month_match.group(1).lower(), '01')
+                    d = month_match.group(2).zfill(2)
+                    games[game_key]["date"] = f"{m}/{d}"
+            
+            games[game_key]["away"] = away_abbrev
+            games[game_key]["home"] = home_abbrev
+            
+            # Extract under line (1.5, 2.5, 3.5, 4.5)
+            # Patterns: "u1½", "u1.5", "Under 1.5", "TOTAL u1½"
+            line_match = re.search(r'[Uu](?:nder\s*)?(\d+)[½.]?5?', text)
+            if not line_match:
+                line_match = re.search(r'TOTAL\s+[Uu](\d+)', text_upper)
+            
+            if line_match:
+                line_num = int(line_match.group(1))
+                # Handle cases like "u1" meaning u1.5
+                line = float(line_num) + 0.5 if line_num < 10 else float(line_num)
+            else:
+                continue
+            
+            # Extract amounts (Risk / Win) - format: "1000.00 / 1050.00"
+            risk_win = bet.get('riskWin', '')
+            amount_match = re.search(r'([\d,]+\.?\d*)\s*/\s*([\d,]+\.?\d*)', risk_win)
+            if amount_match:
+                risk = float(amount_match.group(1).replace(',', ''))
+                win = float(amount_match.group(2).replace(',', ''))
+            else:
+                continue
+            
+            # Extract result
+            result_text = bet.get('result', '').upper()
+            if 'WIN' in result_text:
+                result = 'win'
+                profit = win
+            elif 'LOSE' in result_text or 'LOSS' in result_text:
+                result = 'loss'
+                profit = -risk
+            elif 'CANCEL' in result_text or 'NO BET' in result_text:
+                result = 'cancel'
+                profit = 0
+            else:
+                result = 'pending'
+                profit = 0
+            
+            # Store bet in appropriate column
+            bet_info = {
+                "risk": risk,
+                "win": win,
+                "result": result,
+                "profit": profit
+            }
+            
+            if 1.0 <= line <= 1.9:
+                games[game_key]["u15"] = bet_info
+                games[game_key]["result"] += profit
+            elif 2.0 <= line <= 2.9:
+                games[game_key]["u25"] = bet_info
+                games[game_key]["result"] += profit
+            elif 3.0 <= line <= 3.9:
+                games[game_key]["u35"] = bet_info
+                games[game_key]["result"] += profit
+            elif 4.0 <= line <= 4.9:
+                games[game_key]["u45"] = bet_info
+                games[game_key]["result"] += profit
+        
+        # Convert to list and calculate summary
+        bets_list = []
+        summary = {
+            "u15": {"wins": 0, "losses": 0, "profit": 0},
+            "u25": {"wins": 0, "losses": 0, "profit": 0},
+            "u35": {"wins": 0, "losses": 0, "profit": 0},
+            "u45": {"wins": 0, "losses": 0, "profit": 0},
+            "total": {"wins": 0, "losses": 0, "profit": 0}
+        }
+        
+        for game_key, game in games.items():
+            if game["away"] and game["home"]:
+                bets_list.append({
+                    "date": game["date"],
+                    "game": f"{game['away']} @ {game['home']}",
+                    "u15": game.get("u15"),
+                    "u25": game.get("u25"),
+                    "u35": game.get("u35"),
+                    "u45": game.get("u45"),
+                    "result": game.get("result", 0)
+                })
+                
+                # Update summary
+                for line_key in ["u15", "u25", "u35", "u45"]:
+                    bet = game.get(line_key)
+                    if bet and bet["result"] != "cancel":
+                        if bet["result"] == "win":
+                            summary[line_key]["wins"] += 1
+                            summary[line_key]["profit"] += bet["win"]
+                            summary["total"]["wins"] += 1
+                            summary["total"]["profit"] += bet["win"]
+                        elif bet["result"] == "loss":
+                            summary[line_key]["losses"] += 1
+                            summary[line_key]["profit"] -= bet["risk"]
+                            summary["total"]["losses"] += 1
+                            summary["total"]["profit"] -= bet["risk"]
+        
+        # Sort by date (most recent first)
+        bets_list.sort(key=lambda x: x["date"], reverse=True)
+        
+        logger.info(f"Processed {len(bets_list)} games, Total: {summary['total']}")
+        
+        return {
+            "bets": bets_list,
+            "summary": summary
+        }
+        
+    except Exception as e:
+        logger.error(f"Error scraping 1st Period bets: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"bets": [], "summary": {}}
+
+async def update_first_period_bets():
+    """Update cached 1st Period bets data"""
+    try:
+        logger.info("Updating 1st Period bets for ENANO...")
+        data = await scrape_first_period_bets_enano()
+        
+        await db.first_period_bets.update_one(
+            {"_id": "enano_bets"},
+            {
+                "$set": {
+                    "bets": data["bets"],
+                    "summary": data["summary"],
+                    "last_updated": datetime.now(timezone.utc)
+                }
+            },
+            upsert=True
+        )
+        
+        logger.info(f"1st Period bets updated: {data['summary']['total']}")
+        return data
+    except Exception as e:
+        logger.error(f"Error updating 1st Period bets: {e}")
+        return {"bets": [], "summary": {}}
+
+@api_router.get("/nhl/first-period-bets")
+async def get_first_period_bets():
+    """Get 1st Period betting record for ENANO"""
+    try:
+        cached = await db.first_period_bets.find_one({"_id": "enano_bets"}, {"_id": 0})
+        
+        if cached:
+            return {
+                "bets": cached.get("bets", []),
+                "summary": cached.get("summary", {}),
+                "last_updated": cached.get("last_updated")
+            }
+        
+        return {
+            "bets": [],
+            "summary": {
+                "u15": {"wins": 0, "losses": 0, "profit": 0},
+                "u25": {"wins": 0, "losses": 0, "profit": 0},
+                "u35": {"wins": 0, "losses": 0, "profit": 0},
+                "u45": {"wins": 0, "losses": 0, "profit": 0},
+                "total": {"wins": 0, "losses": 0, "profit": 0}
+            },
+            "last_updated": None
+        }
+    except Exception as e:
+        logger.error(f"Error getting 1st Period bets: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/nhl/first-period-bets/refresh")
+async def refresh_first_period_bets():
+    """Manually refresh 1st Period bets data"""
+    try:
+        data = await update_first_period_bets()
+        return {"status": "success", **data}
+    except Exception as e:
+        logger.error(f"Error refreshing 1st Period bets: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 async def fetch_nhl_first_period_goals():
     """
     Fetch all NHL games from 2025-2026 season and track 1st period goals.
