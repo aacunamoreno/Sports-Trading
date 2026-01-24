@@ -2294,14 +2294,14 @@ export default function Opportunities() {
                         );
                       })}
                       {/* Subtotal 0-2 */}
-                      <tr className="bg-green-900/30 border-b-2 border-green-500/50">
-                        <td className="py-2 px-3 font-bold text-green-400">📊 0-2 Goals</td>
-                        <td className="py-2 px-3 text-center font-bold text-green-400 text-lg">{total02}</td>
-                        <td className="py-2 px-3 text-center font-bold text-green-300">{l3_02}</td>
-                        <td className="py-2 px-3 text-center font-bold text-green-300">{l5_02}</td>
+                      <tr className="bg-blue-900/30 border-b-2 border-blue-500/50">
+                        <td className="py-2 px-3 font-bold text-blue-400">📊 0-2 Goals</td>
+                        <td className="py-2 px-3 text-center font-bold text-blue-400 text-lg">{total02}</td>
+                        <td className="py-2 px-3 text-center font-bold text-blue-300">{l3_02}</td>
+                        <td className="py-2 px-3 text-center font-bold text-blue-300">{l5_02}</td>
                       </tr>
                       <tr>
-                        <td colSpan="4" className="py-1 text-center text-green-400 font-bold">{pct02}% of all games</td>
+                        <td colSpan="4" className="py-1 text-center text-blue-400 font-bold">{pct02}% of all games</td>
                       </tr>
                       
                       {/* Spacer */}
@@ -2317,14 +2317,14 @@ export default function Opportunities() {
                         </tr>
                       )}
                       {/* Subtotal 0-3 */}
-                      <tr className="bg-yellow-900/30 border-b-2 border-yellow-500/50">
-                        <td className="py-2 px-3 font-bold text-yellow-400">📊 0-3 Goals</td>
-                        <td className="py-2 px-3 text-center font-bold text-yellow-400 text-lg">{total03}</td>
-                        <td className="py-2 px-3 text-center font-bold text-yellow-300">{l3_03}</td>
-                        <td className="py-2 px-3 text-center font-bold text-yellow-300">{l5_03}</td>
+                      <tr className="bg-green-900/30 border-b-2 border-green-500/50">
+                        <td className="py-2 px-3 font-bold text-green-400">📊 0-3 Goals</td>
+                        <td className="py-2 px-3 text-center font-bold text-green-400 text-lg">{total03}</td>
+                        <td className="py-2 px-3 text-center font-bold text-green-300">{l3_03}</td>
+                        <td className="py-2 px-3 text-center font-bold text-green-300">{l5_03}</td>
                       </tr>
                       <tr>
-                        <td colSpan="4" className="py-1 text-center text-yellow-400 font-bold">{pct03}% of all games</td>
+                        <td colSpan="4" className="py-1 text-center text-green-400 font-bold">{pct03}% of all games</td>
                       </tr>
                       
                       {/* Spacer */}
@@ -2401,14 +2401,14 @@ export default function Opportunities() {
                       ))}
                       
                       {/* Subtotal 4-5+ */}
-                      <tr className="bg-blue-900/30 border-b-2 border-blue-500/50">
-                        <td className="py-2 px-3 font-bold text-blue-400">📊 4-5+ Goals</td>
-                        <td className="py-2 px-3 text-center font-bold text-blue-400 text-lg">{total45}</td>
-                        <td className="py-2 px-3 text-center font-bold text-blue-300">{l3_45}</td>
-                        <td className="py-2 px-3 text-center font-bold text-blue-300">{l5_45}</td>
+                      <tr className="bg-red-900/30 border-b-2 border-red-500/50">
+                        <td className="py-2 px-3 font-bold text-red-400">📊 4-5+ Goals</td>
+                        <td className="py-2 px-3 text-center font-bold text-red-400 text-lg">{total45}</td>
+                        <td className="py-2 px-3 text-center font-bold text-red-300">{l3_45}</td>
+                        <td className="py-2 px-3 text-center font-bold text-red-300">{l5_45}</td>
                       </tr>
                       <tr>
-                        <td colSpan="4" className="py-1 text-center text-blue-400 font-bold">{pct45}% of all games</td>
+                        <td colSpan="4" className="py-1 text-center text-red-400 font-bold">{pct45}% of all games</td>
                       </tr>
                     </tbody>
                   </table>
@@ -2417,7 +2417,7 @@ export default function Opportunities() {
             })()}
             
             <div className="mt-4 pt-4 border-t border-gray-700 text-xs text-gray-500">
-              <p>🟢 0-2 = Low scoring | 🟡 0-3 = Under trend | 🔵 4-5+ = High scoring</p>
+              <p>🟢 0-3 = Best hit rate (89.7%) | 🔵 0-2 = Good hit rate (76.2%) | 🔴 4-5+ = Risky (10.3%)</p>
               <p className="mt-1">▶ Click on 4 Goals or 5+ Goals to see team breakdown</p>
               <p className="mt-1">Data updates automatically at 11 PM Arizona time</p>
             </div>
