@@ -17078,15 +17078,15 @@ async def get_process_status():
 
 
 # ============================================================================
-# NHL 1ST PERIOD 0-0 TRACKING
+# NHL 1ST PERIOD GOALS TRACKING (0-5+ goals breakdown)
 # ============================================================================
 
 NHL_API_BASE = "https://api-web.nhle.com/v1"
 
-async def fetch_nhl_first_period_zeros():
+async def fetch_nhl_first_period_goals():
     """
-    Fetch all NHL games from 2025-2026 season where 1st period ended 0-0.
-    Returns list of games with their details.
+    Fetch all NHL games from 2025-2026 season and track 1st period goals.
+    Returns games categorized by total goals in 1st period (0, 1, 2, 3, 4, 5+).
     """
     from zoneinfo import ZoneInfo
     
@@ -17096,7 +17096,9 @@ async def fetch_nhl_first_period_zeros():
     # Season start (October 2025)
     season_start = datetime(2025, 10, 1).date()
     
-    results = []
+    # Results by goal count: 0, 1, 2, 3, 4, 5+
+    results = {0: [], 1: [], 2: [], 3: [], 4: [], 5: []}
+    
     current_date = season_start
     
     async with httpx.AsyncClient(timeout=30.0) as http_client:
@@ -17133,13 +17135,19 @@ async def fetch_nhl_first_period_zeros():
                                             else:
                                                 home_p1 += 1
                                     
-                                    if away_p1 == 0 and home_p1 == 0:
-                                        results.append({
-                                            "date": game_date,
-                                            "game_id": game_id,
-                                            "away_team": game.get("awayTeam", {}).get("placeName", {}).get("default", "Unknown"),
-                                            "home_team": game.get("homeTeam", {}).get("placeName", {}).get("default", "Unknown")
-                                        })
+                                    total_goals = away_p1 + home_p1
+                                    # Cap at 5 for 5+ category
+                                    goal_category = min(total_goals, 5)
+                                    
+                                    results[goal_category].append({
+                                        "date": game_date,
+                                        "game_id": game_id,
+                                        "away_team": game.get("awayTeam", {}).get("placeName", {}).get("default", "Unknown"),
+                                        "home_team": game.get("homeTeam", {}).get("placeName", {}).get("default", "Unknown"),
+                                        "away_goals_p1": away_p1,
+                                        "home_goals_p1": home_p1,
+                                        "total_goals_p1": total_goals
+                                    })
                                 
                                 await asyncio.sleep(0.1)  # Rate limiting
             except Exception as e:
@@ -17150,38 +17158,48 @@ async def fetch_nhl_first_period_zeros():
     
     return results
 
-async def update_nhl_first_period_zeros():
+async def update_nhl_first_period_goals():
     """
-    Update the cached NHL 1st Period 0-0 data in MongoDB.
+    Update the cached NHL 1st Period goals data in MongoDB.
     This runs on schedule (11pm Arizona) and when Update Scores is pressed.
     """
     from zoneinfo import ZoneInfo
     
     try:
-        logger.info("Starting NHL 1st Period 0-0 data update...")
+        logger.info("Starting NHL 1st Period goals data update...")
         
         # Fetch fresh data from NHL API
-        results = await fetch_nhl_first_period_zeros()
+        results = await fetch_nhl_first_period_goals()
         
         arizona_tz = ZoneInfo('America/Phoenix')
         today = datetime.now(arizona_tz).date()
         
-        # Calculate L3 and L5 days
+        # Calculate L3 and L5 days for each category
         l3_date = today - timedelta(days=3)
         l5_date = today - timedelta(days=5)
         
-        l3_count = sum(1 for r in results if datetime.strptime(r["date"], "%Y-%m-%d").date() >= l3_date)
-        l5_count = sum(1 for r in results if datetime.strptime(r["date"], "%Y-%m-%d").date() >= l5_date)
+        breakdown = []
+        for goals in range(6):  # 0, 1, 2, 3, 4, 5+
+            games = results[goals]
+            total = len(games)
+            l3 = sum(1 for g in games if datetime.strptime(g["date"], "%Y-%m-%d").date() >= l3_date)
+            l5 = sum(1 for g in games if datetime.strptime(g["date"], "%Y-%m-%d").date() >= l5_date)
+            
+            label = f"{goals} Goals" if goals < 5 else "5+ Goals"
+            breakdown.append({
+                "goals": goals,
+                "label": label,
+                "total": total,
+                "l3": l3,
+                "l5": l5
+            })
         
         # Store in MongoDB
-        await db.nhl_first_period_zeros.update_one(
+        await db.nhl_first_period_goals.update_one(
             {"_id": "current_season"},
             {
                 "$set": {
-                    "total_games": len(results),
-                    "l3_days": l3_count,
-                    "l5_days": l5_count,
-                    "games": results[-50:],  # Store last 50 games for reference
+                    "breakdown": breakdown,
                     "last_updated": datetime.now(timezone.utc),
                     "season": "2025-2026"
                 }
@@ -17189,15 +17207,31 @@ async def update_nhl_first_period_zeros():
             upsert=True
         )
         
-        logger.info(f"NHL 1st Period 0-0 updated: Total={len(results)}, L3={l3_count}, L5={l5_count}")
-        return {
-            "total_games": len(results),
-            "l3_days": l3_count,
-            "l5_days": l5_count
-        }
+        # Also update the legacy zeros endpoint for backward compatibility
+        zeros_data = breakdown[0] if breakdown else {"total": 0, "l3": 0, "l5": 0}
+        await db.nhl_first_period_zeros.update_one(
+            {"_id": "current_season"},
+            {
+                "$set": {
+                    "total_games": zeros_data["total"],
+                    "l3_days": zeros_data["l3"],
+                    "l5_days": zeros_data["l5"],
+                    "last_updated": datetime.now(timezone.utc),
+                    "season": "2025-2026"
+                }
+            },
+            upsert=True
+        )
+        
+        logger.info(f"NHL 1st Period goals updated: {[f'{b['label']}={b['total']}' for b in breakdown]}")
+        return {"breakdown": breakdown}
     except Exception as e:
-        logger.error(f"Error updating NHL 1st Period 0-0 data: {e}")
+        logger.error(f"Error updating NHL 1st Period goals data: {e}")
         raise
+
+# Keep old function name for scheduler compatibility
+async def update_nhl_first_period_zeros():
+    return await update_nhl_first_period_goals()
 
 @api_router.get("/nhl/first-period-zeros")
 async def get_nhl_first_period_zeros():
@@ -17230,17 +17264,47 @@ async def get_nhl_first_period_zeros():
         logger.error(f"Error getting NHL 1st Period 0-0 data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/nhl/first-period-breakdown")
+async def get_nhl_first_period_breakdown():
+    """
+    Get NHL 1st Period goals breakdown (0-5+ goals) for the current season.
+    Returns breakdown with total, L3, and L5 for each goal count.
+    """
+    try:
+        # Try to get cached data
+        cached = await db.nhl_first_period_goals.find_one({"_id": "current_season"}, {"_id": 0})
+        
+        if cached and cached.get("breakdown"):
+            return {
+                "breakdown": cached.get("breakdown", []),
+                "last_updated": cached.get("last_updated"),
+                "season": cached.get("season", "2025-2026")
+            }
+        
+        # No cached data, return empty breakdown
+        return {
+            "breakdown": [
+                {"goals": i, "label": f"{i} Goals" if i < 5 else "5+ Goals", "total": 0, "l3": 0, "l5": 0}
+                for i in range(6)
+            ],
+            "last_updated": None,
+            "season": "2025-2026"
+        }
+    except Exception as e:
+        logger.error(f"Error getting NHL 1st Period breakdown: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.post("/nhl/first-period-zeros/refresh")
 async def refresh_nhl_first_period_zeros():
     """
-    Manually trigger a refresh of NHL 1st Period 0-0 data.
+    Manually trigger a refresh of NHL 1st Period goals data.
     Called when Update Scores button is pressed for NHL.
     """
     try:
-        result = await update_nhl_first_period_zeros()
+        result = await update_nhl_first_period_goals()
         return {"status": "success", **result}
     except Exception as e:
-        logger.error(f"Error refreshing NHL 1st Period 0-0 data: {e}")
+        logger.error(f"Error refreshing NHL 1st Period data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
