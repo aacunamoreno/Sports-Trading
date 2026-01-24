@@ -1818,7 +1818,7 @@ export default function Opportunities() {
                           )}
                         </div>
                       </td>
-                      {/* Public Consensus Pick column - shows spread of team with higher consensus % (56%+) and HIT/MISS */}
+                      {/* Public Consensus Pick column - shows spread/moneyline of team with higher consensus % (61%+ for NHL, 56%+ for others) and HIT/MISS */}
                       {showHistoricalColumns && (
                         <td className="py-3 px-2 text-center">
                           {(() => {
@@ -1833,11 +1833,67 @@ export default function Opportunities() {
                             const isAwayPublicPick = awayPct >= homePct;
                             const publicPct = isAwayPublicPick ? awayPct : homePct;
                             
-                            // Only show if public pick has 56% or above
-                            if (publicPct < 56) {
+                            // NHL uses 61% threshold, others use 56%
+                            const threshold = league === 'NHL' ? 61 : 56;
+                            if (publicPct < threshold) {
                               return <span className="text-muted-foreground">-</span>;
                             }
                             
+                            // For NHL: Use MONEYLINE (simply check if team won)
+                            if (league === 'NHL') {
+                              // Get moneyline for display
+                              let publicMoneyline = null;
+                              const mlTeam = game.moneyline_team;
+                              const ml = game.moneyline;
+                              
+                              if (isAwayPublicPick) {
+                                // Away team is public pick
+                                if (mlTeam === game.away_team && ml) {
+                                  publicMoneyline = ml;
+                                } else if (ml) {
+                                  // Calculate opposite moneyline (rough approximation)
+                                  publicMoneyline = ml < 0 ? `+${Math.abs(ml) - 20}` : `-${ml + 20}`;
+                                }
+                              } else {
+                                // Home team is public pick
+                                if (mlTeam === game.home_team && ml) {
+                                  publicMoneyline = ml;
+                                } else if (ml) {
+                                  publicMoneyline = ml < 0 ? `+${Math.abs(ml) - 20}` : `-${ml + 20}`;
+                                }
+                              }
+                              
+                              // Calculate if the public pick WON the game (moneyline bet)
+                              let publicPickResult = null;
+                              
+                              if (game.away_score !== undefined && game.home_score !== undefined) {
+                                const awayScore = parseFloat(game.away_score);
+                                const homeScore = parseFloat(game.home_score);
+                                
+                                if (isAwayPublicPick) {
+                                  publicPickResult = awayScore > homeScore ? 'HIT' : 'MISS';
+                                } else {
+                                  publicPickResult = homeScore > awayScore ? 'HIT' : 'MISS';
+                                }
+                              }
+                              
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <span className="font-mono font-bold">
+                                    {publicMoneyline !== null ? (typeof publicMoneyline === 'number' ? (publicMoneyline >= 0 ? '+' : '') + publicMoneyline : publicMoneyline) : '-'}
+                                  </span>
+                                  {publicPickResult && (
+                                    <span className={`text-xs font-bold ${
+                                      publicPickResult === 'HIT' ? 'text-green-400' : 'text-red-400'
+                                    }`}>
+                                      {publicPickResult}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            }
+                            
+                            // For NBA/NCAAB: Use SPREAD (check if team covered)
                             // PRIORITY: Covers.com spread first, CBS Sports as fallback
                             // away_spread = Covers.com spread for away team
                             // spread = CBS Sports live spread (home team's perspective)
