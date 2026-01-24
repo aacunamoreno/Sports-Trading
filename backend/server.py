@@ -7642,6 +7642,248 @@ async def refresh_nba_opportunities_scheduled():
 # PROCESS NOTEBOOK - SCHEDULED JOBS
 # ============================================
 
+# ==================== PPG/GPG SCRAPING FUNCTIONS ====================
+
+async def scrape_ppg_data_all_leagues():
+    """
+    Scrape PPG/GPG data from external sources for all leagues.
+    Returns a dictionary with season and last3 values for NBA, NHL, NCAAB.
+    """
+    import httpx
+    from bs4 import BeautifulSoup
+    import re
+    
+    logger.info("[PPG Scraper] Starting PPG/GPG scraping for all leagues...")
+    
+    ppg_data = {
+        "NBA": {"season": {}, "last3": {}},
+        "NHL": {"season": {}, "last3": {}},
+        "NCAAB": {"season": {}, "last3": {}}
+    }
+    
+    # NBA team name mappings
+    nba_team_map = {
+        'Oklahoma City': 'Okla City', 'OKC Thunder': 'Okla City', 'Thunder': 'Okla City',
+        'LA Lakers': 'LA Lakers', 'Los Angeles Lakers': 'LA Lakers', 'Lakers': 'LA Lakers',
+        'LA Clippers': 'LA Clippers', 'Los Angeles Clippers': 'LA Clippers', 'Clippers': 'LA Clippers',
+        'Golden State': 'Golden State', 'Warriors': 'Golden State',
+        'San Antonio': 'San Antonio', 'Spurs': 'San Antonio',
+        'New York': 'New York', 'Knicks': 'New York',
+        'New Orleans': 'New Orleans', 'Pelicans': 'New Orleans',
+        'Minnesota': 'Minnesota', 'Timberwolves': 'Minnesota',
+        'Portland': 'Portland', 'Trail Blazers': 'Portland', 'Blazers': 'Portland',
+        'Sacramento': 'Sacramento', 'Kings': 'Sacramento',
+        'Philadelphia': 'Philadelphia', '76ers': 'Philadelphia', 'Sixers': 'Philadelphia',
+        'Washington': 'Washington', 'Wizards': 'Washington',
+        'Cleveland': 'Cleveland', 'Cavaliers': 'Cleveland', 'Cavs': 'Cleveland',
+        'Milwaukee': 'Milwaukee', 'Bucks': 'Milwaukee',
+        'Indiana': 'Indiana', 'Pacers': 'Indiana',
+        'Detroit': 'Detroit', 'Pistons': 'Detroit',
+        'Chicago': 'Chicago', 'Bulls': 'Chicago',
+        'Atlanta': 'Atlanta', 'Hawks': 'Atlanta',
+        'Miami': 'Miami', 'Heat': 'Miami',
+        'Orlando': 'Orlando', 'Magic': 'Orlando',
+        'Charlotte': 'Charlotte', 'Hornets': 'Charlotte',
+        'Brooklyn': 'Brooklyn', 'Nets': 'Brooklyn',
+        'Toronto': 'Toronto', 'Raptors': 'Toronto',
+        'Boston': 'Boston', 'Celtics': 'Boston',
+        'Denver': 'Denver', 'Nuggets': 'Denver',
+        'Utah': 'Utah', 'Jazz': 'Utah',
+        'Phoenix': 'Phoenix', 'Suns': 'Phoenix',
+        'Dallas': 'Dallas', 'Mavericks': 'Dallas', 'Mavs': 'Dallas',
+        'Houston': 'Houston', 'Rockets': 'Houston',
+        'Memphis': 'Memphis', 'Grizzlies': 'Memphis',
+    }
+    
+    # NHL team name mappings
+    nhl_team_map = {
+        'Colorado Avalanche': 'Colorado', 'Avalanche': 'Colorado',
+        'Tampa Bay Lightning': 'Tampa Bay', 'Lightning': 'Tampa Bay',
+        'Vegas Golden Knights': 'Vegas', 'Golden Knights': 'Vegas',
+        'Montréal Canadiens': 'Montreal', 'Montreal Canadiens': 'Montreal', 'Canadiens': 'Montreal',
+        'Carolina Hurricanes': 'Carolina', 'Hurricanes': 'Carolina',
+        'Edmonton Oilers': 'Edmonton', 'Oilers': 'Edmonton',
+        'Toronto Maple Leafs': 'Toronto', 'Maple Leafs': 'Toronto',
+        'Pittsburgh Penguins': 'Pittsburgh', 'Penguins': 'Pittsburgh',
+        'Boston Bruins': 'Boston', 'Bruins': 'Boston',
+        'Buffalo Sabres': 'Buffalo', 'Sabres': 'Buffalo',
+        'Ottawa Senators': 'Ottawa', 'Senators': 'Ottawa',
+        'Dallas Stars': 'Dallas', 'Stars': 'Dallas',
+        'Anaheim Ducks': 'Anaheim', 'Ducks': 'Anaheim',
+        'Washington Capitals': 'Washington', 'Capitals': 'Washington',
+        'Minnesota Wild': 'Minnesota', 'Wild': 'Minnesota',
+        'Utah Hockey Club': 'Utah', 'Utah Mammoth': 'Utah', 'Mammoth': 'Utah', 'Utah HC': 'Utah',
+        'San Jose Sharks': 'San Jose', 'Sharks': 'San Jose',
+        'Detroit Red Wings': 'Detroit', 'Red Wings': 'Detroit',
+        'Philadelphia Flyers': 'Philadelphia', 'Flyers': 'Philadelphia',
+        'Florida Panthers': 'Florida', 'Panthers': 'Florida',
+        'Winnipeg Jets': 'Winnipeg', 'Jets': 'Winnipeg',
+        'Columbus Blue Jackets': 'Columbus', 'Blue Jackets': 'Columbus',
+        'Nashville Predators': 'Nashville', 'Predators': 'Nashville',
+        'New York Islanders': 'NY Islanders', 'Islanders': 'NY Islanders',
+        'Seattle Kraken': 'Seattle', 'Kraken': 'Seattle',
+        'Chicago Blackhawks': 'Chicago', 'Blackhawks': 'Chicago',
+        'New York Rangers': 'NY Rangers', 'Rangers': 'NY Rangers',
+        'Vancouver Canucks': 'Vancouver', 'Canucks': 'Vancouver',
+        'Los Angeles Kings': 'Los Angeles', 'Kings': 'Los Angeles',
+        'New Jersey Devils': 'New Jersey', 'Devils': 'New Jersey',
+        'Calgary Flames': 'Calgary', 'Flames': 'Calgary',
+        'St. Louis Blues': 'St. Louis', 'Blues': 'St. Louis',
+    }
+    
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        # ==================== NBA PPG ====================
+        try:
+            logger.info("[PPG Scraper] Scraping NBA PPG from teamrankings.com...")
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            
+            # Season PPG
+            resp = await client.get('https://www.teamrankings.com/nba/stat/points-per-game', headers=headers)
+            if resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                table = soup.find('table', {'class': 'tr-table'})
+                if table:
+                    rows = table.find_all('tr')[1:]  # Skip header
+                    for i, row in enumerate(rows[:30], 1):  # Top 30 teams
+                        cols = row.find_all('td')
+                        if len(cols) >= 3:
+                            team_name = cols[1].get_text(strip=True)
+                            season_ppg = cols[2].get_text(strip=True)
+                            last3_ppg = cols[3].get_text(strip=True) if len(cols) > 3 else season_ppg
+                            
+                            # Map team name
+                            mapped_name = nba_team_map.get(team_name, team_name)
+                            try:
+                                ppg_data["NBA"]["season"][mapped_name] = {"rank": i, "value": float(season_ppg)}
+                                ppg_data["NBA"]["last3"][mapped_name] = {"rank": i, "value": float(last3_ppg)}
+                            except ValueError:
+                                pass
+                    logger.info(f"[PPG Scraper] NBA: Found {len(ppg_data['NBA']['season'])} teams")
+        except Exception as e:
+            logger.error(f"[PPG Scraper] NBA scraping error: {e}")
+        
+        # ==================== NHL GPG Season ====================
+        try:
+            logger.info("[PPG Scraper] Scraping NHL GPG Season from nhl.com...")
+            nhl_url = 'https://api.nhle.com/stats/rest/en/team/summary?cayenneExp=seasonId=20242025%20and%20gameTypeId=2&sort=goalsForPerGame&limit=50'
+            resp = await client.get(nhl_url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                teams = data.get('data', [])
+                for i, team in enumerate(teams, 1):
+                    team_name = team.get('teamFullName', '')
+                    gpg = team.get('goalsForPerGame', 0)
+                    mapped_name = nhl_team_map.get(team_name, team_name)
+                    ppg_data["NHL"]["season"][mapped_name] = {"rank": i, "value": round(gpg, 2)}
+                logger.info(f"[PPG Scraper] NHL Season: Found {len(ppg_data['NHL']['season'])} teams")
+        except Exception as e:
+            logger.error(f"[PPG Scraper] NHL Season scraping error: {e}")
+            # Try alternative source
+            try:
+                resp = await client.get('https://www.nhl.com/stats/teams', headers=headers)
+                # Parse HTML if API fails
+            except:
+                pass
+        
+        # ==================== NHL GPG Last 3 Games ====================
+        try:
+            logger.info("[PPG Scraper] Scraping NHL GPG L3 from statmuse.com...")
+            resp = await client.get('https://www.statmuse.com/nhl/ask/nhl-team-most-goals-for-last-3-games', headers=headers)
+            if resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                # Find the table with stats
+                table = soup.find('table')
+                if table:
+                    rows = table.find_all('tr')[1:]  # Skip header
+                    last_value = 0
+                    for i, row in enumerate(rows[:32], 1):
+                        cols = row.find_all('td')
+                        if len(cols) >= 2:
+                            team_name = cols[0].get_text(strip=True)
+                            goals = cols[1].get_text(strip=True) if len(cols) > 1 else '0'
+                            
+                            # Clean team name
+                            for full_name, short_name in nhl_team_map.items():
+                                if full_name.lower() in team_name.lower() or team_name.lower() in full_name.lower():
+                                    team_name = short_name
+                                    break
+                            
+                            try:
+                                goals_val = float(goals)
+                                last_value = goals_val
+                                gpg_l3 = goals_val / 3  # Convert total goals to GPG
+                                ppg_data["NHL"]["last3"][team_name] = {"rank": i, "value": round(gpg_l3, 2)}
+                            except ValueError:
+                                pass
+                    
+                    # Fill remaining teams (26-32) with last value
+                    if len(ppg_data["NHL"]["last3"]) < 32:
+                        existing_teams = set(ppg_data["NHL"]["last3"].keys())
+                        all_nhl_teams = set(nhl_team_map.values())
+                        missing_teams = all_nhl_teams - existing_teams
+                        default_gpg = last_value / 3 if last_value > 0 else 2.5
+                        for j, team in enumerate(missing_teams, len(ppg_data["NHL"]["last3"]) + 1):
+                            ppg_data["NHL"]["last3"][team] = {"rank": j, "value": round(default_gpg, 2)}
+                    
+                    logger.info(f"[PPG Scraper] NHL L3: Found {len(ppg_data['NHL']['last3'])} teams")
+        except Exception as e:
+            logger.error(f"[PPG Scraper] NHL L3 scraping error: {e}")
+        
+        # ==================== NCAAB PPG ====================
+        try:
+            logger.info("[PPG Scraper] Scraping NCAAB PPG from teamrankings.com...")
+            resp = await client.get('https://www.teamrankings.com/ncaa-basketball/stat/points-per-game', headers=headers)
+            if resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                table = soup.find('table', {'class': 'tr-table'})
+                if table:
+                    rows = table.find_all('tr')[1:]  # Skip header
+                    for i, row in enumerate(rows, 1):
+                        cols = row.find_all('td')
+                        if len(cols) >= 3:
+                            team_name = cols[1].get_text(strip=True)
+                            season_ppg = cols[2].get_text(strip=True)
+                            last3_ppg = cols[3].get_text(strip=True) if len(cols) > 3 else season_ppg
+                            
+                            try:
+                                ppg_data["NCAAB"]["season"][team_name] = {"rank": i, "value": float(season_ppg)}
+                                ppg_data["NCAAB"]["last3"][team_name] = {"rank": i, "value": float(last3_ppg)}
+                            except ValueError:
+                                pass
+                    logger.info(f"[PPG Scraper] NCAAB: Found {len(ppg_data['NCAAB']['season'])} teams")
+        except Exception as e:
+            logger.error(f"[PPG Scraper] NCAAB scraping error: {e}")
+    
+    # Store in MongoDB for caching
+    try:
+        await db.ppg_data.update_one(
+            {"_id": "current"},
+            {
+                "$set": {
+                    "data": ppg_data,
+                    "last_updated": datetime.now(timezone.utc)
+                }
+            },
+            upsert=True
+        )
+        logger.info("[PPG Scraper] PPG data cached in MongoDB")
+    except Exception as e:
+        logger.error(f"[PPG Scraper] Error caching PPG data: {e}")
+    
+    return ppg_data
+
+
+async def get_cached_ppg_data():
+    """Get cached PPG data from MongoDB"""
+    try:
+        cached = await db.ppg_data.find_one({"_id": "current"})
+        if cached and cached.get("data"):
+            return cached["data"]
+    except:
+        pass
+    return None
+
+
 async def scrape_tomorrows_opening_lines():
     """
     #1 - 8:00 PM Arizona: Scrape tomorrow's games and opening lines from CBS Sports
@@ -7748,7 +7990,7 @@ async def scrape_tomorrows_opening_lines():
         logger.error(f"[8PM Job] Error in scrape_tomorrows_opening_lines: {e}")
 
 
-async def populate_ppg_and_dots_for_tomorrow():
+async def populate_ppg_and_dots_for_tomorrow(scraped_ppg_data=None):
     """
     #2 - After Scraping: Fill PPG Data & 4-Dot System for Tomorrow's Games
     
@@ -7760,12 +8002,27 @@ async def populate_ppg_and_dots_for_tomorrow():
     - 🔵 Blue: Rank 9-16 (Upper middle)
     - 🟡 Yellow: Rank 17-24 (Lower middle)
     - 🔴 Red: Rank 25-32 (Bottom tier)
+    
+    If scraped_ppg_data is provided, use that instead of hardcoded values.
     """
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
     tomorrow = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
     
     logger.info(f"[8PM Job #2] Populating PPG and dots for tomorrow ({tomorrow})")
+    
+    # Check if we have scraped data
+    use_scraped = scraped_ppg_data is not None and len(scraped_ppg_data.get("NBA", {}).get("season", {})) > 0
+    if use_scraped:
+        logger.info("[8PM Job #2] Using SCRAPED PPG/GPG data from external sources")
+    else:
+        logger.info("[8PM Job #2] Using HARDCODED PPG/GPG data (fallback)")
+        # Try to get cached data
+        cached = await get_cached_ppg_data()
+        if cached and len(cached.get("NBA", {}).get("season", {})) > 0:
+            scraped_ppg_data = cached
+            use_scraped = True
+            logger.info("[8PM Job #2] Using CACHED PPG/GPG data from MongoDB")
     
     def get_dot_color(rank: int) -> str:
         """Get dot color based on rank (1-32)"""
@@ -7779,7 +8036,8 @@ async def populate_ppg_and_dots_for_tomorrow():
             return "🔴"  # Red: Bottom tier
     
     # ==================== NBA PPG DATA ====================
-    nba_ppg_season = {
+    # Hardcoded fallback values
+    nba_ppg_season_hardcoded = {
         'Boston': 1, 'Okla City': 2, 'Indiana': 3, 'Milwaukee': 4, 'Golden State': 5,
         'Denver': 6, 'Minnesota': 7, 'Sacramento': 8, 'New York': 9, 'Dallas': 10,
         'Memphis': 11, 'Cleveland': 12, 'Houston': 13, 'LA Lakers': 14, 'Detroit': 15,
@@ -7787,7 +8045,7 @@ async def populate_ppg_and_dots_for_tomorrow():
         'LA Clippers': 21, 'Toronto': 22, 'Philadelphia': 23, 'Portland': 24, 'Washington': 25,
         'Chicago': 26, 'Utah': 27, 'Orlando': 28, 'Charlotte': 29, 'Miami': 30
     }
-    nba_ppg_last3 = {
+    nba_ppg_last3_hardcoded = {
         'Indiana': 1, 'Boston': 2, 'Memphis': 3, 'Golden State': 4, 'Detroit': 5,
         'Washington': 6, 'New York': 7, 'Milwaukee': 8, 'Houston': 9, 'Phoenix': 10,
         'Denver': 11, 'LA Lakers': 12, 'Sacramento': 13, 'Okla City': 14, 'Minnesota': 15,
@@ -7795,7 +8053,7 @@ async def populate_ppg_and_dots_for_tomorrow():
         'Atlanta': 21, 'New Orleans': 22, 'LA Clippers': 23, 'Portland': 24, 'Philadelphia': 25,
         'Chicago': 26, 'Utah': 27, 'Charlotte': 28, 'Orlando': 29, 'Miami': 30
     }
-    nba_ppg_season_values = {
+    nba_ppg_season_values_hardcoded = {
         'Denver': 125.8, 'Okla City': 121.5, 'New York': 120.6, 'Utah': 120.5,
         'Houston': 120.3, 'Miami': 120.2, 'San Antonio': 119.9, 'Cleveland': 119.5,
         'Detroit': 118.8, 'Chicago': 118.8, 'Atlanta': 118.8, 'Minnesota': 118.8,
@@ -7805,7 +8063,7 @@ async def populate_ppg_and_dots_for_tomorrow():
         'Dallas': 113.5, 'Milwaukee': 112.7, 'Sacramento': 111.7, 'LA Clippers': 111.5,
         'Brooklyn': 109.3, 'Indiana': 109.2
     }
-    nba_ppg_last3_values = {
+    nba_ppg_last3_values_hardcoded = {
         'Denver': 132.7, 'Okla City': 113.7, 'New York': 119.3, 'Utah': 128.7,
         'Houston': 114.7, 'Miami': 119.7, 'San Antonio': 120.3, 'Cleveland': 121.7,
         'Detroit': 121.3, 'Chicago': 112.7, 'Atlanta': 119.7, 'Minnesota': 120.0,
@@ -7816,10 +8074,23 @@ async def populate_ppg_and_dots_for_tomorrow():
         'Brooklyn': 101.7, 'Indiana': 99.3
     }
     
+    # Build NBA data from scraped or hardcoded
+    if use_scraped and scraped_ppg_data.get("NBA", {}).get("season"):
+        nba_ppg_season = {team: data["rank"] for team, data in scraped_ppg_data["NBA"]["season"].items()}
+        nba_ppg_season_values = {team: data["value"] for team, data in scraped_ppg_data["NBA"]["season"].items()}
+        nba_ppg_last3 = {team: data["rank"] for team, data in scraped_ppg_data["NBA"]["last3"].items()}
+        nba_ppg_last3_values = {team: data["value"] for team, data in scraped_ppg_data["NBA"]["last3"].items()}
+        logger.info(f"[8PM Job #2] NBA: Using {len(nba_ppg_season)} scraped teams")
+    else:
+        nba_ppg_season = nba_ppg_season_hardcoded
+        nba_ppg_last3 = nba_ppg_last3_hardcoded
+        nba_ppg_season_values = nba_ppg_season_values_hardcoded
+        nba_ppg_last3_values = nba_ppg_last3_values_hardcoded
+    
     # ==================== NHL GPG DATA ====================
-    # Updated Dec 29, 2025 from ESPN (Season GPG) and StatMuse (Last 3 Games GPG)
+    # Hardcoded fallback values
     # Season GPG Rankings (1-32)
-    nhl_gpg_season = {
+    nhl_gpg_season_hardcoded = {
         'Colorado': 1, 'Dallas': 2, 'Edmonton': 3, 'Anaheim': 4, 'Carolina': 5,
         'Montreal': 6, 'Tampa Bay': 7, 'Ottawa': 8, 'Toronto': 9, 'Washington': 10,
         'Vegas': 11, 'Florida': 12, 'Pittsburgh': 13, 'Boston': 14, 'Detroit': 15,
@@ -7829,7 +8100,7 @@ async def populate_ppg_and_dots_for_tomorrow():
         'NY Rangers': 31, 'St. Louis': 32
     }
     # Last 3 Games GPG Rankings (1-32)
-    nhl_gpg_last3 = {
+    nhl_gpg_last3_hardcoded = {
         'Toronto': 1, 'Vegas': 2, 'Montreal': 3, 'Ottawa': 4, 'Pittsburgh': 5,
         'Tampa Bay': 6, 'Colorado': 7, 'Dallas': 8, 'Edmonton': 9, 'Carolina': 10,
         'Buffalo': 11, 'San Jose': 12, 'Columbus': 13, 'Calgary': 14, 'Seattle': 15,
@@ -7839,7 +8110,7 @@ async def populate_ppg_and_dots_for_tomorrow():
         'Utah': 31, 'New Jersey': 32
     }
     # Season GPG Values (from ESPN)
-    nhl_gpg_season_values = {
+    nhl_gpg_season_values_hardcoded = {
         'Colorado': 3.97, 'Dallas': 3.49, 'Edmonton': 3.38, 'Anaheim': 3.32, 'Carolina': 3.30,
         'Montreal': 3.29, 'Tampa Bay': 3.29, 'Ottawa': 3.27, 'Toronto': 3.26, 'Washington': 3.18,
         'Vegas': 3.17, 'Florida': 3.16, 'Pittsburgh': 3.14, 'Boston': 3.10, 'Detroit': 3.08,
@@ -7849,7 +8120,7 @@ async def populate_ppg_and_dots_for_tomorrow():
         'NY Rangers': 2.55, 'St. Louis': 2.51
     }
     # Last 3 Games GPG Values (from StatMuse)
-    nhl_gpg_last3_values = {
+    nhl_gpg_last3_values_hardcoded = {
         'Toronto': 5.00, 'Vegas': 5.00, 'Montreal': 4.33, 'Ottawa': 4.33, 'Pittsburgh': 4.33,
         'Tampa Bay': 4.00, 'Colorado': 3.67, 'Dallas': 3.67, 'Edmonton': 3.67, 'Carolina': 3.67,
         'Buffalo': 3.33, 'San Jose': 3.33, 'Columbus': 3.33, 'Calgary': 3.33, 'Seattle': 3.33,
@@ -7858,6 +8129,37 @@ async def populate_ppg_and_dots_for_tomorrow():
         'Nashville': 2.33, 'Chicago': 2.33, 'Anaheim': 2.00, 'NY Islanders': 2.00, 'Boston': 1.67,
         'Utah': 1.67, 'New Jersey': 1.67
     }
+    
+    # Build NHL data from scraped or hardcoded
+    if use_scraped and scraped_ppg_data.get("NHL", {}).get("season"):
+        nhl_gpg_season = {team: data["rank"] for team, data in scraped_ppg_data["NHL"]["season"].items()}
+        nhl_gpg_season_values = {team: data["value"] for team, data in scraped_ppg_data["NHL"]["season"].items()}
+        if scraped_ppg_data["NHL"].get("last3"):
+            nhl_gpg_last3 = {team: data["rank"] for team, data in scraped_ppg_data["NHL"]["last3"].items()}
+            nhl_gpg_last3_values = {team: data["value"] for team, data in scraped_ppg_data["NHL"]["last3"].items()}
+        else:
+            nhl_gpg_last3 = nhl_gpg_last3_hardcoded
+            nhl_gpg_last3_values = nhl_gpg_last3_values_hardcoded
+        logger.info(f"[8PM Job #2] NHL: Using {len(nhl_gpg_season)} scraped teams")
+    else:
+        nhl_gpg_season = nhl_gpg_season_hardcoded
+        nhl_gpg_last3 = nhl_gpg_last3_hardcoded
+        nhl_gpg_season_values = nhl_gpg_season_values_hardcoded
+        nhl_gpg_last3_values = nhl_gpg_last3_values_hardcoded
+    
+    # ==================== NCAAB PPG DATA ====================
+    # Build NCAAB data from scraped or hardcoded
+    ncaab_ppg_season = {}
+    ncaab_ppg_last3 = {}
+    ncaab_ppg_season_values = {}
+    ncaab_ppg_last3_values = {}
+    
+    if use_scraped and scraped_ppg_data.get("NCAAB", {}).get("season"):
+        ncaab_ppg_season = {team: data["rank"] for team, data in scraped_ppg_data["NCAAB"]["season"].items()}
+        ncaab_ppg_season_values = {team: data["value"] for team, data in scraped_ppg_data["NCAAB"]["season"].items()}
+        ncaab_ppg_last3 = {team: data["rank"] for team, data in scraped_ppg_data["NCAAB"]["last3"].items()}
+        ncaab_ppg_last3_values = {team: data["value"] for team, data in scraped_ppg_data["NCAAB"]["last3"].items()}
+        logger.info(f"[8PM Job #2] NCAAB: Using {len(ncaab_ppg_season)} scraped teams")
     
     # ==================== NFL PPG DATA ====================
     # From teamrankings.com/nfl/stat/points-per-game (Dec 27, 2025)
@@ -7902,10 +8204,10 @@ async def populate_ppg_and_dots_for_tomorrow():
         'Las Vegas': 12.7, 'NY Jets': 12.0, 'Kansas City': 11.7
     }
     
-    # Edge thresholds by league (NFL eliminated)
-    edge_thresholds = {'NBA': 8, 'NHL': 0.6}
+    # Edge thresholds by league
+    edge_thresholds = {'NBA': 8, 'NHL': 0.6, 'NCAAB': 8}
     
-    for league in ['NBA', 'NHL']:
+    for league in ['NBA', 'NHL', 'NCAAB']:
         try:
             collection_name = f"{league.lower()}_opportunities"
             collection = db[collection_name]
@@ -7931,13 +8233,15 @@ async def populate_ppg_and_dots_for_tomorrow():
                 ppg_last3 = nhl_gpg_last3
                 ppg_season_values = nhl_gpg_season_values
                 ppg_last3_values = nhl_gpg_last3_values
-            else:  # NFL
-                ppg_season = nfl_ppg_season
-                ppg_last3 = nfl_ppg_last3
-                ppg_season_values = nfl_ppg_season_values
-                ppg_last3_values = nfl_ppg_last3_values
+            elif league == 'NCAAB':
+                ppg_season = ncaab_ppg_season
+                ppg_last3 = ncaab_ppg_last3
+                ppg_season_values = ncaab_ppg_season_values
+                ppg_last3_values = ncaab_ppg_last3_values
+            else:
+                continue
             
-            edge_threshold = edge_thresholds[league]
+            edge_threshold = edge_thresholds.get(league, 8)
             
             # Process each game
             for game in games:
@@ -8193,7 +8497,7 @@ async def populate_ppg_and_dots_for_tomorrow():
 
 async def execute_8pm_process():
     """
-    Execute the full 8pm process: #1 (scrape opening lines) + #2 (populate PPG and dots)
+    Execute the full 8pm process: #1 (scrape opening lines) + #1.5 (scrape PPG/GPG) + #2 (populate PPG and dots)
     This is called by the scheduled job at 8pm Arizona time or manually via API.
     """
     from zoneinfo import ZoneInfo
@@ -8210,9 +8514,18 @@ async def execute_8pm_process():
     logger.info(f"[8PM PROCESS] Step #1: Scraping tomorrow's opening lines...")
     await scrape_tomorrows_opening_lines()
     
+    # Step #1.5: Scrape PPG/GPG data from external sources
+    logger.info(f"[8PM PROCESS] Step #1.5: Scraping PPG/GPG data from external sources...")
+    try:
+        ppg_data = await scrape_ppg_data_all_leagues()
+        logger.info(f"[8PM PROCESS] PPG data scraped successfully")
+    except Exception as e:
+        logger.error(f"[8PM PROCESS] Error scraping PPG data: {e}")
+        ppg_data = None
+    
     # Step #2: Populate PPG and dots
     logger.info(f"[8PM PROCESS] Step #2: Populating PPG and 4-dot analysis...")
-    await populate_ppg_and_dots_for_tomorrow()
+    await populate_ppg_and_dots_for_tomorrow(ppg_data)
     
     logger.info(f"[8PM PROCESS] ✅ Completed successfully")
     return {"status": "success", "date": tomorrow, "timestamp": now_arizona.isoformat()}
