@@ -8934,7 +8934,8 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                     elif game.get('user_bet_hit') is False:
                         date_bet_losses += 1
             
-            # Calculate Public Record for NHL (consensus >= 57% threshold)
+            # Calculate Public Record for NHL (consensus >= 61% threshold)
+            # NHL uses MONEYLINE - simply check if the public pick WON the game
             date_public_hits = 0
             date_public_misses = 0
             for game in doc['games']:
@@ -8947,7 +8948,8 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 is_away_public_pick = away_pct >= home_pct
                 public_pct = away_pct if is_away_public_pick else home_pct
                 
-                if public_pct < PUBLIC_CONSENSUS_THRESHOLD:
+                # NHL uses 61% threshold for public picks
+                if public_pct < 61:
                     continue
                 
                 away_score = game.get('away_score')
@@ -8955,63 +8957,60 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 if away_score is None or home_score is None:
                     continue
                 
-                # Get spread - PRIORITY: Covers.com first, CBS Sports as fallback
-                public_spread = None
-                spread_source = None
-                
+                # Get moneyline for display (the line the public team had)
+                public_moneyline = None
                 if is_away_public_pick:
-                    if game.get('away_spread') is not None:
-                        public_spread = float(game.get('away_spread'))
-                        spread_source = "Covers.com"
-                    elif game.get('spread') is not None:
-                        public_spread = -float(game.get('spread'))
-                        spread_source = "CBS Sports"
+                    # Away team is public pick - get away moneyline
+                    if game.get('moneyline_team') == game.get('away_team'):
+                        public_moneyline = game.get('moneyline')
+                    elif game.get('moneyline') is not None:
+                        # Moneyline is for the other team, calculate opposite
+                        ml = game.get('moneyline')
+                        if ml < 0:
+                            public_moneyline = int(abs(ml) - 100) if abs(ml) > 100 else int(10000 / abs(ml))
+                        else:
+                            public_moneyline = -int(ml + 100)
                 else:
-                    if game.get('away_spread') is not None:
-                        public_spread = -float(game.get('away_spread'))
-                        spread_source = "Covers.com"
-                    elif game.get('spread') is not None:
-                        public_spread = float(game.get('spread'))
-                        spread_source = "CBS Sports"
-                
-                if public_spread is None:
-                    continue
+                    # Home team is public pick - get home moneyline
+                    if game.get('moneyline_team') == game.get('home_team'):
+                        public_moneyline = game.get('moneyline')
+                    elif game.get('moneyline') is not None:
+                        ml = game.get('moneyline')
+                        if ml < 0:
+                            public_moneyline = int(abs(ml) - 100) if abs(ml) > 100 else int(10000 / abs(ml))
+                        else:
+                            public_moneyline = -int(ml + 100)
                 
                 try:
                     away_score_f = float(away_score)
                     home_score_f = float(home_score)
-                    spread_f = float(public_spread)
                     
+                    # NHL Moneyline: Simply check if the public pick WON the game
                     if is_away_public_pick:
-                        covered = away_score_f + spread_f > home_score_f
-                        push = away_score_f + spread_f == home_score_f
+                        public_pick_won = away_score_f > home_score_f
                     else:
-                        covered = home_score_f + spread_f > away_score_f
-                        push = home_score_f + spread_f == away_score_f
+                        public_pick_won = home_score_f > away_score_f
                     
-                    if not push:
-                        if covered:
-                            date_public_hits += 1
-                            results["NHL"]["public"]["games"].append({
-                                "date": date,
-                                "game": f"{game.get('away_team')} @ {game.get('home_team')}",
-                                "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
-                                "consensus_pct": public_pct,
-                                "spread": public_spread,
-                                "spread_source": spread_source,
-                                "result": "HIT"
-                            })
-                        else:
-                            date_public_misses += 1
-                            results["NHL"]["public"]["games"].append({
-                                "date": date,
-                                "game": f"{game.get('away_team')} @ {game.get('home_team')}",
-                                "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
-                                "consensus_pct": public_pct,
-                                "spread": public_spread,
-                                "spread_source": spread_source,
-                                "result": "MISS"
-                            })
+                    if public_pick_won:
+                        date_public_hits += 1
+                        results["NHL"]["public"]["games"].append({
+                            "date": date,
+                            "game": f"{game.get('away_team')} @ {game.get('home_team')}",
+                            "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
+                            "consensus_pct": public_pct,
+                            "moneyline": public_moneyline,
+                            "result": "HIT"
+                        })
+                    else:
+                        date_public_misses += 1
+                        results["NHL"]["public"]["games"].append({
+                            "date": date,
+                            "game": f"{game.get('away_team')} @ {game.get('home_team')}",
+                            "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
+                            "consensus_pct": public_pct,
+                            "moneyline": public_moneyline,
+                            "result": "MISS"
+                        })
                 except (ValueError, TypeError):
                     continue
             
