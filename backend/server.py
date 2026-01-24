@@ -7646,12 +7646,12 @@ async def refresh_nba_opportunities_scheduled():
 
 async def scrape_ppg_data_all_leagues():
     """
-    Scrape PPG/GPG data from external sources for all leagues using Playwright.
+    Scrape PPG/GPG data from external sources for all leagues.
+    Uses httpx for speed and reliability, with fallback to hardcoded values.
     Returns a dictionary with season and last3 values for NBA, NHL, NCAAB.
     """
-    from playwright.async_api import async_playwright
+    import httpx
     from bs4 import BeautifulSoup
-    import re
     
     logger.info("[PPG Scraper] Starting PPG/GPG scraping for all leagues...")
     
@@ -7661,282 +7661,169 @@ async def scrape_ppg_data_all_leagues():
         "NCAAB": {"season": {}, "last3": {}}
     }
     
-    # NBA team name mappings
+    # Team name mappings
     nba_team_map = {
-        'Oklahoma City': 'Okla City', 'OKC Thunder': 'Okla City', 'Thunder': 'Okla City', 'Oklahoma City Thunder': 'Okla City',
-        'LA Lakers': 'LA Lakers', 'Los Angeles Lakers': 'LA Lakers', 'Lakers': 'LA Lakers',
-        'LA Clippers': 'LA Clippers', 'Los Angeles Clippers': 'LA Clippers', 'Clippers': 'LA Clippers',
-        'Golden State': 'Golden State', 'Warriors': 'Golden State', 'Golden State Warriors': 'Golden State',
-        'San Antonio': 'San Antonio', 'Spurs': 'San Antonio', 'San Antonio Spurs': 'San Antonio',
-        'New York': 'New York', 'Knicks': 'New York', 'New York Knicks': 'New York',
-        'New Orleans': 'New Orleans', 'Pelicans': 'New Orleans', 'New Orleans Pelicans': 'New Orleans',
-        'Minnesota': 'Minnesota', 'Timberwolves': 'Minnesota', 'Minnesota Timberwolves': 'Minnesota',
-        'Portland': 'Portland', 'Trail Blazers': 'Portland', 'Blazers': 'Portland', 'Portland Trail Blazers': 'Portland',
-        'Sacramento': 'Sacramento', 'Kings': 'Sacramento', 'Sacramento Kings': 'Sacramento',
-        'Philadelphia': 'Philadelphia', '76ers': 'Philadelphia', 'Sixers': 'Philadelphia', 'Philadelphia 76ers': 'Philadelphia',
-        'Washington': 'Washington', 'Wizards': 'Washington', 'Washington Wizards': 'Washington',
-        'Cleveland': 'Cleveland', 'Cavaliers': 'Cleveland', 'Cavs': 'Cleveland', 'Cleveland Cavaliers': 'Cleveland',
-        'Milwaukee': 'Milwaukee', 'Bucks': 'Milwaukee', 'Milwaukee Bucks': 'Milwaukee',
-        'Indiana': 'Indiana', 'Pacers': 'Indiana', 'Indiana Pacers': 'Indiana',
-        'Detroit': 'Detroit', 'Pistons': 'Detroit', 'Detroit Pistons': 'Detroit',
-        'Chicago': 'Chicago', 'Bulls': 'Chicago', 'Chicago Bulls': 'Chicago',
-        'Atlanta': 'Atlanta', 'Hawks': 'Atlanta', 'Atlanta Hawks': 'Atlanta',
-        'Miami': 'Miami', 'Heat': 'Miami', 'Miami Heat': 'Miami',
-        'Orlando': 'Orlando', 'Magic': 'Orlando', 'Orlando Magic': 'Orlando',
-        'Charlotte': 'Charlotte', 'Hornets': 'Charlotte', 'Charlotte Hornets': 'Charlotte',
-        'Brooklyn': 'Brooklyn', 'Nets': 'Brooklyn', 'Brooklyn Nets': 'Brooklyn',
-        'Toronto': 'Toronto', 'Raptors': 'Toronto', 'Toronto Raptors': 'Toronto',
-        'Boston': 'Boston', 'Celtics': 'Boston', 'Boston Celtics': 'Boston',
-        'Denver': 'Denver', 'Nuggets': 'Denver', 'Denver Nuggets': 'Denver',
-        'Utah': 'Utah', 'Jazz': 'Utah', 'Utah Jazz': 'Utah',
-        'Phoenix': 'Phoenix', 'Suns': 'Phoenix', 'Phoenix Suns': 'Phoenix',
-        'Dallas': 'Dallas', 'Mavericks': 'Dallas', 'Mavs': 'Dallas', 'Dallas Mavericks': 'Dallas',
-        'Houston': 'Houston', 'Rockets': 'Houston', 'Houston Rockets': 'Houston',
-        'Memphis': 'Memphis', 'Grizzlies': 'Memphis', 'Memphis Grizzlies': 'Memphis',
+        'Oklahoma City': 'Okla City', 'OKC Thunder': 'Okla City', 'Oklahoma City Thunder': 'Okla City',
+        'Los Angeles Lakers': 'LA Lakers', 'LA Lakers': 'LA Lakers',
+        'Los Angeles Clippers': 'LA Clippers', 'LA Clippers': 'LA Clippers',
+        'Golden State': 'Golden State', 'Golden State Warriors': 'Golden State',
+        'San Antonio': 'San Antonio', 'San Antonio Spurs': 'San Antonio',
+        'New York': 'New York', 'New York Knicks': 'New York',
+        'New Orleans': 'New Orleans', 'New Orleans Pelicans': 'New Orleans',
+        'Minnesota': 'Minnesota', 'Minnesota Timberwolves': 'Minnesota',
+        'Portland': 'Portland', 'Portland Trail Blazers': 'Portland',
+        'Sacramento': 'Sacramento', 'Sacramento Kings': 'Sacramento',
+        'Philadelphia': 'Philadelphia', 'Philadelphia 76ers': 'Philadelphia',
+        'Washington': 'Washington', 'Washington Wizards': 'Washington',
+        'Cleveland': 'Cleveland', 'Cleveland Cavaliers': 'Cleveland',
+        'Milwaukee': 'Milwaukee', 'Milwaukee Bucks': 'Milwaukee',
+        'Indiana': 'Indiana', 'Indiana Pacers': 'Indiana',
+        'Detroit': 'Detroit', 'Detroit Pistons': 'Detroit',
+        'Chicago': 'Chicago', 'Chicago Bulls': 'Chicago',
+        'Atlanta': 'Atlanta', 'Atlanta Hawks': 'Atlanta',
+        'Miami': 'Miami', 'Miami Heat': 'Miami',
+        'Orlando': 'Orlando', 'Orlando Magic': 'Orlando',
+        'Charlotte': 'Charlotte', 'Charlotte Hornets': 'Charlotte',
+        'Brooklyn': 'Brooklyn', 'Brooklyn Nets': 'Brooklyn',
+        'Toronto': 'Toronto', 'Toronto Raptors': 'Toronto',
+        'Boston': 'Boston', 'Boston Celtics': 'Boston',
+        'Denver': 'Denver', 'Denver Nuggets': 'Denver',
+        'Utah': 'Utah', 'Utah Jazz': 'Utah',
+        'Phoenix': 'Phoenix', 'Phoenix Suns': 'Phoenix',
+        'Dallas': 'Dallas', 'Dallas Mavericks': 'Dallas',
+        'Houston': 'Houston', 'Houston Rockets': 'Houston',
+        'Memphis': 'Memphis', 'Memphis Grizzlies': 'Memphis',
     }
     
-    # NHL team name mappings
     nhl_team_map = {
-        'Colorado Avalanche': 'Colorado', 'Avalanche': 'Colorado', 'Colorado': 'Colorado',
-        'Tampa Bay Lightning': 'Tampa Bay', 'Lightning': 'Tampa Bay', 'Tampa Bay': 'Tampa Bay',
-        'Vegas Golden Knights': 'Vegas', 'Golden Knights': 'Vegas', 'Vegas': 'Vegas',
-        'Montréal Canadiens': 'Montreal', 'Montreal Canadiens': 'Montreal', 'Canadiens': 'Montreal', 'Montreal': 'Montreal',
-        'Carolina Hurricanes': 'Carolina', 'Hurricanes': 'Carolina', 'Carolina': 'Carolina',
-        'Edmonton Oilers': 'Edmonton', 'Oilers': 'Edmonton', 'Edmonton': 'Edmonton',
-        'Toronto Maple Leafs': 'Toronto', 'Maple Leafs': 'Toronto', 'Toronto': 'Toronto',
-        'Pittsburgh Penguins': 'Pittsburgh', 'Penguins': 'Pittsburgh', 'Pittsburgh': 'Pittsburgh',
-        'Boston Bruins': 'Boston', 'Bruins': 'Boston', 'Boston': 'Boston',
-        'Buffalo Sabres': 'Buffalo', 'Sabres': 'Buffalo', 'Buffalo': 'Buffalo',
-        'Ottawa Senators': 'Ottawa', 'Senators': 'Ottawa', 'Ottawa': 'Ottawa',
-        'Dallas Stars': 'Dallas', 'Stars': 'Dallas', 'Dallas': 'Dallas',
-        'Anaheim Ducks': 'Anaheim', 'Ducks': 'Anaheim', 'Anaheim': 'Anaheim',
-        'Washington Capitals': 'Washington', 'Capitals': 'Washington', 'Washington': 'Washington',
-        'Minnesota Wild': 'Minnesota', 'Wild': 'Minnesota', 'Minnesota': 'Minnesota',
-        'Utah Hockey Club': 'Utah', 'Utah Mammoth': 'Utah', 'Mammoth': 'Utah', 'Utah HC': 'Utah', 'Utah': 'Utah',
-        'San Jose Sharks': 'San Jose', 'Sharks': 'San Jose', 'San Jose': 'San Jose',
-        'Detroit Red Wings': 'Detroit', 'Red Wings': 'Detroit', 'Detroit': 'Detroit',
-        'Philadelphia Flyers': 'Philadelphia', 'Flyers': 'Philadelphia', 'Philadelphia': 'Philadelphia',
-        'Florida Panthers': 'Florida', 'Panthers': 'Florida', 'Florida': 'Florida',
-        'Winnipeg Jets': 'Winnipeg', 'Jets': 'Winnipeg', 'Winnipeg': 'Winnipeg',
-        'Columbus Blue Jackets': 'Columbus', 'Blue Jackets': 'Columbus', 'Columbus': 'Columbus',
-        'Nashville Predators': 'Nashville', 'Predators': 'Nashville', 'Nashville': 'Nashville',
-        'New York Islanders': 'NY Islanders', 'Islanders': 'NY Islanders', 'NY Islanders': 'NY Islanders',
-        'Seattle Kraken': 'Seattle', 'Kraken': 'Seattle', 'Seattle': 'Seattle',
-        'Chicago Blackhawks': 'Chicago', 'Blackhawks': 'Chicago', 'Chicago': 'Chicago',
-        'New York Rangers': 'NY Rangers', 'Rangers': 'NY Rangers', 'NY Rangers': 'NY Rangers',
-        'Vancouver Canucks': 'Vancouver', 'Canucks': 'Vancouver', 'Vancouver': 'Vancouver',
-        'Los Angeles Kings': 'Los Angeles', 'Kings': 'Los Angeles', 'Los Angeles': 'Los Angeles', 'LA Kings': 'Los Angeles',
-        'New Jersey Devils': 'New Jersey', 'Devils': 'New Jersey', 'New Jersey': 'New Jersey',
-        'Calgary Flames': 'Calgary', 'Flames': 'Calgary', 'Calgary': 'Calgary',
-        'St. Louis Blues': 'St. Louis', 'Blues': 'St. Louis', 'St. Louis': 'St. Louis', 'St Louis': 'St. Louis',
+        'Colorado Avalanche': 'Colorado', 'COL': 'Colorado',
+        'Tampa Bay Lightning': 'Tampa Bay', 'TBL': 'Tampa Bay',
+        'Vegas Golden Knights': 'Vegas', 'VGK': 'Vegas',
+        'Montréal Canadiens': 'Montreal', 'Montreal Canadiens': 'Montreal', 'MTL': 'Montreal',
+        'Carolina Hurricanes': 'Carolina', 'CAR': 'Carolina',
+        'Edmonton Oilers': 'Edmonton', 'EDM': 'Edmonton',
+        'Toronto Maple Leafs': 'Toronto', 'TOR': 'Toronto',
+        'Pittsburgh Penguins': 'Pittsburgh', 'PIT': 'Pittsburgh',
+        'Boston Bruins': 'Boston', 'BOS': 'Boston',
+        'Buffalo Sabres': 'Buffalo', 'BUF': 'Buffalo',
+        'Ottawa Senators': 'Ottawa', 'OTT': 'Ottawa',
+        'Dallas Stars': 'Dallas', 'DAL': 'Dallas',
+        'Anaheim Ducks': 'Anaheim', 'ANA': 'Anaheim',
+        'Washington Capitals': 'Washington', 'WSH': 'Washington',
+        'Minnesota Wild': 'Minnesota', 'MIN': 'Minnesota',
+        'Utah Hockey Club': 'Utah', 'UTA': 'Utah',
+        'San Jose Sharks': 'San Jose', 'SJS': 'San Jose',
+        'Detroit Red Wings': 'Detroit', 'DET': 'Detroit',
+        'Philadelphia Flyers': 'Philadelphia', 'PHI': 'Philadelphia',
+        'Florida Panthers': 'Florida', 'FLA': 'Florida',
+        'Winnipeg Jets': 'Winnipeg', 'WPG': 'Winnipeg',
+        'Columbus Blue Jackets': 'Columbus', 'CBJ': 'Columbus',
+        'Nashville Predators': 'Nashville', 'NSH': 'Nashville',
+        'New York Islanders': 'NY Islanders', 'NYI': 'NY Islanders',
+        'Seattle Kraken': 'Seattle', 'SEA': 'Seattle',
+        'Chicago Blackhawks': 'Chicago', 'CHI': 'Chicago',
+        'New York Rangers': 'NY Rangers', 'NYR': 'NY Rangers',
+        'Vancouver Canucks': 'Vancouver', 'VAN': 'Vancouver',
+        'Los Angeles Kings': 'Los Angeles', 'LAK': 'Los Angeles',
+        'New Jersey Devils': 'New Jersey', 'NJD': 'New Jersey',
+        'Calgary Flames': 'Calgary', 'CGY': 'Calgary',
+        'St. Louis Blues': 'St. Louis', 'STL': 'St. Louis',
     }
     
-    def normalize_team_name(name, team_map):
-        """Normalize team name using the mapping"""
-        name = name.strip()
-        if name in team_map:
-            return team_map[name]
-        # Try partial match
-        for full_name, short_name in team_map.items():
-            if full_name.lower() in name.lower() or name.lower() in full_name.lower():
-                return short_name
-        return name
+    def normalize_nba(name):
+        return nba_team_map.get(name, name)
     
-    browser = None
-    try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            )
-            page = await context.new_page()
-            
-            # ==================== NBA PPG ====================
-            try:
-                logger.info("[PPG Scraper] Scraping NBA PPG from teamrankings.com...")
-                await page.goto('https://www.teamrankings.com/nba/stat/points-per-game', timeout=30000)
-                await page.wait_for_load_state('networkidle', timeout=15000)
-                await page.wait_for_timeout(2000)
-                
-                html = await page.content()
-                soup = BeautifulSoup(html, 'html.parser')
+    def normalize_nhl(name):
+        return nhl_team_map.get(name, name)
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+    }
+    
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+        
+        # ==================== NBA PPG from teamrankings.com ====================
+        try:
+            logger.info("[PPG Scraper] Scraping NBA PPG...")
+            resp = await client.get('https://www.teamrankings.com/nba/stat/points-per-game', headers=headers)
+            if resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, 'html.parser')
                 table = soup.find('table', {'class': 'tr-table'})
-                
                 if table:
-                    rows = table.find_all('tr')[1:]  # Skip header
-                    for i, row in enumerate(rows[:30], 1):  # Top 30 teams
+                    rows = table.find_all('tr')[1:]
+                    for i, row in enumerate(rows[:30], 1):
                         cols = row.find_all('td')
                         if len(cols) >= 3:
-                            team_name = cols[1].get_text(strip=True)
-                            season_ppg = cols[2].get_text(strip=True)
-                            last3_ppg = cols[3].get_text(strip=True) if len(cols) > 3 else season_ppg
-                            
-                            # Normalize team name
-                            mapped_name = normalize_team_name(team_name, nba_team_map)
+                            team = normalize_nba(cols[1].get_text(strip=True))
                             try:
-                                ppg_data["NBA"]["season"][mapped_name] = {"rank": i, "value": float(season_ppg)}
-                                ppg_data["NBA"]["last3"][mapped_name] = {"rank": i, "value": float(last3_ppg)}
-                            except ValueError:
-                                logger.warning(f"[PPG Scraper] NBA: Could not parse values for {team_name}")
-                    logger.info(f"[PPG Scraper] NBA: Found {len(ppg_data['NBA']['season'])} teams")
-                else:
-                    logger.warning("[PPG Scraper] NBA: Could not find table")
-            except Exception as e:
-                logger.error(f"[PPG Scraper] NBA scraping error: {e}")
-            
-            # ==================== NHL GPG Season ====================
-            try:
-                logger.info("[PPG Scraper] Scraping NHL GPG Season from nhl.com...")
-                await page.goto('https://www.nhl.com/stats/teams?reportType=season&seasonFrom=20242025&seasonTo=20242025&gameType=2&sort=goalsForPerGame&page=0&pageSize=50', timeout=30000)
-                await page.wait_for_load_state('networkidle', timeout=15000)
-                await page.wait_for_timeout(3000)
-                
-                # NHL uses dynamic tables, try to find the data
-                html = await page.content()
-                soup = BeautifulSoup(html, 'html.parser')
-                
-                # Try to find team rows
-                team_rows = soup.find_all('tr', {'class': lambda x: x and 'rt-tr' in x if x else False})
-                if not team_rows:
-                    # Alternative: look for any table rows with team data
-                    all_rows = soup.find_all('tr')
-                    team_rows = [r for r in all_rows if r.find('a') and ('nhl.com/team' in str(r) or 'team' in str(r).lower())]
-                
-                if team_rows:
-                    for i, row in enumerate(team_rows[:32], 1):
-                        cols = row.find_all('td')
-                        if len(cols) >= 2:
-                            # Extract team name (usually in first column or a link)
-                            team_link = row.find('a')
-                            team_name = team_link.get_text(strip=True) if team_link else cols[0].get_text(strip=True)
-                            
-                            # Find GPG column (usually 5th or 6th column for goals per game)
-                            gpg = None
-                            for col in cols:
-                                text = col.get_text(strip=True)
-                                try:
-                                    val = float(text)
-                                    if 2.0 <= val <= 5.0:  # GPG is typically between 2-5
-                                        gpg = val
-                                        break
-                                except:
-                                    pass
-                            
-                            if gpg and team_name:
-                                mapped_name = normalize_team_name(team_name, nhl_team_map)
-                                ppg_data["NHL"]["season"][mapped_name] = {"rank": i, "value": round(gpg, 2)}
-                    logger.info(f"[PPG Scraper] NHL Season: Found {len(ppg_data['NHL']['season'])} teams")
-                else:
-                    logger.warning("[PPG Scraper] NHL Season: Could not find team rows, trying text extraction...")
-                    # Fallback: extract from page text
-                    text = await page.inner_text('body')
-                    # Try to parse team names and GPG from text
-                    lines = text.split('\n')
-                    # Look for lines that look like team stats
-                    
-            except Exception as e:
-                logger.error(f"[PPG Scraper] NHL Season scraping error: {e}")
-            
-            # ==================== NHL GPG Last 3 Games ====================
-            try:
-                logger.info("[PPG Scraper] Scraping NHL GPG L3 from statmuse.com...")
-                await page.goto('https://www.statmuse.com/nhl/ask/nhl-team-most-goals-for-last-3-games', timeout=30000)
-                await page.wait_for_load_state('networkidle', timeout=15000)
-                await page.wait_for_timeout(3000)
-                
-                html = await page.content()
-                soup = BeautifulSoup(html, 'html.parser')
-                
-                # Find the table
-                table = soup.find('table')
-                if table:
-                    rows = table.find_all('tr')[1:]  # Skip header
-                    last_goals = 0
-                    for i, row in enumerate(rows[:32], 1):
-                        cols = row.find_all('td')
-                        if len(cols) >= 2:
-                            team_name = cols[0].get_text(strip=True)
-                            goals_text = cols[1].get_text(strip=True) if len(cols) > 1 else '0'
-                            
-                            try:
-                                goals = float(goals_text)
-                                last_goals = goals
-                                gpg_l3 = round(goals / 3, 2)  # Convert total goals to GPG
-                                mapped_name = normalize_team_name(team_name, nhl_team_map)
-                                ppg_data["NHL"]["last3"][mapped_name] = {"rank": i, "value": gpg_l3}
-                            except ValueError:
+                                season_val = float(cols[2].get_text(strip=True))
+                                last3_val = float(cols[3].get_text(strip=True)) if len(cols) > 3 else season_val
+                                ppg_data["NBA"]["season"][team] = {"rank": i, "value": season_val}
+                                ppg_data["NBA"]["last3"][team] = {"rank": i, "value": last3_val}
+                            except:
                                 pass
-                    
-                    # Fill remaining teams (26-32) with last value
-                    if len(ppg_data["NHL"]["last3"]) < 32 and len(ppg_data["NHL"]["last3"]) > 0:
-                        all_nhl_teams = set(nhl_team_map.values())
-                        existing_teams = set(ppg_data["NHL"]["last3"].keys())
-                        missing_teams = all_nhl_teams - existing_teams
-                        default_gpg = last_goals / 3 if last_goals > 0 else 2.5
-                        for j, team in enumerate(missing_teams, len(ppg_data["NHL"]["last3"]) + 1):
-                            if j <= 32:
-                                ppg_data["NHL"]["last3"][team] = {"rank": j, "value": round(default_gpg, 2)}
-                    
-                    logger.info(f"[PPG Scraper] NHL L3: Found {len(ppg_data['NHL']['last3'])} teams")
-                else:
-                    logger.warning("[PPG Scraper] NHL L3: Could not find table")
-            except Exception as e:
-                logger.error(f"[PPG Scraper] NHL L3 scraping error: {e}")
-            
-            # ==================== NCAAB PPG ====================
-            try:
-                logger.info("[PPG Scraper] Scraping NCAAB PPG from teamrankings.com...")
-                await page.goto('https://www.teamrankings.com/ncaa-basketball/stat/points-per-game', timeout=30000)
-                await page.wait_for_load_state('networkidle', timeout=15000)
-                await page.wait_for_timeout(2000)
-                
-                html = await page.content()
-                soup = BeautifulSoup(html, 'html.parser')
+                    logger.info(f"[PPG Scraper] NBA: {len(ppg_data['NBA']['season'])} teams")
+        except Exception as e:
+            logger.error(f"[PPG Scraper] NBA error: {e}")
+        
+        # ==================== NHL GPG from NHL API ====================
+        try:
+            logger.info("[PPG Scraper] Scraping NHL GPG from API...")
+            # NHL official stats API
+            nhl_url = 'https://api.nhle.com/stats/rest/en/team/summary?cayenneExp=seasonId=20242025%20and%20gameTypeId=2&sort=goalsForPerGame&limit=50'
+            resp = await client.get(nhl_url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                teams = data.get('data', [])
+                for i, team in enumerate(teams, 1):
+                    team_name = normalize_nhl(team.get('teamFullName', ''))
+                    gpg = team.get('goalsForPerGame', 0)
+                    if team_name and gpg:
+                        ppg_data["NHL"]["season"][team_name] = {"rank": i, "value": round(gpg, 2)}
+                        # Use season GPG as L3 approximation
+                        ppg_data["NHL"]["last3"][team_name] = {"rank": i, "value": round(gpg, 2)}
+                logger.info(f"[PPG Scraper] NHL: {len(ppg_data['NHL']['season'])} teams")
+            else:
+                logger.warning(f"[PPG Scraper] NHL API returned {resp.status_code}")
+        except Exception as e:
+            logger.error(f"[PPG Scraper] NHL error: {e}")
+        
+        # ==================== NCAAB PPG from teamrankings.com ====================
+        try:
+            logger.info("[PPG Scraper] Scraping NCAAB PPG...")
+            resp = await client.get('https://www.teamrankings.com/ncaa-basketball/stat/points-per-game', headers=headers)
+            if resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, 'html.parser')
                 table = soup.find('table', {'class': 'tr-table'})
-                
                 if table:
-                    rows = table.find_all('tr')[1:]  # Skip header
+                    rows = table.find_all('tr')[1:]
                     for i, row in enumerate(rows, 1):
                         cols = row.find_all('td')
                         if len(cols) >= 3:
-                            team_name = cols[1].get_text(strip=True)
-                            season_ppg = cols[2].get_text(strip=True)
-                            last3_ppg = cols[3].get_text(strip=True) if len(cols) > 3 else season_ppg
-                            
+                            team = cols[1].get_text(strip=True)
                             try:
-                                ppg_data["NCAAB"]["season"][team_name] = {"rank": i, "value": float(season_ppg)}
-                                ppg_data["NCAAB"]["last3"][team_name] = {"rank": i, "value": float(last3_ppg)}
-                            except ValueError:
+                                season_val = float(cols[2].get_text(strip=True))
+                                last3_val = float(cols[3].get_text(strip=True)) if len(cols) > 3 else season_val
+                                ppg_data["NCAAB"]["season"][team] = {"rank": i, "value": season_val}
+                                ppg_data["NCAAB"]["last3"][team] = {"rank": i, "value": last3_val}
+                            except:
                                 pass
-                    logger.info(f"[PPG Scraper] NCAAB: Found {len(ppg_data['NCAAB']['season'])} teams")
-                else:
-                    logger.warning("[PPG Scraper] NCAAB: Could not find table")
-            except Exception as e:
-                logger.error(f"[PPG Scraper] NCAAB scraping error: {e}")
-            
-            await context.close()
-            
-    except Exception as e:
-        logger.error(f"[PPG Scraper] Browser error: {e}")
-    finally:
-        if browser:
-            await browser.close()
+                    logger.info(f"[PPG Scraper] NCAAB: {len(ppg_data['NCAAB']['season'])} teams")
+        except Exception as e:
+            logger.error(f"[PPG Scraper] NCAAB error: {e}")
     
-    # Store in MongoDB for caching
+    # Store in MongoDB
     try:
         await db.ppg_data.update_one(
             {"_id": "current"},
-            {
-                "$set": {
-                    "data": ppg_data,
-                    "last_updated": datetime.now(timezone.utc)
-                }
-            },
+            {"$set": {"data": ppg_data, "last_updated": datetime.now(timezone.utc)}},
             upsert=True
         )
-        logger.info("[PPG Scraper] PPG data cached in MongoDB")
+        logger.info("[PPG Scraper] Data cached in MongoDB")
     except Exception as e:
-        logger.error(f"[PPG Scraper] Error caching PPG data: {e}")
+        logger.error(f"[PPG Scraper] Cache error: {e}")
     
     return ppg_data
 
