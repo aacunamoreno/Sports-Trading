@@ -1818,7 +1818,7 @@ export default function Opportunities() {
                           )}
                         </div>
                       </td>
-                      {/* Public Consensus Pick column - shows spread/moneyline of team with higher consensus % (61%+ for NHL, 56%+ for others) and HIT/MISS */}
+                      {/* Public Consensus Pick column - shows moneyline/spread of team with higher consensus % (61%+ for NHL, 56%+ for others) and HIT/MISS */}
                       {showHistoricalColumns && (
                         <td className="py-3 px-2 text-center">
                           {(() => {
@@ -1841,46 +1841,37 @@ export default function Opportunities() {
                             
                             // For NHL: Use MONEYLINE (simply check if team won)
                             if (league === 'NHL') {
-                              // Get moneyline for display
-                              let publicMoneyline = null;
-                              const mlTeam = game.moneyline_team;
-                              const ml = game.moneyline;
+                              // Get moneylines from away_spread/home_spread (Covers.com stores ML in these fields for NHL)
+                              const awayML = game.away_spread;
+                              const homeML = game.home_spread !== undefined ? game.home_spread : (game.away_spread ? -game.away_spread : null);
                               
-                              if (isAwayPublicPick) {
-                                // Away team is public pick
-                                if (mlTeam === game.away_team && ml) {
-                                  publicMoneyline = ml;
-                                } else if (ml) {
-                                  // Calculate opposite moneyline (rough approximation)
-                                  publicMoneyline = ml < 0 ? `+${Math.abs(ml) - 20}` : `-${ml + 20}`;
-                                }
-                              } else {
-                                // Home team is public pick
-                                if (mlTeam === game.home_team && ml) {
-                                  publicMoneyline = ml;
-                                } else if (ml) {
-                                  publicMoneyline = ml < 0 ? `+${Math.abs(ml) - 20}` : `-${ml + 20}`;
-                                }
-                              }
+                              // Get the public pick's moneyline for display
+                              const displayML = isAwayPublicPick ? awayML : homeML;
                               
-                              // Calculate if the public pick WON the game (moneyline bet)
+                              // Only calculate HIT/MISS if we have FINAL scores (both scores exist and are numbers)
                               let publicPickResult = null;
+                              const hasScores = game.away_score !== undefined && game.away_score !== null && 
+                                                game.home_score !== undefined && game.home_score !== null &&
+                                                game.away_score !== '' && game.home_score !== '';
                               
-                              if (game.away_score !== undefined && game.home_score !== undefined) {
+                              if (hasScores) {
                                 const awayScore = parseFloat(game.away_score);
                                 const homeScore = parseFloat(game.home_score);
                                 
-                                if (isAwayPublicPick) {
-                                  publicPickResult = awayScore > homeScore ? 'HIT' : 'MISS';
-                                } else {
-                                  publicPickResult = homeScore > awayScore ? 'HIT' : 'MISS';
+                                // Only show result if scores are valid numbers (game has finished)
+                                if (!isNaN(awayScore) && !isNaN(homeScore)) {
+                                  if (isAwayPublicPick) {
+                                    publicPickResult = awayScore > homeScore ? 'HIT' : 'MISS';
+                                  } else {
+                                    publicPickResult = homeScore > awayScore ? 'HIT' : 'MISS';
+                                  }
                                 }
                               }
                               
                               return (
                                 <div className="flex flex-col items-center">
                                   <span className="font-mono font-bold">
-                                    {publicMoneyline !== null ? (typeof publicMoneyline === 'number' ? (publicMoneyline >= 0 ? '+' : '') + publicMoneyline : publicMoneyline) : '-'}
+                                    {displayML !== null && displayML !== undefined ? (displayML >= 0 ? '+' : '') + displayML : '-'}
                                   </span>
                                   {publicPickResult && (
                                     <span className={`text-xs font-bold ${
@@ -1919,21 +1910,26 @@ export default function Opportunities() {
                               }
                             }
                             
-                            // Calculate if the public pick covered the spread
+                            // Only calculate HIT/MISS if we have FINAL scores
                             let publicPickResult = null;
+                            const hasScores = game.away_score !== undefined && game.away_score !== null && 
+                                              game.home_score !== undefined && game.home_score !== null &&
+                                              game.away_score !== '' && game.home_score !== '';
                             
-                            if (game.away_score !== undefined && game.home_score !== undefined && publicSpread !== null) {
+                            if (hasScores && publicSpread !== null) {
                               const awayScore = parseFloat(game.away_score);
                               const homeScore = parseFloat(game.home_score);
                               
-                              if (isAwayPublicPick) {
-                                const awayCovered = awayScore + publicSpread > homeScore;
-                                const push = awayScore + publicSpread === homeScore;
-                                publicPickResult = push ? 'PUSH' : (awayCovered ? 'HIT' : 'MISS');
-                              } else {
-                                const homeCovered = homeScore + publicSpread > awayScore;
-                                const push = homeScore + publicSpread === awayScore;
-                                publicPickResult = push ? 'PUSH' : (homeCovered ? 'HIT' : 'MISS');
+                              if (!isNaN(awayScore) && !isNaN(homeScore)) {
+                                if (isAwayPublicPick) {
+                                  const awayCovered = awayScore + publicSpread > homeScore;
+                                  const push = awayScore + publicSpread === homeScore;
+                                  publicPickResult = push ? 'PUSH' : (awayCovered ? 'HIT' : 'MISS');
+                                } else {
+                                  const homeCovered = homeScore + publicSpread > awayScore;
+                                  const push = homeScore + publicSpread === awayScore;
+                                  publicPickResult = push ? 'PUSH' : (homeCovered ? 'HIT' : 'MISS');
+                                }
                               }
                             }
                             
