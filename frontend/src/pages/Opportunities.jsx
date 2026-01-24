@@ -43,6 +43,100 @@ const NBA_TEAM_MAPPING = {
   'Wizards': 'Washington',
 };
 
+// NHL team name mappings for matching bets to games
+const NHL_TEAM_NAMES = {
+  // Full names to short names used in bets
+  'Buffalo': ['Buffalo', 'Sabres', 'BUF'],
+  'NY Islanders': ['New York Islanders', 'Islanders', 'NYI'],
+  'Utah': ['Utah', 'Utah Hockey Club', 'UTA'],
+  'Nashville': ['Nashville', 'Predators', 'NSH'],
+  'Carolina': ['Carolina', 'Hurricanes', 'CAR'],
+  'Ottawa': ['Ottawa', 'Senators', 'OTT'],
+  'Detroit': ['Detroit', 'Red Wings', 'DET'],
+  'Winnipeg': ['Winnipeg', 'Jets', 'WPG'],
+  'Montreal': ['Montreal', 'Canadiens', 'MTL'],
+  'Boston': ['Boston', 'Bruins', 'BOS'],
+  'Tampa Bay': ['Tampa Bay', 'Lightning', 'TBL', 'TB'],
+  'Columbus': ['Columbus', 'Blue Jackets', 'CBJ'],
+  'LA Kings': ['Los Angeles', 'LA Kings', 'Kings', 'LAK'],
+  'St. Louis': ['St. Louis', 'Blues', 'STL'],
+  'Florida': ['Florida', 'Panthers', 'FLA'],
+  'Minnesota': ['Minnesota', 'Wild', 'MIN'],
+  'NY Rangers': ['New York Rangers', 'Rangers', 'NYR'],
+  'New Jersey': ['New Jersey', 'Devils', 'NJD'],
+  'Vancouver': ['Vancouver', 'Canucks', 'VAN'],
+  'Chicago': ['Chicago', 'Blackhawks', 'CHI'],
+  'Dallas': ['Dallas', 'Stars', 'DAL'],
+  'Washington': ['Washington', 'Capitals', 'WSH'],
+  'Calgary': ['Calgary', 'Flames', 'CGY'],
+  'Edmonton': ['Edmonton', 'Oilers', 'EDM'],
+  'Pittsburgh': ['Pittsburgh', 'Penguins', 'PIT'],
+  'Philadelphia': ['Philadelphia', 'Flyers', 'PHI'],
+  'Seattle': ['Seattle', 'Kraken', 'SEA'],
+  'San Jose': ['San Jose', 'Sharks', 'SJS'],
+  'Anaheim': ['Anaheim', 'Ducks', 'ANA'],
+  'Colorado': ['Colorado', 'Avalanche', 'COL'],
+  'Vegas': ['Vegas', 'Golden Knights', 'VGK'],
+  'Toronto': ['Toronto', 'Maple Leafs', 'TOR'],
+  'Arizona': ['Arizona', 'Coyotes', 'ARI'],
+};
+
+// Helper function to find 1st Period bets for a specific game
+const findFirstPeriodBetsForGame = (game, firstPeriodBets, gameDate) => {
+  if (!firstPeriodBets?.bets || !game) return null;
+  
+  const awayTeam = game.away_team || game.away || '';
+  const homeTeam = game.home_team || game.home || '';
+  
+  // Get all possible name variations for both teams
+  const getTeamVariations = (teamName) => {
+    const variations = [teamName.toLowerCase()];
+    for (const [key, aliases] of Object.entries(NHL_TEAM_NAMES)) {
+      if (key.toLowerCase() === teamName.toLowerCase() || 
+          aliases.some(a => a.toLowerCase() === teamName.toLowerCase())) {
+        variations.push(key.toLowerCase());
+        aliases.forEach(a => variations.push(a.toLowerCase()));
+      }
+    }
+    return [...new Set(variations)];
+  };
+  
+  const awayVariations = getTeamVariations(awayTeam);
+  const homeVariations = getTeamVariations(homeTeam);
+  
+  // Format the game date to match bet date format (MM/DD)
+  let formattedDate = '';
+  if (gameDate) {
+    const dateParts = gameDate.split('-');
+    if (dateParts.length === 3) {
+      formattedDate = `${dateParts[1]}/${dateParts[2]}`;
+    }
+  }
+  
+  // Find matching bet
+  const matchingBet = firstPeriodBets.bets.find(bet => {
+    // Check date match if we have a formatted date
+    if (formattedDate && bet.date && !bet.date.includes(formattedDate.replace(/^0/, ''))) {
+      // Allow partial match (e.g., "01/24" matches "1/24")
+      const betDateNormalized = bet.date.replace(/^0/, '');
+      const gameDateNormalized = formattedDate.replace(/^0/, '');
+      if (betDateNormalized !== gameDateNormalized) {
+        return false;
+      }
+    }
+    
+    const betGame = (bet.game || '').toLowerCase();
+    
+    // Check if both teams are mentioned in the bet game string
+    const hasAway = awayVariations.some(v => betGame.includes(v));
+    const hasHome = homeVariations.some(v => betGame.includes(v));
+    
+    return hasAway && hasHome;
+  });
+  
+  return matchingBet;
+};
+
 // Helper function to check if spread_team belongs to home team
 const isSpreadTeamHome = (spreadTeam, homeTeam, awayTeam) => {
   if (!spreadTeam) return true; // Default to home if no spread_team
@@ -88,6 +182,7 @@ export default function Opportunities() {
   const [publicThreshold, setPublicThreshold] = useState(57);
   const [loadingPublicRecord, setLoadingPublicRecord] = useState(false);
   const [firstPeriodZeros, setFirstPeriodZeros] = useState({ total: 0, l3: 0, l5: 0, lastUpdated: null });
+  const [firstPeriodStats, setFirstPeriodStats] = useState({ pct03: 0, l3Pct: 0, l5Pct: 0 }); // Stats for 0-3 goals
   const [showFirstPeriodModal, setShowFirstPeriodModal] = useState(false);
   const [firstPeriodBreakdown, setFirstPeriodBreakdown] = useState([]);
   const [teams4Goals, setTeams4Goals] = useState([]);
@@ -234,31 +329,63 @@ export default function Opportunities() {
   // Note: Public record is now fetched by fetchPublicRecordByThreshold (lines 35-54)
   // which uses the dynamic threshold endpoint for accurate full-season data
 
-  // Fetch NHL 1st Period 0-0 data when league is NHL
+  // Fetch NHL 1st Period 0-3 stats when league is NHL
   useEffect(() => {
-    const fetchFirstPeriodZeros = async () => {
+    const fetchFirstPeriodStats = async () => {
       if (league !== 'NHL') return;
       
       try {
-        const res = await fetch(`${BACKEND_URL}/api/nhl/first-period-zeros`);
+        // Fetch breakdown to calculate 0-3 percentage
+        const res = await fetch(`${BACKEND_URL}/api/nhl/first-period-breakdown`);
         const data = await res.json();
-        setFirstPeriodZeros({
-          total: data.total_games || 0,
-          l3: data.l3_days || 0,
-          l5: data.l5_days || 0,
-          lastUpdated: data.last_updated
+        const breakdown = data.breakdown || [];
+        
+        // Calculate 0-3 goals stats
+        const group03 = breakdown.filter(r => r.goals <= 3);
+        const group45 = breakdown.filter(r => r.goals >= 4);
+        
+        const total03 = group03.reduce((sum, r) => sum + r.total, 0);
+        const l3_03 = group03.reduce((sum, r) => sum + r.l3, 0);
+        const l5_03 = group03.reduce((sum, r) => sum + r.l5, 0);
+        
+        const total45 = group45.reduce((sum, r) => sum + r.total, 0);
+        const l3_45 = group45.reduce((sum, r) => sum + r.l3, 0);
+        const l5_45 = group45.reduce((sum, r) => sum + r.l5, 0);
+        
+        const grandTotal = total03 + total45;
+        const l3Total = l3_03 + l3_45;
+        const l5Total = l5_03 + l5_45;
+        
+        const pct03 = grandTotal > 0 ? ((total03 / grandTotal) * 100).toFixed(1) : 0;
+        const l3Pct = l3Total > 0 ? ((l3_03 / l3Total) * 100).toFixed(1) : 0;
+        const l5Pct = l5Total > 0 ? ((l5_03 / l5Total) * 100).toFixed(1) : 0;
+        
+        setFirstPeriodStats({
+          pct03: pct03,
+          l3Pct: l3Pct,
+          l5Pct: l5Pct,
+          l3Games: l3_03,
+          l5Games: l5_03,
+          l3Total: l3Total,
+          l5Total: l5Total
         });
+        
+        // Also store breakdown for modal
+        setFirstPeriodBreakdown(breakdown);
+        setTeams4Goals(data.teams_4_goals || []);
+        setTeams5Goals(data.teams_5_goals || []);
       } catch (e) {
-        console.error('Error fetching 1st Period 0-0 data:', e);
+        console.error('Error fetching 1st Period stats:', e);
       }
     };
-    fetchFirstPeriodZeros();
+    fetchFirstPeriodStats();
   }, [league]);
 
-  // Fetch 1st Period breakdown when modal opens
+  // Fetch 1st Period breakdown when modal opens (only if not already loaded)
   useEffect(() => {
     const fetchFirstPeriodBreakdown = async () => {
       if (!showFirstPeriodModal) return;
+      if (firstPeriodBreakdown.length > 0) return; // Already loaded
       
       setLoadingFirstPeriodBreakdown(true);
       try {
@@ -274,7 +401,7 @@ export default function Opportunities() {
       }
     };
     fetchFirstPeriodBreakdown();
-  }, [showFirstPeriodModal]);
+  }, [showFirstPeriodModal, firstPeriodBreakdown.length]);
 
   // Fetch 1st Period Bets when modal opens
   useEffect(() => {
@@ -1042,24 +1169,24 @@ export default function Opportunities() {
           {/* NHL 1st Period Badge - Only show for NHL - Click to open breakdown */}
           {league === 'NHL' && (
             <div 
-              className="bg-gradient-to-r from-red-600/20 to-pink-600/20 border border-red-500/30 rounded-lg px-4 py-2 cursor-pointer hover:border-red-400/50 transition-all"
+              className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 rounded-lg px-4 py-2 cursor-pointer hover:border-green-400/50 transition-all"
               onClick={() => setShowFirstPeriodModal(true)}
               title="Click to view 1st Period goals breakdown"
             >
               <div className="flex items-center justify-center gap-2">
                 <span className="text-xs text-muted-foreground">🏒 1st Period Stats</span>
-                <span className="text-[10px] bg-red-600/30 text-red-300 px-1.5 py-0.5 rounded">Breakdown</span>
+                <span className="text-[10px] bg-green-600/30 text-green-300 px-1.5 py-0.5 rounded">Breakdown</span>
               </div>
-              <div className="text-xl font-bold text-center text-red-400">
-                {firstPeriodZeros.total}
+              <div className="text-xl font-bold text-center text-green-400">
+                0-3 | {firstPeriodStats.pct03}%
               </div>
-              <div className="text-[10px] text-muted-foreground text-center">Games 0-0</div>
-              <div className="text-[10px] text-center mt-1 border-t border-red-500/20 pt-1">
+              <div className="text-[10px] text-muted-foreground text-center">Games 0-3 Goals</div>
+              <div className="text-[10px] text-center mt-1 border-t border-green-500/20 pt-1">
                 <span className="text-gray-400">L3:</span>
-                <span className="text-red-400 ml-1">{firstPeriodZeros.l3}</span>
+                <span className="text-green-400 ml-1">{firstPeriodStats.l3Pct}%</span>
                 <span className="text-muted-foreground mx-1">|</span>
                 <span className="text-gray-400">L5:</span>
-                <span className="text-red-400 ml-1">{firstPeriodZeros.l5}</span>
+                <span className="text-green-400 ml-1">{firstPeriodStats.l5Pct}%</span>
               </div>
             </div>
           )}
@@ -1950,123 +2077,169 @@ export default function Opportunities() {
                         </td>
                       )}
                       <td className="py-3 px-2 text-center">
-                        {(isHistorical || game.final_score) ? (
-                          // For historical dates OR completed games with user bets: show user's bet result (HIT/MISS)
-                          game.user_bet ? (
-                            <div className="flex flex-col items-center gap-1">
-                              {/* Show what the user BET on (bet_type), then show if it was HIT/MISS/PUSH */}
-                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                game.bet_type?.toUpperCase()?.includes('OVER') ? 'bg-green-500/20 text-green-400' : 
-                                game.bet_type?.toUpperCase()?.includes('UNDER') ? 'bg-orange-500/20 text-orange-400' : 
-                                'bg-gray-500/20 text-gray-400'
-                              }`}>
-                                {game.bet_type?.toUpperCase()?.includes('OVER') ? '⬆️ OVER' : 
-                                 game.bet_type?.toUpperCase()?.includes('UNDER') ? '⬇️ UNDER' : 
-                                 game.bet_type || '-'}
-                              </span>
-                              {/* Show individual bet results if multiple bets */}
-                              {game.bet_results && game.bet_results.length > 1 ? (
-                                <div className="flex flex-col gap-0.5">
-                                  {game.bet_results.map((br, idx) => (
-                                    <span key={idx} className={`px-1.5 py-0.5 rounded text-xs font-bold ${
-                                      br.hit ? 'bg-green-500/30 text-green-400' : 'bg-red-500/30 text-red-400'
+                        {(() => {
+                          // For NHL, check for 1st Period bets first
+                          const firstPeriodBet = league === 'NHL' ? findFirstPeriodBetsForGame(game, firstPeriodBets, data.date) : null;
+                          
+                          // Render 1st Period bet info for NHL if exists
+                          if (firstPeriodBet && (firstPeriodBet.u15 || firstPeriodBet.u25 || firstPeriodBet.u35 || firstPeriodBet.u45)) {
+                            const bets = [];
+                            if (firstPeriodBet.u15) bets.push({ line: 'u1.5', ...firstPeriodBet.u15 });
+                            if (firstPeriodBet.u25) bets.push({ line: 'u2.5', ...firstPeriodBet.u25 });
+                            if (firstPeriodBet.u35) bets.push({ line: 'u3.5', ...firstPeriodBet.u35 });
+                            if (firstPeriodBet.u45) bets.push({ line: 'u4.5', ...firstPeriodBet.u45 });
+                            
+                            return (
+                              <div className="flex flex-col gap-1">
+                                {bets.map((bet, idx) => {
+                                  const isWin = bet.result === 'win';
+                                  const isLoss = bet.result === 'loss';
+                                  const isPending = !bet.result || bet.result === 'pending';
+                                  
+                                  return (
+                                    <div key={idx} className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                                      isWin ? 'bg-green-500/20 text-green-400' : 
+                                      isLoss ? 'bg-red-500/20 text-red-400' : 
+                                      'bg-yellow-500/20 text-yellow-400'
                                     }`}>
-                                      {br.hit ? '✅' : '❌'} {br.type}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : (
-                                /* Single bet - show HIT/MISS status */
-                                <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                  isSpreadBet 
-                                    ? (game.user_bet_hit === true
-                                        ? 'bg-purple-500/30 text-purple-300 ring-1 ring-purple-400/50'
-                                        : game.user_bet_hit === false
-                                          ? 'bg-purple-900/30 text-purple-400 ring-1 ring-purple-500/30'
-                                          : 'bg-gray-500/30 text-gray-400')
-                                    : (game.user_bet_hit === true
-                                        ? 'bg-green-500/30 text-green-400'
-                                        : game.user_bet_hit === false
-                                          ? 'bg-red-500/30 text-red-400'
-                                          : 'bg-gray-500/30 text-gray-400')
-                                }`}>
-                                  {isSpreadBet ? (
-                                    game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : game.bet_result === 'push' ? '⚪ PUSH' : '⏳'
-                                  ) : (
-                                    game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : game.bet_result === 'push' ? '⚪ PUSH' : '⏳'
-                                  )}
-                                </span>
-                              )}
-                            </div>
-                          ) : game.has_bet && game.bet_type ? (
-                            // For historical dates with has_bet but no user_bet (e.g., TIPSTER account bets) - show as pending
-                            <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/30 text-gray-400">
-                              ⏳ {game.bet_account === 'jac083' ? 'TIPSTER' : 'PENDING'}
-                            </span>
-                          ) : isNoBet ? (
-                            // For historical dates without user bet and low edge: show NO BET
-                            <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/20 text-gray-400">
-                              ⚪ NO BET
-                            </span>
-                          ) : game.recommendation ? (
-                            // For historical dates without user bet but with edge: show system result
-                            <span className={`px-2 py-1 rounded text-xs font-bold ${
-                              game.result_hit === true
-                                ? 'bg-green-500/30 text-green-400'
-                                : game.result_hit === false
-                                  ? 'bg-red-500/30 text-red-400'
-                                  : 'bg-gray-500/30 text-gray-400'
-                            }`}>
-                              {game.result_hit === true ? '✅ HIT' : game.result_hit === false ? '❌ MISS' : game.result === 'PUSH' ? '⚪ PUSH' : '⏳ PENDING'}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )
-                        ) : game.has_bet && (game.bet_types?.length > 0 || game.bet_type) ? (
-                          // For today/tomorrow with active bet: show the bet type(s)
-                          <div className="flex flex-col gap-1">
-                            {/* Get unique bet types */}
-                            {(() => {
-                              const betTypes = (game.bet_types && game.bet_types.length > 0) ? game.bet_types : (game.bet_type ? [game.bet_type] : []);
-                              const uniqueTypes = [...new Set(betTypes)];
-                              const typeCounts = {};
-                              betTypes.forEach(t => { typeCounts[t] = (typeCounts[t] || 0) + 1; });
-                              
-                              return uniqueTypes.map((betType, idx) => {
-                                const count = typeCounts[betType];
-                                const isOver = betType?.toLowerCase()?.includes('over') || betType?.toLowerCase()?.startsWith('o');
-                                const isUnder = betType?.toLowerCase()?.includes('under') || betType?.toLowerCase()?.startsWith('u');
-                                const isSpread = !isOver && !isUnder;
-                                
-                                return (
-                                  <span key={idx} className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                    isOver 
-                                      ? 'bg-green-500/30 text-green-400' 
-                                      : isUnder
-                                        ? 'bg-orange-500/30 text-orange-400'
-                                        : 'bg-purple-500/30 text-purple-400'
+                                      <div className="flex items-center justify-center gap-1">
+                                        {isWin ? '✓' : isLoss ? '✗' : '⏳'} {bet.line} - ${bet.risk?.toLocaleString()} / {isPending ? '$ ???' : (isWin ? `$${bet.win?.toLocaleString()}` : `-$${bet.risk?.toLocaleString()}`)}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          }
+                          
+                          // Original logic for non-NHL or NHL without 1st period bets
+                          if (isHistorical || game.final_score) {
+                            // For historical dates OR completed games with user bets: show user's bet result (HIT/MISS)
+                            if (game.user_bet) {
+                              return (
+                                <div className="flex flex-col items-center gap-1">
+                                  {/* Show what the user BET on (bet_type), then show if it was HIT/MISS/PUSH */}
+                                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                    game.bet_type?.toUpperCase()?.includes('OVER') ? 'bg-green-500/20 text-green-400' : 
+                                    game.bet_type?.toUpperCase()?.includes('UNDER') ? 'bg-orange-500/20 text-orange-400' : 
+                                    'bg-gray-500/20 text-gray-400'
                                   }`}>
-                                    {isOver ? '⬆️' : isUnder ? '⬇️' : '📊'} {betType}{count > 1 ? ` x${count}` : ''}
+                                    {game.bet_type?.toUpperCase()?.includes('OVER') ? '⬆️ OVER' : 
+                                     game.bet_type?.toUpperCase()?.includes('UNDER') ? '⬇️ UNDER' : 
+                                     game.bet_type || '-'}
                                   </span>
-                                );
-                              });
-                            })()}
-                          </div>
-                        ) : isNoBet ? (
-                          // For today/tomorrow: show "-" for No Bet games
-                          <span className="text-muted-foreground">-</span>
-                        ) : game.recommendation ? (
-                          // For today/tomorrow: show OVER/UNDER recommendation only if edge meets threshold
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            game.recommendation === 'OVER' 
-                              ? 'bg-blue-500/30 text-blue-400' 
-                              : 'bg-orange-500/30 text-orange-400'
-                          }`}>
-                            {game.recommendation === 'OVER' ? '⬆️' : '⬇️'} {game.recommendation}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                                  {/* Show individual bet results if multiple bets */}
+                                  {game.bet_results && game.bet_results.length > 1 ? (
+                                    <div className="flex flex-col gap-0.5">
+                                      {game.bet_results.map((br, idx) => (
+                                        <span key={idx} className={`px-1.5 py-0.5 rounded text-xs font-bold ${
+                                          br.hit ? 'bg-green-500/30 text-green-400' : 'bg-red-500/30 text-red-400'
+                                        }`}>
+                                          {br.hit ? '✅' : '❌'} {br.type}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    /* Single bet - show HIT/MISS status */
+                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                      isSpreadBet 
+                                        ? (game.user_bet_hit === true
+                                            ? 'bg-purple-500/30 text-purple-300 ring-1 ring-purple-400/50'
+                                            : game.user_bet_hit === false
+                                              ? 'bg-purple-900/30 text-purple-400 ring-1 ring-purple-500/30'
+                                              : 'bg-gray-500/30 text-gray-400')
+                                        : (game.user_bet_hit === true
+                                            ? 'bg-green-500/30 text-green-400'
+                                            : game.user_bet_hit === false
+                                              ? 'bg-red-500/30 text-red-400'
+                                              : 'bg-gray-500/30 text-gray-400')
+                                    }`}>
+                                      {isSpreadBet ? (
+                                        game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : game.bet_result === 'push' ? '⚪ PUSH' : '⏳'
+                                      ) : (
+                                        game.user_bet_hit === true ? '✅ HIT' : game.user_bet_hit === false ? '❌ MISS' : game.bet_result === 'push' ? '⚪ PUSH' : '⏳'
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            } else if (game.has_bet && game.bet_type) {
+                              // For historical dates with has_bet but no user_bet (e.g., TIPSTER account bets) - show as pending
+                              return (
+                                <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/30 text-gray-400">
+                                  ⏳ {game.bet_account === 'jac083' ? 'TIPSTER' : 'PENDING'}
+                                </span>
+                              );
+                            } else if (isNoBet) {
+                              // For historical dates without user bet and low edge: show NO BET
+                              return (
+                                <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/20 text-gray-400">
+                                  ⚪ NO BET
+                                </span>
+                              );
+                            } else if (game.recommendation) {
+                              // For historical dates without user bet but with edge: show system result
+                              return (
+                                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                  game.result_hit === true
+                                    ? 'bg-green-500/30 text-green-400'
+                                    : game.result_hit === false
+                                      ? 'bg-red-500/30 text-red-400'
+                                      : 'bg-gray-500/30 text-gray-400'
+                                }`}>
+                                  {game.result_hit === true ? '✅ HIT' : game.result_hit === false ? '❌ MISS' : game.result === 'PUSH' ? '⚪ PUSH' : '⏳ PENDING'}
+                                </span>
+                              );
+                            } else {
+                              return <span className="text-muted-foreground">-</span>;
+                            }
+                          } else if (game.has_bet && (game.bet_types?.length > 0 || game.bet_type)) {
+                            // For today/tomorrow with active bet: show the bet type(s)
+                            const betTypes = (game.bet_types && game.bet_types.length > 0) ? game.bet_types : (game.bet_type ? [game.bet_type] : []);
+                            const uniqueTypes = [...new Set(betTypes)];
+                            const typeCounts = {};
+                            betTypes.forEach(t => { typeCounts[t] = (typeCounts[t] || 0) + 1; });
+                            
+                            return (
+                              <div className="flex flex-col gap-1">
+                                {uniqueTypes.map((betType, idx) => {
+                                  const count = typeCounts[betType];
+                                  const isOver = betType?.toLowerCase()?.includes('over') || betType?.toLowerCase()?.startsWith('o');
+                                  const isUnder = betType?.toLowerCase()?.includes('under') || betType?.toLowerCase()?.startsWith('u');
+                                  const isSpread = !isOver && !isUnder;
+                                  
+                                  return (
+                                    <span key={idx} className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                      isOver 
+                                        ? 'bg-green-500/30 text-green-400' 
+                                        : isUnder
+                                          ? 'bg-orange-500/30 text-orange-400'
+                                          : 'bg-purple-500/30 text-purple-400'
+                                    }`}>
+                                      {isOver ? '⬆️' : isUnder ? '⬇️' : '📊'} {betType}{count > 1 ? ` x${count}` : ''}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            );
+                          } else if (isNoBet) {
+                            // For today/tomorrow: show "-" for No Bet games
+                            return <span className="text-muted-foreground">-</span>;
+                          } else if (game.recommendation) {
+                            // For today/tomorrow: show OVER/UNDER recommendation only if edge meets threshold
+                            return (
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                game.recommendation === 'OVER' 
+                                  ? 'bg-blue-500/30 text-blue-400' 
+                                  : 'bg-orange-500/30 text-orange-400'
+                              }`}>
+                                {game.recommendation === 'OVER' ? '⬆️' : '⬇️'} {game.recommendation}
+                              </span>
+                            );
+                          } else {
+                            return <span className="text-muted-foreground">-</span>;
+                          }
+                        })()}
                       </td>
                     </tr>
                   );
