@@ -2745,6 +2745,7 @@ export default function Opportunities() {
                         <th className="text-center py-2 px-2 text-gray-400">U2.5</th>
                         <th className="text-center py-2 px-2 text-gray-400">U3.5</th>
                         <th className="text-center py-2 px-2 text-gray-400">U4.5</th>
+                        <th className="text-center py-2 px-2 text-gray-400">Bet</th>
                         <th className="text-center py-2 px-2 text-gray-400">Result</th>
                       </tr>
                     </thead>
@@ -2811,6 +2812,11 @@ export default function Opportunities() {
                               )}
                             </td>
                             <td className="py-2 px-2 text-center">
+                              <span className="text-yellow-400 font-medium">
+                                ${(bet.total_bet || 0).toLocaleString()}
+                              </span>
+                            </td>
+                            <td className="py-2 px-2 text-center">
                               <span className={`font-bold ${(bet.result || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                 {(bet.result || 0) >= 0 ? '+' : ''}${Math.abs(bet.result || 0).toLocaleString()}
                               </span>
@@ -2819,7 +2825,7 @@ export default function Opportunities() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="7" className="py-8 text-center text-gray-500">
+                          <td colSpan="8" className="py-8 text-center text-gray-500">
                             No 1st Period bets found. Click "Update Scores" to refresh data from plays888.co
                           </td>
                         </tr>
@@ -2853,6 +2859,11 @@ export default function Opportunities() {
                             <div className={`font-bold text-xs ${(firstPeriodBets.summary?.u45?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                               {(firstPeriodBets.summary?.u45?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.u45?.profit || 0).toLocaleString()}
                             </div>
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <span className="text-yellow-400 font-bold">
+                              ${firstPeriodBets.bets?.reduce((sum, b) => sum + (b.total_bet || 0), 0).toLocaleString()}
+                            </span>
                           </td>
                           <td className="py-3 px-2 text-center">
                             <span className={`font-bold text-lg ${(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
