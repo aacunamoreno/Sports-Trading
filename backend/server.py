@@ -17463,13 +17463,20 @@ async def scrape_first_period_bets_enano():
                 
             section_upper = section.upper()
             
-            # Extract teams
-            teams_match = re.search(r'([A-Z][A-Z\s\.]+?)\s*1ST PERIOD\s*(?:VRS|VS)\s*([A-Z][A-Z\s\.]+?)\s*1ST PERIOD', section_upper)
+            # Extract teams - use greedy matching (+) not non-greedy (+?)
+            # Pattern: "TEAM NAME 1ST PERIOD VRS TEAM NAME 1ST PERIOD"
+            teams_match = re.search(r'([A-Z][A-Z\s\.]+)\s+1ST PERIOD\s+(?:VRS|VS)\s+([A-Z][A-Z\s\.]+)\s+1ST PERIOD', section_upper)
             if not teams_match:
+                # Try alternative pattern without requiring space before 1ST PERIOD
+                teams_match = re.search(r'([A-Z][A-Z\s\.]{2,}?)\s*1ST PERIOD\s*(?:VRS|VS)\s*([A-Z][A-Z\s\.]{2,}?)\s*1ST PERIOD', section_upper)
+            if not teams_match:
+                logger.info(f"[1st Period Bets] Could not extract teams from section")
                 continue
             
             away_team = teams_match.group(1).strip()
             home_team = teams_match.group(2).strip()
+            
+            logger.info(f"[1st Period Bets] Extracted teams: '{away_team}' vs '{home_team}'")
             
             # Skip non-NHL (check for hockey indicators)
             if 'HOCKEY' not in section_upper and 'NHL' not in section_upper:
