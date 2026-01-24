@@ -17374,7 +17374,9 @@ async def scrape_first_period_bets_enano():
         
         logger.info("[1st Period Bets] Logged in successfully")
         
-        # Navigate to History page
+        # ============================================
+        # STEP 1: Scrape HISTORY page (settled bets)
+        # ============================================
         await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
         await service.page.wait_for_load_state('networkidle')
         await service.page.wait_for_timeout(3000)
@@ -17382,10 +17384,25 @@ async def scrape_first_period_bets_enano():
         logger.info("[1st Period Bets] Navigated to History page")
         
         # Get the full page text for parsing
-        page_text = await service.page.inner_text('body')
-        logger.info(f"[1st Period Bets] Page text length: {len(page_text)}")
+        history_text = await service.page.inner_text('body')
+        logger.info(f"[1st Period Bets] History page text length: {len(history_text)}")
+        
+        # ============================================
+        # STEP 2: Scrape OPEN BETS page (pending bets)
+        # ============================================
+        await service.page.goto('https://www.plays888.co/wager/OpenBets.aspx', timeout=30000)
+        await service.page.wait_for_load_state('networkidle')
+        await service.page.wait_for_timeout(3000)
+        
+        logger.info("[1st Period Bets] Navigated to Open Bets page")
+        
+        open_bets_text = await service.page.inner_text('body')
+        logger.info(f"[1st Period Bets] Open Bets page text length: {len(open_bets_text)}")
         
         await service.close()
+        
+        # Combine both pages for processing - mark which is which
+        page_text = history_text
         
         # Parse the page text to find 1st Period bets
         # Pattern from debug: "DETROIT RED WINGS 1ST PERIOD vrs MINNESOTA WILD 1ST PERIOD"
@@ -17522,7 +17539,98 @@ async def scrape_first_period_bets_enano():
                 games[game_key]["u45"] = bet_info
                 games[game_key]["result"] += profit
         
-        logger.info(f"[1st Period Bets] Found {bets_found} bet sections, {len(games)} unique games")
+        logger.info(f"[1st Period Bets] Found {bets_found} bet sections from History, {len(games)} unique games")
+        
+        # ============================================
+        # STEP 3: Parse OPEN BETS for pending 1st Period bets
+        # ============================================
+        open_bets_found = 0
+        
+        # Split by "1ST PERIOD" to find each bet in Open Bets
+        open_sections = re.split(r'(?=\w+\s+1ST PERIOD\s+(?:vrs|vs))', open_bets_text, flags=re.IGNORECASE)
+        
+        for section in open_sections:
+            if '1ST PERIOD' not in section.upper():
+                continue
+                
+            section_upper = section.upper()
+            
+            # Extract teams
+            teams_match = re.search(r'([A-Z][A-Z\s\.]+?)\s*1ST PERIOD\s*(?:VRS|VS)\s*([A-Z][A-Z\s\.]+?)\s*1ST PERIOD', section_upper)
+            if not teams_match:
+                continue
+            
+            away_team = teams_match.group(1).strip()
+            home_team = teams_match.group(2).strip()
+            
+            # Skip non-NHL (check for hockey indicators)
+            if 'HOCKEY' not in section_upper and 'NHL' not in section_upper:
+                continue
+            
+            away_abbrev = get_nhl_abbrev(away_team)
+            home_abbrev = get_nhl_abbrev(home_team)
+            game_key = f"{away_abbrev}@{home_abbrev}"
+            
+            open_bets_found += 1
+            logger.info(f"[1st Period Bets] Found OPEN bet: {game_key}")
+            
+            # Extract date from today
+            from zoneinfo import ZoneInfo
+            arizona_tz = ZoneInfo('America/Phoenix')
+            today = datetime.now(arizona_tz)
+            games[game_key]["date"] = today.strftime("%m/%d")
+            
+            games[game_key]["away"] = away_abbrev
+            games[game_key]["home"] = home_abbrev
+            
+            # Extract under line - "Total / Under X.5" or "Under X.5"
+            line_match = re.search(r'(?:TOTAL\s*/\s*)?UNDER\s*(\d+)\.?5?', section_upper)
+            if not line_match:
+                line_match = re.search(r'U(\d+)\.?5?\s*[-+]', section_upper)
+            
+            if line_match:
+                line_num = int(line_match.group(1))
+                logger.info(f"[1st Period Bets] OPEN Line: U{line_num}.5")
+            else:
+                logger.info(f"[1st Period Bets] Could not find line in OPEN section")
+                continue
+            
+            # Extract amounts - "1000.00 / 1050.00" or "1,000.00 / 1,050.00"
+            amount_match = re.search(r'(\d{1,3},?\d*\.?\d*)\s*/\s*(\d{1,3},?\d*\.?\d*)', section)
+            if amount_match:
+                risk = float(amount_match.group(1).replace(',', ''))
+                win = float(amount_match.group(2).replace(',', ''))
+                logger.info(f"[1st Period Bets] OPEN Risk/Win: {risk}/{win}")
+            else:
+                logger.info(f"[1st Period Bets] Could not find amounts in OPEN section")
+                continue
+            
+            # Open bets are always pending
+            result = 'pending'
+            profit = 0
+            
+            logger.info(f"[1st Period Bets] OPEN Result: {result}")
+            
+            # Store bet in appropriate column (only if not already exists from History)
+            bet_info = {
+                "risk": risk,
+                "win": win,
+                "result": result,
+                "profit": profit
+            }
+            
+            # Check if this slot is already filled from History
+            if line_num == 1 and not games[game_key].get("u15"):
+                games[game_key]["u15"] = bet_info
+            elif line_num == 2 and not games[game_key].get("u25"):
+                games[game_key]["u25"] = bet_info
+            elif line_num == 3 and not games[game_key].get("u35"):
+                games[game_key]["u35"] = bet_info
+            elif line_num == 4 and not games[game_key].get("u45"):
+                games[game_key]["u45"] = bet_info
+        
+        logger.info(f"[1st Period Bets] Found {open_bets_found} OPEN bet sections")
+        logger.info(f"[1st Period Bets] Total unique games: {len(games)}")
         
         # Convert to list and calculate summary
         bets_list = []
