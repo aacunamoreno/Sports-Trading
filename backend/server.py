@@ -15230,6 +15230,14 @@ async def update_nhl_bet_results(date: str = None):
         
         logger.info(f"[NHL Bet Results] Updated {bets_matched} games with bet results")
         
+        # Also update 1st Period Bets tracking
+        try:
+            logger.info("[NHL Bet Results] Updating 1st Period Bets tracking...")
+            await update_first_period_bets()
+            logger.info("[NHL Bet Results] 1st Period Bets updated successfully")
+        except Exception as e:
+            logger.error(f"[NHL Bet Results] Error updating 1st Period Bets: {e}")
+        
         return {
             "success": True,
             "date": date,
