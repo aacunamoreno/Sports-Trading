@@ -17179,6 +17179,9 @@ async def update_nhl_first_period_goals():
         l5_date = today - timedelta(days=5)
         
         breakdown = []
+        team_counts_4 = {}  # Teams in 4-goal games
+        team_counts_5 = {}  # Teams in 5+ goal games
+        
         for goals in range(6):  # 0, 1, 2, 3, 4, 5+
             games = results[goals]
             total = len(games)
@@ -17193,6 +17196,24 @@ async def update_nhl_first_period_goals():
                 "l3": l3,
                 "l5": l5
             })
+            
+            # Count teams for 4 and 5+ goal games
+            if goals == 4:
+                for game in games:
+                    away = game.get("away_team", "Unknown")
+                    home = game.get("home_team", "Unknown")
+                    team_counts_4[away] = team_counts_4.get(away, 0) + 1
+                    team_counts_4[home] = team_counts_4.get(home, 0) + 1
+            elif goals == 5:
+                for game in games:
+                    away = game.get("away_team", "Unknown")
+                    home = game.get("home_team", "Unknown")
+                    team_counts_5[away] = team_counts_5.get(away, 0) + 1
+                    team_counts_5[home] = team_counts_5.get(home, 0) + 1
+        
+        # Sort teams by count (descending)
+        teams_4_sorted = sorted(team_counts_4.items(), key=lambda x: x[1], reverse=True)
+        teams_5_sorted = sorted(team_counts_5.items(), key=lambda x: x[1], reverse=True)
         
         # Store in MongoDB
         await db.nhl_first_period_goals.update_one(
@@ -17200,6 +17221,8 @@ async def update_nhl_first_period_goals():
             {
                 "$set": {
                     "breakdown": breakdown,
+                    "teams_4_goals": [{"team": t, "count": c} for t, c in teams_4_sorted],
+                    "teams_5_goals": [{"team": t, "count": c} for t, c in teams_5_sorted],
                     "last_updated": datetime.now(timezone.utc),
                     "season": "2025-2026"
                 }
@@ -17277,6 +17300,8 @@ async def get_nhl_first_period_breakdown():
         if cached and cached.get("breakdown"):
             return {
                 "breakdown": cached.get("breakdown", []),
+                "teams_4_goals": cached.get("teams_4_goals", []),
+                "teams_5_goals": cached.get("teams_5_goals", []),
                 "last_updated": cached.get("last_updated"),
                 "season": cached.get("season", "2025-2026")
             }
@@ -17287,6 +17312,8 @@ async def get_nhl_first_period_breakdown():
                 {"goals": i, "label": f"{i} Goals" if i < 5 else "5+ Goals", "total": 0, "l3": 0, "l5": 0}
                 for i in range(6)
             ],
+            "teams_4_goals": [],
+            "teams_5_goals": [],
             "last_updated": None,
             "season": "2025-2026"
         }
