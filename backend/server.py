@@ -17620,62 +17620,32 @@ async def scrape_first_period_bets_enano():
         import traceback
         traceback.print_exc()
         return {"bets": [], "summary": {}}
-
 async def update_first_period_bets():
-    """Update cached 1st Period bets data - MERGES new data with existing data"""
+    """Update cached 1st Period bets data - REPLACES all data with fresh scrape"""
     try:
         logger.info("Updating 1st Period bets for ENANO...")
         new_data = await scrape_first_period_bets_enano()
         
-        # Get existing data from database
-        existing = await db.first_period_bets.find_one({"_id": "enano_bets"})
-        existing_bets = existing.get("bets", []) if existing else []
+        # Get the fresh data directly from scraper - NO MERGE
+        bets = new_data.get("bets", [])
+        summary = new_data.get("summary", {})
         
-        # Create a dictionary of existing bets by game key (date + game)
-        existing_dict = {}
-        for bet in existing_bets:
-            key = f"{bet.get('date', '')}_{bet.get('game', '')}"
-            existing_dict[key] = bet
+        # Ensure summary has all required keys
+        if not summary:
+            summary = {
+                "u15": {"wins": 0, "losses": 0, "profit": 0},
+                "u25": {"wins": 0, "losses": 0, "profit": 0},
+                "u35": {"wins": 0, "losses": 0, "profit": 0},
+                "u45": {"wins": 0, "losses": 0, "profit": 0},
+                "total": {"wins": 0, "losses": 0, "profit": 0}
+            }
         
-        # Merge new bets with existing (new data takes priority for same game)
-        for bet in new_data.get("bets", []):
-            key = f"{bet.get('date', '')}_{bet.get('game', '')}"
-            existing_dict[key] = bet  # Update or add
-        
-        # Convert back to list and sort by date (most recent first)
-        merged_bets = list(existing_dict.values())
-        merged_bets.sort(key=lambda x: x.get("date", ""), reverse=True)
-        
-        # Recalculate summary from all merged bets
-        summary = {
-            "u15": {"wins": 0, "losses": 0, "profit": 0},
-            "u25": {"wins": 0, "losses": 0, "profit": 0},
-            "u35": {"wins": 0, "losses": 0, "profit": 0},
-            "u45": {"wins": 0, "losses": 0, "profit": 0},
-            "total": {"wins": 0, "losses": 0, "profit": 0}
-        }
-        
-        for bet in merged_bets:
-            for line_key in ["u15", "u25", "u35", "u45"]:
-                line_bet = bet.get(line_key)
-                if line_bet and line_bet.get("result") not in ["cancel", "pending", None]:
-                    if line_bet.get("result") == "win":
-                        summary[line_key]["wins"] += 1
-                        summary[line_key]["profit"] += line_bet.get("win", 0)
-                        summary["total"]["wins"] += 1
-                        summary["total"]["profit"] += line_bet.get("win", 0)
-                    elif line_bet.get("result") == "loss":
-                        summary[line_key]["losses"] += 1
-                        summary[line_key]["profit"] -= line_bet.get("risk", 0)
-                        summary["total"]["losses"] += 1
-                        summary["total"]["profit"] -= line_bet.get("risk", 0)
-        
-        # Save merged data
+        # REPLACE all data (not merge)
         await db.first_period_bets.update_one(
             {"_id": "enano_bets"},
             {
                 "$set": {
-                    "bets": merged_bets,
+                    "bets": bets,
                     "summary": summary,
                     "last_updated": datetime.now(timezone.utc)
                 }
@@ -17683,8 +17653,8 @@ async def update_first_period_bets():
             upsert=True
         )
         
-        logger.info(f"1st Period bets updated (merged): {len(merged_bets)} total games, Summary: {summary['total']}")
-        return {"bets": merged_bets, "summary": summary}
+        logger.info(f"1st Period bets REPLACED: {len(bets)} games, Summary: {summary['total']}")
+        return {"bets": bets, "summary": summary}
     except Exception as e:
         logger.error(f"Error updating 1st Period bets: {e}")
         import traceback
