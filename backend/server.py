@@ -8957,29 +8957,10 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 if away_score is None or home_score is None:
                     continue
                 
-                # Get moneyline for display (the line the public team had)
-                public_moneyline = None
-                if is_away_public_pick:
-                    # Away team is public pick - get away moneyline
-                    if game.get('moneyline_team') == game.get('away_team'):
-                        public_moneyline = game.get('moneyline')
-                    elif game.get('moneyline') is not None:
-                        # Moneyline is for the other team, calculate opposite
-                        ml = game.get('moneyline')
-                        if ml < 0:
-                            public_moneyline = int(abs(ml) - 100) if abs(ml) > 100 else int(10000 / abs(ml))
-                        else:
-                            public_moneyline = -int(ml + 100)
-                else:
-                    # Home team is public pick - get home moneyline
-                    if game.get('moneyline_team') == game.get('home_team'):
-                        public_moneyline = game.get('moneyline')
-                    elif game.get('moneyline') is not None:
-                        ml = game.get('moneyline')
-                        if ml < 0:
-                            public_moneyline = int(abs(ml) - 100) if abs(ml) > 100 else int(10000 / abs(ml))
-                        else:
-                            public_moneyline = -int(ml + 100)
+                # Get moneylines from away_spread/home_spread (Covers.com stores ML in these fields for NHL)
+                away_ml = game.get('away_spread')
+                home_ml = game.get('home_spread')
+                public_team = game.get('away_team') if is_away_public_pick else game.get('home_team')
                 
                 try:
                     away_score_f = float(away_score)
@@ -8988,17 +8969,21 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                     # NHL Moneyline: Simply check if the public pick WON the game
                     if is_away_public_pick:
                         public_pick_won = away_score_f > home_score_f
+                        # Show away team's moneyline (the public pick)
+                        display_ml = away_ml
                     else:
                         public_pick_won = home_score_f > away_score_f
+                        # Show home team's moneyline (the public pick)
+                        display_ml = home_ml
                     
                     if public_pick_won:
                         date_public_hits += 1
                         results["NHL"]["public"]["games"].append({
                             "date": date,
                             "game": f"{game.get('away_team')} @ {game.get('home_team')}",
-                            "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
+                            "public_pick": public_team,
                             "consensus_pct": public_pct,
-                            "moneyline": public_moneyline,
+                            "moneyline": display_ml,
                             "result": "HIT"
                         })
                     else:
@@ -9006,9 +8991,9 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                         results["NHL"]["public"]["games"].append({
                             "date": date,
                             "game": f"{game.get('away_team')} @ {game.get('home_team')}",
-                            "public_pick": game.get('away_team') if is_away_public_pick else game.get('home_team'),
+                            "public_pick": public_team,
                             "consensus_pct": public_pct,
-                            "moneyline": public_moneyline,
+                            "moneyline": display_ml,
                             "result": "MISS"
                         })
                 except (ValueError, TypeError):
