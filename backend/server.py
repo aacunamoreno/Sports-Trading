@@ -17350,9 +17350,6 @@ def get_nhl_abbrev(team_name):
     # Return first 3 chars if no match
     return team_upper[:3]
 
-# REPLACEMENT CODE for scrape_first_period_bets_enano() function
-# Lines 17353-17578 in server.py should be replaced with this code
-
 async def scrape_first_period_bets_enano():
     """
     Scrape 1st Period NHL bets from plays888.co History page for ENANO (jac075).
@@ -17397,111 +17394,126 @@ async def scrape_first_period_bets_enano():
         
         logger.info(f"[1st Period Bets] Page text length: {len(page_text)}")
         
-        # Store all individual bets first, then group by game
+        # Store all individual bets
         all_bets = []
         
-        # Split by rows - each bet entry typically has a date/time pattern
-        # Pattern: "Jan 22 06:37 PM" or similar at start of each row
-        lines = page_text.split('\n')
+        # Split text into ticket sections
+        # Each ticket starts with "INTERNET / -1" or similar, followed by date
+        # Pattern to split: Look for ticket boundaries
         
-        current_bet = {}
+        # Method: Split by date patterns that start ticket entries
+        # Format: "Jan 22 06:37 PM" at the start of lines
+        ticket_pattern = r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{1,2}:\d{2}\s*(?:AM|PM))'
         
-        for i, line in enumerate(lines):
-            line = line.strip()
-            if not line:
+        # Split and keep the delimiter
+        parts = re.split(ticket_pattern, page_text, flags=re.IGNORECASE)
+        
+        # Reconstruct tickets (date + content pairs)
+        tickets = []
+        for i in range(1, len(parts), 2):
+            if i + 1 < len(parts):
+                ticket_text = parts[i] + parts[i + 1]
+                tickets.append(ticket_text)
+        
+        logger.info(f"[1st Period Bets] Found {len(tickets)} ticket sections")
+        
+        for ticket in tickets:
+            ticket_upper = ticket.upper()
+            
+            # Skip if not 1st Period bet
+            if '1ST PERIOD' not in ticket_upper:
                 continue
             
-            # Check for date pattern (start of new bet entry)
-            date_match = re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\s+\d{1,2}:\d{2}\s*(AM|PM)', line, re.IGNORECASE)
-            
-            if date_match:
-                # Save previous bet if it was a 1st Period bet
-                if current_bet.get('is_first_period') and current_bet.get('line_num') and current_bet.get('teams'):
-                    all_bets.append(current_bet.copy())
-                
-                # Start new bet
-                months = {'jan':'01','feb':'02','mar':'03','apr':'04','may':'05','jun':'06',
-                          'jul':'07','aug':'08','sep':'09','oct':'10','nov':'11','dec':'12'}
-                m = months.get(date_match.group(1).lower(), '01')
-                d = date_match.group(2).zfill(2)
-                current_bet = {
-                    'date': f"{m}/{d}",
-                    'is_first_period': False,
-                    'line_num': None,
-                    'teams': None,
-                    'risk': 0,
-                    'win': 0,
-                    'result': None
-                }
+            # Extract date
+            date_match = re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})', ticket, re.IGNORECASE)
+            if not date_match:
                 continue
             
-            line_upper = line.upper()
+            months = {'jan':'01','feb':'02','mar':'03','apr':'04','may':'05','jun':'06',
+                      'jul':'07','aug':'08','sep':'09','oct':'10','nov':'11','dec':'12'}
+            bet_date = f"{months.get(date_match.group(1).lower(), '01')}/{date_match.group(2).zfill(2)}"
             
-            # Check for 1st Period indicators
-            if '1ST PERIOD' in line_upper:
-                current_bet['is_first_period'] = True
+            # Initialize bet data
+            bet_data = {
+                'date': bet_date,
+                'line_num': None,
+                'teams': None,
+                'risk': 0,
+                'win': 0,
+                'result': None
+            }
+            
+            # ===== PATTERN 1: NHL Direct Format =====
+            # Example: "[164] TOTAL u1½+110 (DETROIT RED WINGS 1ST PERIOD vrs MINNESOTA WILD 1ST PERIOD)"
+            nhl_match = re.search(
+                r'TOTAL\s*[Uu](\d)[½]?[+-]?\d*\s*\(([A-Z\s\.]+?)\s*1ST\s*PERIOD\s*(?:VRS|VS)\s*([A-Z\s\.]+?)\s*1ST\s*PERIOD\)',
+                ticket_upper
+            )
+            
+            if nhl_match:
+                bet_data['line_num'] = int(nhl_match.group(1))
+                team1 = nhl_match.group(2).strip()
+                team2 = nhl_match.group(3).strip()
+                abbrev1 = get_nhl_abbrev(team1)
+                abbrev2 = get_nhl_abbrev(team2)
+                bet_data['teams'] = tuple(sorted([abbrev1, abbrev2]))
+                logger.info(f"[1st Period] NHL Direct: {abbrev1} vs {abbrev2}, U{bet_data['line_num']}.5")
+            
+            # ===== PATTERN 2: RBL Format =====
+            # Example: "Dallas Stars vs St. Louis Blues / 1st Period / Total / Under 2.5 -256"
+            else:
+                rbl_match = re.search(
+                    r'([A-Z][A-Za-z\.\s]+?)\s+(?:vs|VS)\s+([A-Z][A-Za-z\.\s]+?)\s*/\s*1ST\s*PERIOD\s*/\s*TOTAL\s*/\s*UNDER\s*(\d)\.5',
+                    ticket_upper
+                )
                 
-                # Try to extract NHL Direct format: TOTAL u1½+110 (TEAM1 1ST PERIOD vrs TEAM2 1ST PERIOD)
-                nhl_match = re.search(r'TOTAL\s*[Uu](\d)[½\.5].*?\((.+?)\s*1ST\s*PERIOD\s*(?:VRS|VS)\s*(.+?)\s*1ST\s*PERIOD\)', line_upper)
-                if nhl_match:
-                    current_bet['line_num'] = int(nhl_match.group(1))
-                    team1 = nhl_match.group(2).strip()
-                    team2 = nhl_match.group(3).strip()
-                    abbrev1 = get_nhl_abbrev(team1)
-                    abbrev2 = get_nhl_abbrev(team2)
-                    # Sort alphabetically to normalize game key
-                    current_bet['teams'] = tuple(sorted([abbrev1, abbrev2]))
-                    current_bet['team1'] = abbrev1
-                    current_bet['team2'] = abbrev2
-                    logger.info(f"[1st Period] NHL Direct: {abbrev1} vs {abbrev2}, U{current_bet['line_num']}.5")
-            
-            # Check for RBL format: "1st Period / Total / Under X.5"
-            if '1ST PERIOD' in line_upper and 'UNDER' in line_upper:
-                rbl_match = re.search(r'1ST\s*PERIOD\s*/\s*TOTAL\s*/\s*UNDER\s*(\d)\.5', line_upper)
                 if rbl_match:
-                    current_bet['is_first_period'] = True
-                    current_bet['line_num'] = int(rbl_match.group(1))
-                    logger.info(f"[1st Period] RBL Format detected: U{current_bet['line_num']}.5")
-            
-            # Check for game info in RBL format: "Team1 vs Team2"
-            if current_bet.get('is_first_period') and not current_bet.get('teams'):
-                # Look for team patterns in various formats
-                # Format: "Minnesota Wild vs Detroit Red Wings" or "Calgary Flames vs Washington Capitals"
-                game_match = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+[A-Z][a-z]+)?)\s+(?:vs|VS|@)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+[A-Z][a-z]+)?)', line)
-                if game_match:
-                    team1 = game_match.group(1).strip().upper()
-                    team2 = game_match.group(2).strip().upper()
+                    team1 = rbl_match.group(1).strip()
+                    team2 = rbl_match.group(2).strip()
+                    bet_data['line_num'] = int(rbl_match.group(3))
                     abbrev1 = get_nhl_abbrev(team1)
                     abbrev2 = get_nhl_abbrev(team2)
-                    current_bet['teams'] = tuple(sorted([abbrev1, abbrev2]))
-                    current_bet['team1'] = abbrev1
-                    current_bet['team2'] = abbrev2
-                    logger.info(f"[1st Period] RBL Teams: {abbrev1} vs {abbrev2}")
+                    bet_data['teams'] = tuple(sorted([abbrev1, abbrev2]))
+                    logger.info(f"[1st Period] RBL Format: {abbrev1} vs {abbrev2}, U{bet_data['line_num']}.5")
+                else:
+                    # Try alternative RBL pattern (team names might be in different format)
+                    rbl_alt = re.search(r'1ST\s*PERIOD\s*/\s*TOTAL\s*/\s*UNDER\s*(\d)\.5', ticket_upper)
+                    if rbl_alt:
+                        bet_data['line_num'] = int(rbl_alt.group(1))
+                        # Try to find teams elsewhere in ticket
+                        teams_match = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:vs|VS)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', ticket)
+                        if teams_match:
+                            team1 = teams_match.group(1).strip().upper()
+                            team2 = teams_match.group(2).strip().upper()
+                            abbrev1 = get_nhl_abbrev(team1)
+                            abbrev2 = get_nhl_abbrev(team2)
+                            bet_data['teams'] = tuple(sorted([abbrev1, abbrev2]))
+                            logger.info(f"[1st Period] RBL Alt: {abbrev1} vs {abbrev2}, U{bet_data['line_num']}.5")
             
-            # Check for amounts: "1000.00 / 1100.00" or "1,000.00 / 1,050.00"
-            amount_match = re.search(r'(\d{1,4}(?:,\d{3})*\.?\d*)\s*/\s*(\d{1,4}(?:,\d{3})*\.?\d*)', line)
-            if amount_match and current_bet.get('is_first_period'):
-                risk = float(amount_match.group(1).replace(',', ''))
-                win = float(amount_match.group(2).replace(',', ''))
-                # Only update if we don't have amounts yet or these look like the right ones
-                if current_bet.get('risk', 0) == 0 and risk >= 500:  # Minimum bet filter
-                    current_bet['risk'] = risk
-                    current_bet['win'] = win
+            # Skip if we couldn't extract required data
+            if not bet_data['line_num'] or not bet_data['teams']:
+                logger.warning(f"[1st Period] Could not extract data from ticket: {ticket[:100]}...")
+                continue
             
-            # Check for result
-            if 'WIN' in line_upper and 'LOSE' not in line_upper and 'LOSS' not in line_upper:
-                if current_bet.get('is_first_period'):
-                    current_bet['result'] = 'win'
-            elif 'LOSE' in line_upper or 'LOSS' in line_upper:
-                if current_bet.get('is_first_period'):
-                    current_bet['result'] = 'loss'
-            elif 'CANCEL' in line_upper:
-                if current_bet.get('is_first_period'):
-                    current_bet['result'] = 'cancel'
-        
-        # Don't forget the last bet
-        if current_bet.get('is_first_period') and current_bet.get('line_num') and current_bet.get('teams'):
-            all_bets.append(current_bet.copy())
+            # Extract amounts - look for pattern like "1000.00 / 1100.00" or "5118.41 / 2000.00"
+            amount_match = re.search(r'(\d{1,4}(?:,\d{3})*\.?\d*)\s*/\s*(\d{1,4}(?:,\d{3})*\.?\d*)', ticket)
+            if amount_match:
+                bet_data['risk'] = float(amount_match.group(1).replace(',', ''))
+                bet_data['win'] = float(amount_match.group(2).replace(',', ''))
+            
+            # Extract result - look at end of ticket
+            if re.search(r'\bWIN\b', ticket_upper) and not re.search(r'\bLOS[ES]\b', ticket_upper):
+                bet_data['result'] = 'win'
+            elif re.search(r'\bLOS[ES]\b', ticket_upper):
+                bet_data['result'] = 'loss'
+            elif re.search(r'\bCANCEL\b', ticket_upper):
+                bet_data['result'] = 'cancel'
+            else:
+                bet_data['result'] = 'pending'
+            
+            logger.info(f"[1st Period] Bet: {bet_data['date']} {bet_data['teams']} U{bet_data['line_num']}.5 = {bet_data['result']} (Risk: {bet_data['risk']}, Win: {bet_data['win']})")
+            
+            all_bets.append(bet_data)
         
         logger.info(f"[1st Period Bets] Found {len(all_bets)} individual 1st Period bets")
         
@@ -17552,7 +17564,7 @@ async def scrape_first_period_bets_enano():
                 games[game_key][line_key] = bet_info
                 games[game_key]["total_result"] += profit
             
-            logger.info(f"[1st Period] Added: {game_key} U{line_num}.5 = {result} ({profit:+.2f})")
+            logger.info(f"[1st Period] Added to {game_key}: U{line_num}.5 = {result} ({profit:+.2f})")
         
         # Convert to list and calculate summary
         bets_list = []
