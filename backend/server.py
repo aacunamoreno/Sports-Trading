@@ -7888,6 +7888,11 @@ async def populate_ppg_and_dots_for_tomorrow(scraped_ppg_data=None):
     
     # Check if we have scraped data
     use_scraped = scraped_ppg_data is not None and len(scraped_ppg_data.get("NBA", {}).get("season", {})) > 0
+    logger.info(f"[8PM Job #2] scraped_ppg_data is None: {scraped_ppg_data is None}")
+    if scraped_ppg_data:
+        logger.info(f"[8PM Job #2] NBA season teams in scraped data: {len(scraped_ppg_data.get('NBA', {}).get('season', {}))}")
+        logger.info(f"[8PM Job #2] NHL season teams in scraped data: {len(scraped_ppg_data.get('NHL', {}).get('season', {}))}")
+    
     if use_scraped:
         logger.info("[8PM Job #2] Using SCRAPED PPG/GPG data from external sources")
     else:
@@ -8124,11 +8129,19 @@ async def populate_ppg_and_dots_for_tomorrow(scraped_ppg_data=None):
                 home = game.get('home_team') or game.get('home', '')
                 total = game.get('total')
                 
+                logger.info(f"[8PM Job #2] Processing: {away} @ {home}, total={total}")
+                
                 # Get rankings
                 away_season_rank = ppg_season.get(away, 16)
                 away_last3_rank = ppg_last3.get(away, 16)
                 home_season_rank = ppg_season.get(home, 16)
                 home_last3_rank = ppg_last3.get(home, 16)
+                
+                # Debug: Check if team was found
+                if away not in ppg_season:
+                    logger.warning(f"[8PM Job #2] Team NOT FOUND in ppg_season: '{away}'")
+                if home not in ppg_season:
+                    logger.warning(f"[8PM Job #2] Team NOT FOUND in ppg_season: '{home}'")
                 
                 # Get PPG values
                 away_season_ppg = ppg_season_values.get(away, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 20.0))
@@ -17696,20 +17709,40 @@ async def insert_test_first_period_bets():
 
 @api_router.get("/debug/ppg-scrape")
 async def debug_ppg_scrape():
-    """Debug endpoint to test PPG/GPG scraping from external sources"""
+    """Debug endpoint to test PPG/GPG data loading"""
     try:
-        logger.info("[Debug PPG] Starting PPG scrape test...")
+        logger.info("[Debug PPG] Starting PPG data test...")
         
         ppg_data = await scrape_ppg_data_all_leagues()
         
+        # Check structure
+        nba_season = ppg_data.get("NBA", {}).get("season", {})
+        nhl_season = ppg_data.get("NHL", {}).get("season", {})
+        nhl_l3 = ppg_data.get("NHL", {}).get("last3", {})
+        
+        # Sample first team to verify structure
+        nba_sample = None
+        if nba_season:
+            first_team = list(nba_season.keys())[0]
+            nba_sample = {first_team: nba_season[first_team]}
+        
+        nhl_sample = None
+        if nhl_season:
+            first_team = list(nhl_season.keys())[0]
+            nhl_sample = {first_team: {"season": nhl_season[first_team], "l3": nhl_l3.get(first_team)}}
+        
         return {
             "status": "success",
-            "nba_teams": len(ppg_data.get("NBA", {}).get("season", {})),
-            "nhl_teams": len(ppg_data.get("NHL", {}).get("season", {})),
-            "ncaab_teams": len(ppg_data.get("NCAAB", {}).get("season", {})),
-            "nba_sample": dict(list(ppg_data.get("NBA", {}).get("season", {}).items())[:5]),
-            "nhl_sample": dict(list(ppg_data.get("NHL", {}).get("season", {}).items())[:5]),
-            "ncaab_sample": dict(list(ppg_data.get("NCAAB", {}).get("season", {}).items())[:5]),
+            "nba_teams": len(nba_season),
+            "nhl_season_teams": len(nhl_season),
+            "nhl_l3_teams": len(nhl_l3),
+            "nba_sample": nba_sample,
+            "nhl_sample": nhl_sample,
+            "structure_ok": all([
+                len(nba_season) >= 29,
+                len(nhl_season) >= 32,
+                len(nhl_l3) >= 25
+            ])
         }
     except Exception as e:
         logger.error(f"[Debug PPG] Error: {e}")
