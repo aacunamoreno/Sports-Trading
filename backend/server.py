@@ -7646,184 +7646,104 @@ async def refresh_nba_opportunities_scheduled():
 
 async def scrape_ppg_data_all_leagues():
     """
-    Scrape PPG/GPG data from external sources for all leagues.
-    Uses httpx for speed and reliability, with fallback to hardcoded values.
+    Get PPG/GPG data for all leagues.
+    Uses hardcoded data from the latest Excel (Jan 2026) since external scraping is unreliable.
     Returns a dictionary with season and last3 values for NBA, NHL, NCAAB.
     """
-    import httpx
-    from bs4 import BeautifulSoup
+    logger.info("[PPG Data] Loading PPG/GPG data...")
     
-    logger.info("[PPG Scraper] Starting PPG/GPG scraping for all leagues...")
+    # ==================== NBA PPG Data (from Excel Jan 2026) ====================
+    nba_ppg_data = {
+        'Okla City': {'season': 121.3, 'last3': 124.0},
+        'Denver': {'season': 120.7, 'last3': 105.3},
+        'Minnesota': {'season': 120.0, 'last3': 120.0},
+        'Miami': {'season': 119.3, 'last3': 117.3},
+        'Cleveland': {'season': 119.2, 'last3': 107.0},
+        'Utah': {'season': 119.1, 'last3': 115.3},
+        'New York': {'season': 118.1, 'last3': 105.3},
+        'Chicago': {'season': 118.0, 'last3': 127.3},
+        'San Antonio': {'season': 117.8, 'last3': 118.3},
+        'Atlanta': {'season': 117.4, 'last3': 114.7},
+        'Boston': {'season': 117.1, 'last3': 117.3},
+        'Houston': {'season': 116.9, 'last3': 114.7},
+        'Detroit': {'season': 116.9, 'last3': 106.7},
+        'Golden State': {'season': 116.8, 'last3': 125.7},
+        'Philadelphia': {'season': 116.8, 'last3': 117.0},
+        'Portland': {'season': 116.1, 'last3': 114.0},
+        'LA Lakers': {'season': 116.0, 'last3': 109.7},
+        'Charlotte': {'season': 115.9, 'last3': 107.0},
+        'Orlando': {'season': 115.7, 'last3': 108.0},
+        'Memphis': {'season': 115.5, 'last3': 125.0},
+        'New Orleans': {'season': 115.1, 'last3': 115.7},
+        'Phoenix': {'season': 114.4, 'last3': 115.0},
+        'Dallas': {'season': 114.4, 'last3': 125.0},
+        'Toronto': {'season': 114.3, 'last3': 125.7},
+        'LA Clippers': {'season': 112.3, 'last3': 110.7},
+        'Washington': {'season': 112.2, 'last3': 106.0},
+        'Milwaukee': {'season': 111.9, 'last3': 104.7},
+        'Sacramento': {'season': 110.9, 'last3': 114.7},
+        'Indiana': {'season': 110.1, 'last3': 108.3},
+        'Brooklyn': {'season': 108.3, 'last3': 103.0},
+    }
     
+    # ==================== NHL GPG Season Data (from Excel Jan 2026) ====================
+    nhl_gpg_season_data = {
+        'Colorado': 3.94, 'Tampa Bay': 3.45, 'Vegas': 3.38, 'Montreal': 3.37,
+        'Carolina': 3.37, 'Edmonton': 3.33, 'Toronto': 3.31, 'Pittsburgh': 3.30,
+        'Boston': 3.29, 'Buffalo': 3.28, 'Ottawa': 3.26, 'Dallas': 3.25,
+        'Anaheim': 3.18, 'Washington': 3.17, 'Minnesota': 3.17, 'Utah': 3.16,
+        'San Jose': 3.08, 'Detroit': 3.08, 'Philadelphia': 2.98, 'Florida': 2.96,
+        'Winnipeg': 2.94, 'Columbus': 2.90, 'Nashville': 2.86, 'NY Islanders': 2.84,
+        'Seattle': 2.78, 'Chicago': 2.69, 'NY Rangers': 2.67, 'Vancouver': 2.58,
+        'Los Angeles': 2.57, 'New Jersey': 2.56, 'Calgary': 2.49, 'St. Louis': 2.39,
+    }
+    
+    # ==================== NHL GPG L3 Data (from Excel Jan 2026) ====================
+    nhl_gpg_l3_data = {
+        'Pittsburgh': 5.33, 'Philadelphia': 4.33, 'Minnesota': 4.33, 'Utah': 4.33,
+        'Montreal': 4.00, 'NY Rangers': 4.00, 'Vancouver': 3.67, 'Boston': 3.67,
+        'Buffalo': 3.33, 'Vegas': 3.33, 'Ottawa': 3.33, 'Nashville': 3.33,
+        'Seattle': 3.33, 'Dallas': 3.00, 'New Jersey': 3.00, 'Colorado': 3.00,
+        'Detroit': 3.00, 'Tampa Bay': 3.00, 'Carolina': 3.00, 'Washington': 2.67,
+        'Edmonton': 2.67, 'Anaheim': 2.67, 'Toronto': 2.33, 'NY Islanders': 2.33,
+        'Florida': 2.33,
+        # Teams 26-32 use the same value as team 25 (per user instructions)
+        'Winnipeg': 2.33, 'Columbus': 2.33, 'Chicago': 2.33, 'San Jose': 2.33,
+        'Los Angeles': 2.33, 'Calgary': 2.33, 'St. Louis': 2.33,
+    }
+    
+    # Build the ppg_data structure
     ppg_data = {
         "NBA": {"season": {}, "last3": {}},
         "NHL": {"season": {}, "last3": {}},
         "NCAAB": {"season": {}, "last3": {}}
     }
     
-    # Team name mappings
-    nba_team_map = {
-        'Oklahoma City': 'Okla City', 'OKC Thunder': 'Okla City', 'Oklahoma City Thunder': 'Okla City',
-        'Los Angeles Lakers': 'LA Lakers', 'LA Lakers': 'LA Lakers',
-        'Los Angeles Clippers': 'LA Clippers', 'LA Clippers': 'LA Clippers',
-        'Golden State': 'Golden State', 'Golden State Warriors': 'Golden State',
-        'San Antonio': 'San Antonio', 'San Antonio Spurs': 'San Antonio',
-        'New York': 'New York', 'New York Knicks': 'New York',
-        'New Orleans': 'New Orleans', 'New Orleans Pelicans': 'New Orleans',
-        'Minnesota': 'Minnesota', 'Minnesota Timberwolves': 'Minnesota',
-        'Portland': 'Portland', 'Portland Trail Blazers': 'Portland',
-        'Sacramento': 'Sacramento', 'Sacramento Kings': 'Sacramento',
-        'Philadelphia': 'Philadelphia', 'Philadelphia 76ers': 'Philadelphia',
-        'Washington': 'Washington', 'Washington Wizards': 'Washington',
-        'Cleveland': 'Cleveland', 'Cleveland Cavaliers': 'Cleveland',
-        'Milwaukee': 'Milwaukee', 'Milwaukee Bucks': 'Milwaukee',
-        'Indiana': 'Indiana', 'Indiana Pacers': 'Indiana',
-        'Detroit': 'Detroit', 'Detroit Pistons': 'Detroit',
-        'Chicago': 'Chicago', 'Chicago Bulls': 'Chicago',
-        'Atlanta': 'Atlanta', 'Atlanta Hawks': 'Atlanta',
-        'Miami': 'Miami', 'Miami Heat': 'Miami',
-        'Orlando': 'Orlando', 'Orlando Magic': 'Orlando',
-        'Charlotte': 'Charlotte', 'Charlotte Hornets': 'Charlotte',
-        'Brooklyn': 'Brooklyn', 'Brooklyn Nets': 'Brooklyn',
-        'Toronto': 'Toronto', 'Toronto Raptors': 'Toronto',
-        'Boston': 'Boston', 'Boston Celtics': 'Boston',
-        'Denver': 'Denver', 'Denver Nuggets': 'Denver',
-        'Utah': 'Utah', 'Utah Jazz': 'Utah',
-        'Phoenix': 'Phoenix', 'Phoenix Suns': 'Phoenix',
-        'Dallas': 'Dallas', 'Dallas Mavericks': 'Dallas',
-        'Houston': 'Houston', 'Houston Rockets': 'Houston',
-        'Memphis': 'Memphis', 'Memphis Grizzlies': 'Memphis',
-    }
+    # NBA
+    for i, (team, vals) in enumerate(nba_ppg_data.items(), 1):
+        ppg_data["NBA"]["season"][team] = {"rank": i, "value": vals['season']}
+        ppg_data["NBA"]["last3"][team] = {"rank": i, "value": vals['last3']}
+    logger.info(f"[PPG Data] NBA: {len(ppg_data['NBA']['season'])} teams")
     
-    nhl_team_map = {
-        'Colorado Avalanche': 'Colorado', 'COL': 'Colorado',
-        'Tampa Bay Lightning': 'Tampa Bay', 'TBL': 'Tampa Bay',
-        'Vegas Golden Knights': 'Vegas', 'VGK': 'Vegas',
-        'Montréal Canadiens': 'Montreal', 'Montreal Canadiens': 'Montreal', 'MTL': 'Montreal',
-        'Carolina Hurricanes': 'Carolina', 'CAR': 'Carolina',
-        'Edmonton Oilers': 'Edmonton', 'EDM': 'Edmonton',
-        'Toronto Maple Leafs': 'Toronto', 'TOR': 'Toronto',
-        'Pittsburgh Penguins': 'Pittsburgh', 'PIT': 'Pittsburgh',
-        'Boston Bruins': 'Boston', 'BOS': 'Boston',
-        'Buffalo Sabres': 'Buffalo', 'BUF': 'Buffalo',
-        'Ottawa Senators': 'Ottawa', 'OTT': 'Ottawa',
-        'Dallas Stars': 'Dallas', 'DAL': 'Dallas',
-        'Anaheim Ducks': 'Anaheim', 'ANA': 'Anaheim',
-        'Washington Capitals': 'Washington', 'WSH': 'Washington',
-        'Minnesota Wild': 'Minnesota', 'MIN': 'Minnesota',
-        'Utah Hockey Club': 'Utah', 'UTA': 'Utah',
-        'San Jose Sharks': 'San Jose', 'SJS': 'San Jose',
-        'Detroit Red Wings': 'Detroit', 'DET': 'Detroit',
-        'Philadelphia Flyers': 'Philadelphia', 'PHI': 'Philadelphia',
-        'Florida Panthers': 'Florida', 'FLA': 'Florida',
-        'Winnipeg Jets': 'Winnipeg', 'WPG': 'Winnipeg',
-        'Columbus Blue Jackets': 'Columbus', 'CBJ': 'Columbus',
-        'Nashville Predators': 'Nashville', 'NSH': 'Nashville',
-        'New York Islanders': 'NY Islanders', 'NYI': 'NY Islanders',
-        'Seattle Kraken': 'Seattle', 'SEA': 'Seattle',
-        'Chicago Blackhawks': 'Chicago', 'CHI': 'Chicago',
-        'New York Rangers': 'NY Rangers', 'NYR': 'NY Rangers',
-        'Vancouver Canucks': 'Vancouver', 'VAN': 'Vancouver',
-        'Los Angeles Kings': 'Los Angeles', 'LAK': 'Los Angeles',
-        'New Jersey Devils': 'New Jersey', 'NJD': 'New Jersey',
-        'Calgary Flames': 'Calgary', 'CGY': 'Calgary',
-        'St. Louis Blues': 'St. Louis', 'STL': 'St. Louis',
-    }
+    # NHL Season
+    for i, (team, gpg) in enumerate(nhl_gpg_season_data.items(), 1):
+        ppg_data["NHL"]["season"][team] = {"rank": i, "value": gpg}
     
-    def normalize_nba(name):
-        return nba_team_map.get(name, name)
-    
-    def normalize_nhl(name):
-        return nhl_team_map.get(name, name)
-    
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-    }
-    
-    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-        
-        # ==================== NBA PPG from teamrankings.com ====================
-        try:
-            logger.info("[PPG Scraper] Scraping NBA PPG...")
-            resp = await client.get('https://www.teamrankings.com/nba/stat/points-per-game', headers=headers)
-            if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                table = soup.find('table', {'class': 'tr-table'})
-                if table:
-                    rows = table.find_all('tr')[1:]
-                    for i, row in enumerate(rows[:30], 1):
-                        cols = row.find_all('td')
-                        if len(cols) >= 3:
-                            team = normalize_nba(cols[1].get_text(strip=True))
-                            try:
-                                season_val = float(cols[2].get_text(strip=True))
-                                last3_val = float(cols[3].get_text(strip=True)) if len(cols) > 3 else season_val
-                                ppg_data["NBA"]["season"][team] = {"rank": i, "value": season_val}
-                                ppg_data["NBA"]["last3"][team] = {"rank": i, "value": last3_val}
-                            except:
-                                pass
-                    logger.info(f"[PPG Scraper] NBA: {len(ppg_data['NBA']['season'])} teams")
-        except Exception as e:
-            logger.error(f"[PPG Scraper] NBA error: {e}")
-        
-        # ==================== NHL GPG from NHL API ====================
-        try:
-            logger.info("[PPG Scraper] Scraping NHL GPG from API...")
-            # NHL official stats API
-            nhl_url = 'https://api.nhle.com/stats/rest/en/team/summary?cayenneExp=seasonId=20242025%20and%20gameTypeId=2&sort=goalsForPerGame&limit=50'
-            resp = await client.get(nhl_url, headers=headers)
-            if resp.status_code == 200:
-                data = resp.json()
-                teams = data.get('data', [])
-                for i, team in enumerate(teams, 1):
-                    team_name = normalize_nhl(team.get('teamFullName', ''))
-                    gpg = team.get('goalsForPerGame', 0)
-                    if team_name and gpg:
-                        ppg_data["NHL"]["season"][team_name] = {"rank": i, "value": round(gpg, 2)}
-                        # Use season GPG as L3 approximation
-                        ppg_data["NHL"]["last3"][team_name] = {"rank": i, "value": round(gpg, 2)}
-                logger.info(f"[PPG Scraper] NHL: {len(ppg_data['NHL']['season'])} teams")
-            else:
-                logger.warning(f"[PPG Scraper] NHL API returned {resp.status_code}")
-        except Exception as e:
-            logger.error(f"[PPG Scraper] NHL error: {e}")
-        
-        # ==================== NCAAB PPG from teamrankings.com ====================
-        try:
-            logger.info("[PPG Scraper] Scraping NCAAB PPG...")
-            resp = await client.get('https://www.teamrankings.com/ncaa-basketball/stat/points-per-game', headers=headers)
-            if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                table = soup.find('table', {'class': 'tr-table'})
-                if table:
-                    rows = table.find_all('tr')[1:]
-                    for i, row in enumerate(rows, 1):
-                        cols = row.find_all('td')
-                        if len(cols) >= 3:
-                            team = cols[1].get_text(strip=True)
-                            try:
-                                season_val = float(cols[2].get_text(strip=True))
-                                last3_val = float(cols[3].get_text(strip=True)) if len(cols) > 3 else season_val
-                                ppg_data["NCAAB"]["season"][team] = {"rank": i, "value": season_val}
-                                ppg_data["NCAAB"]["last3"][team] = {"rank": i, "value": last3_val}
-                            except:
-                                pass
-                    logger.info(f"[PPG Scraper] NCAAB: {len(ppg_data['NCAAB']['season'])} teams")
-        except Exception as e:
-            logger.error(f"[PPG Scraper] NCAAB error: {e}")
+    # NHL L3
+    for i, (team, gpg) in enumerate(nhl_gpg_l3_data.items(), 1):
+        ppg_data["NHL"]["last3"][team] = {"rank": i, "value": gpg}
+    logger.info(f"[PPG Data] NHL: {len(ppg_data['NHL']['season'])} season, {len(ppg_data['NHL']['last3'])} L3 teams")
     
     # Store in MongoDB
     try:
         await db.ppg_data.update_one(
             {"_id": "current"},
-            {"$set": {"data": ppg_data, "last_updated": datetime.now(timezone.utc)}},
+            {"$set": {"data": ppg_data, "last_updated": datetime.now(timezone.utc), "source": "hardcoded_jan2026"}},
             upsert=True
         )
-        logger.info("[PPG Scraper] Data cached in MongoDB")
+        logger.info("[PPG Data] Data cached in MongoDB")
     except Exception as e:
-        logger.error(f"[PPG Scraper] Cache error: {e}")
+        logger.error(f"[PPG Data] Cache error: {e}")
     
     return ppg_data
 
