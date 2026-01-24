@@ -17450,27 +17450,40 @@ async def scrape_first_period_bets_enano():
         matches = re.findall(pattern, full_text.upper(), re.IGNORECASE | re.DOTALL)
         logger.info(f"[1st Period Bets] Found {len(matches)} matches with main pattern")
         
-        # Also try to find date patterns near matches
-        date_pattern = r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})'
+        # Log sample of page text for debugging
+        logger.info(f"[1st Period Bets] History page sample (first 1000 chars): {page_text[:1000]}")
+        
+        # Find all 1ST PERIOD occurrences to understand the format
+        first_period_count = page_text.upper().count('1ST PERIOD')
+        logger.info(f"[1st Period Bets] Found {first_period_count} occurrences of '1ST PERIOD' in History")
+        
+        # Use a simpler, more robust pattern
+        # Look for: "TEAM1 1ST PERIOD vrs TEAM2 1ST PERIOD" anywhere in text
+        simple_pattern = r'([A-Z][A-Z\s\.\-]+?)\s+1ST PERIOD\s+(?:VRS|VS)\s+([A-Z][A-Z\s\.\-]+?)\s+1ST PERIOD'
+        all_team_matches = re.findall(simple_pattern, page_text.upper())
+        logger.info(f"[1st Period Bets] Simple pattern found {len(all_team_matches)} team pairs")
+        for i, (away, home) in enumerate(all_team_matches[:5]):  # Log first 5
+            logger.info(f"[1st Period Bets] Match {i+1}: '{away.strip()}' vs '{home.strip()}'")
         
         # Process the full text looking for 1st Period sections
-        # Split by "1ST PERIOD" to find each bet
-        sections = re.split(r'(?=\w+\s+1ST PERIOD\s+(?:vrs|vs))', full_text, flags=re.IGNORECASE)
+        # Split by lines containing "1ST PERIOD vrs" or "1ST PERIOD vs"
+        sections = re.split(r'\n(?=[^\n]*1ST PERIOD[^\n]*(?:vrs|vs)[^\n]*1ST PERIOD)', page_text, flags=re.IGNORECASE)
+        logger.info(f"[1st Period Bets] Split into {len(sections)} sections")
         
-        for section in sections:
+        for idx, section in enumerate(sections):
             if '1ST PERIOD' not in section.upper():
                 continue
+            
+            # Log the section for debugging (first 3 sections only)
+            if idx < 3:
+                logger.info(f"[1st Period Bets] Section {idx} preview: {section[:300]}...")
                 
             section_upper = section.upper()
             
-            # Extract teams - use greedy matching (+) not non-greedy (+?)
-            # Pattern: "TEAM NAME 1ST PERIOD VRS TEAM NAME 1ST PERIOD"
-            teams_match = re.search(r'([A-Z][A-Z\s\.]+)\s+1ST PERIOD\s+(?:VRS|VS)\s+([A-Z][A-Z\s\.]+)\s+1ST PERIOD', section_upper)
+            # Extract teams using simple pattern
+            teams_match = re.search(r'([A-Z][A-Z\s\.\-]+?)\s+1ST PERIOD\s+(?:VRS|VS)\s+([A-Z][A-Z\s\.\-]+?)\s+1ST PERIOD', section_upper)
             if not teams_match:
-                # Try alternative pattern without requiring space before 1ST PERIOD
-                teams_match = re.search(r'([A-Z][A-Z\s\.]{2,}?)\s*1ST PERIOD\s*(?:VRS|VS)\s*([A-Z][A-Z\s\.]{2,}?)\s*1ST PERIOD', section_upper)
-            if not teams_match:
-                logger.info(f"[1st Period Bets] Could not extract teams from section")
+                logger.info(f"[1st Period Bets] Section {idx}: Could not extract teams")
                 continue
             
             away_team = teams_match.group(1).strip()
