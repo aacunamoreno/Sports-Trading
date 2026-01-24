@@ -17167,7 +17167,9 @@ async def scrape_first_period_bets_enano():
         await service.close()
         
         # Parse the page text to find 1st Period bets
-        lines = page_text.split('\n')
+        # Pattern from debug: "DETROIT RED WINGS 1ST PERIOD vrs MINNESOTA WILD 1ST PERIOD"
+        # With "Total / Under X.5" and result
+        
         games = defaultdict(lambda: {
             "date": "", 
             "away": "", 
@@ -17179,111 +17181,127 @@ async def scrape_first_period_bets_enano():
             "result": 0
         })
         
-        i = 0
+        # Split into lines and process
+        lines = page_text.split('\n')
         bets_found = 0
-        while i < len(lines):
-            line = lines[i].strip().upper()
-            
-            # Look for 1ST PERIOD in the line
-            if '1ST PERIOD' in line and ('UNDER' in line or 'TOTAL U' in line or ' U1' in line or ' U2' in line or ' U3' in line or ' U4' in line):
-                bets_found += 1
-                logger.info(f"[1st Period Bets] Found bet line: {line[:100]}...")
-                
-                # Look around for more context
-                context = ' '.join(lines[max(0,i-3):min(len(lines),i+5)])
-                context_upper = context.upper()
-                
-                # Extract teams - Pattern: "TEAM1 1ST PERIOD vrs TEAM2 1ST PERIOD"
-                teams_match = re.search(r'([A-Z][A-Z\s\.]+?)\s*1ST PERIOD\s*(?:VRS|VS)\s*([A-Z][A-Z\s\.]+?)\s*1ST PERIOD', context_upper)
-                
-                # Alternative pattern: "Team1 vs Team2 / 1st Period"
-                if not teams_match:
-                    teams_match = re.search(r'([A-Za-z][A-Za-z\s\.]+?)\s+vs\s+([A-Za-z][A-Za-z\s\.]+?)\s*/\s*1st Period', context, re.IGNORECASE)
-                
-                if not teams_match:
-                    i += 1
-                    continue
-                
-                away_team = teams_match.group(1).strip()
-                home_team = teams_match.group(2).strip()
-                
-                away_abbrev = get_nhl_abbrev(away_team)
-                home_abbrev = get_nhl_abbrev(home_team)
-                game_key = f"{away_abbrev}@{home_abbrev}"
-                
-                logger.info(f"[1st Period Bets] Game: {game_key}")
-                
-                # Extract date
-                date_match = re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})', context, re.IGNORECASE)
-                if date_match:
-                    months = {'jan':'01','feb':'02','mar':'03','apr':'04','may':'05','jun':'06',
-                              'jul':'07','aug':'08','sep':'09','oct':'10','nov':'11','dec':'12'}
-                    m = months.get(date_match.group(1).lower(), '01')
-                    d = date_match.group(2).zfill(2)
-                    games[game_key]["date"] = f"{m}/{d}"
-                
-                games[game_key]["away"] = away_abbrev
-                games[game_key]["home"] = home_abbrev
-                
-                # Extract under line - look for u1, u2, u3, u4 or Under X.5
-                line_match = re.search(r'[UuNDER\s]*(\d)[½\.]?5?[-+]', context_upper)
-                if not line_match:
-                    line_match = re.search(r'TOTAL\s+U(\d)', context_upper)
-                
-                if line_match:
-                    line_num = int(line_match.group(1))
-                    logger.info(f"[1st Period Bets] Line: U{line_num}.5")
-                else:
-                    i += 1
-                    continue
-                
-                # Extract amounts - look for pattern like "1000.00 / 1050.00" or "1,000.00 / 1,050.00"
-                amount_match = re.search(r'([\d,]+\.?\d*)\s*/\s*([\d,]+\.?\d*)', context)
-                if amount_match:
-                    risk = float(amount_match.group(1).replace(',', ''))
-                    win = float(amount_match.group(2).replace(',', ''))
-                    logger.info(f"[1st Period Bets] Risk/Win: {risk}/{win}")
-                else:
-                    i += 1
-                    continue
-                
-                # Extract result - look for WIN or LOSE
-                if 'WINWIN' in context_upper or context_upper.strip().endswith('WIN'):
-                    result = 'win'
-                    profit = win
-                elif 'LOSE' in context_upper or 'LOSS' in context_upper:
-                    result = 'loss'
-                    profit = -risk
-                else:
-                    result = 'pending'
-                    profit = 0
-                
-                logger.info(f"[1st Period Bets] Result: {result}, Profit: {profit}")
-                
-                # Store bet in appropriate column
-                bet_info = {
-                    "risk": risk,
-                    "win": win,
-                    "result": result,
-                    "profit": profit
-                }
-                
-                if line_num == 1:
-                    games[game_key]["u15"] = bet_info
-                    games[game_key]["result"] += profit
-                elif line_num == 2:
-                    games[game_key]["u25"] = bet_info
-                    games[game_key]["result"] += profit
-                elif line_num == 3:
-                    games[game_key]["u35"] = bet_info
-                    games[game_key]["result"] += profit
-                elif line_num == 4:
-                    games[game_key]["u45"] = bet_info
-                    games[game_key]["result"] += profit
-            
-            i += 1
         
-        logger.info(f"[1st Period Bets] Found {bets_found} bet lines, {len(games)} unique games")
+        # Join all text for regex matching
+        full_text = page_text
+        
+        # Find all 1st Period NHL bets using regex
+        # Pattern: Team1 1ST PERIOD vrs Team2 1ST PERIOD ... Total / Under X.5 ... Risk/Win ... Result
+        
+        # More flexible pattern to find 1st Period entries
+        pattern = r'([A-Z][A-Z\s\.]+?)\s*1ST PERIOD\s*(?:vrs|vs)\s*([A-Z][A-Z\s\.]+?)\s*1ST PERIOD[^\n]*?(?:Total\s*/\s*Under\s*(\d+\.?\d*)|[Uu]nder\s*(\d+\.?\d*))[^\n]*?(\d{1,2},?\d*\.?\d*)\s*/\s*(\d{1,2},?\d*\.?\d*)[^\n]*?(WIN|LOSE|LOSS|CANCEL)'
+        
+        matches = re.findall(pattern, full_text.upper(), re.IGNORECASE | re.DOTALL)
+        logger.info(f"[1st Period Bets] Found {len(matches)} matches with main pattern")
+        
+        # Also try to find date patterns near matches
+        date_pattern = r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})'
+        
+        # Process the full text looking for 1st Period sections
+        # Split by "1ST PERIOD" to find each bet
+        sections = re.split(r'(?=\w+\s+1ST PERIOD\s+(?:vrs|vs))', full_text, flags=re.IGNORECASE)
+        
+        for section in sections:
+            if '1ST PERIOD' not in section.upper():
+                continue
+                
+            section_upper = section.upper()
+            
+            # Extract teams
+            teams_match = re.search(r'([A-Z][A-Z\s\.]+?)\s*1ST PERIOD\s*(?:VRS|VS)\s*([A-Z][A-Z\s\.]+?)\s*1ST PERIOD', section_upper)
+            if not teams_match:
+                continue
+            
+            away_team = teams_match.group(1).strip()
+            home_team = teams_match.group(2).strip()
+            
+            # Skip non-NHL (check for hockey indicators)
+            if 'HOCKEY' not in section_upper and 'NHL' not in section_upper:
+                # Could be other sport, skip
+                continue
+            
+            away_abbrev = get_nhl_abbrev(away_team)
+            home_abbrev = get_nhl_abbrev(home_team)
+            game_key = f"{away_abbrev}@{home_abbrev}"
+            
+            bets_found += 1
+            logger.info(f"[1st Period Bets] Found: {game_key}")
+            
+            # Extract date
+            date_match = re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})', section, re.IGNORECASE)
+            if date_match:
+                months = {'jan':'01','feb':'02','mar':'03','apr':'04','may':'05','jun':'06',
+                          'jul':'07','aug':'08','sep':'09','oct':'10','nov':'11','dec':'12'}
+                m = months.get(date_match.group(1).lower(), '01')
+                d = date_match.group(2).zfill(2)
+                games[game_key]["date"] = f"{m}/{d}"
+            
+            games[game_key]["away"] = away_abbrev
+            games[game_key]["home"] = home_abbrev
+            
+            # Extract under line - "Total / Under X.5" or "Under X.5"
+            line_match = re.search(r'(?:TOTAL\s*/\s*)?UNDER\s*(\d+)\.?5?', section_upper)
+            if not line_match:
+                line_match = re.search(r'U(\d+)\.?5?\s*[-+]', section_upper)
+            
+            if line_match:
+                line_num = int(line_match.group(1))
+                logger.info(f"[1st Period Bets] Line: U{line_num}.5")
+            else:
+                logger.info(f"[1st Period Bets] Could not find line in section")
+                continue
+            
+            # Extract amounts - "1000.00 / 1050.00" or "1,000.00 / 1,050.00"
+            amount_match = re.search(r'(\d{1,3},?\d*\.?\d*)\s*/\s*(\d{1,3},?\d*\.?\d*)', section)
+            if amount_match:
+                risk = float(amount_match.group(1).replace(',', ''))
+                win = float(amount_match.group(2).replace(',', ''))
+                logger.info(f"[1st Period Bets] Risk/Win: {risk}/{win}")
+            else:
+                logger.info(f"[1st Period Bets] Could not find amounts in section")
+                continue
+            
+            # Extract result
+            if 'WIN' in section_upper and 'LOSE' not in section_upper and 'LOSS' not in section_upper:
+                result = 'win'
+                profit = win
+            elif 'LOSE' in section_upper or 'LOSS' in section_upper:
+                result = 'loss'
+                profit = -risk
+            elif 'CANCEL' in section_upper:
+                result = 'cancel'
+                profit = 0
+            else:
+                result = 'pending'
+                profit = 0
+            
+            logger.info(f"[1st Period Bets] Result: {result}, Profit: {profit}")
+            
+            # Store bet in appropriate column
+            bet_info = {
+                "risk": risk,
+                "win": win,
+                "result": result,
+                "profit": profit
+            }
+            
+            if line_num == 1:
+                games[game_key]["u15"] = bet_info
+                games[game_key]["result"] += profit
+            elif line_num == 2:
+                games[game_key]["u25"] = bet_info
+                games[game_key]["result"] += profit
+            elif line_num == 3:
+                games[game_key]["u35"] = bet_info
+                games[game_key]["result"] += profit
+            elif line_num == 4:
+                games[game_key]["u45"] = bet_info
+                games[game_key]["result"] += profit
+        
+        logger.info(f"[1st Period Bets] Found {bets_found} bet sections, {len(games)} unique games")
         
         # Convert to list and calculate summary
         bets_list = []
