@@ -90,6 +90,10 @@ export default function Opportunities() {
   const [firstPeriodZeros, setFirstPeriodZeros] = useState({ total: 0, l3: 0, l5: 0, lastUpdated: null });
   const [showFirstPeriodModal, setShowFirstPeriodModal] = useState(false);
   const [firstPeriodBreakdown, setFirstPeriodBreakdown] = useState([]);
+  const [teams4Goals, setTeams4Goals] = useState([]);
+  const [teams5Goals, setTeams5Goals] = useState([]);
+  const [expanded4Goals, setExpanded4Goals] = useState(false);
+  const [expanded5Goals, setExpanded5Goals] = useState(false);
   const [loadingFirstPeriodBreakdown, setLoadingFirstPeriodBreakdown] = useState(false);
   const [editingLine, setEditingLine] = useState(null); // { gameIndex: number, value: string }
   const [savingLine, setSavingLine] = useState(false);
@@ -257,6 +261,8 @@ export default function Opportunities() {
         const res = await fetch(`${BACKEND_URL}/api/nhl/first-period-breakdown`);
         const data = await res.json();
         setFirstPeriodBreakdown(data.breakdown || []);
+        setTeams4Goals(data.teams_4_goals || []);
+        setTeams5Goals(data.teams_5_goals || []);
       } catch (e) {
         console.error('Error fetching 1st Period breakdown:', e);
       } finally {
@@ -996,7 +1002,7 @@ export default function Opportunities() {
               title="Click to view 1st Period goals breakdown"
             >
               <div className="flex items-center justify-center gap-2">
-                <span className="text-xs text-muted-foreground">🏒 1st Period</span>
+                <span className="text-xs text-muted-foreground">🏒 1st Period Stats</span>
                 <span className="text-[10px] bg-red-600/30 text-red-300 px-1.5 py-0.5 rounded">Breakdown</span>
               </div>
               <div className="text-xl font-bold text-center text-red-400">
@@ -2141,12 +2147,12 @@ export default function Opportunities() {
 
       {/* NHL 1st Period Goals Breakdown Modal */}
       {showFirstPeriodModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowFirstPeriodModal(false)}>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => { setShowFirstPeriodModal(false); setExpanded4Goals(false); setExpanded5Goals(false); }}>
           <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-red-400">🏒 NHL 1st Period Goals Breakdown</h2>
               <button 
-                onClick={() => setShowFirstPeriodModal(false)}
+                onClick={() => { setShowFirstPeriodModal(false); setExpanded4Goals(false); setExpanded5Goals(false); }}
                 className="text-gray-400 hover:text-white text-2xl"
               >
                 ×
@@ -2158,48 +2164,190 @@ export default function Opportunities() {
             
             {loadingFirstPeriodBreakdown ? (
               <div className="text-center py-8 text-gray-400">Loading...</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="text-left py-2 px-3 text-gray-400">Goals</th>
-                      <th className="text-center py-2 px-3 text-gray-400">Total</th>
-                      <th className="text-center py-2 px-3 text-gray-400">L3 Days</th>
-                      <th className="text-center py-2 px-3 text-gray-400">L5 Days</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {firstPeriodBreakdown.map((row, idx) => {
-                      const isZero = row.goals === 0;
-                      return (
-                        <tr 
-                          key={idx} 
-                          className={`border-b border-gray-800 ${isZero ? 'bg-red-900/20' : 'hover:bg-gray-800/50'}`}
-                        >
-                          <td className={`py-3 px-3 font-medium ${isZero ? 'text-red-400' : 'text-white'}`}>
-                            {row.goals === 0 ? '0-0' : row.label}
-                          </td>
-                          <td className={`py-3 px-3 text-center font-bold ${isZero ? 'text-red-400 text-lg' : 'text-white'}`}>
-                            {row.total}
-                          </td>
-                          <td className="py-3 px-3 text-center text-yellow-400">
-                            {row.l3}
-                          </td>
-                          <td className="py-3 px-3 text-center text-orange-400">
-                            {row.l5}
-                          </td>
+            ) : (() => {
+              // Calculate totals and percentages
+              const group02 = firstPeriodBreakdown.filter(r => r.goals <= 2);
+              const row3 = firstPeriodBreakdown.find(r => r.goals === 3);
+              const group45 = firstPeriodBreakdown.filter(r => r.goals >= 4);
+              
+              const total02 = group02.reduce((sum, r) => sum + r.total, 0);
+              const l3_02 = group02.reduce((sum, r) => sum + r.l3, 0);
+              const l5_02 = group02.reduce((sum, r) => sum + r.l5, 0);
+              
+              const total03 = total02 + (row3?.total || 0);
+              const l3_03 = l3_02 + (row3?.l3 || 0);
+              const l5_03 = l5_02 + (row3?.l5 || 0);
+              
+              const total45 = group45.reduce((sum, r) => sum + r.total, 0);
+              const l3_45 = group45.reduce((sum, r) => sum + r.l3, 0);
+              const l5_45 = group45.reduce((sum, r) => sum + r.l5, 0);
+              
+              const grandTotal = total03 + total45;
+              const pct02 = grandTotal > 0 ? ((total02 / grandTotal) * 100).toFixed(1) : 0;
+              const pct03 = grandTotal > 0 ? ((total03 / grandTotal) * 100).toFixed(1) : 0;
+              const pct45 = grandTotal > 0 ? ((total45 / grandTotal) * 100).toFixed(1) : 0;
+              
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left py-2 px-3 text-gray-400">Goals</th>
+                        <th className="text-center py-2 px-3 text-gray-400">Total</th>
+                        <th className="text-center py-2 px-3 text-gray-400">L3</th>
+                        <th className="text-center py-2 px-3 text-gray-400">L5</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Group 1: 0-2 Goals */}
+                      {group02.map((row, idx) => {
+                        const isZero = row.goals === 0;
+                        return (
+                          <tr 
+                            key={idx} 
+                            className={`border-b border-gray-800 ${isZero ? 'bg-red-900/20' : 'hover:bg-gray-800/50'}`}
+                          >
+                            <td className={`py-2 px-3 font-medium ${isZero ? 'text-red-400' : 'text-white'}`}>
+                              {row.goals === 0 ? '0-0' : row.label}
+                            </td>
+                            <td className={`py-2 px-3 text-center font-bold ${isZero ? 'text-red-400' : 'text-white'}`}>
+                              {row.total}
+                            </td>
+                            <td className="py-2 px-3 text-center text-yellow-400">
+                              {row.l3}
+                            </td>
+                            <td className="py-2 px-3 text-center text-orange-400">
+                              {row.l5}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {/* Subtotal 0-2 */}
+                      <tr className="bg-green-900/30 border-b-2 border-green-500/50">
+                        <td className="py-2 px-3 font-bold text-green-400">📊 0-2 Goals</td>
+                        <td className="py-2 px-3 text-center font-bold text-green-400 text-lg">{total02}</td>
+                        <td className="py-2 px-3 text-center font-bold text-green-300">{l3_02}</td>
+                        <td className="py-2 px-3 text-center font-bold text-green-300">{l5_02}</td>
+                      </tr>
+                      <tr>
+                        <td colSpan="4" className="py-1 text-center text-green-400 font-bold">{pct02}% of all games</td>
+                      </tr>
+                      
+                      {/* Spacer */}
+                      <tr><td colSpan="4" className="py-2"></td></tr>
+                      
+                      {/* 3 Goals Row */}
+                      {row3 && (
+                        <tr className="border-b border-gray-800 hover:bg-gray-800/50">
+                          <td className="py-2 px-3 font-medium text-white">{row3.label}</td>
+                          <td className="py-2 px-3 text-center font-bold text-white">{row3.total}</td>
+                          <td className="py-2 px-3 text-center text-yellow-400">{row3.l3}</td>
+                          <td className="py-2 px-3 text-center text-orange-400">{row3.l5}</td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                      )}
+                      {/* Subtotal 0-3 */}
+                      <tr className="bg-yellow-900/30 border-b-2 border-yellow-500/50">
+                        <td className="py-2 px-3 font-bold text-yellow-400">📊 0-3 Goals</td>
+                        <td className="py-2 px-3 text-center font-bold text-yellow-400 text-lg">{total03}</td>
+                        <td className="py-2 px-3 text-center font-bold text-yellow-300">{l3_03}</td>
+                        <td className="py-2 px-3 text-center font-bold text-yellow-300">{l5_03}</td>
+                      </tr>
+                      <tr>
+                        <td colSpan="4" className="py-1 text-center text-yellow-400 font-bold">{pct03}% of all games</td>
+                      </tr>
+                      
+                      {/* Spacer */}
+                      <tr><td colSpan="4" className="py-2"></td></tr>
+                      
+                      {/* 4 Goals Row - Expandable */}
+                      {group45.filter(r => r.goals === 4).map((row) => (
+                        <React.Fragment key="4goals">
+                          <tr 
+                            className="border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer"
+                            onClick={() => setExpanded4Goals(!expanded4Goals)}
+                          >
+                            <td className="py-2 px-3 font-medium text-white flex items-center gap-2">
+                              <span className={`transition-transform ${expanded4Goals ? 'rotate-90' : ''}`}>▶</span>
+                              {row.label}
+                            </td>
+                            <td className="py-2 px-3 text-center font-bold text-white">{row.total}</td>
+                            <td className="py-2 px-3 text-center text-yellow-400">{row.l3}</td>
+                            <td className="py-2 px-3 text-center text-orange-400">{row.l5}</td>
+                          </tr>
+                          {expanded4Goals && teams4Goals.length > 0 && (
+                            <tr>
+                              <td colSpan="4" className="p-0">
+                                <div className="bg-gray-800/50 p-3 mx-2 mb-2 rounded-lg">
+                                  <div className="text-xs text-gray-400 mb-2 font-medium">Teams in 4-goal 1st periods:</div>
+                                  <div className="grid grid-cols-2 gap-1 text-xs">
+                                    {teams4Goals.slice(0, 10).map((t, i) => (
+                                      <div key={i} className="flex justify-between px-2 py-1 bg-gray-700/50 rounded">
+                                        <span className="text-white">{t.team}</span>
+                                        <span className="text-cyan-400 font-bold">{t.count}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                      
+                      {/* 5+ Goals Row - Expandable */}
+                      {group45.filter(r => r.goals === 5).map((row) => (
+                        <React.Fragment key="5goals">
+                          <tr 
+                            className="border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer"
+                            onClick={() => setExpanded5Goals(!expanded5Goals)}
+                          >
+                            <td className="py-2 px-3 font-medium text-white flex items-center gap-2">
+                              <span className={`transition-transform ${expanded5Goals ? 'rotate-90' : ''}`}>▶</span>
+                              {row.label}
+                            </td>
+                            <td className="py-2 px-3 text-center font-bold text-white">{row.total}</td>
+                            <td className="py-2 px-3 text-center text-yellow-400">{row.l3}</td>
+                            <td className="py-2 px-3 text-center text-orange-400">{row.l5}</td>
+                          </tr>
+                          {expanded5Goals && teams5Goals.length > 0 && (
+                            <tr>
+                              <td colSpan="4" className="p-0">
+                                <div className="bg-gray-800/50 p-3 mx-2 mb-2 rounded-lg">
+                                  <div className="text-xs text-gray-400 mb-2 font-medium">Teams in 5+ goal 1st periods:</div>
+                                  <div className="grid grid-cols-2 gap-1 text-xs">
+                                    {teams5Goals.slice(0, 10).map((t, i) => (
+                                      <div key={i} className="flex justify-between px-2 py-1 bg-gray-700/50 rounded">
+                                        <span className="text-white">{t.team}</span>
+                                        <span className="text-cyan-400 font-bold">{t.count}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                      
+                      {/* Subtotal 4-5+ */}
+                      <tr className="bg-blue-900/30 border-b-2 border-blue-500/50">
+                        <td className="py-2 px-3 font-bold text-blue-400">📊 4-5+ Goals</td>
+                        <td className="py-2 px-3 text-center font-bold text-blue-400 text-lg">{total45}</td>
+                        <td className="py-2 px-3 text-center font-bold text-blue-300">{l3_45}</td>
+                        <td className="py-2 px-3 text-center font-bold text-blue-300">{l5_45}</td>
+                      </tr>
+                      <tr>
+                        <td colSpan="4" className="py-1 text-center text-blue-400 font-bold">{pct45}% of all games</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
             
             <div className="mt-4 pt-4 border-t border-gray-700 text-xs text-gray-500">
-              <p>🔴 0-0 = No goals in 1st period</p>
-              <p className="mt-1">L3/L5 = Games in Last 3/5 days</p>
+              <p>🟢 0-2 = Low scoring | 🟡 0-3 = Under trend | 🔵 4-5+ = High scoring</p>
+              <p className="mt-1">▶ Click on 4 Goals or 5+ Goals to see team breakdown</p>
               <p className="mt-1">Data updates automatically at 11 PM Arizona time</p>
             </div>
           </div>
