@@ -17350,10 +17350,19 @@ def get_nhl_abbrev(team_name):
     # Return first 3 chars if no match
     return team_upper[:3]
 
+# REPLACEMENT CODE for scrape_first_period_bets_enano() function
+# Lines 17353-17578 in server.py should be replaced with this code
+
 async def scrape_first_period_bets_enano():
     """
     Scrape 1st Period NHL bets from plays888.co History page for ENANO (jac075).
     Returns list of bets grouped by game with U1.5, U2.5, U3.5, U4.5 columns.
+    
+    IMPORTANT: This function handles TWO different bet formats:
+    1. NHL Direct: "TOTAL u1½+110 (TEAM1 1ST PERIOD vrs TEAM2 1ST PERIOD)"
+    2. RBL Format: "Team1 vs Team2 / 1st Period / Total / Under X.5"
+    
+    Games are grouped by sorted team abbreviations to handle Away/Home inversions.
     """
     import re
     from collections import defaultdict
@@ -17365,7 +17374,7 @@ async def scrape_first_period_bets_enano():
         service = Plays888Service()
         await service.initialize()
         
-        # Login with hardcoded credentials (same as update_nhl_bet_results)
+        # Login with hardcoded credentials
         login_result = await service.login("jac075", "acuna2025!")
         if not login_result.get("success"):
             logger.error("[1st Period Bets] Failed to login to plays888.co")
@@ -17381,127 +17390,156 @@ async def scrape_first_period_bets_enano():
         
         logger.info("[1st Period Bets] Navigated to History page")
         
-        # Get the full page text for parsing
+        # Get the raw page text
         page_text = await service.page.inner_text('body')
-        logger.info(f"[1st Period Bets] Page text length: {len(page_text)}")
         
         await service.close()
         
-        # Parse the page text to find 1st Period bets
-        # Pattern from debug: "DETROIT RED WINGS 1ST PERIOD vrs MINNESOTA WILD 1ST PERIOD"
-        # With "Total / Under X.5" and result
+        logger.info(f"[1st Period Bets] Page text length: {len(page_text)}")
         
-        games = defaultdict(lambda: {
-            "date": "", 
-            "away": "", 
-            "home": "", 
-            "u15": None, 
-            "u25": None, 
-            "u35": None, 
-            "u45": None,
-            "result": 0
-        })
+        # Store all individual bets first, then group by game
+        all_bets = []
         
-        # Split into lines and process
+        # Split by rows - each bet entry typically has a date/time pattern
+        # Pattern: "Jan 22 06:37 PM" or similar at start of each row
         lines = page_text.split('\n')
-        bets_found = 0
         
-        # Join all text for regex matching
-        full_text = page_text
+        current_bet = {}
         
-        # Find all 1st Period NHL bets using regex
-        # Pattern: Team1 1ST PERIOD vrs Team2 1ST PERIOD ... Total / Under X.5 ... Risk/Win ... Result
-        
-        # More flexible pattern to find 1st Period entries
-        pattern = r'([A-Z][A-Z\s\.]+?)\s*1ST PERIOD\s*(?:vrs|vs)\s*([A-Z][A-Z\s\.]+?)\s*1ST PERIOD[^\n]*?(?:Total\s*/\s*Under\s*(\d+\.?\d*)|[Uu]nder\s*(\d+\.?\d*))[^\n]*?(\d{1,2},?\d*\.?\d*)\s*/\s*(\d{1,2},?\d*\.?\d*)[^\n]*?(WIN|LOSE|LOSS|CANCEL)'
-        
-        matches = re.findall(pattern, full_text.upper(), re.IGNORECASE | re.DOTALL)
-        logger.info(f"[1st Period Bets] Found {len(matches)} matches with main pattern")
-        
-        # Also try to find date patterns near matches
-        date_pattern = r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})'
-        
-        # Process the full text looking for 1st Period sections
-        # Split by "1ST PERIOD" to find each bet
-        sections = re.split(r'(?=\w+\s+1ST PERIOD\s+(?:vrs|vs))', full_text, flags=re.IGNORECASE)
-        
-        for section in sections:
-            if '1ST PERIOD' not in section.upper():
-                continue
-                
-            section_upper = section.upper()
-            
-            # Extract teams
-            teams_match = re.search(r'([A-Z][A-Z\s\.]+?)\s*1ST PERIOD\s*(?:VRS|VS)\s*([A-Z][A-Z\s\.]+?)\s*1ST PERIOD', section_upper)
-            if not teams_match:
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if not line:
                 continue
             
-            away_team = teams_match.group(1).strip()
-            home_team = teams_match.group(2).strip()
+            # Check for date pattern (start of new bet entry)
+            date_match = re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\s+\d{1,2}:\d{2}\s*(AM|PM)', line, re.IGNORECASE)
             
-            # Skip non-NHL (check for hockey indicators)
-            if 'HOCKEY' not in section_upper and 'NHL' not in section_upper:
-                # Could be other sport, skip
-                continue
-            
-            away_abbrev = get_nhl_abbrev(away_team)
-            home_abbrev = get_nhl_abbrev(home_team)
-            game_key = f"{away_abbrev}@{home_abbrev}"
-            
-            bets_found += 1
-            logger.info(f"[1st Period Bets] Found: {game_key}")
-            
-            # Extract date
-            date_match = re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})', section, re.IGNORECASE)
             if date_match:
+                # Save previous bet if it was a 1st Period bet
+                if current_bet.get('is_first_period') and current_bet.get('line_num') and current_bet.get('teams'):
+                    all_bets.append(current_bet.copy())
+                
+                # Start new bet
                 months = {'jan':'01','feb':'02','mar':'03','apr':'04','may':'05','jun':'06',
                           'jul':'07','aug':'08','sep':'09','oct':'10','nov':'11','dec':'12'}
                 m = months.get(date_match.group(1).lower(), '01')
                 d = date_match.group(2).zfill(2)
-                games[game_key]["date"] = f"{m}/{d}"
-            
-            games[game_key]["away"] = away_abbrev
-            games[game_key]["home"] = home_abbrev
-            
-            # Extract under line - "Total / Under X.5" or "Under X.5"
-            line_match = re.search(r'(?:TOTAL\s*/\s*)?UNDER\s*(\d+)\.?5?', section_upper)
-            if not line_match:
-                line_match = re.search(r'U(\d+)\.?5?\s*[-+]', section_upper)
-            
-            if line_match:
-                line_num = int(line_match.group(1))
-                logger.info(f"[1st Period Bets] Line: U{line_num}.5")
-            else:
-                logger.info(f"[1st Period Bets] Could not find line in section")
+                current_bet = {
+                    'date': f"{m}/{d}",
+                    'is_first_period': False,
+                    'line_num': None,
+                    'teams': None,
+                    'risk': 0,
+                    'win': 0,
+                    'result': None
+                }
                 continue
             
-            # Extract amounts - "1000.00 / 1050.00" or "1,000.00 / 1,050.00"
-            amount_match = re.search(r'(\d{1,3},?\d*\.?\d*)\s*/\s*(\d{1,3},?\d*\.?\d*)', section)
-            if amount_match:
+            line_upper = line.upper()
+            
+            # Check for 1st Period indicators
+            if '1ST PERIOD' in line_upper:
+                current_bet['is_first_period'] = True
+                
+                # Try to extract NHL Direct format: TOTAL u1½+110 (TEAM1 1ST PERIOD vrs TEAM2 1ST PERIOD)
+                nhl_match = re.search(r'TOTAL\s*[Uu](\d)[½\.5].*?\((.+?)\s*1ST\s*PERIOD\s*(?:VRS|VS)\s*(.+?)\s*1ST\s*PERIOD\)', line_upper)
+                if nhl_match:
+                    current_bet['line_num'] = int(nhl_match.group(1))
+                    team1 = nhl_match.group(2).strip()
+                    team2 = nhl_match.group(3).strip()
+                    abbrev1 = get_nhl_abbrev(team1)
+                    abbrev2 = get_nhl_abbrev(team2)
+                    # Sort alphabetically to normalize game key
+                    current_bet['teams'] = tuple(sorted([abbrev1, abbrev2]))
+                    current_bet['team1'] = abbrev1
+                    current_bet['team2'] = abbrev2
+                    logger.info(f"[1st Period] NHL Direct: {abbrev1} vs {abbrev2}, U{current_bet['line_num']}.5")
+            
+            # Check for RBL format: "1st Period / Total / Under X.5"
+            if '1ST PERIOD' in line_upper and 'UNDER' in line_upper:
+                rbl_match = re.search(r'1ST\s*PERIOD\s*/\s*TOTAL\s*/\s*UNDER\s*(\d)\.5', line_upper)
+                if rbl_match:
+                    current_bet['is_first_period'] = True
+                    current_bet['line_num'] = int(rbl_match.group(1))
+                    logger.info(f"[1st Period] RBL Format detected: U{current_bet['line_num']}.5")
+            
+            # Check for game info in RBL format: "Team1 vs Team2"
+            if current_bet.get('is_first_period') and not current_bet.get('teams'):
+                # Look for team patterns in various formats
+                # Format: "Minnesota Wild vs Detroit Red Wings" or "Calgary Flames vs Washington Capitals"
+                game_match = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+[A-Z][a-z]+)?)\s+(?:vs|VS|@)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+[A-Z][a-z]+)?)', line)
+                if game_match:
+                    team1 = game_match.group(1).strip().upper()
+                    team2 = game_match.group(2).strip().upper()
+                    abbrev1 = get_nhl_abbrev(team1)
+                    abbrev2 = get_nhl_abbrev(team2)
+                    current_bet['teams'] = tuple(sorted([abbrev1, abbrev2]))
+                    current_bet['team1'] = abbrev1
+                    current_bet['team2'] = abbrev2
+                    logger.info(f"[1st Period] RBL Teams: {abbrev1} vs {abbrev2}")
+            
+            # Check for amounts: "1000.00 / 1100.00" or "1,000.00 / 1,050.00"
+            amount_match = re.search(r'(\d{1,4}(?:,\d{3})*\.?\d*)\s*/\s*(\d{1,4}(?:,\d{3})*\.?\d*)', line)
+            if amount_match and current_bet.get('is_first_period'):
                 risk = float(amount_match.group(1).replace(',', ''))
                 win = float(amount_match.group(2).replace(',', ''))
-                logger.info(f"[1st Period Bets] Risk/Win: {risk}/{win}")
-            else:
-                logger.info(f"[1st Period Bets] Could not find amounts in section")
+                # Only update if we don't have amounts yet or these look like the right ones
+                if current_bet.get('risk', 0) == 0 and risk >= 500:  # Minimum bet filter
+                    current_bet['risk'] = risk
+                    current_bet['win'] = win
+            
+            # Check for result
+            if 'WIN' in line_upper and 'LOSE' not in line_upper and 'LOSS' not in line_upper:
+                if current_bet.get('is_first_period'):
+                    current_bet['result'] = 'win'
+            elif 'LOSE' in line_upper or 'LOSS' in line_upper:
+                if current_bet.get('is_first_period'):
+                    current_bet['result'] = 'loss'
+            elif 'CANCEL' in line_upper:
+                if current_bet.get('is_first_period'):
+                    current_bet['result'] = 'cancel'
+        
+        # Don't forget the last bet
+        if current_bet.get('is_first_period') and current_bet.get('line_num') and current_bet.get('teams'):
+            all_bets.append(current_bet.copy())
+        
+        logger.info(f"[1st Period Bets] Found {len(all_bets)} individual 1st Period bets")
+        
+        # Group bets by game (date + sorted teams)
+        games = defaultdict(lambda: {
+            "date": "", 
+            "team1": "", 
+            "team2": "", 
+            "u15": None, 
+            "u25": None, 
+            "u35": None, 
+            "u45": None,
+            "total_result": 0
+        })
+        
+        for bet in all_bets:
+            if not bet.get('teams') or not bet.get('line_num'):
                 continue
             
-            # Extract result
-            if 'WIN' in section_upper and 'LOSE' not in section_upper and 'LOSS' not in section_upper:
-                result = 'win'
+            # Create game key: date + sorted teams
+            game_key = f"{bet['date']}_{bet['teams'][0]}_{bet['teams'][1]}"
+            
+            games[game_key]["date"] = bet['date']
+            games[game_key]["team1"] = bet['teams'][0]
+            games[game_key]["team2"] = bet['teams'][1]
+            
+            line_num = bet['line_num']
+            result = bet.get('result', 'pending')
+            risk = bet.get('risk', 0)
+            win = bet.get('win', 0)
+            
+            if result == 'win':
                 profit = win
-            elif 'LOSE' in section_upper or 'LOSS' in section_upper:
-                result = 'loss'
+            elif result == 'loss':
                 profit = -risk
-            elif 'CANCEL' in section_upper:
-                result = 'cancel'
-                profit = 0
             else:
-                result = 'pending'
                 profit = 0
             
-            logger.info(f"[1st Period Bets] Result: {result}, Profit: {profit}")
-            
-            # Store bet in appropriate column
             bet_info = {
                 "risk": risk,
                 "win": win,
@@ -17509,20 +17547,12 @@ async def scrape_first_period_bets_enano():
                 "profit": profit
             }
             
-            if line_num == 1:
-                games[game_key]["u15"] = bet_info
-                games[game_key]["result"] += profit
-            elif line_num == 2:
-                games[game_key]["u25"] = bet_info
-                games[game_key]["result"] += profit
-            elif line_num == 3:
-                games[game_key]["u35"] = bet_info
-                games[game_key]["result"] += profit
-            elif line_num == 4:
-                games[game_key]["u45"] = bet_info
-                games[game_key]["result"] += profit
-        
-        logger.info(f"[1st Period Bets] Found {bets_found} bet sections, {len(games)} unique games")
+            line_key = f"u{line_num}5"
+            if line_key in ["u15", "u25", "u35", "u45"]:
+                games[game_key][line_key] = bet_info
+                games[game_key]["total_result"] += profit
+            
+            logger.info(f"[1st Period] Added: {game_key} U{line_num}.5 = {result} ({profit:+.2f})")
         
         # Convert to list and calculate summary
         bets_list = []
@@ -17535,36 +17565,36 @@ async def scrape_first_period_bets_enano():
         }
         
         for game_key, game in games.items():
-            if game["away"] and game["home"]:
-                bets_list.append({
-                    "date": game["date"],
-                    "game": f"{game['away']} @ {game['home']}",
-                    "u15": game.get("u15"),
-                    "u25": game.get("u25"),
-                    "u35": game.get("u35"),
-                    "u45": game.get("u45"),
-                    "result": game.get("result", 0)
-                })
-                
-                # Update summary
-                for line_key in ["u15", "u25", "u35", "u45"]:
-                    bet = game.get(line_key)
-                    if bet and bet["result"] != "cancel" and bet["result"] != "pending":
-                        if bet["result"] == "win":
-                            summary[line_key]["wins"] += 1
-                            summary[line_key]["profit"] += bet["win"]
-                            summary["total"]["wins"] += 1
-                            summary["total"]["profit"] += bet["win"]
-                        elif bet["result"] == "loss":
-                            summary[line_key]["losses"] += 1
-                            summary[line_key]["profit"] -= bet["risk"]
-                            summary["total"]["losses"] += 1
-                            summary["total"]["profit"] -= bet["risk"]
+            bets_list.append({
+                "date": game["date"],
+                "game": f"{game['team1']} @ {game['team2']}",
+                "u15": game.get("u15"),
+                "u25": game.get("u25"),
+                "u35": game.get("u35"),
+                "u45": game.get("u45"),
+                "result": game.get("total_result", 0)
+            })
+            
+            # Update summary
+            for line_key in ["u15", "u25", "u35", "u45"]:
+                bet = game.get(line_key)
+                if bet and bet.get("result") not in ["cancel", "pending", None]:
+                    if bet["result"] == "win":
+                        summary[line_key]["wins"] += 1
+                        summary[line_key]["profit"] += bet["win"]
+                        summary["total"]["wins"] += 1
+                        summary["total"]["profit"] += bet["win"]
+                    elif bet["result"] == "loss":
+                        summary[line_key]["losses"] += 1
+                        summary[line_key]["profit"] -= bet["risk"]
+                        summary["total"]["losses"] += 1
+                        summary["total"]["profit"] -= bet["risk"]
         
         # Sort by date (most recent first)
         bets_list.sort(key=lambda x: x["date"], reverse=True)
         
-        logger.info(f"[1st Period Bets] Final: {len(bets_list)} games, Summary: {summary['total']}")
+        logger.info(f"[1st Period Bets] Final: {len(bets_list)} games")
+        logger.info(f"[1st Period Bets] Summary: {summary['total']['wins']}-{summary['total']['losses']}, ${summary['total']['profit']:+,.2f}")
         
         return {
             "bets": bets_list,
