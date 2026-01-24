@@ -493,6 +493,20 @@ export default function Opportunities() {
       // Pass the current day parameter so tomorrow's games get refreshed correctly
       const response = await axios.post(`${API}/opportunities/refresh-lines?league=${league}&day=${day}`, {}, { timeout: 60000 });
       
+      // For NHL, also refresh 1st Period bets (includes Open Bets for pending wagers)
+      if (league === 'NHL') {
+        try {
+          await axios.post(`${API}/nhl/first-period-bets/refresh`, {}, { timeout: 120000 });
+          // Reload first period bets data
+          const fpResponse = await axios.get(`${API}/nhl/first-period-bets`);
+          if (fpResponse.data) {
+            setFirstPeriodBets(fpResponse.data);
+          }
+        } catch (fpError) {
+          console.error('Error refreshing 1st Period bets:', fpError);
+        }
+      }
+      
       // Reload data to show updates
       await loadOpportunities();
       
@@ -639,6 +653,18 @@ export default function Opportunities() {
         toast.success(`Updated ${response.data.bets_matched || response.data.games_updated || 0} bets for ${dateStr}. Record: ${response.data.wins || 0}W-${response.data.losses || 0}L`);
         // Reload data to show updated bet results
         await loadOpportunities();
+        
+        // For NHL, also reload 1st Period bets to show updated results
+        if (league === 'NHL') {
+          try {
+            const fpResponse = await axios.get(`${API}/nhl/first-period-bets`);
+            if (fpResponse.data) {
+              setFirstPeriodBets(fpResponse.data);
+            }
+          } catch (fpError) {
+            console.error('Error reloading 1st Period bets:', fpError);
+          }
+        }
       } else {
         toast.error('Failed to update bet results');
       }
