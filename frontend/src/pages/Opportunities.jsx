@@ -88,6 +88,9 @@ export default function Opportunities() {
   const [publicThreshold, setPublicThreshold] = useState(57);
   const [loadingPublicRecord, setLoadingPublicRecord] = useState(false);
   const [firstPeriodZeros, setFirstPeriodZeros] = useState({ total: 0, l3: 0, l5: 0, lastUpdated: null });
+  const [showFirstPeriodModal, setShowFirstPeriodModal] = useState(false);
+  const [firstPeriodBreakdown, setFirstPeriodBreakdown] = useState([]);
+  const [loadingFirstPeriodBreakdown, setLoadingFirstPeriodBreakdown] = useState(false);
   const [editingLine, setEditingLine] = useState(null); // { gameIndex: number, value: string }
   const [savingLine, setSavingLine] = useState(false);
   const [showCompoundModal, setShowCompoundModal] = useState(false);
@@ -243,6 +246,25 @@ export default function Opportunities() {
     };
     fetchFirstPeriodZeros();
   }, [league]);
+
+  // Fetch 1st Period breakdown when modal opens
+  useEffect(() => {
+    const fetchFirstPeriodBreakdown = async () => {
+      if (!showFirstPeriodModal) return;
+      
+      setLoadingFirstPeriodBreakdown(true);
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/nhl/first-period-breakdown`);
+        const data = await res.json();
+        setFirstPeriodBreakdown(data.breakdown || []);
+      } catch (e) {
+        console.error('Error fetching 1st Period breakdown:', e);
+      } finally {
+        setLoadingFirstPeriodBreakdown(false);
+      }
+    };
+    fetchFirstPeriodBreakdown();
+  }, [showFirstPeriodModal]);
 
   const loadOpportunities = async () => {
     setLoading(true);
@@ -966,10 +988,17 @@ export default function Opportunities() {
               </div>
             )}
           </div>
-          {/* NHL 1st Period 0-0 Badge - Only show for NHL */}
+          {/* NHL 1st Period Badge - Only show for NHL - Click to open breakdown */}
           {league === 'NHL' && (
-            <div className="bg-gradient-to-r from-red-600/20 to-pink-600/20 border border-red-500/30 rounded-lg px-4 py-2">
-              <div className="text-xs text-muted-foreground text-center">🏒 1st Period</div>
+            <div 
+              className="bg-gradient-to-r from-red-600/20 to-pink-600/20 border border-red-500/30 rounded-lg px-4 py-2 cursor-pointer hover:border-red-400/50 transition-all"
+              onClick={() => setShowFirstPeriodModal(true)}
+              title="Click to view 1st Period goals breakdown"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xs text-muted-foreground">🏒 1st Period</span>
+                <span className="text-[10px] bg-red-600/30 text-red-300 px-1.5 py-0.5 rounded">Breakdown</span>
+              </div>
               <div className="text-xl font-bold text-center text-red-400">
                 {firstPeriodZeros.total}
               </div>
@@ -2105,6 +2134,73 @@ export default function Opportunities() {
             <div className="mt-4 pt-4 border-t border-gray-700 text-xs text-gray-500">
               <p>🔥 = 60%+ fade win rate | ✅ = 55%+ fade win rate</p>
               <p className="mt-1">Click a row to set that threshold range</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NHL 1st Period Goals Breakdown Modal */}
+      {showFirstPeriodModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowFirstPeriodModal(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-red-400">🏒 NHL 1st Period Goals Breakdown</h2>
+              <button 
+                onClick={() => setShowFirstPeriodModal(false)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-gray-400 mb-4">
+              Total goals scored in the 1st period across all NHL games this season (2025-2026)
+            </p>
+            
+            {loadingFirstPeriodBreakdown ? (
+              <div className="text-center py-8 text-gray-400">Loading...</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-700">
+                      <th className="text-left py-2 px-3 text-gray-400">Goals</th>
+                      <th className="text-center py-2 px-3 text-gray-400">Total</th>
+                      <th className="text-center py-2 px-3 text-gray-400">L3 Days</th>
+                      <th className="text-center py-2 px-3 text-gray-400">L5 Days</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {firstPeriodBreakdown.map((row, idx) => {
+                      const isZero = row.goals === 0;
+                      return (
+                        <tr 
+                          key={idx} 
+                          className={`border-b border-gray-800 ${isZero ? 'bg-red-900/20' : 'hover:bg-gray-800/50'}`}
+                        >
+                          <td className={`py-3 px-3 font-medium ${isZero ? 'text-red-400' : 'text-white'}`}>
+                            {row.goals === 0 ? '0-0' : row.label}
+                          </td>
+                          <td className={`py-3 px-3 text-center font-bold ${isZero ? 'text-red-400 text-lg' : 'text-white'}`}>
+                            {row.total}
+                          </td>
+                          <td className="py-3 px-3 text-center text-yellow-400">
+                            {row.l3}
+                          </td>
+                          <td className="py-3 px-3 text-center text-orange-400">
+                            {row.l5}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            <div className="mt-4 pt-4 border-t border-gray-700 text-xs text-gray-500">
+              <p>🔴 0-0 = No goals in 1st period</p>
+              <p className="mt-1">L3/L5 = Games in Last 3/5 days</p>
+              <p className="mt-1">Data updates automatically at 11 PM Arizona time</p>
             </div>
           </div>
         </div>
