@@ -213,6 +213,15 @@ def schedule_daily_summary():
         )
         logger.info("Morning data refresh scheduled for 5:00 AM Arizona time")
         
+        # NHL 1st Period 0-0 update at 11:00 PM Arizona
+        scheduler.add_job(
+            update_nhl_first_period_zeros,
+            trigger=CronTrigger(hour=23, minute=0, timezone='America/Phoenix'),  # 11:00 PM Arizona
+            id='nhl_first_period_zeros_update',
+            replace_existing=True
+        )
+        logger.info("NHL 1st Period 0-0 update scheduled for 11:00 PM Arizona time")
+        
     except Exception as e:
         logger.error(f"Error scheduling daily tasks: {str(e)}")
 
@@ -17066,6 +17075,173 @@ async def get_process_status():
             }
     
     return status
+
+
+# ============================================================================
+# NHL 1ST PERIOD 0-0 TRACKING
+# ============================================================================
+
+NHL_API_BASE = "https://api-web.nhle.com/v1"
+
+async def fetch_nhl_first_period_zeros():
+    """
+    Fetch all NHL games from 2025-2026 season where 1st period ended 0-0.
+    Returns list of games with their details.
+    """
+    from zoneinfo import ZoneInfo
+    
+    arizona_tz = ZoneInfo('America/Phoenix')
+    today = datetime.now(arizona_tz).date()
+    
+    # Season start (October 2025)
+    season_start = datetime(2025, 10, 1).date()
+    
+    results = []
+    current_date = season_start
+    
+    async with httpx.AsyncClient(timeout=30.0) as http_client:
+        while current_date <= today:
+            date_str = current_date.strftime("%Y-%m-%d")
+            try:
+                # Get schedule for this date
+                response = await http_client.get(f"{NHL_API_BASE}/schedule/{date_str}")
+                if response.status_code == 200:
+                    data = response.json()
+                    for day_data in data.get("gameWeek", []):
+                        for game in day_data.get("games", []):
+                            if game.get("gameState") in ["FINAL", "OFF"]:
+                                game_id = game["id"]
+                                game_date = day_data["date"]
+                                
+                                # Get play-by-play to check 1st period goals
+                                pbp_response = await http_client.get(f"{NHL_API_BASE}/gamecenter/{game_id}/play-by-play")
+                                if pbp_response.status_code == 200:
+                                    pbp_data = pbp_response.json()
+                                    away_team_id = pbp_data.get("awayTeam", {}).get("id")
+                                    
+                                    away_p1 = 0
+                                    home_p1 = 0
+                                    
+                                    for play in pbp_data.get("plays", []):
+                                        period = play.get("periodDescriptor", {}).get("number", 0)
+                                        if period != 1:
+                                            continue
+                                        if play.get("typeDescKey") == "goal":
+                                            team_id = play.get("details", {}).get("eventOwnerTeamId")
+                                            if team_id == away_team_id:
+                                                away_p1 += 1
+                                            else:
+                                                home_p1 += 1
+                                    
+                                    if away_p1 == 0 and home_p1 == 0:
+                                        results.append({
+                                            "date": game_date,
+                                            "game_id": game_id,
+                                            "away_team": game.get("awayTeam", {}).get("placeName", {}).get("default", "Unknown"),
+                                            "home_team": game.get("homeTeam", {}).get("placeName", {}).get("default", "Unknown")
+                                        })
+                                
+                                await asyncio.sleep(0.1)  # Rate limiting
+            except Exception as e:
+                logger.error(f"Error fetching NHL data for {date_str}: {e}")
+            
+            current_date += timedelta(days=7)  # Process week by week
+            await asyncio.sleep(0.2)
+    
+    return results
+
+async def update_nhl_first_period_zeros():
+    """
+    Update the cached NHL 1st Period 0-0 data in MongoDB.
+    This runs on schedule (11pm Arizona) and when Update Scores is pressed.
+    """
+    from zoneinfo import ZoneInfo
+    
+    try:
+        logger.info("Starting NHL 1st Period 0-0 data update...")
+        
+        # Fetch fresh data from NHL API
+        results = await fetch_nhl_first_period_zeros()
+        
+        arizona_tz = ZoneInfo('America/Phoenix')
+        today = datetime.now(arizona_tz).date()
+        
+        # Calculate L3 and L5 days
+        l3_date = today - timedelta(days=3)
+        l5_date = today - timedelta(days=5)
+        
+        l3_count = sum(1 for r in results if datetime.strptime(r["date"], "%Y-%m-%d").date() >= l3_date)
+        l5_count = sum(1 for r in results if datetime.strptime(r["date"], "%Y-%m-%d").date() >= l5_date)
+        
+        # Store in MongoDB
+        await db.nhl_first_period_zeros.update_one(
+            {"_id": "current_season"},
+            {
+                "$set": {
+                    "total_games": len(results),
+                    "l3_days": l3_count,
+                    "l5_days": l5_count,
+                    "games": results[-50:],  # Store last 50 games for reference
+                    "last_updated": datetime.now(timezone.utc),
+                    "season": "2025-2026"
+                }
+            },
+            upsert=True
+        )
+        
+        logger.info(f"NHL 1st Period 0-0 updated: Total={len(results)}, L3={l3_count}, L5={l5_count}")
+        return {
+            "total_games": len(results),
+            "l3_days": l3_count,
+            "l5_days": l5_count
+        }
+    except Exception as e:
+        logger.error(f"Error updating NHL 1st Period 0-0 data: {e}")
+        raise
+
+@api_router.get("/nhl/first-period-zeros")
+async def get_nhl_first_period_zeros():
+    """
+    Get NHL 1st Period 0-0 statistics for the current season.
+    Returns total count, L3 days, and L5 days.
+    """
+    try:
+        # Try to get cached data
+        cached = await db.nhl_first_period_zeros.find_one({"_id": "current_season"}, {"_id": 0, "games": 0})
+        
+        if cached:
+            return {
+                "total_games": cached.get("total_games", 0),
+                "l3_days": cached.get("l3_days", 0),
+                "l5_days": cached.get("l5_days", 0),
+                "last_updated": cached.get("last_updated"),
+                "season": cached.get("season", "2025-2026")
+            }
+        
+        # No cached data, return zeros (will be populated by scheduled job or manual refresh)
+        return {
+            "total_games": 0,
+            "l3_days": 0,
+            "l5_days": 0,
+            "last_updated": None,
+            "season": "2025-2026"
+        }
+    except Exception as e:
+        logger.error(f"Error getting NHL 1st Period 0-0 data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/nhl/first-period-zeros/refresh")
+async def refresh_nhl_first_period_zeros():
+    """
+    Manually trigger a refresh of NHL 1st Period 0-0 data.
+    Called when Update Scores button is pressed for NHL.
+    """
+    try:
+        result = await update_nhl_first_period_zeros()
+        return {"status": "success", **result}
+    except Exception as e:
+        logger.error(f"Error refreshing NHL 1st Period 0-0 data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Include the router in the main app
