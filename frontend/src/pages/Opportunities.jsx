@@ -2200,6 +2200,36 @@ export default function Opportunities() {
                             const typeCounts = {};
                             betTypes.forEach(t => { typeCounts[t] = (typeCounts[t] || 0) + 1; });
                             
+                            // Check if this is NHL 1st Period bet
+                            const isNHL1stPeriod = league === 'NHL' && betTypes.some(t => 
+                              t?.toLowerCase()?.includes('total') && 
+                              (t?.includes('u1.5') || t?.includes('u2.5') || t?.includes('u3.5') || t?.includes('u4.5') ||
+                               t?.includes('U1.5') || t?.includes('U2.5') || t?.includes('U3.5') || t?.includes('U4.5'))
+                            );
+                            
+                            if (isNHL1stPeriod) {
+                              // Format NHL 1st Period bets specially
+                              return (
+                                <div className="flex flex-col gap-1">
+                                  {uniqueTypes.map((betType, idx) => {
+                                    // Extract the line (u1.5, u2.5, etc.)
+                                    const lineMatch = betType?.match(/[uU](\d\.?\d?)/);
+                                    const line = lineMatch ? `u${lineMatch[1]}` : betType;
+                                    const count = typeCounts[betType];
+                                    
+                                    return (
+                                      <div key={idx} className="px-2 py-0.5 rounded text-[10px] font-medium bg-yellow-500/20 text-yellow-400">
+                                        <div className="flex items-center justify-center gap-1">
+                                          ⏳ {line} / $???{count > 1 ? ` x${count}` : ''}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            }
+                            
+                            // Default format for non-1st period bets
                             return (
                               <div className="flex flex-col gap-1">
                                 {uniqueTypes.map((betType, idx) => {
