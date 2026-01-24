@@ -17400,6 +17400,94 @@ async def refresh_first_period_bets():
         logger.error(f"Error refreshing 1st Period bets: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.post("/nhl/first-period-bets/test-data")
+async def insert_test_first_period_bets():
+    """Insert test data for 1st Period bets to verify UI works"""
+    try:
+        test_data = {
+            "bets": [
+                {
+                    "date": "01/23",
+                    "game": "NJD @ VAN",
+                    "u15": {"risk": 1050, "win": 1000, "result": "win", "profit": 1000},
+                    "u25": {"risk": 2439, "win": 2000, "result": "win", "profit": 2000},
+                    "u35": None,
+                    "u45": None,
+                    "result": 3000
+                },
+                {
+                    "date": "01/23",
+                    "game": "WSH @ CGY",
+                    "u15": {"risk": 1000, "win": 1050, "result": "win", "profit": 1050},
+                    "u25": {"risk": 4146, "win": 2000, "result": "win", "profit": 2000},
+                    "u35": None,
+                    "u45": None,
+                    "result": 3050
+                },
+                {
+                    "date": "01/23",
+                    "game": "DAL @ STL",
+                    "u15": {"risk": 1050, "win": 1000, "result": "loss", "profit": -1050},
+                    "u25": {"risk": 5118, "win": 2000, "result": "win", "profit": 2000},
+                    "u35": None,
+                    "u45": None,
+                    "result": 950
+                },
+                {
+                    "date": "01/23",
+                    "game": "CHI @ TBL",
+                    "u15": {"risk": 1014, "win": 1000, "result": "win", "profit": 1000},
+                    "u25": None,
+                    "u35": None,
+                    "u45": None,
+                    "result": 1000
+                },
+                {
+                    "date": "01/22",
+                    "game": "MIN @ DET",
+                    "u15": {"risk": 1000, "win": 1100, "result": "loss", "profit": -1000},
+                    "u25": {"risk": 3334, "win": 2000, "result": "win", "profit": 2000},
+                    "u35": None,
+                    "u45": None,
+                    "result": 1000
+                },
+                {
+                    "date": "01/22",
+                    "game": "EDM @ PIT",
+                    "u15": {"risk": 1000, "win": 1177, "result": "loss", "profit": -1000},
+                    "u25": None,
+                    "u35": None,
+                    "u45": {"risk": 2227, "win": 2000, "result": "win", "profit": 2000},
+                    "result": 1000
+                }
+            ],
+            "summary": {
+                "u15": {"wins": 4, "losses": 3, "profit": 1000},
+                "u25": {"wins": 4, "losses": 0, "profit": 8000},
+                "u35": {"wins": 0, "losses": 0, "profit": 0},
+                "u45": {"wins": 1, "losses": 0, "profit": 2000},
+                "total": {"wins": 9, "losses": 3, "profit": 10000}
+            }
+        }
+        
+        await db.first_period_bets.update_one(
+            {"_id": "enano_bets"},
+            {
+                "$set": {
+                    "bets": test_data["bets"],
+                    "summary": test_data["summary"],
+                    "last_updated": datetime.now(timezone.utc)
+                }
+            },
+            upsert=True
+        )
+        
+        logger.info("Test data inserted for 1st Period bets")
+        return {"status": "success", "message": "Test data inserted", **test_data}
+    except Exception as e:
+        logger.error(f"Error inserting test data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 async def fetch_nhl_first_period_goals():
     """
     Fetch all NHL games from 2025-2026 season and track 1st period goals.
