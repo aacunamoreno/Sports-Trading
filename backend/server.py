@@ -17711,6 +17711,19 @@ async def insert_test_first_period_bets():
 async def debug_ppg_scrape():
     """Debug endpoint to test PPG/GPG data loading"""
     try:
+        # Simple test - just return hardcoded data structure
+        return {
+            "status": "testing",
+            "message": "Endpoint working - now testing scrape function",
+            "step": 1
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+@api_router.get("/debug/ppg-scrape-full")
+async def debug_ppg_scrape_full():
+    """Full debug endpoint to test PPG/GPG data loading"""
+    try:
         logger.info("[Debug PPG] Starting PPG data test...")
         
         ppg_data = await scrape_ppg_data_all_leagues()
