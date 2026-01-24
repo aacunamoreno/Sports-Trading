@@ -87,6 +87,7 @@ export default function Opportunities() {
   const [publicRecord, setPublicRecord] = useState({ hits: 0, misses: 0 });
   const [publicThreshold, setPublicThreshold] = useState(57);
   const [loadingPublicRecord, setLoadingPublicRecord] = useState(false);
+  const [firstPeriodZeros, setFirstPeriodZeros] = useState({ total: 0, l3: 0, l5: 0, lastUpdated: null });
   const [editingLine, setEditingLine] = useState(null); // { gameIndex: number, value: string }
   const [savingLine, setSavingLine] = useState(false);
   const [showCompoundModal, setShowCompoundModal] = useState(false);
@@ -221,6 +222,27 @@ export default function Opportunities() {
 
   // Note: Public record is now fetched by fetchPublicRecordByThreshold (lines 35-54)
   // which uses the dynamic threshold endpoint for accurate full-season data
+
+  // Fetch NHL 1st Period 0-0 data when league is NHL
+  useEffect(() => {
+    const fetchFirstPeriodZeros = async () => {
+      if (league !== 'NHL') return;
+      
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/nhl/first-period-zeros`);
+        const data = await res.json();
+        setFirstPeriodZeros({
+          total: data.total_games || 0,
+          l3: data.l3_days || 0,
+          l5: data.l5_days || 0,
+          lastUpdated: data.last_updated
+        });
+      } catch (e) {
+        console.error('Error fetching 1st Period 0-0 data:', e);
+      }
+    };
+    fetchFirstPeriodZeros();
+  }, [league]);
 
   const loadOpportunities = async () => {
     setLoading(true);
@@ -366,6 +388,23 @@ export default function Opportunities() {
         toast.success(`Updated ${response.data.games_updated} games for ${dateStr}. Hit Rate: ${response.data.hit_rate}`);
         // Reload data to show updated scores
         await loadOpportunities();
+        
+        // Also refresh NHL 1st Period 0-0 data
+        if (league === 'NHL') {
+          try {
+            await axios.post(`${API}/nhl/first-period-zeros/refresh`, {}, { timeout: 180000 });
+            const zpRes = await axios.get(`${API}/nhl/first-period-zeros`);
+            setFirstPeriodZeros({
+              total: zpRes.data.total_games || 0,
+              l3: zpRes.data.l3_days || 0,
+              l5: zpRes.data.l5_days || 0,
+              lastUpdated: zpRes.data.last_updated
+            });
+            toast.success('1st Period 0-0 data updated');
+          } catch (e) {
+            console.error('Error refreshing 1st Period 0-0:', e);
+          }
+        }
       } else {
         toast.error('Failed to update scores');
       }
@@ -927,6 +966,23 @@ export default function Opportunities() {
               </div>
             )}
           </div>
+          {/* NHL 1st Period 0-0 Badge - Only show for NHL */}
+          {league === 'NHL' && (
+            <div className="bg-gradient-to-r from-red-600/20 to-pink-600/20 border border-red-500/30 rounded-lg px-4 py-2">
+              <div className="text-xs text-muted-foreground text-center">🏒 1st Period</div>
+              <div className="text-xl font-bold text-center text-red-400">
+                {firstPeriodZeros.total}
+              </div>
+              <div className="text-[10px] text-muted-foreground text-center">Games 0-0</div>
+              <div className="text-[10px] text-center mt-1 border-t border-red-500/20 pt-1">
+                <span className="text-gray-400">L3:</span>
+                <span className="text-red-400 ml-1">{firstPeriodZeros.l3}</span>
+                <span className="text-muted-foreground mx-1">|</span>
+                <span className="text-gray-400">L5:</span>
+                <span className="text-red-400 ml-1">{firstPeriodZeros.l5}</span>
+              </div>
+            </div>
+          )}
           {/* Live Lines Toggle */}
           {day === 'today' && (
             <button
