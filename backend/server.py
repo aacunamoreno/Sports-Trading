@@ -17412,7 +17412,7 @@ async def scrape_first_period_bets_enano():
             ticket_upper = ticket.upper()
             
             # Check patterns
-            is_nhl_1st_period = bool(re.search(r'TOTAL\s*U\d[½].*1ST\s*PERIOD\s*(?:VRS|VS).*1ST\s*PERIOD', ticket_upper))
+            is_nhl_1st_period = bool(re.search(r'TOTAL\s*U\d[½][\s\S]*?1ST\s*PERIOD\s*(?:VRS|VS)[\s\S]*?1ST\s*PERIOD', ticket_upper))
             is_rbl_1st_period = bool(re.search(r'1ST\s*PERIOD\s*/\s*TOTAL\s*/\s*UNDER\s*\d\.5', ticket_upper))
             
             if is_nhl_1st_period:
@@ -17442,7 +17442,7 @@ async def scrape_first_period_bets_enano():
             # ===== PATTERN 1: NHL Direct Format =====
             if is_nhl_1st_period:
                 nhl_match = re.search(
-                    r'TOTAL\s*U(\d)[½][+-]?\d*\s*\(([A-Z][A-Z\s\.]+?)\s*1ST\s*PERIOD\s*(?:VRS|VS)\s*([A-Z][A-Z\s\.]+?)\s*1ST\s*PERIOD\)',
+                    r'TOTAL\s*U(\d)[½][+-]?\d*[\s\S]*?\(([A-Z][A-Z\s\.]+?)\s*1ST\s*PERIOD\s*(?:VRS|VS)\s*([A-Z][A-Z\s\.]+?)\s*1ST\s*PERIOD\)',
                     ticket_upper
                 )
                 if nhl_match:
