@@ -2813,7 +2813,7 @@ export default function Opportunities() {
                             </td>
                             <td className="py-2 px-2 text-center">
                               <span className="text-yellow-400 font-medium">
-                                ${(bet.total_bet || 0).toLocaleString()}
+                                ${((bet.u15?.risk || 0) + (bet.u25?.risk || 0) + (bet.u35?.risk || 0) + (bet.u45?.risk || 0)).toLocaleString()}
                               </span>
                             </td>
                             <td className="py-2 px-2 text-center">
@@ -2862,7 +2862,7 @@ export default function Opportunities() {
                           </td>
                           <td className="py-3 px-2 text-center">
                             <span className="text-yellow-400 font-bold">
-                              ${firstPeriodBets.bets?.reduce((sum, b) => sum + (b.total_bet || 0), 0).toLocaleString()}
+                              ${firstPeriodBets.bets?.reduce((sum, b) => sum + (b.u15?.risk || 0) + (b.u25?.risk || 0) + (b.u35?.risk || 0) + (b.u45?.risk || 0), 0).toLocaleString()}
                             </span>
                           </td>
                           <td className="py-3 px-2 text-center">
