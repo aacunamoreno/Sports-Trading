@@ -17578,6 +17578,13 @@ async def scrape_first_period_bets_enano():
         }
         
         for game_key, game in games.items():
+            # Calculate total bet (sum of all risks)
+            total_bet = 0
+            for line_key in ["u15", "u25", "u35", "u45"]:
+                bet = game.get(line_key)
+                if bet and bet.get("risk"):
+                    total_bet += bet["risk"]
+            
             bets_list.append({
                 "date": game["date"],
                 "game": f"{game['team1']} @ {game['team2']}",
@@ -17585,6 +17592,7 @@ async def scrape_first_period_bets_enano():
                 "u25": game.get("u25"),
                 "u35": game.get("u35"),
                 "u45": game.get("u45"),
+                "total_bet": total_bet,
                 "result": game.get("total_result", 0)
             })
             
