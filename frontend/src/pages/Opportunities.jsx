@@ -95,6 +95,10 @@ export default function Opportunities() {
   const [expanded4Goals, setExpanded4Goals] = useState(false);
   const [expanded5Goals, setExpanded5Goals] = useState(false);
   const [loadingFirstPeriodBreakdown, setLoadingFirstPeriodBreakdown] = useState(false);
+  // 1st Period Bets tracking
+  const [showFirstPeriodBetsModal, setShowFirstPeriodBetsModal] = useState(false);
+  const [firstPeriodBets, setFirstPeriodBets] = useState({ bets: [], summary: {} });
+  const [loadingFirstPeriodBets, setLoadingFirstPeriodBets] = useState(false);
   const [editingLine, setEditingLine] = useState(null); // { gameIndex: number, value: string }
   const [savingLine, setSavingLine] = useState(false);
   const [showCompoundModal, setShowCompoundModal] = useState(false);
@@ -271,6 +275,47 @@ export default function Opportunities() {
     };
     fetchFirstPeriodBreakdown();
   }, [showFirstPeriodModal]);
+
+  // Fetch 1st Period Bets when modal opens
+  useEffect(() => {
+    const fetchFirstPeriodBets = async () => {
+      if (!showFirstPeriodBetsModal) return;
+      
+      setLoadingFirstPeriodBets(true);
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/nhl/first-period-bets`);
+        const data = await res.json();
+        setFirstPeriodBets({
+          bets: data.bets || [],
+          summary: data.summary || {}
+        });
+      } catch (e) {
+        console.error('Error fetching 1st Period bets:', e);
+      } finally {
+        setLoadingFirstPeriodBets(false);
+      }
+    };
+    fetchFirstPeriodBets();
+  }, [showFirstPeriodBetsModal]);
+
+  // Also fetch 1st Period Bets summary for the badge when on NHL
+  useEffect(() => {
+    const fetchFirstPeriodBetsSummary = async () => {
+      if (league !== 'NHL') return;
+      
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/nhl/first-period-bets`);
+        const data = await res.json();
+        setFirstPeriodBets({
+          bets: data.bets || [],
+          summary: data.summary || {}
+        });
+      } catch (e) {
+        console.error('Error fetching 1st Period bets summary:', e);
+      }
+    };
+    fetchFirstPeriodBetsSummary();
+  }, [league]);
 
   const loadOpportunities = async () => {
     setLoading(true);
@@ -1015,6 +1060,32 @@ export default function Opportunities() {
                 <span className="text-muted-foreground mx-1">|</span>
                 <span className="text-gray-400">L5:</span>
                 <span className="text-red-400 ml-1">{firstPeriodZeros.l5}</span>
+              </div>
+            </div>
+          )}
+          {/* NHL 1st Period Bets Badge - Only show for NHL */}
+          {league === 'NHL' && (
+            <div 
+              className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-lg px-4 py-2 cursor-pointer hover:border-purple-400/50 transition-all"
+              onClick={() => setShowFirstPeriodBetsModal(true)}
+              title="Click to view 1st Period betting record"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xs text-muted-foreground">💰 1st Period Bets</span>
+                <span className="text-[10px] bg-purple-600/30 text-purple-300 px-1.5 py-0.5 rounded">Record</span>
+              </div>
+              <div className="text-xl font-bold text-center">
+                <span className="text-green-400">{firstPeriodBets.summary?.total?.wins || 0}</span>
+                <span className="text-gray-500 mx-1">-</span>
+                <span className="text-red-400">{firstPeriodBets.summary?.total?.losses || 0}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground text-center">
+                {firstPeriodBets.summary?.total?.wins + firstPeriodBets.summary?.total?.losses > 0 
+                  ? `${((firstPeriodBets.summary?.total?.wins / (firstPeriodBets.summary?.total?.wins + firstPeriodBets.summary?.total?.losses)) * 100).toFixed(1)}% Win`
+                  : 'No bets'}
+              </div>
+              <div className={`text-[10px] text-center mt-1 border-t border-purple-500/20 pt-1 font-bold ${(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.total?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </div>
             </div>
           )}
@@ -2349,6 +2420,227 @@ export default function Opportunities() {
               <p>🟢 0-2 = Low scoring | 🟡 0-3 = Under trend | 🔵 4-5+ = High scoring</p>
               <p className="mt-1">▶ Click on 4 Goals or 5+ Goals to see team breakdown</p>
               <p className="mt-1">Data updates automatically at 11 PM Arizona time</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NHL 1st Period Bets Modal */}
+      {showFirstPeriodBetsModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowFirstPeriodBetsModal(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-5xl w-full mx-4 max-h-[85vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-purple-400">💰 1st Period Bets - ENANO Record</h2>
+              <button 
+                onClick={() => setShowFirstPeriodBetsModal(false)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-gray-400 mb-4">
+              NHL 1st Period Under bets placed by ENANO (Jac075) - 2025-2026 Season
+            </p>
+            
+            {loadingFirstPeriodBets ? (
+              <div className="text-center py-8 text-gray-400">Loading bets from plays888.co...</div>
+            ) : (
+              <>
+                {/* Summary by line */}
+                <div className="grid grid-cols-5 gap-3 mb-6">
+                  <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                    <div className="text-xs text-gray-400">TOTAL</div>
+                    <div className="text-lg font-bold">
+                      <span className="text-green-400">{firstPeriodBets.summary?.total?.wins || 0}</span>
+                      <span className="text-gray-500 mx-1">-</span>
+                      <span className="text-red-400">{firstPeriodBets.summary?.total?.losses || 0}</span>
+                    </div>
+                    <div className={`text-xs font-bold ${(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.total?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </div>
+                  </div>
+                  <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                    <div className="text-xs text-gray-400">Under 1.5</div>
+                    <div className="text-lg font-bold">
+                      <span className="text-green-400">{firstPeriodBets.summary?.u15?.wins || 0}</span>
+                      <span className="text-gray-500 mx-1">-</span>
+                      <span className="text-red-400">{firstPeriodBets.summary?.u15?.losses || 0}</span>
+                    </div>
+                    <div className={`text-xs font-bold ${(firstPeriodBets.summary?.u15?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {(firstPeriodBets.summary?.u15?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.u15?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </div>
+                  </div>
+                  <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                    <div className="text-xs text-gray-400">Under 2.5</div>
+                    <div className="text-lg font-bold">
+                      <span className="text-green-400">{firstPeriodBets.summary?.u25?.wins || 0}</span>
+                      <span className="text-gray-500 mx-1">-</span>
+                      <span className="text-red-400">{firstPeriodBets.summary?.u25?.losses || 0}</span>
+                    </div>
+                    <div className={`text-xs font-bold ${(firstPeriodBets.summary?.u25?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {(firstPeriodBets.summary?.u25?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.u25?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </div>
+                  </div>
+                  <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                    <div className="text-xs text-gray-400">Under 3.5</div>
+                    <div className="text-lg font-bold">
+                      <span className="text-green-400">{firstPeriodBets.summary?.u35?.wins || 0}</span>
+                      <span className="text-gray-500 mx-1">-</span>
+                      <span className="text-red-400">{firstPeriodBets.summary?.u35?.losses || 0}</span>
+                    </div>
+                    <div className={`text-xs font-bold ${(firstPeriodBets.summary?.u35?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {(firstPeriodBets.summary?.u35?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.u35?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </div>
+                  </div>
+                  <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                    <div className="text-xs text-gray-400">Under 4.5</div>
+                    <div className="text-lg font-bold">
+                      <span className="text-green-400">{firstPeriodBets.summary?.u45?.wins || 0}</span>
+                      <span className="text-gray-500 mx-1">-</span>
+                      <span className="text-red-400">{firstPeriodBets.summary?.u45?.losses || 0}</span>
+                    </div>
+                    <div className={`text-xs font-bold ${(firstPeriodBets.summary?.u45?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {(firstPeriodBets.summary?.u45?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.u45?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bets table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left py-2 px-2 text-gray-400">Date</th>
+                        <th className="text-left py-2 px-2 text-gray-400">Game</th>
+                        <th className="text-center py-2 px-2 text-gray-400">U1.5</th>
+                        <th className="text-center py-2 px-2 text-gray-400">U2.5</th>
+                        <th className="text-center py-2 px-2 text-gray-400">U3.5</th>
+                        <th className="text-center py-2 px-2 text-gray-400">U4.5</th>
+                        <th className="text-center py-2 px-2 text-gray-400">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {firstPeriodBets.bets?.length > 0 ? (
+                        firstPeriodBets.bets.map((bet, idx) => (
+                          <tr key={idx} className="border-b border-gray-800 hover:bg-gray-800/50">
+                            <td className="py-2 px-2 text-gray-300">{bet.date}</td>
+                            <td className="py-2 px-2 text-white font-medium">{bet.game}</td>
+                            <td className="py-2 px-2 text-center">
+                              {bet.u15 ? (
+                                <div className={`rounded px-2 py-1 ${bet.u15.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+                                  <div className={`font-bold text-xs ${bet.u15.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>
+                                    {bet.u15.result === 'win' ? 'WIN' : 'LOSS'}
+                                  </div>
+                                  <div className={`text-[10px] ${bet.u15.result === 'win' ? 'text-green-300' : 'text-red-300'}`}>
+                                    ${bet.u15.risk?.toLocaleString()}→{bet.u15.result === 'win' ? '$' + bet.u15.win?.toLocaleString() : '-$' + bet.u15.risk?.toLocaleString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-600">-</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              {bet.u25 ? (
+                                <div className={`rounded px-2 py-1 ${bet.u25.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+                                  <div className={`font-bold text-xs ${bet.u25.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>
+                                    {bet.u25.result === 'win' ? 'WIN' : 'LOSS'}
+                                  </div>
+                                  <div className={`text-[10px] ${bet.u25.result === 'win' ? 'text-green-300' : 'text-red-300'}`}>
+                                    ${bet.u25.risk?.toLocaleString()}→{bet.u25.result === 'win' ? '$' + bet.u25.win?.toLocaleString() : '-$' + bet.u25.risk?.toLocaleString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-600">-</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              {bet.u35 ? (
+                                <div className={`rounded px-2 py-1 ${bet.u35.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+                                  <div className={`font-bold text-xs ${bet.u35.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>
+                                    {bet.u35.result === 'win' ? 'WIN' : 'LOSS'}
+                                  </div>
+                                  <div className={`text-[10px] ${bet.u35.result === 'win' ? 'text-green-300' : 'text-red-300'}`}>
+                                    ${bet.u35.risk?.toLocaleString()}→{bet.u35.result === 'win' ? '$' + bet.u35.win?.toLocaleString() : '-$' + bet.u35.risk?.toLocaleString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-600">-</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              {bet.u45 ? (
+                                <div className={`rounded px-2 py-1 ${bet.u45.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+                                  <div className={`font-bold text-xs ${bet.u45.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>
+                                    {bet.u45.result === 'win' ? 'WIN' : 'LOSS'}
+                                  </div>
+                                  <div className={`text-[10px] ${bet.u45.result === 'win' ? 'text-green-300' : 'text-red-300'}`}>
+                                    ${bet.u45.risk?.toLocaleString()}→{bet.u45.result === 'win' ? '$' + bet.u45.win?.toLocaleString() : '-$' + bet.u45.risk?.toLocaleString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-600">-</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              <span className={`font-bold ${(bet.result || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {(bet.result || 0) >= 0 ? '+' : ''}${Math.abs(bet.result || 0).toLocaleString()}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7" className="py-8 text-center text-gray-500">
+                            No 1st Period bets found. Click "Update Scores" to refresh data from plays888.co
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                    {/* Total footer row */}
+                    {firstPeriodBets.bets?.length > 0 && (
+                      <tfoot>
+                        <tr className="border-t-2 border-purple-500/50 bg-purple-900/20">
+                          <td colSpan="2" className="py-3 px-2 text-white font-bold">TOTAL ({firstPeriodBets.bets?.length} games)</td>
+                          <td className="py-3 px-2 text-center">
+                            <div className="text-xs text-gray-400">{firstPeriodBets.summary?.u15?.wins || 0}W-{firstPeriodBets.summary?.u15?.losses || 0}L</div>
+                            <div className={`font-bold text-xs ${(firstPeriodBets.summary?.u15?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {(firstPeriodBets.summary?.u15?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.u15?.profit || 0).toLocaleString()}
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <div className="text-xs text-gray-400">{firstPeriodBets.summary?.u25?.wins || 0}W-{firstPeriodBets.summary?.u25?.losses || 0}L</div>
+                            <div className={`font-bold text-xs ${(firstPeriodBets.summary?.u25?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {(firstPeriodBets.summary?.u25?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.u25?.profit || 0).toLocaleString()}
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <div className="text-xs text-gray-400">{firstPeriodBets.summary?.u35?.wins || 0}W-{firstPeriodBets.summary?.u35?.losses || 0}L</div>
+                            <div className={`font-bold text-xs ${(firstPeriodBets.summary?.u35?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {(firstPeriodBets.summary?.u35?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.u35?.profit || 0).toLocaleString()}
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <div className="text-xs text-gray-400">{firstPeriodBets.summary?.u45?.wins || 0}W-{firstPeriodBets.summary?.u45?.losses || 0}L</div>
+                            <div className={`font-bold text-xs ${(firstPeriodBets.summary?.u45?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {(firstPeriodBets.summary?.u45?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.u45?.profit || 0).toLocaleString()}
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <span className={`font-bold text-lg ${(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.total?.profit || 0).toLocaleString()}
+                            </span>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </>
+            )}
+            
+            <div className="mt-4 pt-4 border-t border-gray-700 text-xs text-gray-500">
+              <p>💰 Data from plays888.co - Account: ENANO (Jac075)</p>
+              <p className="mt-1">Click "Update Scores" button to refresh betting data</p>
             </div>
           </div>
         </div>
