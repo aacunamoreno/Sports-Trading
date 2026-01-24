@@ -17488,6 +17488,75 @@ async def insert_test_first_period_bets():
         logger.error(f"Error inserting test data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/nhl/first-period-bets/debug-scrape")
+async def debug_first_period_scrape():
+    """Debug endpoint to see what the scraper finds in plays888.co History page"""
+    try:
+        logger.info("[Debug Scrape] Starting debug scrape...")
+        
+        # Initialize browser service
+        service = Plays888Service()
+        await service.initialize()
+        
+        # Login with ENANO credentials
+        login_result = await service.login("jac075", "acuna2025!")
+        if not login_result.get("success"):
+            await service.close()
+            return {"error": "Failed to login", "login_result": login_result}
+        
+        logger.info("[Debug Scrape] Logged in successfully")
+        
+        # Navigate to History page
+        await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
+        await service.page.wait_for_load_state('networkidle')
+        await service.page.wait_for_timeout(3000)
+        
+        # Get full page text
+        page_text = await service.page.inner_text('body')
+        
+        # Find all lines containing "1ST PERIOD"
+        lines = page_text.split('\n')
+        first_period_lines = []
+        for i, line in enumerate(lines):
+            if '1ST PERIOD' in line.upper() or '1st Period' in line:
+                # Get context (5 lines before and after)
+                start = max(0, i - 5)
+                end = min(len(lines), i + 6)
+                context = lines[start:end]
+                first_period_lines.append({
+                    "line_number": i,
+                    "line": line,
+                    "context": context
+                })
+        
+        # Also get raw HTML of the table
+        table_html = await service.page.evaluate('''() => {
+            const tables = document.querySelectorAll('table');
+            let html = '';
+            tables.forEach((table, idx) => {
+                if (table.innerText.includes('1ST PERIOD') || table.innerText.includes('1st Period')) {
+                    html += `TABLE ${idx}:\\n${table.outerHTML}\\n\\n`;
+                }
+            });
+            return html;
+        }''')
+        
+        await service.close()
+        
+        return {
+            "status": "success",
+            "total_lines": len(lines),
+            "first_period_matches": len(first_period_lines),
+            "matches": first_period_lines[:20],  # Limit to first 20
+            "page_text_sample": page_text[:5000],  # First 5000 chars
+            "table_html_sample": table_html[:10000] if table_html else "No tables with 1st Period found"
+        }
+        
+    except Exception as e:
+        logger.error(f"[Debug Scrape] Error: {e}")
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
 async def fetch_nhl_first_period_goals():
     """
     Fetch all NHL games from 2025-2026 season and track 1st period goals.
