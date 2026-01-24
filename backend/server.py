@@ -17354,8 +17354,6 @@ async def scrape_first_period_bets_enano():
     """
     Scrape 1st Period NHL bets from plays888.co History page for ENANO (jac075).
     Returns list of bets grouped by game with U1.5, U2.5, U3.5, U4.5 columns.
-    
-    STRICT FILTER: Only processes bets that are explicitly "1st Period / Total / Under" bets.
     """
     import re
     from collections import defaultdict
@@ -17404,17 +17402,23 @@ async def scrape_first_period_bets_enano():
                 ticket_text = parts[i] + parts[i + 1]
                 tickets.append(ticket_text)
         
-        logger.info(f"[1st Period Bets] Found {len(tickets)} ticket sections")
+        logger.info(f"[1st Period Bets] Split into {len(tickets)} ticket sections")
         
-        for ticket in tickets:
+        # Count how many are 1st Period
+        nhl_count = 0
+        rbl_count = 0
+        
+        for idx, ticket in enumerate(tickets):
             ticket_upper = ticket.upper()
             
-            # ===== STRICT FILTER: Must be a 1st Period Under bet =====
-            # Pattern 1: NHL format - "TOTAL u1½" with "1ST PERIOD vrs ... 1ST PERIOD"
-            # Pattern 2: RBL format - "1st Period / Total / Under X.5"
-            
+            # Check patterns
             is_nhl_1st_period = bool(re.search(r'TOTAL\s*U\d[½].*1ST\s*PERIOD\s*(?:VRS|VS).*1ST\s*PERIOD', ticket_upper))
             is_rbl_1st_period = bool(re.search(r'1ST\s*PERIOD\s*/\s*TOTAL\s*/\s*UNDER\s*\d\.5', ticket_upper))
+            
+            if is_nhl_1st_period:
+                nhl_count += 1
+            if is_rbl_1st_period:
+                rbl_count += 1
             
             if not is_nhl_1st_period and not is_rbl_1st_period:
                 continue
@@ -17422,6 +17426,7 @@ async def scrape_first_period_bets_enano():
             # Extract date
             date_match = re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})', ticket, re.IGNORECASE)
             if not date_match:
+                logger.warning(f"[1st Period] Ticket {idx}: No date found")
                 continue
             
             months = {'jan':'01','feb':'02','mar':'03','apr':'04','may':'05','jun':'06',
@@ -17432,6 +17437,7 @@ async def scrape_first_period_bets_enano():
             line_num = None
             team1_abbrev = None
             team2_abbrev = None
+            format_type = None
             
             # ===== PATTERN 1: NHL Direct Format =====
             if is_nhl_1st_period:
@@ -17445,17 +17451,17 @@ async def scrape_first_period_bets_enano():
                     team2_raw = nhl_match.group(3).strip()
                     team1_abbrev = get_nhl_abbrev(team1_raw)
                     team2_abbrev = get_nhl_abbrev(team2_raw)
-                    logger.info(f"[1st Period] NHL: '{team1_raw}' -> {team1_abbrev}, '{team2_raw}' -> {team2_abbrev}, U{line_num}.5")
+                    format_type = "NHL"
+                    logger.info(f"[1st Period] NHL: {team1_abbrev} vs {team2_abbrev}, U{line_num}.5, Date: {bet_date}")
+                else:
+                    logger.warning(f"[1st Period] NHL pattern detected but extraction failed: {ticket[:100]}...")
             
             # ===== PATTERN 2: RBL Format =====
             elif is_rbl_1st_period:
-                # Extract the Under line number
                 under_match = re.search(r'UNDER\s*(\d)\.5', ticket_upper)
                 if under_match:
                     line_num = int(under_match.group(1))
                 
-                # Extract teams - look for "City Team vs City Team" pattern
-                # Examples: "Dallas Stars vs St. Louis Blues", "Minnesota Wild vs Detroit Red Wings"
                 teams_match = re.search(
                     r'([A-Z][a-zA-Z\.]+(?:\s+[A-Z][a-zA-Z\.]+)*)\s+vs\s+([A-Z][a-zA-Z\.]+(?:\s+[A-Z][a-zA-Z\.]+)*)',
                     ticket,
@@ -17466,11 +17472,14 @@ async def scrape_first_period_bets_enano():
                     team2_raw = teams_match.group(2).strip()
                     team1_abbrev = get_nhl_abbrev(team1_raw.upper())
                     team2_abbrev = get_nhl_abbrev(team2_raw.upper())
-                    logger.info(f"[1st Period] RBL: '{team1_raw}' -> {team1_abbrev}, '{team2_raw}' -> {team2_abbrev}, U{line_num}.5")
+                    format_type = "RBL"
+                    logger.info(f"[1st Period] RBL: {team1_abbrev} vs {team2_abbrev}, U{line_num}.5, Date: {bet_date}")
+                else:
+                    logger.warning(f"[1st Period] RBL pattern detected but team extraction failed: {ticket[:100]}...")
             
             # Skip if we couldn't extract required data
             if not line_num or not team1_abbrev or not team2_abbrev:
-                logger.warning(f"[1st Period] SKIP - Could not extract: line={line_num}, t1={team1_abbrev}, t2={team2_abbrev}")
+                logger.warning(f"[1st Period] SKIP - Missing data: line={line_num}, t1={team1_abbrev}, t2={team2_abbrev}")
                 continue
             
             # CRITICAL: Sort teams alphabetically to create consistent game key
@@ -17484,23 +17493,14 @@ async def scrape_first_period_bets_enano():
                 risk = float(amount_match.group(1).replace(',', ''))
                 win = float(amount_match.group(2).replace(',', ''))
             
-            # Extract result
+            # Extract result - check for WIN/LOSE
             result = 'pending'
-            # Look for WIN/LOSE at the end of the ticket (last occurrence)
-            if ticket_upper.rstrip().endswith('WIN'):
+            if re.search(r'\bWIN\s*$', ticket_upper) or (re.search(r'\bWIN\b', ticket_upper) and not re.search(r'\bLOS', ticket_upper)):
                 result = 'win'
-            elif ticket_upper.rstrip().endswith('LOSE') or ticket_upper.rstrip().endswith('LOSS'):
+            elif re.search(r'\bLOS[ES]?\b', ticket_upper):
                 result = 'loss'
-            elif 'CANCEL' in ticket_upper:
+            elif re.search(r'\bCANCEL', ticket_upper):
                 result = 'cancel'
-            else:
-                # Fallback: check anywhere in ticket
-                win_count = len(re.findall(r'\bWIN\b', ticket_upper))
-                lose_count = len(re.findall(r'\bLOS[ES]\b', ticket_upper))
-                if win_count > lose_count:
-                    result = 'win'
-                elif lose_count > 0:
-                    result = 'loss'
             
             bet_data = {
                 'date': bet_date,
@@ -17508,13 +17508,15 @@ async def scrape_first_period_bets_enano():
                 'teams': sorted_teams,
                 'risk': risk,
                 'win': win,
-                'result': result
+                'result': result,
+                'format': format_type
             }
             
-            logger.info(f"[1st Period] ADDED: {bet_date} {sorted_teams} U{line_num}.5 = {result} (Risk:{risk}, Win:{win})")
+            logger.info(f"[1st Period] ADDED: {bet_date} {sorted_teams} U{line_num}.5 = {result} ({format_type})")
             all_bets.append(bet_data)
         
-        logger.info(f"[1st Period Bets] Total individual bets found: {len(all_bets)}")
+        logger.info(f"[1st Period Bets] Detected: {nhl_count} NHL tickets, {rbl_count} RBL tickets")
+        logger.info(f"[1st Period Bets] Total bets extracted: {len(all_bets)}")
         
         # Group bets by game (date + sorted teams)
         games = defaultdict(lambda: {
@@ -17539,10 +17541,10 @@ async def scrape_first_period_bets_enano():
             line_num = bet['line_num']
             result = bet['result']
             risk = bet['risk']
-            win = bet['win']
+            win_amt = bet['win']
             
             if result == 'win':
-                profit = win
+                profit = win_amt
             elif result == 'loss':
                 profit = -risk
             else:
@@ -17550,7 +17552,7 @@ async def scrape_first_period_bets_enano():
             
             bet_info = {
                 "risk": risk,
-                "win": win,
+                "win": win_amt,
                 "result": result,
                 "profit": profit
             }
@@ -17558,15 +17560,12 @@ async def scrape_first_period_bets_enano():
             line_key = f"u{line_num}5"
             if line_key in ["u15", "u25", "u35", "u45"]:
                 if games[game_key][line_key] is not None:
-                    logger.warning(f"[1st Period] DUPLICATE LINE: {game_key} {line_key} - Old: {games[game_key][line_key]}, New: {bet_info}")
+                    logger.warning(f"[1st Period] OVERWRITE: {game_key} {line_key}")
                 games[game_key][line_key] = bet_info
                 games[game_key]["total_result"] += profit
                 logger.info(f"[1st Period] -> {game_key} {line_key} = {result} ({profit:+.2f})")
         
-        logger.info(f"[1st Period Bets] Total unique games: {len(games)}")
-        for gk in sorted(games.keys()):
-            g = games[gk]
-            logger.info(f"[1st Period] Game: {gk} -> U1.5:{g['u15']}, U2.5:{g['u25']}, U3.5:{g['u35']}, U4.5:{g['u45']}, Total:{g['total_result']}")
+        logger.info(f"[1st Period Bets] Unique games: {len(games)}")
         
         # Convert to list and calculate summary
         bets_list = []
@@ -17605,7 +17604,7 @@ async def scrape_first_period_bets_enano():
         
         bets_list.sort(key=lambda x: x["date"], reverse=True)
         
-        logger.info(f"[1st Period Bets] === FINAL RESULTS ===")
+        logger.info(f"[1st Period Bets] === FINAL ===")
         logger.info(f"[1st Period Bets] Games: {len(bets_list)}")
         logger.info(f"[1st Period Bets] Record: {summary['total']['wins']}-{summary['total']['losses']}")
         logger.info(f"[1st Period Bets] Profit: ${summary['total']['profit']:+,.2f}")
