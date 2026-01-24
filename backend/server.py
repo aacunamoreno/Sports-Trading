@@ -17333,7 +17333,20 @@ NHL_TEAM_ABBREV = {
     'SENATORS': 'OTT', 'FLYERS': 'PHI', 'PENGUINS': 'PIT', 'SHARKS': 'SJS',
     'KRAKEN': 'SEA', 'BLUES': 'STL', 'LIGHTNING': 'TBL', 'MAPLE LEAFS': 'TOR',
     'MAMMOTH': 'UTA', 'CANUCKS': 'VAN', 'GOLDEN KNIGHTS': 'VGK', 'CAPITALS': 'WSH',
-    'JETS': 'WPG'
+    'JETS': 'WPG',
+    # Utah Hockey Club variations
+    'UTA MAMMOTH': 'UTA', 'UTAH MAMMOTH': 'UTA', 'UTAH HOCKEY CLUB': 'UTA',
+    # Full team names for better matching
+    'ANAHEIM DUCKS': 'ANA', 'ARIZONA COYOTES': 'ARI', 'BOSTON BRUINS': 'BOS', 
+    'BUFFALO SABRES': 'BUF', 'CALGARY FLAMES': 'CGY', 'CAROLINA HURRICANES': 'CAR',
+    'CHICAGO BLACKHAWKS': 'CHI', 'COLORADO AVALANCHE': 'COL', 'COLUMBUS BLUE JACKETS': 'CBJ',
+    'DALLAS STARS': 'DAL', 'DETROIT RED WINGS': 'DET', 'EDMONTON OILERS': 'EDM',
+    'FLORIDA PANTHERS': 'FLA', 'LOS ANGELES KINGS': 'LAK', 'MINNESOTA WILD': 'MIN',
+    'MONTREAL CANADIENS': 'MTL', 'NASHVILLE PREDATORS': 'NSH', 'NEW JERSEY DEVILS': 'NJD',
+    'OTTAWA SENATORS': 'OTT', 'PHILADELPHIA FLYERS': 'PHI', 'PITTSBURGH PENGUINS': 'PIT',
+    'SAN JOSE SHARKS': 'SJS', 'SEATTLE KRAKEN': 'SEA', 'ST. LOUIS BLUES': 'STL',
+    'TAMPA BAY LIGHTNING': 'TBL', 'TORONTO MAPLE LEAFS': 'TOR', 'VANCOUVER CANUCKS': 'VAN',
+    'VEGAS GOLDEN KNIGHTS': 'VGK', 'WASHINGTON CAPITALS': 'WSH', 'WINNIPEG JETS': 'WPG'
 }
 
 def get_nhl_abbrev(team_name):
@@ -17342,12 +17355,14 @@ def get_nhl_abbrev(team_name):
     # Remove common suffixes
     team_upper = team_upper.replace(' 1ST PERIOD', '').replace(' REG.TIME', '').strip()
     
-    # Try direct match first
-    for key, abbrev in NHL_TEAM_ABBREV.items():
-        if key in team_upper or team_upper in key:
-            return abbrev
+    # Try exact match first (longest keys first for better matching)
+    sorted_keys = sorted(NHL_TEAM_ABBREV.keys(), key=len, reverse=True)
+    for key in sorted_keys:
+        if key in team_upper:
+            return NHL_TEAM_ABBREV[key]
     
     # Return first 3 chars if no match
+    logger.warning(f"[get_nhl_abbrev] No match found for: {team_name}")
     return team_upper[:3]
 
 async def scrape_first_period_bets_enano():
@@ -17546,9 +17561,65 @@ async def scrape_first_period_bets_enano():
         # ============================================
         open_bets_found = 0
         
-        # Split by "1ST PERIOD" to find each bet in Open Bets
+        # Log the first 500 chars of open bets for debugging
+        logger.info(f"[1st Period Bets] Open Bets text preview: {open_bets_text[:500] if len(open_bets_text) > 500 else open_bets_text}")
+        
+        # The Open Bets page may have a different format
+        # Try multiple patterns to find 1st Period bets
+        
+        # Pattern 1: "Team1 1ST PERIOD vrs Team2 1ST PERIOD" (same as History)
         open_sections = re.split(r'(?=\w+\s+1ST PERIOD\s+(?:vrs|vs))', open_bets_text, flags=re.IGNORECASE)
         
+        # Pattern 2: If Pattern 1 doesn't work, try finding "1st Period" anywhere
+        if len([s for s in open_sections if '1ST PERIOD' in s.upper()]) == 0:
+            # Try alternative pattern: look for "1st Period / Total / Under"
+            alt_pattern = r'([A-Za-z\s]+)\s+vs\s+([A-Za-z\s]+)\s*/\s*1st Period\s*/\s*Total\s*/\s*Under\s*(\d+\.?\d*)'
+            alt_matches = re.findall(alt_pattern, open_bets_text, re.IGNORECASE)
+            logger.info(f"[1st Period Bets] Alt pattern found {len(alt_matches)} matches")
+            
+            for match in alt_matches:
+                away_team = match[0].strip()
+                home_team = match[1].strip()
+                line_val = match[2]
+                
+                away_abbrev = get_nhl_abbrev(away_team)
+                home_abbrev = get_nhl_abbrev(home_team)
+                game_key = f"{away_abbrev}@{home_abbrev}"
+                
+                open_bets_found += 1
+                logger.info(f"[1st Period Bets] Found OPEN bet (alt): {game_key}, Line: U{line_val}")
+                
+                # Extract date from today
+                from zoneinfo import ZoneInfo
+                arizona_tz = ZoneInfo('America/Phoenix')
+                today = datetime.now(arizona_tz)
+                games[game_key]["date"] = today.strftime("%m/%d")
+                
+                games[game_key]["away"] = away_abbrev
+                games[game_key]["home"] = home_abbrev
+                
+                # Determine line number
+                line_num = int(float(line_val))
+                
+                # Look for amounts in nearby text
+                # For now, use placeholder values since we may not find exact amounts
+                bet_info = {
+                    "risk": 1000,  # Placeholder
+                    "win": 1000,   # Placeholder
+                    "result": 'pending',
+                    "profit": 0
+                }
+                
+                if line_num == 1 and not games[game_key].get("u15"):
+                    games[game_key]["u15"] = bet_info
+                elif line_num == 2 and not games[game_key].get("u25"):
+                    games[game_key]["u25"] = bet_info
+                elif line_num == 3 and not games[game_key].get("u35"):
+                    games[game_key]["u35"] = bet_info
+                elif line_num == 4 and not games[game_key].get("u45"):
+                    games[game_key]["u45"] = bet_info
+        
+        # Original Pattern 1 processing
         for section in open_sections:
             if '1ST PERIOD' not in section.upper():
                 continue
