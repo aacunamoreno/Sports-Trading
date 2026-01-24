@@ -7865,7 +7865,7 @@ async def scrape_tomorrows_opening_lines():
         logger.error(f"[8PM Job] Error in scrape_tomorrows_opening_lines: {e}")
 
 
-async def populate_ppg_and_dots_for_tomorrow(scraped_ppg_data=None):
+async def populate_ppg_and_dots_for_tomorrow(scraped_ppg_data=None, target_date=None):
     """
     #2 - After Scraping: Fill PPG Data & 4-Dot System for Tomorrow's Games
     
@@ -7882,7 +7882,11 @@ async def populate_ppg_and_dots_for_tomorrow(scraped_ppg_data=None):
     """
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
-    tomorrow = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
+    # Use provided target_date or default to tomorrow
+    if target_date:
+        tomorrow = target_date
+    else:
+        tomorrow = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
     
     logger.info(f"[8PM Job #2] Populating PPG and dots for tomorrow ({tomorrow})")
     
@@ -9791,7 +9795,23 @@ async def scrape_opening_lines_endpoint(target_date: str = None):
             results["status"] = "error"
         elif error_count > 0:
             results["status"] = "partial"
-        
+        # Step 2: Scrape PPG/GPG data and populate for target date
+        logger.info(f"[8PM Job] Step 2: Scraping PPG/GPG data...")
+        try:
+            ppg_data = await scrape_ppg_data_all_leagues()
+            logger.info(f"[8PM Job] PPG data scraped: NBA={len(ppg_data.get('NBA', {}).get('season', {}))} teams, NHL={len(ppg_data.get('NHL', {}).get('season', {}))} teams")
+            
+            # Step 3: Populate PPG and dots for the target date
+            logger.info(f"[8PM Job] Step 3: Populating PPG and dots for {target_date}...")
+            await populate_ppg_and_dots_for_tomorrow(ppg_data, target_date)
+            results["ppg_populated"] = True
+            logger.info(f"[8PM Job] ✅ PPG/GPG data populated successfully for {target_date}")
+        except Exception as e:
+            logger.error(f"[8PM Job] Error populating PPG data: {e}")
+            import traceback
+            traceback.print_exc()
+            results["ppg_populated"] = False
+            results["ppg_error"] = str(e)
         return results
         
     except Exception as e:
