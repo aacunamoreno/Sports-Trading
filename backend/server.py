@@ -18459,6 +18459,25 @@ async def update_consensus_data(league: str, data: dict):
                     if 'home_spread' in game_update:
                         game['home_spread'] = game_update['home_spread']
                     
+                    # For NHL, also set moneyline fields (used by frontend for ML columns)
+                    if league_upper == 'NHL':
+                        # Determine favorite (negative moneyline) for moneyline_team
+                        away_ml = game_update.get('away_spread')
+                        home_ml = game_update.get('home_spread')
+                        
+                        if away_ml is not None and home_ml is not None:
+                            # Set the favorite's moneyline
+                            if away_ml < 0 and (home_ml > 0 or away_ml < home_ml):
+                                game['moneyline'] = away_ml
+                                game['moneyline_team'] = away_normalized
+                                game['opening_moneyline'] = away_ml
+                                game['opening_moneyline_team'] = away_normalized
+                            else:
+                                game['moneyline'] = home_ml
+                                game['moneyline_team'] = home_normalized
+                                game['opening_moneyline'] = home_ml
+                                game['opening_moneyline_team'] = home_normalized
+                    
                     # Also update opening line if provided
                     if 'total' in game_update and game_update['total']:
                         game['total'] = game_update['total']
