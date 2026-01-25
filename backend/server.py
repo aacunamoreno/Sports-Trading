@@ -11635,8 +11635,23 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                             # Get moneylines from consensus data (stored as "spread" in Covers scrape)
                             if away in consensus_data:
                                 away_ml = consensus_data[away].get('spread')
+                                logger.info(f"[Consensus ML Debug] {away} spread/ml = {away_ml}")
                             if home in consensus_data:
                                 home_ml = consensus_data[home].get('spread')
+                                logger.info(f"[Consensus ML Debug] {home} spread/ml = {home_ml}")
+                            
+                            # Also try fuzzy match if direct match didn't find moneylines
+                            if away_ml is None or home_ml is None:
+                                for team_key, team_data in consensus_data.items():
+                                    team_key_upper = team_key.upper()
+                                    if away_ml is None and (away in team_key_upper or team_key_upper in away):
+                                        away_ml = team_data.get('spread')
+                                        logger.info(f"[Consensus ML Debug] Fuzzy matched {away} -> {team_key}: {away_ml}")
+                                    if home_ml is None and (home in team_key_upper or team_key_upper in home):
+                                        home_ml = team_data.get('spread')
+                                        logger.info(f"[Consensus ML Debug] Fuzzy matched {home} -> {team_key}: {home_ml}")
+                            
+                            logger.info(f"[Consensus ML Debug] Final: {away}={away_ml}, {home}={home_ml}")
                             
                             # Determine favorite (most negative moneyline)
                             if away_ml is not None and home_ml is not None:
@@ -11665,6 +11680,10 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                                     game['moneyline'] = favorite_ml
                                     game['moneyline_team'] = favorite_team
                                     logger.info(f"[Consensus ML] Updated {away} @ {home}: Favorite = {favorite_team} ({favorite_ml})")
+                                else:
+                                    logger.warning(f"[Consensus ML] No favorite found for {away} @ {home}: away_ml={away_ml}, home_ml={home_ml}")
+                            else:
+                                logger.warning(f"[Consensus ML] Missing moneyline data for {away} @ {home}: away_ml={away_ml}, home_ml={home_ml}")
                 
                 logger.info(f"[Refresh Lines] Updated consensus for {consensus_updated} games")
             else:
