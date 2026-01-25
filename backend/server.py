@@ -7764,6 +7764,7 @@ async def scrape_tomorrows_opening_lines():
     #1 - 8:00 PM Arizona: Scrape tomorrow's games and opening lines from CBS Sports
     These are the opening lines for each game.
     Creates full game documents in the opportunities collection.
+    Also fetches consensus data from Covers.com for moneylines/spreads.
     """
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
@@ -7786,6 +7787,14 @@ async def scrape_tomorrows_opening_lines():
                     games = await scrape_cbssports_nhl(tomorrow)
                 else:
                     games = await scrape_scoresandodds(league.upper(), tomorrow)
+                
+                # Also scrape Covers.com for consensus data (moneylines/spreads)
+                consensus_data = {}
+                try:
+                    consensus_data = await scrape_covers_consensus(league, tomorrow)
+                    logger.info(f"[8PM Job] Fetched consensus data for {len(consensus_data)} teams from Covers.com")
+                except Exception as ce:
+                    logger.warning(f"[8PM Job] Could not fetch Covers consensus for {league}: {ce}")
                 
                 if games:
                     # Create full game documents for the opportunities collection
@@ -7827,6 +7836,36 @@ async def scrape_tomorrows_opening_lines():
                                 game_doc['opening_moneyline'] = moneyline
                                 game_doc['opening_moneyline_team'] = moneyline_team
                             
+                            # Try to add consensus data from Covers.com
+                            if consensus_data:
+                                # Find matching team in consensus data
+                                away_upper = away.upper().replace('.', '').replace(' ', '')
+                                home_upper = home.upper().replace('.', '').replace(' ', '')
+                                
+                                # Try different matching strategies
+                                away_consensus = None
+                                home_consensus = None
+                                
+                                for team_key, team_data in consensus_data.items():
+                                    team_key_clean = team_key.upper().replace('.', '').replace(' ', '')
+                                    # Check if team key matches away or home
+                                    if team_key_clean in away_upper or away_upper in team_key_clean:
+                                        if away_consensus is None:
+                                            away_consensus = team_data
+                                    if team_key_clean in home_upper or home_upper in team_key_clean:
+                                        if home_consensus is None:
+                                            home_consensus = team_data
+                                
+                                if away_consensus:
+                                    game_doc['away_consensus_pct'] = away_consensus.get('consensus_pct')
+                                    game_doc['away_spread'] = away_consensus.get('spread')
+                                if home_consensus:
+                                    game_doc['home_consensus_pct'] = home_consensus.get('consensus_pct')
+                                    game_doc['home_spread'] = home_consensus.get('spread')
+                                
+                                if away_consensus or home_consensus:
+                                    logger.debug(f"[8PM Job] Added consensus for {away} @ {home}: Away {away_consensus}, Home {home_consensus}")
+                            
                             processed_games.append(game_doc)
                             
                             # Also store in opening_lines collection for tracking
@@ -7836,6 +7875,8 @@ async def scrape_tomorrows_opening_lines():
                     if processed_games:
                         # All leagues now use CBS Sports
                         data_source = "cbssports.com opening lines"
+                        if consensus_data:
+                            data_source += " + covers.com consensus"
                         
                         # Create or update the opportunities document
                         await collection.update_one(
@@ -16701,6 +16742,155 @@ async def trigger_8pm_process():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/process/scrape-date/{target_date}")
+async def scrape_specific_date(target_date: str):
+    """
+    Manually scrape games for a specific date (YYYY-MM-DD format).
+    This is useful when Scrape Tomorrow doesn't work due to timezone issues.
+    
+    Example: POST /api/process/scrape-date/2026-01-25
+    """
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    
+    try:
+        # Validate date format
+        datetime.strptime(target_date, '%Y-%m-%d')
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
+    logger.info(f"[Manual Scrape] Starting scrape for specific date: {target_date}")
+    
+    try:
+        leagues = ['NBA', 'NHL', 'NCAAB']
+        results = {}
+        
+        for league in leagues:
+            try:
+                # Scrape games from CBS Sports
+                if league == 'NCAAB':
+                    games = await scrape_cbssports_ncaab(target_date)
+                elif league == 'NBA':
+                    games = await scrape_cbssports_nba(target_date)
+                elif league == 'NHL':
+                    games = await scrape_cbssports_nhl(target_date)
+                else:
+                    games = []
+                
+                # Also scrape Covers.com for consensus data
+                consensus_data = {}
+                try:
+                    consensus_data = await scrape_covers_consensus(league, target_date)
+                    logger.info(f"[Manual Scrape] Fetched consensus for {len(consensus_data)} teams")
+                except Exception as ce:
+                    logger.warning(f"[Manual Scrape] Could not fetch Covers consensus for {league}: {ce}")
+                
+                if games:
+                    collection_name = f"{league.lower()}_opportunities"
+                    collection = db[collection_name]
+                    
+                    processed_games = []
+                    for game in games:
+                        away = game.get('away_team') or game.get('away')
+                        home = game.get('home_team') or game.get('home')
+                        total = game.get('total')
+                        time = game.get('time', 'TBD')
+                        spread = game.get('spread')
+                        spread_team = game.get('spread_team')
+                        moneyline = game.get('moneyline')
+                        moneyline_team = game.get('moneyline_team')
+                        
+                        if away and home:
+                            game_doc = {
+                                'away_team': away,
+                                'home_team': home,
+                                'total': total,
+                                'opening_line': total,
+                                'time': time,
+                                'date': target_date
+                            }
+                            
+                            if league in ['NBA', 'NCAAB']:
+                                game_doc['spread'] = spread
+                                game_doc['spread_team'] = spread_team
+                                game_doc['opening_spread'] = spread
+                                game_doc['opening_spread_team'] = spread_team
+                            
+                            if league == 'NHL':
+                                game_doc['moneyline'] = moneyline
+                                game_doc['moneyline_team'] = moneyline_team
+                                game_doc['opening_moneyline'] = moneyline
+                                game_doc['opening_moneyline_team'] = moneyline_team
+                            
+                            # Add consensus data from Covers.com
+                            if consensus_data:
+                                away_upper = away.upper().replace('.', '').replace(' ', '')
+                                home_upper = home.upper().replace('.', '').replace(' ', '')
+                                
+                                for team_key, team_data in consensus_data.items():
+                                    team_key_clean = team_key.upper().replace('.', '').replace(' ', '')
+                                    if team_key_clean in away_upper or away_upper in team_key_clean:
+                                        game_doc['away_consensus_pct'] = team_data.get('consensus_pct')
+                                        game_doc['away_spread'] = team_data.get('spread')
+                                    if team_key_clean in home_upper or home_upper in team_key_clean:
+                                        game_doc['home_consensus_pct'] = team_data.get('consensus_pct')
+                                        game_doc['home_spread'] = team_data.get('spread')
+                            
+                            processed_games.append(game_doc)
+                            
+                            if total:
+                                await store_opening_line(league, target_date, away, home, total)
+                    
+                    if processed_games:
+                        data_source = "cbssports.com"
+                        if consensus_data:
+                            data_source += " + covers.com"
+                        
+                        await collection.update_one(
+                            {"date": target_date},
+                            {
+                                "$set": {
+                                    "date": target_date,
+                                    "games": processed_games,
+                                    "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+                                    "data_source": data_source
+                                }
+                            },
+                            upsert=True
+                        )
+                        results[league] = {"games": len(processed_games), "status": "success"}
+                        logger.info(f"[Manual Scrape] Created {len(processed_games)} {league} games for {target_date}")
+                    else:
+                        results[league] = {"games": 0, "status": "no_valid_games"}
+                else:
+                    results[league] = {"games": 0, "status": "no_games_found"}
+                    
+            except Exception as e:
+                logger.error(f"[Manual Scrape] Error scraping {league}: {e}")
+                results[league] = {"games": 0, "status": "error", "error": str(e)}
+        
+        # Also run PPG population for the date
+        try:
+            ppg_data = await scrape_ppg_data_all_leagues()
+            await populate_ppg_and_dots_for_tomorrow(ppg_data, target_date)
+            logger.info(f"[Manual Scrape] PPG data populated for {target_date}")
+        except Exception as e:
+            logger.error(f"[Manual Scrape] Error populating PPG: {e}")
+        
+        return {
+            "status": "success",
+            "date": target_date,
+            "results": results,
+            "timestamp": datetime.now(arizona_tz).isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"[Manual Scrape] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/process/5am")
 async def trigger_5am_process():
     """
@@ -18155,6 +18345,156 @@ async def refresh_nhl_first_period_zeros():
         return {"status": "success", **result}
     except Exception as e:
         logger.error(f"Error refreshing NHL 1st Period data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/opportunities/{league}/update-consensus")
+async def update_consensus_data(league: str, data: dict):
+    """
+    Manually update consensus data (moneylines/spreads) for a specific date.
+    This is used to fix data when scraping fails or overwrites existing data.
+    
+    Expected payload:
+    {
+        "date": "2026-01-24",
+        "games": [
+            {
+                "away": "MON",  # or full name "Montreal"
+                "home": "BOS",  # or full name "Boston"
+                "away_consensus_pct": 36,
+                "home_consensus_pct": 64,
+                "away_spread": -110,  # moneyline for NHL, spread for NBA/NCAAB
+                "home_spread": -115
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        target_date = data.get('date') or datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        games_data = data.get('games', [])
+        
+        if not games_data:
+            raise HTTPException(status_code=400, detail="No games data provided")
+        
+        league_upper = league.upper()
+        collection_name = f"{league.lower()}_opportunities"
+        collection = db[collection_name]
+        
+        # Get existing document
+        doc = await collection.find_one({"date": target_date})
+        if not doc:
+            raise HTTPException(status_code=404, detail=f"No {league_upper} data found for {target_date}")
+        
+        existing_games = doc.get('games', [])
+        
+        # Team name mappings for matching
+        nhl_team_map = {
+            'MON': 'Montreal', 'BOS': 'Boston', 'UTAH': 'Utah', 'NAS': 'Nashville', 'NSH': 'Nashville',
+            'TB': 'Tampa Bay', 'TBL': 'Tampa Bay', 'CLB': 'Columbus', 'CBJ': 'Columbus',
+            'WAS': 'Washington', 'WSH': 'Washington', 'EDM': 'Edmonton',
+            'DET': 'Detroit', 'WIN': 'Winnipeg', 'WPG': 'Winnipeg',
+            'CAR': 'Carolina', 'OTT': 'Ottawa', 'BUF': 'Buffalo', 'NYI': 'NY Islanders',
+            'FLA': 'Florida', 'MIN': 'Minnesota', 'LA': 'Los Angeles', 'LAK': 'Los Angeles',
+            'STL': 'St. Louis', 'VEG': 'Vegas', 'VGK': 'Vegas', 'TOR': 'Toronto',
+            'PHI': 'Philadelphia', 'COL': 'Colorado', 'ANA': 'Anaheim', 'SEA': 'Seattle',
+            'CGY': 'Calgary', 'CAL': 'Calgary', 'SJ': 'San Jose', 'SJS': 'San Jose',
+            'VAN': 'Vancouver', 'NJ': 'New Jersey', 'NJD': 'New Jersey',
+            'NYR': 'NY Rangers', 'PIT': 'Pittsburgh', 'CHI': 'Chicago', 'DAL': 'Dallas'
+        }
+        
+        nba_team_map = {
+            'BOS': 'Boston', 'BK': 'Brooklyn', 'BKN': 'Brooklyn', 'DEN': 'Denver', 'MIL': 'Milwaukee',
+            'NO': 'New Orleans', 'NOP': 'New Orleans', 'MEM': 'Memphis', 'HOU': 'Houston',
+            'DET': 'Detroit', 'IND': 'Indiana', 'OKC': 'Oklahoma City', 'PHO': 'Phoenix', 'PHX': 'Phoenix',
+            'ATL': 'Atlanta', 'TOR': 'Toronto', 'POR': 'Portland', 'SAC': 'Sacramento',
+            'CLE': 'Cleveland', 'NY': 'New York', 'NYK': 'New York', 'LAL': 'LA Lakers',
+            'LAC': 'LA Clippers', 'GSW': 'Golden State', 'GS': 'Golden State',
+            'MIA': 'Miami', 'CHI': 'Chicago', 'UTA': 'Utah', 'DAL': 'Dallas',
+            'MIN': 'Minnesota', 'ORL': 'Orlando', 'WAS': 'Washington', 'CHA': 'Charlotte',
+            'SA': 'San Antonio', 'SAS': 'San Antonio'
+        }
+        
+        team_map = nhl_team_map if league_upper == 'NHL' else nba_team_map
+        
+        def normalize_team(name):
+            """Normalize team name for matching"""
+            name_upper = name.upper().strip()
+            if name_upper in team_map:
+                return team_map[name_upper]
+            # Try to find partial match
+            for abbrev, full in team_map.items():
+                if abbrev in name_upper or full.upper() in name_upper:
+                    return full
+            return name.title()
+        
+        updates_made = 0
+        
+        for game_update in games_data:
+            away_input = game_update.get('away', '')
+            home_input = game_update.get('home', '')
+            
+            away_normalized = normalize_team(away_input)
+            home_normalized = normalize_team(home_input)
+            
+            # Find matching game in existing data
+            for game in existing_games:
+                game_away = game.get('away_team', game.get('away', ''))
+                game_home = game.get('home_team', game.get('home', ''))
+                
+                # Check if this is the matching game
+                if (normalize_team(game_away) == away_normalized and 
+                    normalize_team(game_home) == home_normalized):
+                    
+                    # Update consensus data
+                    if 'away_consensus_pct' in game_update:
+                        game['away_consensus_pct'] = game_update['away_consensus_pct']
+                    if 'home_consensus_pct' in game_update:
+                        game['home_consensus_pct'] = game_update['home_consensus_pct']
+                    if 'away_spread' in game_update:
+                        game['away_spread'] = game_update['away_spread']
+                    if 'home_spread' in game_update:
+                        game['home_spread'] = game_update['home_spread']
+                    
+                    # Also update opening line if provided
+                    if 'total' in game_update and game_update['total']:
+                        game['total'] = game_update['total']
+                        if not game.get('opening_line'):
+                            game['opening_line'] = game_update['total']
+                    
+                    updates_made += 1
+                    logger.info(f"[Manual Consensus] Updated {away_normalized} @ {home_normalized}")
+                    break
+        
+        # Save updated document
+        await collection.update_one(
+            {"date": target_date},
+            {
+                "$set": {
+                    "games": existing_games,
+                    "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+                    "consensus_updated": True
+                }
+            }
+        )
+        
+        return {
+            "status": "success",
+            "date": target_date,
+            "league": league_upper,
+            "games_updated": updates_made,
+            "total_games": len(existing_games)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating consensus data: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
