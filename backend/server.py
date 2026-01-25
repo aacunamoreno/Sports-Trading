@@ -5194,6 +5194,155 @@ async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Di
         return {}
 
 
+async def scrape_covers_overunder_consensus(league: str, target_date: str) -> Dict[str, Dict]:
+    """
+    Scrape Over/Under betting consensus percentages from Covers.com
+    Returns a dict mapping game keys to their O/U consensus data
+    
+    Args:
+        league: 'NBA', 'NHL', or 'NCAAB'
+        target_date: Date in 'YYYY-MM-DD' format
+    
+    Returns:
+        Dict like: {'COL_TOR': {'over_pct': 69, 'under_pct': 31, 'total': 6.5, 'over_picks': 255, 'under_picks': 112}, ...}
+    """
+    from playwright.async_api import async_playwright
+    import re
+    
+    # Map league to Covers.com URL format
+    league_map = {
+        'NBA': 'nba',
+        'NHL': 'nhl', 
+        'NCAAB': 'ncaab'
+    }
+    
+    league_url = league_map.get(league.upper(), 'nba')
+    url = f"https://contests.covers.com/consensus/topoverunderconsensus/{league_url}/overall/{target_date}"
+    
+    logger.info(f"[Covers O/U Consensus] Scraping {url}")
+    
+    ou_consensus_data = {}
+    
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            await page.goto(url, timeout=60000)
+            await page.wait_for_load_state("networkidle")
+            await page.wait_for_timeout(3000)
+            
+            # Extract data from the table
+            # Columns: Matchup | Date | Consensus | Total | Picks | Indepth
+            rows_data = await page.evaluate("""() => {
+                const results = [];
+                const rows = document.querySelectorAll('table tbody tr');
+                
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 5) {
+                        // Get matchup cell - contains team abbreviations with links
+                        const matchupCell = cells[0];
+                        const teamLinks = matchupCell.querySelectorAll('a');
+                        let awayTeam = '';
+                        let homeTeam = '';
+                        
+                        if (teamLinks.length >= 2) {
+                            awayTeam = teamLinks[0].innerText.trim();
+                            homeTeam = teamLinks[1].innerText.trim();
+                        }
+                        
+                        // Get consensus cell - contains "XX % Over" or "XX % Under" and the opposite %
+                        const consensusCell = cells[2];
+                        const consensusText = consensusCell.innerText;
+                        
+                        // Get total cell
+                        const totalCell = cells[3];
+                        const totalText = totalCell.innerText.trim();
+                        
+                        // Get picks cell - contains over picks and under picks
+                        const picksCell = cells[4];
+                        const picksText = picksCell.innerText;
+                        
+                        results.push({
+                            away: awayTeam,
+                            home: homeTeam,
+                            consensus: consensusText,
+                            total: totalText,
+                            picks: picksText
+                        });
+                    }
+                });
+                
+                return results;
+            }""")
+            
+            await browser.close()
+            
+            # Parse each row
+            for row in rows_data:
+                away_team = row.get('away', '').upper()
+                home_team = row.get('home', '').upper()
+                consensus_text = row.get('consensus', '')
+                total_text = row.get('total', '')
+                picks_text = row.get('picks', '')
+                
+                if not away_team or not home_team:
+                    continue
+                
+                # Parse consensus - format: "69 % Over\n31 % Under" or "57 % Under\n43 % Over"
+                over_pct = None
+                under_pct = None
+                
+                # Look for "XX % Over" pattern
+                over_match = re.search(r'(\d+)\s*%?\s*Over', consensus_text, re.IGNORECASE)
+                if over_match:
+                    over_pct = int(over_match.group(1))
+                
+                # Look for "XX % Under" pattern
+                under_match = re.search(r'(\d+)\s*%?\s*Under', consensus_text, re.IGNORECASE)
+                if under_match:
+                    under_pct = int(under_match.group(1))
+                
+                # Parse total (e.g., "6.5")
+                total = None
+                total_match = re.search(r'(\d+\.?\d*)', total_text)
+                if total_match:
+                    total = float(total_match.group(1))
+                
+                # Parse picks (e.g., "255\n112" - over picks first line, under picks second)
+                over_picks = None
+                under_picks = None
+                picks_numbers = re.findall(r'(\d+)', picks_text)
+                if len(picks_numbers) >= 2:
+                    over_picks = int(picks_numbers[0])
+                    under_picks = int(picks_numbers[1])
+                
+                # Create game key
+                game_key = f"{away_team}_{home_team}"
+                
+                ou_consensus_data[game_key] = {
+                    'away_team': away_team,
+                    'home_team': home_team,
+                    'over_pct': over_pct,
+                    'under_pct': under_pct,
+                    'total': total,
+                    'over_picks': over_picks,
+                    'under_picks': under_picks
+                }
+                
+                logger.debug(f"[Covers O/U] {away_team} @ {home_team}: Over {over_pct}%, Under {under_pct}%, Total {total}")
+            
+            logger.info(f"[Covers O/U Consensus] Scraped {len(ou_consensus_data)} games for {league} on {target_date}")
+            return ou_consensus_data
+            
+    except Exception as e:
+        logger.error(f"[Covers O/U Consensus] Error scraping: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
+
+
 async def scrape_cbssports_ncaab_with_team_urls(target_date: str) -> Tuple[List[Dict], Dict[str, str]]:
     """
     Scrape NCAAB games from CBS Sports including team URLs for Last 3 PPG lookup.
@@ -11758,12 +11907,93 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
         except Exception as e:
             logger.warning(f"[Refresh Lines] Error fetching consensus data: {e}")
         
+        # Scrape Over/Under consensus percentages from Covers.com
+        ou_consensus_updated = 0
+        try:
+            logger.info(f"[Refresh Lines] Scraping O/U consensus data from Covers.com for {league} on {target_date}")
+            ou_consensus_data = await scrape_covers_overunder_consensus(league.upper(), target_date)
+            
+            if ou_consensus_data:
+                logger.info(f"[Refresh Lines] Got O/U consensus data for {len(ou_consensus_data)} games")
+                
+                for game in games:
+                    away = game.get('away_team', '').upper()
+                    home = game.get('home_team', '').upper()
+                    
+                    # Try to find matching game in O/U consensus data
+                    game_key = f"{away}_{home}"
+                    ou_data = ou_consensus_data.get(game_key)
+                    
+                    # Try fuzzy match if direct match fails
+                    if not ou_data:
+                        for key, data in ou_consensus_data.items():
+                            key_away = data.get('away_team', '').upper()
+                            key_home = data.get('home_team', '').upper()
+                            # Check if team names match (partial match)
+                            if (away in key_away or key_away in away) and (home in key_home or key_home in home):
+                                ou_data = data
+                                logger.debug(f"[O/U Consensus] Fuzzy matched {away} @ {home} -> {key}")
+                                break
+                    
+                    if ou_data:
+                        over_pct = ou_data.get('over_pct')
+                        under_pct = ou_data.get('under_pct')
+                        
+                        if over_pct is not None:
+                            game['over_consensus_pct'] = over_pct
+                        if under_pct is not None:
+                            game['under_consensus_pct'] = under_pct
+                        
+                        # Determine if there's a strong public O/U pick (61%+)
+                        if over_pct and over_pct >= 61:
+                            game['ou_public_pick'] = 'OVER'
+                            game['ou_public_pct'] = over_pct
+                        elif under_pct and under_pct >= 61:
+                            game['ou_public_pick'] = 'UNDER'
+                            game['ou_public_pct'] = under_pct
+                        else:
+                            game['ou_public_pick'] = None
+                            game['ou_public_pct'] = None
+                        
+                        ou_consensus_updated += 1
+                        logger.info(f"[O/U Consensus] Updated {away} @ {home}: Over {over_pct}%, Under {under_pct}%{' -> ' + game.get('ou_public_pick', '') + ' (' + str(game.get('ou_public_pct', '')) + '%)' if game.get('ou_public_pick') else ''}")
+                
+                logger.info(f"[Refresh Lines] Updated O/U consensus for {ou_consensus_updated} games")
+            else:
+                logger.warning(f"[Refresh Lines] No O/U consensus data returned from Covers.com")
+        except Exception as e:
+            logger.warning(f"[Refresh Lines] Error fetching O/U consensus data: {e}")
+        
         # Save updated games and plays
         # CRITICAL: Calculate bet results for completed games with final scores
         # This ensures results are updated even for live bets that complete during the day
         for game in games:
-            if game.get('has_bet') and game.get('final_score') and game.get('bet_line'):
-                final_score = game['final_score']
+            final_score = game.get('final_score')
+            
+            # Calculate O/U Public result if game has ou_public_pick and final_score
+            if game.get('ou_public_pick') and final_score is not None and game.get('ou_public_hit') is None:
+                ou_line = game.get('total') or game.get('opening_line')
+                if ou_line:
+                    try:
+                        ou_line_float = float(ou_line)
+                        final_score_float = float(final_score)
+                        
+                        if final_score_float == ou_line_float:
+                            game['ou_public_hit'] = None  # Push
+                            game['ou_public_result'] = 'PUSH'
+                        elif game['ou_public_pick'] == 'OVER':
+                            game['ou_public_hit'] = final_score_float > ou_line_float
+                            game['ou_public_result'] = 'HIT' if game['ou_public_hit'] else 'MISS'
+                        elif game['ou_public_pick'] == 'UNDER':
+                            game['ou_public_hit'] = final_score_float < ou_line_float
+                            game['ou_public_result'] = 'HIT' if game['ou_public_hit'] else 'MISS'
+                        
+                        logger.info(f"[O/U Public] {game.get('away_team')} @ {game.get('home_team')}: {game['ou_public_pick']} {game.get('ou_public_pct')}% - Line {ou_line} vs Final {final_score} = {game.get('ou_public_result')}")
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"[O/U Public] Error calculating result: {e}")
+            
+            # Calculate user bet results
+            if game.get('has_bet') and final_score and game.get('bet_line'):
                 bet_line = game['bet_line']
                 bet_type = game.get('bet_type', '').upper()
                 
@@ -17264,6 +17494,104 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57):
         }
     except Exception as e:
         logger.error(f"Error calculating public record by threshold: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/records/ou-public/{league}")
+async def get_ou_public_records(league: str, threshold: int = 61):
+    """
+    Calculate Over/Under Public Record based on consensus threshold.
+    Default threshold is 61% (similar to Sides public but for O/U).
+    Tracks when 61%+ of public bets on Over or Under.
+    """
+    try:
+        league_upper = league.upper()
+        if league_upper not in ['NBA', 'NHL', 'NCAAB']:
+            raise HTTPException(status_code=400, detail="Invalid league")
+        
+        collection_name = f"{league_upper.lower()}_opportunities"
+        
+        # Get all documents
+        cursor = db[collection_name].find({})
+        docs = await cursor.to_list(length=1000)
+        
+        total_hits = 0
+        total_misses = 0
+        over_hits = 0
+        over_misses = 0
+        under_hits = 0
+        under_misses = 0
+        games_detail = []
+        
+        for doc in docs:
+            games = doc.get('games', [])
+            game_date = doc.get('date', '')
+            
+            for g in games:
+                ou_public_pick = g.get('ou_public_pick')
+                ou_public_pct = g.get('ou_public_pct') or 0
+                ou_public_hit = g.get('ou_public_hit')
+                
+                # Only count games with strong O/U public pick (threshold+)
+                if not ou_public_pick or ou_public_pct < threshold:
+                    continue
+                
+                # Only count completed games
+                if ou_public_hit is None:
+                    continue
+                
+                away_team = g.get('away_team', 'Unknown')
+                home_team = g.get('home_team', 'Unknown')
+                final_score = g.get('final_score')
+                ou_line = g.get('total') or g.get('opening_line')
+                
+                game_info = {
+                    "date": game_date,
+                    "matchup": f"{away_team} @ {home_team}",
+                    "pick": ou_public_pick,
+                    "pct": ou_public_pct,
+                    "line": ou_line,
+                    "final": final_score,
+                    "result": "HIT" if ou_public_hit else "MISS"
+                }
+                games_detail.append(game_info)
+                
+                if ou_public_hit:
+                    total_hits += 1
+                    if ou_public_pick == 'OVER':
+                        over_hits += 1
+                    else:
+                        under_hits += 1
+                else:
+                    total_misses += 1
+                    if ou_public_pick == 'OVER':
+                        over_misses += 1
+                    else:
+                        under_misses += 1
+        
+        total_games = total_hits + total_misses
+        win_pct = (total_hits / total_games * 100) if total_games > 0 else 0
+        over_total = over_hits + over_misses
+        under_total = under_hits + under_misses
+        over_pct = (over_hits / over_total * 100) if over_total > 0 else 0
+        under_pct = (under_hits / under_total * 100) if under_total > 0 else 0
+        
+        return {
+            "league": league_upper,
+            "threshold": f"{threshold}%",
+            "record": f"{total_hits}-{total_misses}",
+            "hits": total_hits,
+            "misses": total_misses,
+            "total_games": total_games,
+            "win_pct": round(win_pct, 1),
+            "over_record": f"{over_hits}-{over_misses}",
+            "over_pct": round(over_pct, 1),
+            "under_record": f"{under_hits}-{under_misses}",
+            "under_pct": round(under_pct, 1),
+            "games": games_detail[-20:]  # Last 20 games for display
+        }
+    except Exception as e:
+        logger.error(f"Error calculating O/U public record: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
