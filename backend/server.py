@@ -11629,29 +11629,71 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         # NHL ONLY: Update moneyline with favorite from Covers.com
                         # The "spread" field from Covers actually contains moneylines for NHL
                         if league.upper() == 'NHL':
-                            away_ml = None
-                            home_ml = None
+                            # NHL team abbreviation mapping (Covers uses 3-letter codes)
+                            nhl_abbrev_map = {
+                                'ANA': ['ANAHEIM', 'DUCKS'],
+                                'ARI': ['ARIZONA', 'COYOTES'],
+                                'BOS': ['BOSTON', 'BRUINS'],
+                                'BUF': ['BUFFALO', 'SABRES'],
+                                'CAL': ['CALGARY', 'FLAMES'],
+                                'CGY': ['CALGARY', 'FLAMES'],
+                                'CAR': ['CAROLINA', 'HURRICANES'],
+                                'CHI': ['CHICAGO', 'BLACKHAWKS'],
+                                'COL': ['COLORADO', 'AVALANCHE'],
+                                'CBJ': ['COLUMBUS', 'BLUE JACKETS'],
+                                'DAL': ['DALLAS', 'STARS'],
+                                'DET': ['DETROIT', 'RED WINGS'],
+                                'EDM': ['EDMONTON', 'OILERS'],
+                                'FLA': ['FLORIDA', 'PANTHERS'],
+                                'LA': ['LOS ANGELES', 'LA KINGS', 'KINGS'],
+                                'LAK': ['LOS ANGELES', 'LA KINGS', 'KINGS'],
+                                'MIN': ['MINNESOTA', 'WILD'],
+                                'MTL': ['MONTREAL', 'CANADIENS'],
+                                'NSH': ['NASHVILLE', 'PREDATORS'],
+                                'NJ': ['NEW JERSEY', 'DEVILS'],
+                                'NJD': ['NEW JERSEY', 'DEVILS'],
+                                'NYI': ['NY ISLANDERS', 'NEW YORK ISLANDERS', 'ISLANDERS'],
+                                'NYR': ['NY RANGERS', 'NEW YORK RANGERS', 'RANGERS'],
+                                'OTT': ['OTTAWA', 'SENATORS'],
+                                'PHI': ['PHILADELPHIA', 'FLYERS'],
+                                'PIT': ['PITTSBURGH', 'PENGUINS'],
+                                'SJ': ['SAN JOSE', 'SHARKS'],
+                                'SJS': ['SAN JOSE', 'SHARKS'],
+                                'SEA': ['SEATTLE', 'KRAKEN'],
+                                'STL': ['ST. LOUIS', 'ST LOUIS', 'BLUES'],
+                                'TB': ['TAMPA BAY', 'LIGHTNING'],
+                                'TBL': ['TAMPA BAY', 'LIGHTNING'],
+                                'TOR': ['TORONTO', 'MAPLE LEAFS'],
+                                'UTA': ['UTAH', 'HOCKEY CLUB'],
+                                'VAN': ['VANCOUVER', 'CANUCKS'],
+                                'VGK': ['VEGAS', 'GOLDEN KNIGHTS'],
+                                'VEG': ['VEGAS', 'GOLDEN KNIGHTS'],
+                                'WAS': ['WASHINGTON', 'CAPITALS'],
+                                'WSH': ['WASHINGTON', 'CAPITALS'],
+                                'WPG': ['WINNIPEG', 'JETS'],
+                            }
                             
-                            # Get moneylines from consensus data (stored as "spread" in Covers scrape)
-                            if away in consensus_data:
-                                away_ml = consensus_data[away].get('spread')
-                                logger.info(f"[Consensus ML Debug] {away} spread/ml = {away_ml}")
-                            if home in consensus_data:
-                                home_ml = consensus_data[home].get('spread')
-                                logger.info(f"[Consensus ML Debug] {home} spread/ml = {home_ml}")
+                            # Helper function to find team in consensus_data using abbreviation map
+                            def find_team_ml(team_name, consensus_data, abbrev_map):
+                                team_upper = team_name.upper()
+                                # Direct match first
+                                if team_upper in consensus_data:
+                                    return consensus_data[team_upper].get('spread')
+                                # Try abbreviation map
+                                for abbrev, names in abbrev_map.items():
+                                    if abbrev in consensus_data:
+                                        if any(name in team_upper or team_upper in name for name in names):
+                                            return consensus_data[abbrev].get('spread')
+                                # Try partial match
+                                for key in consensus_data:
+                                    if key in team_upper or team_upper in key:
+                                        return consensus_data[key].get('spread')
+                                return None
                             
-                            # Also try fuzzy match if direct match didn't find moneylines
-                            if away_ml is None or home_ml is None:
-                                for team_key, team_data in consensus_data.items():
-                                    team_key_upper = team_key.upper()
-                                    if away_ml is None and (away in team_key_upper or team_key_upper in away):
-                                        away_ml = team_data.get('spread')
-                                        logger.info(f"[Consensus ML Debug] Fuzzy matched {away} -> {team_key}: {away_ml}")
-                                    if home_ml is None and (home in team_key_upper or team_key_upper in home):
-                                        home_ml = team_data.get('spread')
-                                        logger.info(f"[Consensus ML Debug] Fuzzy matched {home} -> {team_key}: {home_ml}")
+                            away_ml = find_team_ml(away, consensus_data, nhl_abbrev_map)
+                            home_ml = find_team_ml(home, consensus_data, nhl_abbrev_map)
                             
-                            logger.info(f"[Consensus ML Debug] Final: {away}={away_ml}, {home}={home_ml}")
+                            logger.info(f"[Consensus ML Debug] {away}={away_ml}, {home}={home_ml}")
                             
                             # Determine favorite (most negative moneyline)
                             if away_ml is not None and home_ml is not None:
