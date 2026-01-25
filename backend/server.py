@@ -18483,6 +18483,16 @@ async def update_consensus_data(league: str, data: dict):
                         game['total'] = game_update['total']
                         if not game.get('opening_line'):
                             game['opening_line'] = game_update['total']
+                        
+                        # Recalculate Edge if we have GPG Avg and Line
+                        gpg_avg = game.get('gpg_avg') or game.get('ppg_avg')
+                        if gpg_avg:
+                            try:
+                                edge = round(float(gpg_avg) - float(game_update['total']), 1)
+                                game['edge'] = edge
+                                logger.info(f"[Manual Consensus] Calculated Edge for {away_normalized} @ {home_normalized}: {gpg_avg} - {game_update['total']} = {edge}")
+                            except (ValueError, TypeError):
+                                pass
                     
                     updates_made += 1
                     logger.info(f"[Manual Consensus] Updated {away_normalized} @ {home_normalized}")
@@ -18512,6 +18522,92 @@ async def update_consensus_data(league: str, data: dict):
         raise
     except Exception as e:
         logger.error(f"Error updating consensus data: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/opportunities/{league}/recalculate-edges")
+async def recalculate_edges(league: str, data: dict = None):
+    """
+    Recalculate Edge values for all games on a specific date.
+    Edge = GPG Avg (or PPG Avg) - Line
+    
+    Expected payload (optional):
+    {
+        "date": "2026-01-24"  # defaults to today if not provided
+    }
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        
+        if data is None:
+            data = {}
+        
+        target_date = data.get('date') or datetime.now(arizona_tz).strftime('%Y-%m-%d')
+        
+        league_upper = league.upper()
+        collection_name = f"{league.lower()}_opportunities"
+        collection = db[collection_name]
+        
+        # Get existing document
+        doc = await collection.find_one({"date": target_date})
+        if not doc:
+            raise HTTPException(status_code=404, detail=f"No {league_upper} data found for {target_date}")
+        
+        existing_games = doc.get('games', [])
+        edges_calculated = 0
+        
+        for game in existing_games:
+            # Get the line (total)
+            line = game.get('total') or game.get('opening_line')
+            if not line:
+                continue
+            
+            # Get GPG/PPG Avg
+            gpg_avg = game.get('gpg_avg') or game.get('ppg_avg')
+            if not gpg_avg:
+                continue
+            
+            try:
+                line_float = float(line)
+                gpg_float = float(gpg_avg)
+                edge = round(gpg_float - line_float, 1)
+                game['edge'] = edge
+                edges_calculated += 1
+                
+                away = game.get('away_team', game.get('away', 'Unknown'))
+                home = game.get('home_team', game.get('home', 'Unknown'))
+                logger.info(f"[Recalculate Edge] {away} @ {home}: {gpg_avg} - {line} = {edge}")
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Could not calculate edge: {e}")
+                continue
+        
+        # Save updated document
+        await collection.update_one(
+            {"date": target_date},
+            {
+                "$set": {
+                    "games": existing_games,
+                    "last_updated": datetime.now(arizona_tz).strftime('%I:%M %p'),
+                    "edges_recalculated": True
+                }
+            }
+        )
+        
+        return {
+            "status": "success",
+            "date": target_date,
+            "league": league_upper,
+            "edges_calculated": edges_calculated,
+            "total_games": len(existing_games)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error recalculating edges: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
