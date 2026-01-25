@@ -11089,6 +11089,22 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         game['opening_moneyline_team'] = new_ml_team
                     logger.info(f"[Refresh Lines] Updated moneyline for {away} @ {home}: {old_ml} -> {new_ml} ({new_ml_team})")
             
+            # FALLBACK: Calculate Edge even if no live line available
+            # This is critical for yesterday/historical games where CBS Sports no longer has lines
+            if game.get('edge') is None or game.get('edge') == 0:
+                combined_value = game.get('combined_gpg') or game.get('combined_ppg')
+                if combined_value:
+                    # Priority for line: bet_line > live_line > opening_line > total
+                    line_for_edge = (
+                        game.get('bet_line') or 
+                        game.get('live_line') or 
+                        game.get('opening_line') or 
+                        game.get('total')
+                    )
+                    if line_for_edge and line_for_edge > 0:
+                        game['edge'] = round(combined_value - line_for_edge, 1)
+                        logger.info(f"[Refresh Lines] Calculated Edge (fallback) for {away} @ {home}: {combined_value} - {line_for_edge} = {game['edge']}")
+            
             # #3.75 - Match open bets to games and store bet_line
             for bet in open_bets:
                 bet_game = bet.get('game', '').upper()
