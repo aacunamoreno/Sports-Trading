@@ -10785,9 +10785,11 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
         arizona_tz = ZoneInfo('America/Phoenix')
         now_arizona = datetime.now(arizona_tz)
         
-        # Support day parameter: 'today', 'tomorrow', or specific date 'YYYY-MM-DD'
+        # Support day parameter: 'today', 'yesterday', 'tomorrow', or specific date 'YYYY-MM-DD'
         if day == "tomorrow":
             target_date = (now_arizona + timedelta(days=1)).strftime('%Y-%m-%d')
+        elif day == "yesterday":
+            target_date = (now_arizona - timedelta(days=1)).strftime('%Y-%m-%d')
         elif len(day) == 10 and day[4] == '-' and day[7] == '-':
             target_date = day
         else:
