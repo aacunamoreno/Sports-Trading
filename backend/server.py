@@ -17478,10 +17478,14 @@ async def scrape_first_period_bets_enano():
                 win = float(amount_match.group(2).replace(',', ''))
             
             # Extract result - check for WIN/LOSE
+            # IMPORTANT: Check WIN first, then LOSE/LOSS (not just LOS to avoid "Los Angeles")
             result = 'pending'
-            if re.search(r'\bWIN\s*$', ticket_upper) or (re.search(r'\bWIN\b', ticket_upper) and not re.search(r'\bLOS', ticket_upper)):
+            # Check for WIN at the end of ticket or WIN without LOSE/LOSS nearby
+            if re.search(r'\bWIN\s*$', ticket_upper) or re.search(r'\bWIN\s+WIN\b', ticket_upper):
                 result = 'win'
-            elif re.search(r'\bLOS[ES]?\b', ticket_upper):
+            elif re.search(r'\bWIN\b', ticket_upper) and not re.search(r'\b(LOSE|LOSS)\b', ticket_upper):
+                result = 'win'
+            elif re.search(r'\b(LOSE|LOSS)\b', ticket_upper):
                 result = 'loss'
             elif re.search(r'\bCANCEL', ticket_upper):
                 result = 'cancel'
