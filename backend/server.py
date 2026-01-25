@@ -11625,6 +11625,46 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                             game['home_consensus_pct'] = home_consensus
                         consensus_updated += 1
                         logger.info(f"[Consensus] Updated {away} ({away_consensus}%) @ {home} ({home_consensus}%)")
+                        
+                        # NHL ONLY: Update moneyline with favorite from Covers.com
+                        # The "spread" field from Covers actually contains moneylines for NHL
+                        if league.upper() == 'NHL':
+                            away_ml = None
+                            home_ml = None
+                            
+                            # Get moneylines from consensus data (stored as "spread" in Covers scrape)
+                            if away in consensus_data:
+                                away_ml = consensus_data[away].get('spread')
+                            if home in consensus_data:
+                                home_ml = consensus_data[home].get('spread')
+                            
+                            # Determine favorite (most negative moneyline)
+                            if away_ml is not None and home_ml is not None:
+                                # Both are negative (close game) - take the more negative one
+                                # Both are positive (pick'em) - unusual, skip
+                                # One negative, one positive - take the negative (favorite)
+                                favorite_ml = None
+                                favorite_team = None
+                                
+                                if away_ml < 0 and home_ml < 0:
+                                    # Both negative - take the MORE negative (bigger favorite)
+                                    if away_ml < home_ml:
+                                        favorite_ml = int(away_ml)
+                                        favorite_team = game.get('away_team')
+                                    else:
+                                        favorite_ml = int(home_ml)
+                                        favorite_team = game.get('home_team')
+                                elif away_ml < 0:
+                                    favorite_ml = int(away_ml)
+                                    favorite_team = game.get('away_team')
+                                elif home_ml < 0:
+                                    favorite_ml = int(home_ml)
+                                    favorite_team = game.get('home_team')
+                                
+                                if favorite_ml is not None:
+                                    game['moneyline'] = favorite_ml
+                                    game['moneyline_team'] = favorite_team
+                                    logger.info(f"[Consensus ML] Updated {away} @ {home}: Favorite = {favorite_team} ({favorite_ml})")
                 
                 logger.info(f"[Refresh Lines] Updated consensus for {consensus_updated} games")
             else:
