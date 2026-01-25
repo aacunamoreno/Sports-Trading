@@ -12208,11 +12208,22 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             # If bet is placed, use bet_line for edge; otherwise use current line
             # Positive edge = PPG > Line = OVER signal
             # Negative edge = PPG < Line = UNDER signal
+            
+            # Use the best available line for edge calculation:
+            # Priority: bet_line > current line (total) > opening_line
+            line_for_edge = None
             if game_data.get('has_bet') and game_data.get('bet_line'):
-                edge = combined_ppg - game_data.get('bet_line') if has_line else 0
+                line_for_edge = game_data.get('bet_line')
+            elif g.get('total') and g['total'] > 0:
+                line_for_edge = g['total']
+            elif game_data.get('opening_line') and game_data['opening_line'] > 0:
+                line_for_edge = game_data['opening_line']
+            
+            if line_for_edge:
+                edge = combined_ppg - line_for_edge
+                game_data["edge"] = round(edge, 1)
             else:
-                edge = combined_ppg - g['total'] if has_line else 0
-            game_data["edge"] = round(edge, 1) if has_line else None
+                game_data["edge"] = None
             
             games.append(game_data)
             
@@ -12768,11 +12779,22 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             # If bet is placed, use bet_line for edge; otherwise use current line
             # Positive edge = GPG > Line = OVER signal
             # Negative edge = GPG < Line = UNDER signal
+            
+            # Use the best available line for edge calculation:
+            # Priority: bet_line > current line (total) > opening_line
+            line_for_edge = None
             if game_data.get('has_bet') and game_data.get('bet_line'):
-                edge = combined_gpg - game_data.get('bet_line') if has_line else 0
+                line_for_edge = game_data.get('bet_line')
+            elif g.get('total') and g['total'] > 0:
+                line_for_edge = g['total']
+            elif game_data.get('opening_line') and game_data['opening_line'] > 0:
+                line_for_edge = game_data['opening_line']
+            
+            if line_for_edge:
+                edge = combined_gpg - line_for_edge
+                game_data["edge"] = round(edge, 1)
             else:
-                edge = combined_gpg - g['total'] if has_line else 0
-            game_data["edge"] = round(edge, 1) if has_line else None
+                game_data["edge"] = None
             
             games.append(game_data)
             
