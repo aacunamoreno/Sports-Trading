@@ -12097,10 +12097,28 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             stored_opening = await get_opening_line("NBA", target_date, g['away'], g['home'])
             if stored_opening:
                 game_data["opening_line"] = stored_opening
-            elif has_line:
-                # If no stored opening, store current line as opening (first time seeing this game)
-                await store_opening_line("NBA", target_date, g['away'], g['home'], g['total'])
-                game_data["opening_line"] = g['total']  # First time = opening equals current
+            else:
+                # Fallback: Check nba_opportunities collection for opening_line
+                try:
+                    cached_doc = await db.nba_opportunities.find_one({"date": target_date}, {"_id": 0})
+                    if cached_doc and cached_doc.get('games'):
+                        for cached_game in cached_doc['games']:
+                            cached_away = (cached_game.get('away_team') or cached_game.get('away', '')).upper()
+                            cached_home = (cached_game.get('home_team') or cached_game.get('home', '')).upper()
+                            if g['away'].upper() in cached_away or cached_away in g['away'].upper():
+                                if g['home'].upper() in cached_home or cached_home in g['home'].upper():
+                                    # Found matching game - get opening line or total
+                                    opening = cached_game.get('opening_line') or cached_game.get('total')
+                                    if opening:
+                                        game_data["opening_line"] = opening
+                                    break
+                except Exception as e:
+                    logger.debug(f"Could not get opening line from cache for {g['away']} @ {g['home']}: {e}")
+                
+                # If still no opening and we have current line, store it
+                if not game_data.get("opening_line") and has_line:
+                    await store_opening_line("NBA", target_date, g['away'], g['home'], g['total'])
+                    game_data["opening_line"] = g['total']  # First time = opening equals current
             
             # Check if this game has an active bet
             # Also detect "hedged" bets (both OVER and UNDER on same game = cancelled out)
@@ -12668,22 +12686,22 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             
             # #3.75: Get opening line from database (from last night's 8pm scrape)
             # This allows comparison: Opening Line vs Current Live Line vs Bet Line
-            if day == "today":
-                try:
-                    cached_today = await db.nhl_opportunities.find_one({"date": target_date}, {"_id": 0})
-                    if cached_today and cached_today.get('games'):
-                        for cached_game in cached_today['games']:
-                            cached_away = (cached_game.get('away_team') or cached_game.get('away', '')).upper()
-                            cached_home = (cached_game.get('home_team') or cached_game.get('home', '')).upper()
-                            if g['away'].upper() in cached_away or cached_away in g['away'].upper():
-                                if g['home'].upper() in cached_home or cached_home in g['home'].upper():
-                                    # Found matching game - get opening line
-                                    opening = cached_game.get('opening_line') or cached_game.get('total')
-                                    if opening:
-                                        game_data["opening_line"] = opening
-                                    break
-                except Exception as e:
-                    logger.debug(f"Could not get opening line for {g['away']} @ {g['home']}: {e}")
+            # Works for both today and yesterday/historical dates
+            try:
+                cached_doc = await db.nhl_opportunities.find_one({"date": target_date}, {"_id": 0})
+                if cached_doc and cached_doc.get('games'):
+                    for cached_game in cached_doc['games']:
+                        cached_away = (cached_game.get('away_team') or cached_game.get('away', '')).upper()
+                        cached_home = (cached_game.get('home_team') or cached_game.get('home', '')).upper()
+                        if g['away'].upper() in cached_away or cached_away in g['away'].upper():
+                            if g['home'].upper() in cached_home or cached_home in g['home'].upper():
+                                # Found matching game - get opening line
+                                opening = cached_game.get('opening_line') or cached_game.get('total')
+                                if opening:
+                                    game_data["opening_line"] = opening
+                                break
+            except Exception as e:
+                logger.debug(f"Could not get opening line for {g['away']} @ {g['home']}: {e}")
             
             # Add dots for NHL
             def get_nhl_dot_color(rank: int) -> str:
