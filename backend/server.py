@@ -18423,6 +18423,29 @@ async def update_nhl_first_period_goals():
         teams_4_sorted = sorted(team_counts_4.items(), key=lambda x: x[1], reverse=True)
         teams_5_sorted = sorted(team_counts_5.items(), key=lambda x: x[1], reverse=True)
         
+        # Prepare detailed games for 4 and 5+ goals (for drill-down feature)
+        games_4_goals = []
+        for game in results[4]:
+            games_4_goals.append({
+                "date": game.get("date"),
+                "away_team": game.get("away_team"),
+                "home_team": game.get("home_team"),
+                "away_goals_p1": game.get("away_goals_p1"),
+                "home_goals_p1": game.get("home_goals_p1"),
+                "score_1p": f"{game.get('away_goals_p1')}-{game.get('home_goals_p1')}"
+            })
+        
+        games_5_plus = []
+        for game in results[5]:
+            games_5_plus.append({
+                "date": game.get("date"),
+                "away_team": game.get("away_team"),
+                "home_team": game.get("home_team"),
+                "away_goals_p1": game.get("away_goals_p1"),
+                "home_goals_p1": game.get("home_goals_p1"),
+                "score_1p": f"{game.get('away_goals_p1')}-{game.get('home_goals_p1')}"
+            })
+        
         # Store in MongoDB
         await db.nhl_first_period_goals.update_one(
             {"_id": "current_season"},
@@ -18431,6 +18454,8 @@ async def update_nhl_first_period_goals():
                     "breakdown": breakdown,
                     "teams_4_goals": [{"team": t, "count": c} for t, c in teams_4_sorted],
                     "teams_5_goals": [{"team": t, "count": c} for t, c in teams_5_sorted],
+                    "games_4_goals": games_4_goals,
+                    "games_5_plus": games_5_plus,
                     "last_updated": datetime.now(timezone.utc),
                     "season": "2025-2026"
                 }
@@ -18540,6 +18565,80 @@ async def refresh_nhl_first_period_zeros():
         return {"status": "success", **result}
     except Exception as e:
         logger.error(f"Error refreshing NHL 1st Period data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/nhl/first-period-team-games/{team}/{category}")
+async def get_team_first_period_games(team: str, category: str):
+    """
+    Get detailed games for a specific team in 4-goal or 5+ goal 1st periods.
+    
+    Args:
+        team: Team name (e.g., "Colorado", "San Jose")
+        category: "4" for 4-goal games, "5" or "5plus" for 5+ goal games
+    
+    Returns:
+        List of games with date, opponent, and 1st period score
+    """
+    try:
+        cached = await db.nhl_first_period_goals.find_one({"_id": "current_season"}, {"_id": 0})
+        
+        if not cached:
+            return {"team": team, "category": category, "games": []}
+        
+        # Determine which games list to search
+        if category == "4":
+            all_games = cached.get("games_4_goals", [])
+        else:  # "5" or "5plus"
+            all_games = cached.get("games_5_plus", [])
+        
+        # Filter games where the team participated
+        team_upper = team.upper()
+        team_games = []
+        
+        for game in all_games:
+            away = game.get("away_team", "")
+            home = game.get("home_team", "")
+            
+            # Check if team matches (case-insensitive partial match)
+            is_away = team_upper in away.upper()
+            is_home = team_upper in home.upper()
+            
+            if is_away or is_home:
+                # Determine opponent and score from team's perspective
+                if is_away:
+                    opponent = home
+                    team_goals = game.get("away_goals_p1", 0)
+                    opp_goals = game.get("home_goals_p1", 0)
+                    location = "@"  # Away game
+                else:
+                    opponent = away
+                    team_goals = game.get("home_goals_p1", 0)
+                    opp_goals = game.get("away_goals_p1", 0)
+                    location = "vs"  # Home game
+                
+                team_games.append({
+                    "date": game.get("date"),
+                    "opponent": opponent,
+                    "location": location,
+                    "team_goals_1p": team_goals,
+                    "opp_goals_1p": opp_goals,
+                    "score_1p": f"{team_goals}-{opp_goals}",
+                    "result": "W" if team_goals > opp_goals else ("L" if team_goals < opp_goals else "T")
+                })
+        
+        # Sort by date (most recent first)
+        team_games.sort(key=lambda x: x.get("date", ""), reverse=True)
+        
+        return {
+            "team": team,
+            "category": "4 Goals" if category == "4" else "5+ Goals",
+            "count": len(team_games),
+            "games": team_games
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting team first period games: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
