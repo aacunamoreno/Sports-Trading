@@ -4936,26 +4936,51 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
                             if (totalMatch) total = parseFloat(totalMatch[1]);
                         }
                         
-                        // Get moneyline from home team's odds cell
+                        // Get moneylines from BOTH teams' odds cells
                         // NHL uses moneyline (e.g., -141) instead of spread
+                        // We need to capture the FAVORITE's moneyline (negative value)
+                        let awayMl = null;
+                        let homeMl = null;
                         let moneyline = null;
                         let moneylineTeam = null;
+                        
+                        // Get away team's moneyline
+                        const awayOddsElML = card.querySelector('.in-progress-odds-away');
+                        if (awayOddsElML) {
+                            const awayOddsText = awayOddsElML.innerText.trim();
+                            const mlMatch = awayOddsText.match(/([+-]\\d{3,})/);
+                            if (mlMatch) awayMl = parseInt(mlMatch[1]);
+                        }
+                        
+                        // Get home team's moneyline
                         const homeOddsEl = card.querySelector('.in-progress-odds-home');
                         if (homeOddsEl) {
                             const homeOddsText = homeOddsEl.innerText.trim();
-                            // Moneyline format: -141, +130, etc (3-digit number with sign)
                             const mlMatch = homeOddsText.match(/([+-]\\d{3,})/);
-                            if (mlMatch) {
-                                moneyline = parseInt(mlMatch[1]);
-                                // Negative moneyline = favorite
-                                if (moneyline < 0) {
-                                    moneylineTeam = homeTeam;  // Home team is favorite
-                                } else {
-                                    moneylineTeam = awayTeam;  // Away team is favorite
-                                }
+                            if (mlMatch) homeMl = parseInt(mlMatch[1]);
+                        }
+                        
+                        // Determine favorite (negative moneyline) and use that value
+                        if (awayMl !== null && awayMl < 0) {
+                            // Away team is favorite
+                            moneyline = awayMl;
+                            moneylineTeam = awayTeam;
+                        } else if (homeMl !== null && homeMl < 0) {
+                            // Home team is favorite
+                            moneyline = homeMl;
+                            moneylineTeam = homeTeam;
+                        } else if (awayMl !== null && homeMl !== null) {
+                            // Both positive (rare pick'em) - take the lower one as slight favorite
+                            if (awayMl < homeMl) {
+                                moneyline = awayMl;
+                                moneylineTeam = awayTeam;
+                            } else {
+                                moneyline = homeMl;
+                                moneylineTeam = homeTeam;
                             }
                         }
-                        // Fallback - look for 3+ digit number with sign
+                        
+                        // Fallback - look for 3+ digit number with sign in raw text
                         if (!moneyline) {
                             const mlMatch = rawText.match(/([+-]\\d{3,})/);
                             if (mlMatch) moneyline = parseInt(mlMatch[1]);
@@ -18636,17 +18661,21 @@ async def update_consensus_data(league: str, data: dict):
                         home_ml = game_update.get('home_spread')
                         
                         if away_ml is not None and home_ml is not None:
-                            # Set the favorite's moneyline
+                            # Set the favorite's moneyline (current)
                             if away_ml < 0 and (home_ml > 0 or away_ml < home_ml):
                                 game['moneyline'] = away_ml
                                 game['moneyline_team'] = away_normalized
-                                game['opening_moneyline'] = away_ml
-                                game['opening_moneyline_team'] = away_normalized
+                                # Only set opening_moneyline if it doesn't exist yet
+                                if not game.get('opening_moneyline'):
+                                    game['opening_moneyline'] = away_ml
+                                    game['opening_moneyline_team'] = away_normalized
                             else:
                                 game['moneyline'] = home_ml
                                 game['moneyline_team'] = home_normalized
-                                game['opening_moneyline'] = home_ml
-                                game['opening_moneyline_team'] = home_normalized
+                                # Only set opening_moneyline if it doesn't exist yet
+                                if not game.get('opening_moneyline'):
+                                    game['opening_moneyline'] = home_ml
+                                    game['opening_moneyline_team'] = home_normalized
                     
                     # Also update opening line if provided
                     if 'total' in game_update and game_update['total']:
