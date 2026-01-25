@@ -181,6 +181,10 @@ export default function Opportunities() {
   const [publicRecord, setPublicRecord] = useState({ hits: 0, misses: 0 });
   const [publicThreshold, setPublicThreshold] = useState(57);
   const [loadingPublicRecord, setLoadingPublicRecord] = useState(false);
+  // O/U Public record state
+  const [ouPublicRecord, setOuPublicRecord] = useState({ hits: 0, misses: 0, overRecord: '0-0', underRecord: '0-0' });
+  const [loadingOuPublicRecord, setLoadingOuPublicRecord] = useState(false);
+  const [showOuPublicModal, setShowOuPublicModal] = useState(false);
   const [firstPeriodZeros, setFirstPeriodZeros] = useState({ total: 0, l3: 0, l5: 0, lastUpdated: null });
   const [firstPeriodStats, setFirstPeriodStats] = useState({ pct03: 0, l3Pct: 0, l5Pct: 0 }); // Stats for 0-3 goals
   const [showFirstPeriodModal, setShowFirstPeriodModal] = useState(false);
@@ -261,9 +265,32 @@ export default function Opportunities() {
     }
   };
 
+  // Fetch O/U Public record
+  const fetchOuPublicRecord = async () => {
+    setLoadingOuPublicRecord(true);
+    try {
+      const response = await axios.get(`${API}/records/ou-public/${league}?threshold=61`);
+      setOuPublicRecord({
+        hits: response.data.hits,
+        misses: response.data.misses,
+        winPct: response.data.win_pct,
+        overRecord: response.data.over_record,
+        underRecord: response.data.under_record,
+        overPct: response.data.over_pct,
+        underPct: response.data.under_pct,
+        games: response.data.games || []
+      });
+    } catch (error) {
+      console.error('Error fetching O/U public record:', error);
+    } finally {
+      setLoadingOuPublicRecord(false);
+    }
+  };
+
   // Update public record when threshold or league changes
   useEffect(() => {
     fetchPublicRecordByThreshold(publicThreshold);
+    fetchOuPublicRecord();
   }, [publicThreshold, league]);
 
   // Fetch compound records when modal opens
@@ -1218,6 +1245,33 @@ export default function Opportunities() {
               </div>
             )}
           </div>
+          {/* O/U Public Consensus Badge - Click to open O/U breakdown */}
+          <div 
+            className="bg-gradient-to-r from-orange-600/20 to-yellow-600/20 border border-orange-500/30 rounded-lg px-4 py-2 cursor-pointer hover:border-orange-400/50 transition-all"
+            onClick={() => setShowOuPublicModal(true)}
+            title="Click to view O/U Public breakdown (61%+ consensus)"
+          >
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xs text-muted-foreground">📊 O/U Public</span>
+              <span className="text-[10px] bg-orange-600/30 text-orange-300 px-1.5 py-0.5 rounded">61%+</span>
+            </div>
+            <div className="text-xl font-bold text-center">
+              {loadingOuPublicRecord ? (
+                <span className="text-muted-foreground">...</span>
+              ) : (
+                <>
+                  <span className="text-green-400">{ouPublicRecord.hits}</span>
+                  <span className="text-muted-foreground mx-1">-</span>
+                  <span className="text-red-400">{ouPublicRecord.misses}</span>
+                </>
+              )}
+            </div>
+            {ouPublicRecord.winPct !== undefined && !loadingOuPublicRecord && (
+              <div className={`text-[10px] text-center font-medium ${ouPublicRecord.winPct >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                {ouPublicRecord.winPct}% Win Rate
+              </div>
+            )}
+          </div>
           {/* NHL 1st Period Badge - Only show for NHL - Click to open breakdown */}
           {league === 'NHL' && (
             <div 
@@ -1593,6 +1647,7 @@ export default function Opportunities() {
                   {showHistoricalColumns && <th className="text-center py-3 px-2" title="Public Consensus Pick">Public</th>}
                   <th className="text-center py-3 px-2">Open</th>
                   <th className="text-center py-3 px-2">Line</th>
+                  <th className="text-center py-3 px-1" title="O/U Public Consensus (61%+)">O/U</th>
                   {showHistoricalColumns && <th className="text-center py-3 px-2">Final</th>}
                   <th className="text-center py-3 px-2">{league === 'NBA' || league === 'NCAAB' || league === 'NFL' ? 'PPG' : 'GPG'} Avg</th>
                   <th className="text-center py-3 px-2">Edge</th>
@@ -2067,6 +2122,42 @@ export default function Opportunities() {
                           );
                         })()}
                       </td>
+                      {/* O/U Public Consensus column - shows if 61%+ on Over or Under */}
+                      <td className="py-3 px-1 text-center">
+                        {(() => {
+                          const ouPick = game.ou_public_pick;
+                          const ouPct = game.ou_public_pct;
+                          const ouHit = game.ou_public_hit;
+                          const ouResult = game.ou_public_result;
+                          
+                          if (!ouPick) {
+                            return <span className="text-gray-600 text-xs">-</span>;
+                          }
+                          
+                          const isOver = ouPick === 'OVER';
+                          const bgColor = isOver ? 'bg-green-900/30' : 'bg-red-900/30';
+                          const textColor = isOver ? 'text-green-400' : 'text-red-400';
+                          const icon = isOver ? '⬆️' : '⬇️';
+                          
+                          // Show result if game is completed
+                          if (ouResult) {
+                            const resultColor = ouResult === 'HIT' ? 'text-green-400' : ouResult === 'MISS' ? 'text-red-400' : 'text-gray-400';
+                            return (
+                              <div className={`${bgColor} rounded px-1 py-0.5`}>
+                                <div className={`text-xs font-bold ${textColor}`}>{icon} {ouPct}%</div>
+                                <div className={`text-[10px] font-bold ${resultColor}`}>{ouResult === 'HIT' ? '✅' : ouResult === 'MISS' ? '❌' : '⏸️'}</div>
+                              </div>
+                            );
+                          }
+                          
+                          // Show pending pick
+                          return (
+                            <div className={`${bgColor} rounded px-1 py-0.5`} title={`${ouPct}% public on ${ouPick}`}>
+                              <div className={`text-xs font-bold ${textColor}`}>{icon} {ouPct}%</div>
+                            </div>
+                          );
+                        })()}
+                      </td>
                       {/* Final Score column - PURPLE HIGHLIGHT - Shows total score only */}
                       {showHistoricalColumns && (
                         <td className={`py-3 px-2 text-center font-mono font-bold bg-purple-500/20 text-purple-300`}>
@@ -2518,6 +2609,109 @@ export default function Opportunities() {
             <div className="mt-4 pt-4 border-t border-gray-700 text-xs text-gray-500">
               <p>🔥 = 60%+ fade win rate | ✅ = 55%+ fade win rate</p>
               <p className="mt-1">Click a row to set that threshold range</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* O/U Public Consensus Modal */}
+      {showOuPublicModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowOuPublicModal(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-orange-400">📊 {league} O/U Public Consensus (61%+)</h2>
+              <button 
+                onClick={() => setShowOuPublicModal(false)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-gray-400 mb-4">
+              Tracking games where 61%+ of public bets on Over or Under
+            </p>
+            
+            {loadingOuPublicRecord ? (
+              <div className="text-center py-8 text-gray-400">Loading...</div>
+            ) : (
+              <>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                    <div className="text-xs text-gray-400">TOTAL</div>
+                    <div className="text-lg font-bold">
+                      <span className="text-green-400">{ouPublicRecord.hits}</span>
+                      <span className="text-gray-500 mx-1">-</span>
+                      <span className="text-red-400">{ouPublicRecord.misses}</span>
+                    </div>
+                    <div className={`text-xs font-bold ${(ouPublicRecord.winPct || 0) >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                      {ouPublicRecord.winPct || 0}%
+                    </div>
+                  </div>
+                  <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3 text-center">
+                    <div className="text-xs text-green-400">OVER</div>
+                    <div className="text-lg font-bold text-white">{ouPublicRecord.overRecord || '0-0'}</div>
+                    <div className={`text-xs font-bold ${(ouPublicRecord.overPct || 0) >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                      {ouPublicRecord.overPct || 0}%
+                    </div>
+                  </div>
+                  <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3 text-center">
+                    <div className="text-xs text-red-400">UNDER</div>
+                    <div className="text-lg font-bold text-white">{ouPublicRecord.underRecord || '0-0'}</div>
+                    <div className={`text-xs font-bold ${(ouPublicRecord.underPct || 0) >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                      {ouPublicRecord.underPct || 0}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Games Table */}
+                <div className="text-sm text-gray-400 mb-2">Recent Games (Last 20)</div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left py-2 px-2 text-gray-400">Date</th>
+                        <th className="text-left py-2 px-2 text-gray-400">Matchup</th>
+                        <th className="text-center py-2 px-2 text-gray-400">Pick</th>
+                        <th className="text-center py-2 px-2 text-gray-400">%</th>
+                        <th className="text-center py-2 px-2 text-gray-400">Line</th>
+                        <th className="text-center py-2 px-2 text-gray-400">Final</th>
+                        <th className="text-center py-2 px-2 text-gray-400">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ouPublicRecord.games && ouPublicRecord.games.length > 0 ? (
+                        ouPublicRecord.games.map((game, idx) => (
+                          <tr key={idx} className={`border-b border-gray-800 ${game.result === 'HIT' ? 'bg-green-900/10' : 'bg-red-900/10'}`}>
+                            <td className="py-2 px-2 text-gray-400 text-xs">{game.date}</td>
+                            <td className="py-2 px-2 text-white">{game.matchup}</td>
+                            <td className={`py-2 px-2 text-center font-bold ${game.pick === 'OVER' ? 'text-green-400' : 'text-red-400'}`}>
+                              {game.pick === 'OVER' ? '⬆️' : '⬇️'} {game.pick}
+                            </td>
+                            <td className="py-2 px-2 text-center text-orange-400">{game.pct}%</td>
+                            <td className="py-2 px-2 text-center text-gray-300">{game.line}</td>
+                            <td className="py-2 px-2 text-center text-white font-bold">{game.final}</td>
+                            <td className={`py-2 px-2 text-center font-bold ${game.result === 'HIT' ? 'text-green-400' : 'text-red-400'}`}>
+                              {game.result === 'HIT' ? '✅' : '❌'} {game.result}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7" className="py-8 text-center text-gray-500">
+                            No completed games with 61%+ O/U consensus yet
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+            
+            <div className="mt-4 pt-4 border-t border-gray-700 text-xs text-gray-500">
+              <p>⬆️ OVER = Public expects high scoring | ⬇️ UNDER = Public expects low scoring</p>
+              <p className="mt-1">Data from Covers.com consensus picks</p>
             </div>
           </div>
         </div>
