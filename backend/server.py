@@ -11920,17 +11920,64 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     away = game.get('away_team', '').upper()
                     home = game.get('home_team', '').upper()
                     
+                    # NHL abbreviation mapping for O/U consensus matching
+                    nhl_name_to_abbrev = {
+                        'ANAHEIM': 'ANA', 'DUCKS': 'ANA',
+                        'ARIZONA': 'ARI', 'COYOTES': 'ARI',
+                        'BOSTON': 'BOS', 'BRUINS': 'BOS',
+                        'BUFFALO': 'BUF', 'SABRES': 'BUF',
+                        'CALGARY': 'CAL', 'FLAMES': 'CAL', 'CGY': 'CAL',
+                        'CAROLINA': 'CAR', 'HURRICANES': 'CAR',
+                        'CHICAGO': 'CHI', 'BLACKHAWKS': 'CHI',
+                        'COLORADO': 'COL', 'AVALANCHE': 'COL',
+                        'COLUMBUS': 'CBJ', 'BLUE JACKETS': 'CBJ',
+                        'DALLAS': 'DAL', 'STARS': 'DAL',
+                        'DETROIT': 'DET', 'RED WINGS': 'DET',
+                        'EDMONTON': 'EDM', 'OILERS': 'EDM',
+                        'FLORIDA': 'FLA', 'PANTHERS': 'FLA',
+                        'LOS ANGELES': 'LA', 'LA KINGS': 'LA', 'KINGS': 'LA', 'LAK': 'LA',
+                        'MINNESOTA': 'MIN', 'WILD': 'MIN',
+                        'MONTREAL': 'MTL', 'CANADIENS': 'MTL',
+                        'NASHVILLE': 'NSH', 'PREDATORS': 'NSH',
+                        'NEW JERSEY': 'NJ', 'DEVILS': 'NJ', 'NJD': 'NJ',
+                        'NY ISLANDERS': 'NYI', 'NEW YORK ISLANDERS': 'NYI', 'ISLANDERS': 'NYI',
+                        'NY RANGERS': 'NYR', 'NEW YORK RANGERS': 'NYR', 'RANGERS': 'NYR',
+                        'OTTAWA': 'OTT', 'SENATORS': 'OTT',
+                        'PHILADELPHIA': 'PHI', 'FLYERS': 'PHI',
+                        'PITTSBURGH': 'PIT', 'PENGUINS': 'PIT',
+                        'SAN JOSE': 'SJ', 'SHARKS': 'SJ', 'SJS': 'SJ',
+                        'SEATTLE': 'SEA', 'KRAKEN': 'SEA',
+                        'ST. LOUIS': 'STL', 'ST LOUIS': 'STL', 'BLUES': 'STL',
+                        'TAMPA BAY': 'TB', 'LIGHTNING': 'TB', 'TBL': 'TB',
+                        'TORONTO': 'TOR', 'MAPLE LEAFS': 'TOR',
+                        'UTAH': 'UTA', 'UTAH HOCKEY CLUB': 'UTA',
+                        'VANCOUVER': 'VAN', 'CANUCKS': 'VAN',
+                        'VEGAS': 'VEG', 'GOLDEN KNIGHTS': 'VEG', 'VGK': 'VEG',
+                        'WASHINGTON': 'WAS', 'CAPITALS': 'WAS', 'WSH': 'WAS',
+                        'WINNIPEG': 'WPG', 'JETS': 'WPG',
+                    }
+                    
+                    # Convert full team names to abbreviations for matching
+                    away_abbrev = nhl_name_to_abbrev.get(away, away[:3])
+                    home_abbrev = nhl_name_to_abbrev.get(home, home[:3])
+                    
                     # Try to find matching game in O/U consensus data
-                    game_key = f"{away}_{home}"
+                    game_key = f"{away_abbrev}_{home_abbrev}"
                     ou_data = ou_consensus_data.get(game_key)
                     
-                    # Try fuzzy match if direct match fails
+                    # Try alternate keys if direct match fails
+                    if not ou_data:
+                        # Try with full names
+                        game_key_full = f"{away}_{home}"
+                        ou_data = ou_consensus_data.get(game_key_full)
+                    
+                    # Try fuzzy match if still not found
                     if not ou_data:
                         for key, data in ou_consensus_data.items():
                             key_away = data.get('away_team', '').upper()
                             key_home = data.get('home_team', '').upper()
-                            # Check if team names match (partial match)
-                            if (away in key_away or key_away in away) and (home in key_home or key_home in home):
+                            # Check if abbreviations match
+                            if (key_away == away_abbrev or key_away == away) and (key_home == home_abbrev or key_home == home):
                                 ou_data = data
                                 logger.debug(f"[O/U Consensus] Fuzzy matched {away} @ {home} -> {key}")
                                 break
