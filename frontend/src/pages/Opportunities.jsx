@@ -190,6 +190,9 @@ export default function Opportunities() {
   const [expanded4Goals, setExpanded4Goals] = useState(false);
   const [expanded5Goals, setExpanded5Goals] = useState(false);
   const [loadingFirstPeriodBreakdown, setLoadingFirstPeriodBreakdown] = useState(false);
+  // Team games drill-down for 4/5+ goals
+  const [selectedTeamGames, setSelectedTeamGames] = useState(null); // { team, category, games }
+  const [loadingTeamGames, setLoadingTeamGames] = useState(false);
   // 1st Period Bets tracking
   const [showFirstPeriodBetsModal, setShowFirstPeriodBetsModal] = useState(false);
   const [firstPeriodBets, setFirstPeriodBets] = useState({ bets: [], summary: {} });
@@ -216,6 +219,29 @@ export default function Opportunities() {
     } finally {
       setLoadingCompound(false);
     }
+  };
+
+  // Fetch team games for 4 or 5+ goals drill-down
+  const fetchTeamGames = async (team, category) => {
+    setLoadingTeamGames(true);
+    try {
+      const categoryParam = category === '4' ? '4' : '5';
+      const response = await axios.get(`${API}/nhl/first-period-team-games/${encodeURIComponent(team)}/${categoryParam}`);
+      setSelectedTeamGames(response.data);
+    } catch (error) {
+      console.error('Error fetching team games:', error);
+      toast.error('Failed to load team games');
+      setSelectedTeamGames(null);
+    } finally {
+      setLoadingTeamGames(false);
+    }
+  };
+
+  // Format date for display (YYYY-MM-DD to MMM DD)
+  const formatGameDate = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   // Fetch public record when threshold changes
@@ -2630,11 +2656,18 @@ export default function Opportunities() {
                             <tr>
                               <td colSpan="4" className="p-0">
                                 <div className="bg-gray-800/50 p-3 mx-2 mb-2 rounded-lg">
-                                  <div className="text-xs text-gray-400 mb-2 font-medium">Teams in 4-goal 1st periods:</div>
+                                  <div className="text-xs text-gray-400 mb-2 font-medium">Teams in 4-goal 1st periods: <span className="text-gray-500">(click for details)</span></div>
                                   <div className="grid grid-cols-2 gap-1 text-xs">
                                     {teams4Goals.slice(0, 10).map((t, i) => (
-                                      <div key={i} className="flex justify-between px-2 py-1 bg-gray-700/50 rounded">
-                                        <span className="text-white">{t.team}</span>
+                                      <div 
+                                        key={i} 
+                                        className="flex justify-between px-2 py-1 bg-gray-700/50 rounded cursor-pointer hover:bg-gray-600/50 transition-colors"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          fetchTeamGames(t.team, '4');
+                                        }}
+                                      >
+                                        <span className="text-white hover:text-cyan-300">{t.team}</span>
                                         <span className="text-cyan-400 font-bold">{t.count}</span>
                                       </div>
                                     ))}
@@ -2665,11 +2698,18 @@ export default function Opportunities() {
                             <tr>
                               <td colSpan="4" className="p-0">
                                 <div className="bg-gray-800/50 p-3 mx-2 mb-2 rounded-lg">
-                                  <div className="text-xs text-gray-400 mb-2 font-medium">Teams in 5+ goal 1st periods:</div>
+                                  <div className="text-xs text-gray-400 mb-2 font-medium">Teams in 5+ goal 1st periods: <span className="text-gray-500">(click for details)</span></div>
                                   <div className="grid grid-cols-2 gap-1 text-xs">
                                     {teams5Goals.slice(0, 10).map((t, i) => (
-                                      <div key={i} className="flex justify-between px-2 py-1 bg-gray-700/50 rounded">
-                                        <span className="text-white">{t.team}</span>
+                                      <div 
+                                        key={i} 
+                                        className="flex justify-between px-2 py-1 bg-gray-700/50 rounded cursor-pointer hover:bg-gray-600/50 transition-colors"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          fetchTeamGames(t.team, '5');
+                                        }}
+                                      >
+                                        <span className="text-white hover:text-cyan-300">{t.team}</span>
                                         <span className="text-cyan-400 font-bold">{t.count}</span>
                                       </div>
                                     ))}
@@ -2702,6 +2742,77 @@ export default function Opportunities() {
               <p className="mt-1">▶ Click on 4 Goals or 5+ Goals to see team breakdown</p>
               <p className="mt-1">Data updates automatically at 11 PM Arizona time</p>
             </div>
+
+            {/* Team Games Detail Popup */}
+            {(selectedTeamGames || loadingTeamGames) && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" onClick={() => setSelectedTeamGames(null)}>
+                <div className="bg-gray-800 border border-cyan-500/50 rounded-xl p-4 max-w-md w-full mx-4 shadow-xl shadow-cyan-500/20" onClick={(e) => e.stopPropagation()}>
+                  {loadingTeamGames ? (
+                    <div className="text-center py-8 text-gray-400">Loading games...</div>
+                  ) : selectedTeamGames && (
+                    <>
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-lg font-bold text-cyan-400">
+                          {selectedTeamGames.team} - {selectedTeamGames.category}
+                        </h3>
+                        <button 
+                          onClick={() => setSelectedTeamGames(null)}
+                          className="text-gray-400 hover:text-white text-xl"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-3">
+                        {selectedTeamGames.count} game{selectedTeamGames.count !== 1 ? 's' : ''} with {selectedTeamGames.category.toLowerCase()} in 1st period
+                      </p>
+                      
+                      {selectedTeamGames.games?.length > 0 ? (
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {selectedTeamGames.games.map((game, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`flex items-center justify-between p-2 rounded-lg text-sm ${
+                                game.result === 'W' ? 'bg-green-900/30 border border-green-500/30' : 
+                                game.result === 'L' ? 'bg-red-900/30 border border-red-500/30' : 
+                                'bg-gray-700/50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400 text-xs w-16">{formatGameDate(game.date)}</span>
+                                <span className="text-gray-500">{game.location}</span>
+                                <span className="text-white">{game.opponent}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className={`font-bold text-lg ${
+                                  game.result === 'W' ? 'text-green-400' : 
+                                  game.result === 'L' ? 'text-red-400' : 
+                                  'text-gray-400'
+                                }`}>
+                                  {game.score_1p}
+                                </span>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                  game.result === 'W' ? 'bg-green-500/20 text-green-400' : 
+                                  game.result === 'L' ? 'bg-red-500/20 text-red-400' : 
+                                  'bg-gray-500/20 text-gray-400'
+                                }`}>
+                                  {game.result}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-center text-gray-500 py-4">No games found</p>
+                      )}
+                      
+                      <div className="mt-3 pt-3 border-t border-gray-700 text-xs text-gray-500">
+                        <p>Score shown is {selectedTeamGames.team}'s perspective (team goals - opponent goals)</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
