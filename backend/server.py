@@ -17576,7 +17576,7 @@ async def set_ranking_ppg(data: RankingPPGUpdate):
 # ================= BET CANCELLED FLAG =================
 
 @api_router.get("/records/public-by-threshold/{league}")
-async def get_public_records_by_threshold(league: str, threshold: int = 57, start_date: str = "2026-01-25"):
+async def get_public_records_by_threshold(league: str, threshold: int = 61, start_date: str = "2026-01-25"):
     """
     Calculate Public ML Record dynamically based on consensus threshold.
     Threshold can be 57-70%.
