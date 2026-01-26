@@ -1252,6 +1252,10 @@ async def build_compilation_message(account: str, detailed: bool = False) -> str
     else:
         lines = [f"👤 *{account_label}* ({today_str})", ""]
     
+    # Add today's header if there are today's bets (to match ENANO format)
+    if today_bets_sorted:
+        lines.append(f"🎰 *{today_str}:*")
+    
     # Build today's bets
     for i, bet in enumerate(today_bets_sorted, 1):
         bet_line = build_bet_line(bet, i, detailed, account)
@@ -1614,9 +1618,6 @@ async def build_enano_comparison_message() -> str:
     # Sort TIPSTER bets by time
     tipster_sorted = sorted(tipster_bets, key=parse_time_for_sort)
     
-    # Build ENANO comparison message
-    lines = ["📋 *ENANO* (vs TIPSTER)", ""]
-    
     # Split into today and tomorrow only (no separate completed section)
     today_bets = []
     tomorrow_bets = []
@@ -1679,6 +1680,20 @@ async def build_enano_comparison_message() -> str:
     
     # Track which ENANO bets have been shown (by index)
     shown_enano_indices = set()
+    
+    # Get today's date for header
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    now_arizona = datetime.now(arizona_tz)
+    today_header = now_arizona.strftime('%b %d').replace(' 0', ' ')  # "Jan 26"
+    tomorrow_header = (now_arizona + timedelta(days=1)).strftime('%b %d').replace(' 0', ' ')  # "Jan 27"
+    
+    # Build ENANO comparison message (matching TIPSTER format)
+    lines = [f"📋 *ENANO* (vs TIPSTER)", ""]
+    
+    # Add today's header if there are today's bets
+    if today_bets:
+        lines.append(f"🎰 *{today_header}:*")
     
     # Process TODAY's bets (all sorted by time, including completed)
     for bet in today_bets:
@@ -1770,6 +1785,8 @@ async def build_enano_comparison_message() -> str:
     # Add separator for tomorrow's bets
     if tomorrow_bets:
         lines.append("")
+        lines.append(f"📅 *Tomorrow ({tomorrow_header}):*")
+        bet_num = 1  # Reset numbering for tomorrow
         
         for bet in tomorrow_bets:
             game_name = bet.get('game', bet.get('game_short', 'GAME')).upper()
@@ -2094,6 +2111,7 @@ async def update_bet_result_in_compilation(account: str, ticket: str, result: st
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
     today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    today_day_en = datetime.now(arizona_tz).strftime('%a').lower()[:3]  # 'mon', 'tue', etc.
     
     compilation = await db.daily_compilations.find_one({
         "account": account,
@@ -2108,15 +2126,39 @@ async def update_bet_result_in_compilation(account: str, ticket: str, result: st
     total_result = compilation.get('total_result', 0)
     
     # Find and update the bet
+    bet_updated = False
     for bet in bets:
         if bet.get('ticket') == ticket and bet.get('result') is None:
             bet['result'] = result
-            if result == 'won':
-                total_result += win_amount
-            elif result == 'lost':
-                total_result -= bet.get('wager', 0)
-            # push doesn't change total
+            bet_updated = True
+            # Don't calculate total_result here - we'll get it from Plays888
             break
+    
+    if not bet_updated:
+        return
+    
+    # Try to get the REAL total_result from Plays888 History
+    try:
+        conn = await db.connections.find_one({"username": account, "is_connected": True})
+        if conn:
+            password = decrypt_password(conn["password_encrypted"])
+            totals = await get_plays888_daily_totals(account, password)
+            
+            if totals and totals.get('daily_profits'):
+                # Find today's profit
+                for day_data in totals['daily_profits']:
+                    day = day_data['day'].lower()
+                    if day == today_day_en or day.startswith(today_day_en):
+                        total_result = day_data['profit']
+                        logger.info(f"[{account}] Got real total_result from Plays888: ${total_result:,.2f}")
+                        break
+    except Exception as e:
+        logger.warning(f"Could not get real total from Plays888 for {account}: {e}")
+        # Fall back to calculated result
+        if result == 'won':
+            total_result += win_amount
+        elif result == 'lost':
+            total_result -= bets[-1].get('wager', 0) if bets else 0
     
     # Update in database
     await db.daily_compilations.update_one(
