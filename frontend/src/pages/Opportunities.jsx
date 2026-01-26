@@ -1644,10 +1644,10 @@ export default function Opportunities() {
                   <th className="text-left py-3 px-2">Away</th>
                   <th className="text-center py-3 px-1"></th>
                   <th className="text-left py-3 px-2">Home</th>
-                  {showHistoricalColumns && <th className="text-center py-3 px-2" title="Public Consensus Pick">Public</th>}
+                  {showHistoricalColumns && <th className="text-center py-3 px-2" title="Public Consensus Pick (Moneyline)">Public ML</th>}
                   <th className="text-center py-3 px-2">Open</th>
                   <th className="text-center py-3 px-2">Line</th>
-                  <th className="text-center py-3 px-1" title="O/U Public Consensus (61%+)">O/U</th>
+                  <th className="text-center py-3 px-1" title="Public O/U Consensus (61%+)">Public O/U</th>
                   {showHistoricalColumns && <th className="text-center py-3 px-2">Final</th>}
                   <th className="text-center py-3 px-2">{league === 'NBA' || league === 'NCAAB' || league === 'NFL' ? 'PPG' : 'GPG'} Avg</th>
                   <th className="text-center py-3 px-2">Edge</th>
