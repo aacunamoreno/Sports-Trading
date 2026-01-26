@@ -9101,8 +9101,8 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
         "NCAAB": {"betting": {"wins": 0, "losses": 0}, "edge": {"hits": 0, "misses": 0, "over_hits": 0, "over_misses": 0, "under_hits": 0, "under_misses": 0}, "public": {"hits": 0, "misses": 0, "games": []}, "dates_processed": []},
     }
     
-    # Public Record threshold: only consider games where consensus >= 57%
-    PUBLIC_CONSENSUS_THRESHOLD = 57
+    # Public Record threshold: only consider games where consensus >= 61%
+    PUBLIC_CONSENSUS_THRESHOLD = 61
     
     # Generate list of dates from start_date to today (inclusive)
     start = datetime.strptime(start_date, '%Y-%m-%d')
@@ -9186,7 +9186,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                     elif game.get('user_bet_hit') is False:
                         date_bet_losses += 1
             
-            # Calculate Public Record for this date (consensus >= 57% threshold)
+            # Calculate Public Record for this date (consensus >= 61% threshold)
             date_public_hits = 0
             date_public_misses = 0
             for game in doc['games']:
@@ -9202,7 +9202,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                 is_away_public_pick = away_pct >= home_pct
                 public_pct = away_pct if is_away_public_pick else home_pct
                 
-                # Only include if consensus >= 57%
+                # Only include if consensus >= 61%
                 if public_pct < PUBLIC_CONSENSUS_THRESHOLD:
                     continue
                 
@@ -9536,7 +9536,7 @@ async def calculate_records_from_start_date(start_date: str = "2025-12-22"):
                     elif game.get('user_bet_hit') is False:
                         date_bet_losses += 1
             
-            # Calculate Public Record for NCAAB (consensus >= 57% threshold)
+            # Calculate Public Record for NCAAB (consensus >= 61% threshold)
             date_public_hits = 0
             date_public_misses = 0
             for game in doc['games']:
@@ -9689,7 +9689,7 @@ async def update_records_from_start_date(start_date: str = "2025-12-22"):
         )
         logger.info(f"[#6] Updated {league} edge record: {edge['hits']}-{edge['misses']} (O:{edge['over_hits']}-{edge['over_misses']} U:{edge['under_hits']}-{edge['under_misses']})")
     
-    # Update public_records (Public Consensus Record) - uses 57%+ threshold with Covers.com spread
+    # Update public_records (Public Consensus Record) - uses 61%+ threshold with Covers.com spread
     for league in ["NBA", "NHL", "NCAAB"]:
         public = records[league]["public"]
         await db.public_records.update_one(
@@ -9701,7 +9701,7 @@ async def update_records_from_start_date(start_date: str = "2025-12-22"):
                 "games": public.get("games", []),
                 "last_updated": now,
                 "start_date": start_date,
-                "threshold": "57%"
+                "threshold": "61%"
             }},
             upsert=True
         )
@@ -18301,7 +18301,7 @@ async def get_public_records_summary():
 async def get_public_records_detail(league: str):
     """
     Get detailed Public Record breakdown by date and game for verification.
-    Uses 57%+ consensus threshold and Covers.com spread data.
+    Uses 61%+ consensus threshold and Covers.com spread data.
     """
     try:
         league_upper = league.upper()
@@ -18347,7 +18347,7 @@ async def get_public_records_detail(league: str):
             "total_record": f"{record.get('hits', 0)}-{record.get('misses', 0)}",
             "hits": record.get('hits', 0),
             "misses": record.get('misses', 0),
-            "threshold": "57%",
+            "threshold": "61%",
             "spread_source": "CBS Sports Live Line",
             "by_date": by_date
         }
