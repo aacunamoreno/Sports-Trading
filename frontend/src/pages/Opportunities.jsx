@@ -251,10 +251,11 @@ export default function Opportunities() {
   // Fetch public record when threshold changes
   // January 1-24 baseline records (manual data from Covers.com analysis)
   // NOTE: These baselines are ONLY for NHL - other leagues start fresh from API
+  // Updated: These values represent data BEFORE Jan 25, 2026
   const JANUARY_BASELINE = {
     NHL: {
-      publicML: { hits: 44, misses: 41 },  // Jan 1-24 Public ML record
-      publicOU: { hits: 59, misses: 46 }   // Jan 1-24 Public O/U record
+      publicML: { hits: 47, misses: 41 },  // Jan 1-24 Public ML record (before Jan 25)
+      publicOU: { hits: 59, misses: 47 }   // Jan 1-24 Public O/U record (before Jan 25)
     }
   };
 
