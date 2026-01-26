@@ -5230,78 +5230,138 @@ async def scrape_covers_overunder_consensus(league: str, target_date: str) -> Di
             
             await page.goto(url, timeout=60000)
             await page.wait_for_load_state("networkidle")
-            await page.wait_for_timeout(3000)
+            await page.wait_for_timeout(5000)  # Wait longer for dynamic content
             
-            # Extract data from the table
-            # Columns: Matchup | Date | Consensus | Total | Picks | Indepth
+            # Try to close any cookie consent popup
+            try:
+                await page.click('button:has-text("Accept")', timeout=3000)
+            except:
+                pass
+            
+            await page.wait_for_timeout(2000)
+            
+            # Extract data from the consensus table - be more specific with selector
+            # The main table has class or is inside a specific container
             rows_data = await page.evaluate("""() => {
                 const results = [];
-                const rows = document.querySelectorAll('table tbody tr');
                 
-                rows.forEach(row => {
+                // Try to find the main consensus table - look for table with specific structure
+                // The table should have headers like Matchup, Date, Consensus, Total, Picks
+                const tables = document.querySelectorAll('table');
+                let consensusTable = null;
+                
+                for (const table of tables) {
+                    const headers = table.querySelectorAll('th');
+                    const headerTexts = Array.from(headers).map(h => h.innerText.toLowerCase());
+                    // Check if this looks like the consensus table
+                    if (headerTexts.some(h => h.includes('matchup')) && 
+                        headerTexts.some(h => h.includes('consensus') || h.includes('total'))) {
+                        consensusTable = table;
+                        break;
+                    }
+                }
+                
+                if (!consensusTable) {
+                    // Fallback: find table with team links
+                    for (const table of tables) {
+                        const rows = table.querySelectorAll('tbody tr');
+                        if (rows.length > 0) {
+                            const firstRow = rows[0];
+                            const links = firstRow.querySelectorAll('a');
+                            // Check if links contain team abbreviations (2-3 letter codes)
+                            if (links.length >= 1) {
+                                const linkText = links[0].innerText.trim();
+                                if (linkText.length >= 2 && linkText.length <= 4 && /^[A-Z]+$/i.test(linkText)) {
+                                    consensusTable = table;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (!consensusTable) {
+                    console.log('No consensus table found');
+                    return results;
+                }
+                
+                const rows = consensusTable.querySelectorAll('tbody tr');
+                console.log('Found ' + rows.length + ' rows in consensus table');
+                
+                rows.forEach((row, idx) => {
                     const cells = row.querySelectorAll('td');
-                    if (cells.length >= 5) {
-                        // Get matchup cell - contains team abbreviations with links
+                    if (cells.length >= 4) {
+                        // Get matchup cell
                         const matchupCell = cells[0];
+                        const matchupText = matchupCell.innerText;
+                        
+                        // Extract teams from links or text
                         const teamLinks = matchupCell.querySelectorAll('a');
                         let awayTeam = '';
                         let homeTeam = '';
                         
-                        // Try getting teams from links first
                         if (teamLinks.length >= 2) {
                             awayTeam = teamLinks[0].innerText.trim();
                             homeTeam = teamLinks[1].innerText.trim();
-                        } else if (teamLinks.length === 1) {
-                            // Only one link - try to get second team from text content
-                            awayTeam = teamLinks[0].innerText.trim();
-                            // Try to extract second team from full cell text
-                            const fullText = matchupCell.innerText;
-                            const lines = fullText.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
-                            if (lines.length >= 2) {
-                                // Find non-league lines (NHL, NBA, etc are league names)
-                                const teamLines = lines.filter(l => !['NHL', 'NBA', 'NCAAB', 'NFL', 'MLB'].includes(l.toUpperCase()));
-                                if (teamLines.length >= 2) {
-                                    awayTeam = teamLines[0];
-                                    homeTeam = teamLines[1];
-                                } else if (teamLines.length === 1) {
-                                    awayTeam = teamLines[0];
-                                }
-                            }
                         } else {
-                            // No links - try to get from cell text
-                            const fullText = matchupCell.innerText;
-                            const lines = fullText.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
-                            // Filter out league names
-                            const teamLines = lines.filter(l => !['NHL', 'NBA', 'NCAAB', 'NFL', 'MLB'].includes(l.toUpperCase()));
+                            // Parse from text - format is usually "NHL\\nCOL\\nTOR" or similar
+                            const lines = matchupText.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+                            const teamLines = lines.filter(l => 
+                                !['NHL', 'NBA', 'NCAAB', 'NFL', 'MLB'].includes(l.toUpperCase()) &&
+                                l.length >= 2 && l.length <= 15
+                            );
                             if (teamLines.length >= 2) {
                                 awayTeam = teamLines[0];
                                 homeTeam = teamLines[1];
+                            } else if (teamLines.length === 1) {
+                                awayTeam = teamLines[0];
                             }
                         }
                         
-                        // Get consensus cell - contains "XX % Over" or "XX % Under" and the opposite %
-                        const consensusCell = cells[2];
-                        const consensusText = consensusCell.innerText;
+                        // Get consensus (usually column 2 or 3)
+                        let consensusText = '';
+                        let totalText = '';
+                        let picksText = '';
                         
-                        // Get total cell
-                        const totalCell = cells[3];
-                        const totalText = totalCell.innerText.trim();
+                        // Find consensus column - look for "Over" or "Under" text
+                        for (let i = 1; i < cells.length; i++) {
+                            const cellText = cells[i].innerText;
+                            if (cellText.toLowerCase().includes('over') || cellText.toLowerCase().includes('under')) {
+                                consensusText = cellText;
+                            } else if (/^\\d+\\.?\\d*$/.test(cellText.trim())) {
+                                // Numeric value - could be total or picks
+                                if (!totalText) {
+                                    totalText = cellText.trim();
+                                }
+                            } else if (/^\\d+\\n\\d+$/.test(cellText.trim())) {
+                                // Two numbers separated by newline - picks
+                                picksText = cellText;
+                            }
+                        }
                         
-                        // Get picks cell - contains over picks and under picks
-                        const picksCell = cells[4];
-                        const picksText = picksCell.innerText;
+                        // Also try specific column positions
+                        if (!consensusText && cells.length >= 3) {
+                            consensusText = cells[2].innerText;
+                        }
+                        if (!totalText && cells.length >= 4) {
+                            totalText = cells[3].innerText.trim();
+                        }
+                        if (!picksText && cells.length >= 5) {
+                            picksText = cells[4].innerText;
+                        }
                         
-                        // Log for debugging
-                        console.log('Matchup cell:', matchupCell.innerText, '-> Away:', awayTeam, 'Home:', homeTeam);
+                        console.log('Row ' + idx + ': Away=' + awayTeam + ', Home=' + homeTeam + ', Consensus=' + consensusText);
                         
-                        results.push({
-                            away: awayTeam,
-                            home: homeTeam,
-                            consensus: consensusText,
-                            total: totalText,
-                            picks: picksText,
-                            rawMatchup: matchupCell.innerText
-                        });
+                        if (awayTeam || homeTeam) {
+                            results.push({
+                                away: awayTeam,
+                                home: homeTeam,
+                                consensus: consensusText,
+                                total: totalText,
+                                picks: picksText,
+                                rawMatchup: matchupText
+                            });
+                        }
                     }
                 });
                 
