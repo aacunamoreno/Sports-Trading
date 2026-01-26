@@ -17566,38 +17566,23 @@ async def set_ranking_ppg(data: RankingPPGUpdate):
 # ================= BET CANCELLED FLAG =================
 
 @api_router.get("/records/public-by-threshold/{league}")
-async def get_public_records_by_threshold(league: str, threshold: int = 57):
+async def get_public_records_by_threshold(league: str, threshold: int = 57, start_date: str = "2026-01-25"):
     """
-    Calculate Public Record dynamically based on consensus threshold.
+    Calculate Public ML Record dynamically based on consensus threshold.
     Threshold can be 57-70%.
+    
+    NOTE: Baseline data for Jan 1-24, 2026 is hardcoded in frontend (44-41 for NHL).
+    This endpoint only calculates from start_date (default: Jan 25, 2026) onwards.
     """
     try:
         league_upper = league.upper()
         if league_upper not in ['NBA', 'NHL', 'NCAAB', 'NFL']:
             raise HTTPException(status_code=400, detail="Invalid league")
         
-        # For NBA, NHL and NCAAB, return stored record values
-        if league_upper in ['NBA', 'NHL', 'NCAAB']:
-            stored_record = await db.public_records.find_one({"league": league_upper})
-            if stored_record:
-                hits = stored_record.get('hits', 0)
-                misses = stored_record.get('misses', 0)
-                total = hits + misses
-                win_pct = (hits / total * 100) if total > 0 else 0
-                return {
-                    "league": league_upper,
-                    "threshold": f"{threshold}%",
-                    "record": f"{hits}-{misses}",
-                    "hits": hits,
-                    "misses": misses,
-                    "total_games": total,
-                    "win_pct": round(win_pct, 1)
-                }
-        
         collection_name = f"{league_upper.lower()}_opportunities"
         
-        # Get all documents (only used for NFL now)
-        cursor = db[collection_name].find({})
+        # Get documents from start_date onwards only
+        cursor = db[collection_name].find({"date": {"$gte": start_date}})
         docs = await cursor.to_list(length=1000)
         
         total_hits = 0
@@ -17607,8 +17592,13 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57):
             games = doc.get('games', [])
             
             for g in games:
-                away_pct = g.get('away_consensus_pct') or 0
-                home_pct = g.get('home_consensus_pct') or 0
+                # For NHL, use moneyline consensus (away_ml_pct, home_ml_pct)
+                if league_upper == 'NHL':
+                    away_pct = g.get('away_ml_pct') or g.get('away_consensus_pct') or 0
+                    home_pct = g.get('home_ml_pct') or g.get('home_consensus_pct') or 0
+                else:
+                    away_pct = g.get('away_consensus_pct') or 0
+                    home_pct = g.get('home_consensus_pct') or 0
                 
                 is_away_public = away_pct >= home_pct
                 public_pct = away_pct if is_away_public else home_pct
@@ -17617,29 +17607,45 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57):
                 if public_pct < threshold:
                     continue
                 
-                if is_away_public:
-                    public_spread = g.get('away_spread')
-                else:
-                    public_spread = g.get('spread')
-                
+                # Get scores
                 away_score = g.get('away_score')
                 home_score = g.get('home_score')
                 
-                if away_score is None or home_score is None or public_spread is None:
+                if away_score is None or home_score is None:
                     continue
                 
                 try:
-                    if is_away_public:
-                        covered = float(away_score) + float(public_spread) > float(home_score)
-                        push = float(away_score) + float(public_spread) == float(home_score)
+                    # For NHL, check moneyline winner (no spread)
+                    if league_upper == 'NHL':
+                        if is_away_public:
+                            # Public picked away team to win
+                            public_won = float(away_score) > float(home_score)
+                            push = float(away_score) == float(home_score)
+                        else:
+                            # Public picked home team to win
+                            public_won = float(home_score) > float(away_score)
+                            push = float(home_score) == float(away_score)
                     else:
-                        covered = float(home_score) + float(public_spread) > float(away_score)
-                        push = float(home_score) + float(public_spread) == float(away_score)
+                        # For other leagues, use spread
+                        if is_away_public:
+                            public_spread = g.get('away_spread')
+                        else:
+                            public_spread = g.get('spread')
+                        
+                        if public_spread is None:
+                            continue
+                        
+                        if is_away_public:
+                            public_won = float(away_score) + float(public_spread) > float(home_score)
+                            push = float(away_score) + float(public_spread) == float(home_score)
+                        else:
+                            public_won = float(home_score) + float(public_spread) > float(away_score)
+                            push = float(home_score) + float(public_spread) == float(away_score)
                     
                     if push:
                         continue
                     
-                    if covered:
+                    if public_won:
                         total_hits += 1
                     else:
                         total_misses += 1
@@ -17652,6 +17658,7 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57):
         return {
             "league": league_upper,
             "threshold": f"{threshold}%",
+            "start_date": start_date,
             "record": f"{total_hits}-{total_misses}",
             "hits": total_hits,
             "misses": total_misses,
@@ -17664,11 +17671,14 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57):
 
 
 @api_router.get("/records/ou-public/{league}")
-async def get_ou_public_records(league: str, threshold: int = 61):
+async def get_ou_public_records(league: str, threshold: int = 61, start_date: str = "2026-01-25"):
     """
     Calculate Over/Under Public Record based on consensus threshold.
     Default threshold is 61% (similar to Sides public but for O/U).
     Tracks when 61%+ of public bets on Over or Under.
+    
+    NOTE: Baseline data for Jan 1-24, 2026 is hardcoded in frontend (59-46).
+    This endpoint only calculates from start_date (default: Jan 25, 2026) onwards.
     """
     try:
         league_upper = league.upper()
@@ -17677,8 +17687,8 @@ async def get_ou_public_records(league: str, threshold: int = 61):
         
         collection_name = f"{league_upper.lower()}_opportunities"
         
-        # Get all documents
-        cursor = db[collection_name].find({})
+        # Get documents from start_date onwards only
+        cursor = db[collection_name].find({"date": {"$gte": start_date}})
         docs = await cursor.to_list(length=1000)
         
         total_hits = 0
@@ -17745,6 +17755,7 @@ async def get_ou_public_records(league: str, threshold: int = 61):
         return {
             "league": league_upper,
             "threshold": f"{threshold}%",
+            "start_date": start_date,
             "record": f"{total_hits}-{total_misses}",
             "hits": total_hits,
             "misses": total_misses,
