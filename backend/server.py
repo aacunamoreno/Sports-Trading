@@ -9866,14 +9866,18 @@ async def backfill_consensus_data(start_date: str = "2025-12-22", end_date: str 
                     if away_consensus.get('spread') is not None:
                         game['away_spread'] = away_consensus.get('spread')
                     
-                    # Determine public pick
+                    # Determine public pick - only if meets 61% threshold
                     if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
                         if away_consensus['consensus_pct'] > home_consensus['consensus_pct']:
-                            game['public_pick'] = game['away_team']
-                            game['public_pick_pct'] = away_consensus['consensus_pct']
+                            # Only set public_pick if away team has 61%+
+                            if away_consensus['consensus_pct'] >= 61:
+                                game['public_pick'] = game['away_team']
+                                game['public_pick_pct'] = away_consensus['consensus_pct']
                         else:
-                            game['public_pick'] = game['home_team']
-                            game['public_pick_pct'] = home_consensus['consensus_pct']
+                            # Only set public_pick if home team has 61%+
+                            if home_consensus['consensus_pct'] >= 61:
+                                game['public_pick'] = game['home_team']
+                                game['public_pick_pct'] = home_consensus['consensus_pct']
                     
                     updated = True
                     games_updated_count += 1
@@ -15027,14 +15031,18 @@ async def update_nba_scores(date: str = None):
                 if home_consensus.get('spread') is not None and game.get('spread') is None:
                     game['spread'] = home_consensus.get('spread')
                 
-                # Determine which team has higher consensus (the "public pick")
+                # Determine which team has higher consensus (the "public pick") - only if meets 61% threshold
                 if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
                     if away_consensus['consensus_pct'] > home_consensus['consensus_pct']:
-                        game['public_pick'] = game.get('away_team')
-                        game['public_pick_pct'] = away_consensus['consensus_pct']
+                        # Only set public_pick if away team has 61%+
+                        if away_consensus['consensus_pct'] >= 61:
+                            game['public_pick'] = game.get('away_team')
+                            game['public_pick_pct'] = away_consensus['consensus_pct']
                     else:
-                        game['public_pick'] = game.get('home_team')
-                        game['public_pick_pct'] = home_consensus['consensus_pct']
+                        # Only set public_pick if home team has 61%+
+                        if home_consensus['consensus_pct'] >= 61:
+                            game['public_pick'] = game.get('home_team')
+                            game['public_pick_pct'] = home_consensus['consensus_pct']
                 
                 line = game.get('total') or game.get('opening_line')
                 recommendation = game.get('recommendation')
@@ -15508,14 +15516,18 @@ async def update_ncaab_scores(date: str = None):
             if home_consensus.get('spread') is not None and game.get('spread') is None:
                 game['spread'] = home_consensus.get('spread')
             
-            # Determine which team has higher consensus (the "public pick")
+            # Determine which team has higher consensus (the "public pick") - only if meets 61% threshold
             if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
                 if away_consensus['consensus_pct'] > home_consensus['consensus_pct']:
-                    game['public_pick'] = game.get('away_team')
-                    game['public_pick_pct'] = away_consensus['consensus_pct']
+                    # Only set public_pick if away team has 61%+
+                    if away_consensus['consensus_pct'] >= 61:
+                        game['public_pick'] = game.get('away_team')
+                        game['public_pick_pct'] = away_consensus['consensus_pct']
                 else:
-                    game['public_pick'] = game.get('home_team')
-                    game['public_pick_pct'] = home_consensus['consensus_pct']
+                    # Only set public_pick if home team has 61%+
+                    if home_consensus['consensus_pct'] >= 61:
+                        game['public_pick'] = game.get('home_team')
+                        game['public_pick_pct'] = home_consensus['consensus_pct']
             
             line = game.get('total') or game.get('opening_line')
             recommendation = game.get('recommendation')
