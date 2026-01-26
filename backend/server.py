@@ -5180,28 +5180,51 @@ async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Di
                     home_team = teams[1].upper()
                     
                     # Parse percentages (e.g., "58%" -> 58)
-                    away_pct = None
-                    home_pct = None
-                    for i, part in enumerate(consensus_parts):
+                    # IMPORTANT: Covers shows percentages in DESCENDING order (highest first)
+                    # But Sides (spreads) are in MATCHUP order (away first, home second)
+                    pcts = []
+                    for part in consensus_parts:
                         pct_match = re.match(r'(\d+)%?', part.replace('%', ''))
                         if pct_match:
-                            pct_val = int(pct_match.group(1))
-                            if away_pct is None:
-                                away_pct = pct_val
-                            elif home_pct is None:
-                                home_pct = pct_val
+                            pcts.append(int(pct_match.group(1)))
                     
-                    # Parse spreads (e.g., "-4.5", "+4.5")
-                    away_spread = None
-                    home_spread = None
-                    for i, part in enumerate(sides_parts):
+                    # Parse spreads - these ARE in matchup order (away first, home second)
+                    spreads = []
+                    for part in sides_parts:
                         spread_match = re.match(r'([+-]?\d+\.?\d*)', part)
                         if spread_match:
-                            spread_val = float(spread_match.group(1))
-                            if away_spread is None:
-                                away_spread = spread_val
-                            elif home_spread is None:
-                                home_spread = spread_val
+                            spreads.append(float(spread_match.group(1)))
+                    
+                    # Assign percentages correctly using spreads
+                    away_pct = None
+                    home_pct = None
+                    away_spread = None
+                    home_spread = None
+                    
+                    if len(spreads) >= 2:
+                        away_spread = spreads[0]
+                        home_spread = spreads[1]
+                    
+                    if len(pcts) >= 2:
+                        first_pct = pcts[0]   # Higher percentage (Covers shows highest first)
+                        second_pct = pcts[1]  # Lower percentage
+                        
+                        # The team with LOWER (more negative) spread is the FAVORITE
+                        # The FAVORITE should have the HIGHER consensus percentage
+                        if away_spread is not None and home_spread is not None:
+                            if away_spread < home_spread:
+                                # Away team is favorite -> gets higher pct
+                                away_pct = first_pct
+                                home_pct = second_pct
+                            else:
+                                # Home team is favorite -> gets higher pct
+                                away_pct = second_pct
+                                home_pct = first_pct
+                            logger.debug(f"[Covers] {away_team} spread={away_spread}, {home_team} spread={home_spread} -> {away_team}={away_pct}%, {home_team}={home_pct}%")
+                        else:
+                            # Fallback: assume Covers order matches matchup order
+                            away_pct = first_pct
+                            home_pct = second_pct
                     
                     consensus_data[away_team] = {
                         'consensus_pct': away_pct,
