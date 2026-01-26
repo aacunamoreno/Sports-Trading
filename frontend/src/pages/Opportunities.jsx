@@ -1205,161 +1205,172 @@ export default function Opportunities() {
         
         {/* Row 1: Records and Live Lines toggle */}
         <div className="flex flex-wrap items-center gap-4">
-          {/* Edge Record Badge */}
-          <div className="bg-gradient-to-r from-green-600/20 to-red-600/20 border border-primary/30 rounded-lg px-4 py-2">
-            <div className="text-xs text-muted-foreground text-center">Edge Record</div>
-            <div className="text-xl font-bold text-center">
-              <span className="text-green-400">{edgeRecord.hits}</span>
-              <span className="text-muted-foreground mx-1">-</span>
-              <span className="text-red-400">{edgeRecord.misses}</span>
-            </div>
-            <div className="text-[10px] text-muted-foreground text-center">Since 12/22</div>
-            <div className="text-[10px] text-center mt-1 border-t border-primary/20 pt-1">
-              <span className="text-blue-400">O:</span>
-              <span className="text-green-400">{edgeRecord.over.split('-')[0]}</span>
-              <span className="text-muted-foreground">-</span>
-              <span className="text-red-400">{edgeRecord.over.split('-')[1]}</span>
-              <span className="text-muted-foreground mx-1">|</span>
-              <span className="text-blue-400">U:</span>
-              <span className="text-green-400">{edgeRecord.under.split('-')[0]}</span>
-              <span className="text-muted-foreground">-</span>
-              <span className="text-red-400">{edgeRecord.under.split('-')[1]}</span>
-            </div>
-          </div>
-          {/* Betting Record Badge */}
-          <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/30 rounded-lg px-4 py-2">
-            <div className="text-xs text-muted-foreground text-center">💰 Betting Record</div>
-            <div className="text-xl font-bold text-center">
-              <span className="text-green-400">{bettingRecord.hits}</span>
-              <span className="text-muted-foreground mx-1">-</span>
-              <span className="text-red-400">{bettingRecord.misses}</span>
-            </div>
-            <div className="text-[10px] text-muted-foreground text-center">Since 12/22</div>
-          </div>
-          {/* Ranking PPG Record Badge */}
-          <div className="bg-gradient-to-r from-emerald-600/20 to-rose-600/20 border border-emerald-500/30 rounded-lg px-4 py-2">
-            <div className="text-xs text-muted-foreground text-center">📊 Ranking PPG</div>
-            <div className="text-sm font-bold text-center flex flex-col gap-0.5">
-              <div>
-                <span className="text-green-400 text-xs">H:</span>
-                <span className="text-green-400 ml-1">{rankingPPGRecord.high.hits}</span>
-                <span className="text-muted-foreground mx-0.5">-</span>
-                <span className="text-red-400">{rankingPPGRecord.high.misses}</span>
-              </div>
-              <div>
-                <span className="text-red-400 text-xs">L:</span>
-                <span className="text-green-400 ml-1">{rankingPPGRecord.low.hits}</span>
-                <span className="text-muted-foreground mx-0.5">-</span>
-                <span className="text-red-400">{rankingPPGRecord.low.misses}</span>
-              </div>
-            </div>
-          </div>
-          {/* Public Consensus Record Badge - Click to open compound breakdown */}
-          <div 
-            className="bg-gradient-to-r from-cyan-600/20 to-blue-600/20 border border-cyan-500/30 rounded-lg px-4 py-2 cursor-pointer hover:border-cyan-400/50 transition-all"
-            onClick={() => setShowCompoundModal(true)}
-            title="Click to view Fade The Public breakdown"
-          >
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-xs text-muted-foreground">📢 Public</span>
-              <span className="text-[10px] bg-cyan-600/30 text-cyan-300 px-1.5 py-0.5 rounded">Breakdown</span>
-            </div>
-            <div className="text-xl font-bold text-center">
-              {loadingPublicRecord ? (
-                <span className="text-muted-foreground">...</span>
-              ) : (
-                <>
-                  <span className="text-green-400">{publicRecord.hits}</span>
+          
+          {/* COMBINED BOX 1: Edge Record + Ranking PPG */}
+          <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-primary/30 rounded-lg px-4 py-2">
+            <div className="flex gap-4">
+              {/* Edge Record */}
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Edge Record</div>
+                <div className="text-xl font-bold">
+                  <span className="text-green-400">{edgeRecord.hits}</span>
                   <span className="text-muted-foreground mx-1">-</span>
-                  <span className="text-red-400">{publicRecord.misses}</span>
-                </>
-              )}
-            </div>
-            {publicRecord.winPct !== undefined && !loadingPublicRecord && (
-              <div className={`text-[10px] text-center font-medium ${publicRecord.winPct >= 50 ? 'text-green-400' : 'text-red-400'}`}>
-                {publicRecord.winPct}% Win Rate
+                  <span className="text-red-400">{edgeRecord.misses}</span>
+                </div>
+                <div className="text-[10px] text-center mt-1">
+                  <span className="text-blue-400">O:</span>
+                  <span className="text-green-400">{edgeRecord.over.split('-')[0]}</span>
+                  <span className="text-muted-foreground">-</span>
+                  <span className="text-red-400">{edgeRecord.over.split('-')[1]}</span>
+                  <span className="text-muted-foreground mx-1">|</span>
+                  <span className="text-blue-400">U:</span>
+                  <span className="text-green-400">{edgeRecord.under.split('-')[0]}</span>
+                  <span className="text-muted-foreground">-</span>
+                  <span className="text-red-400">{edgeRecord.under.split('-')[1]}</span>
+                </div>
               </div>
-            )}
-            {league === 'NHL' && <div className="text-[9px] text-yellow-400 text-center mt-1 italic">Includes Jan 1-24 data</div>}
-          </div>
-          {/* O/U Public Consensus Badge - Click to open O/U breakdown */}
-          <div 
-            className="bg-gradient-to-r from-orange-600/20 to-yellow-600/20 border border-orange-500/30 rounded-lg px-4 py-2 cursor-pointer hover:border-orange-400/50 transition-all"
-            onClick={() => setShowOuPublicModal(true)}
-            title="Click to view O/U Public breakdown (61%+ consensus)"
-          >
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-xs text-muted-foreground">📊 O/U Public</span>
-              <span className="text-[10px] bg-orange-600/30 text-orange-300 px-1.5 py-0.5 rounded">61%+</span>
-            </div>
-            <div className="text-xl font-bold text-center">
-              {loadingOuPublicRecord ? (
-                <span className="text-muted-foreground">...</span>
-              ) : (
-                <>
-                  <span className="text-green-400">{ouPublicRecord.hits}</span>
-                  <span className="text-muted-foreground mx-1">-</span>
-                  <span className="text-red-400">{ouPublicRecord.misses}</span>
-                </>
-              )}
-            </div>
-            {ouPublicRecord.winPct !== undefined && !loadingOuPublicRecord && (
-              <div className={`text-[10px] text-center font-medium ${ouPublicRecord.winPct >= 50 ? 'text-green-400' : 'text-red-400'}`}>
-                {ouPublicRecord.winPct}% Win Rate
+              {/* Divider */}
+              <div className="border-l border-primary/30"></div>
+              {/* Ranking PPG */}
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">📊 Ranking PPG</div>
+                <div className="text-sm font-bold flex flex-col gap-0.5">
+                  <div>
+                    <span className="text-green-400 text-xs">H:</span>
+                    <span className="text-green-400 ml-1">{rankingPPGRecord.high.hits}</span>
+                    <span className="text-muted-foreground mx-0.5">-</span>
+                    <span className="text-red-400">{rankingPPGRecord.high.misses}</span>
+                  </div>
+                  <div>
+                    <span className="text-red-400 text-xs">L:</span>
+                    <span className="text-green-400 ml-1">{rankingPPGRecord.low.hits}</span>
+                    <span className="text-muted-foreground mx-0.5">-</span>
+                    <span className="text-red-400">{rankingPPGRecord.low.misses}</span>
+                  </div>
+                </div>
               </div>
-            )}
-            {league === 'NHL' && <div className="text-[9px] text-yellow-400 text-center mt-1 italic">Includes Jan 1-24 data</div>}
+            </div>
           </div>
-          {/* NHL 1st Period Badge - Only show for NHL - Click to open breakdown */}
+
+          {/* COMBINED BOX 2: Public ML + O/U Public */}
+          <div className="bg-gradient-to-r from-cyan-600/20 to-orange-600/20 border border-cyan-500/30 rounded-lg px-4 py-2">
+            <div className="flex gap-4">
+              {/* Public ML */}
+              <div 
+                className="text-center cursor-pointer hover:opacity-80 transition-all"
+                onClick={() => setShowCompoundModal(true)}
+                title="Click to view Fade The Public breakdown"
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <span className="text-xs text-muted-foreground">📢 Public</span>
+                  <span className="text-[9px] bg-cyan-600/30 text-cyan-300 px-1 py-0.5 rounded">Breakdown</span>
+                </div>
+                <div className="text-xl font-bold">
+                  {loadingPublicRecord ? (
+                    <span className="text-muted-foreground">...</span>
+                  ) : (
+                    <>
+                      <span className="text-green-400">{publicRecord.hits}</span>
+                      <span className="text-muted-foreground mx-1">-</span>
+                      <span className="text-red-400">{publicRecord.misses}</span>
+                    </>
+                  )}
+                </div>
+                {publicRecord.winPct !== undefined && !loadingPublicRecord && (
+                  <div className={`text-[10px] font-medium ${publicRecord.winPct >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                    {publicRecord.winPct}% Win Rate
+                  </div>
+                )}
+              </div>
+              {/* Divider */}
+              <div className="border-l border-cyan-500/30"></div>
+              {/* O/U Public */}
+              <div 
+                className="text-center cursor-pointer hover:opacity-80 transition-all"
+                onClick={() => setShowOuPublicModal(true)}
+                title="Click to view O/U Public breakdown (61%+ consensus)"
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <span className="text-xs text-muted-foreground">📊 O/U Public</span>
+                  <span className="text-[9px] bg-orange-600/30 text-orange-300 px-1 py-0.5 rounded">61%+</span>
+                </div>
+                <div className="text-xl font-bold">
+                  {loadingOuPublicRecord ? (
+                    <span className="text-muted-foreground">...</span>
+                  ) : (
+                    <>
+                      <span className="text-green-400">{ouPublicRecord.hits}</span>
+                      <span className="text-muted-foreground mx-1">-</span>
+                      <span className="text-red-400">{ouPublicRecord.misses}</span>
+                    </>
+                  )}
+                </div>
+                {ouPublicRecord.winPct !== undefined && !loadingOuPublicRecord && (
+                  <div className={`text-[10px] font-medium ${ouPublicRecord.winPct >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                    {ouPublicRecord.winPct}% Win Rate
+                  </div>
+                )}
+              </div>
+            </div>
+            {league === 'NHL' && <div className="text-[9px] text-yellow-400 text-center mt-1 italic border-t border-cyan-500/20 pt-1">Includes Jan 1-24 data</div>}
+          </div>
+
+          {/* COMBINED BOX 3: 1st Period Stats + 1st Period Bets (NHL Only) */}
           {league === 'NHL' && (
-            <div 
-              className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 rounded-lg px-4 py-2 cursor-pointer hover:border-green-400/50 transition-all"
-              onClick={() => setShowFirstPeriodModal(true)}
-              title="Click to view 1st Period goals breakdown"
-            >
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-xs text-muted-foreground">🏒 1st Period Stats</span>
-                <span className="text-[10px] bg-green-600/30 text-green-300 px-1.5 py-0.5 rounded">Breakdown</span>
-              </div>
-              <div className="text-xl font-bold text-center text-green-400">
-                0-3 | {firstPeriodStats.pct03}%
-              </div>
-              <div className="text-[10px] text-muted-foreground text-center">Games 0-3 Goals</div>
-              <div className="text-[10px] text-center mt-1 border-t border-green-500/20 pt-1">
-                <span className="text-gray-400">L3:</span>
-                <span className="text-green-400 ml-1">{firstPeriodStats.l3Pct}%</span>
-                <span className="text-muted-foreground mx-1">|</span>
-                <span className="text-gray-400">L5:</span>
-                <span className="text-green-400 ml-1">{firstPeriodStats.l5Pct}%</span>
+            <div className="bg-gradient-to-r from-purple-600/20 to-green-600/20 border border-purple-500/30 rounded-lg px-4 py-2">
+              <div className="flex gap-4">
+                {/* 1st Period Stats */}
+                <div 
+                  className="text-center cursor-pointer hover:opacity-80 transition-all"
+                  onClick={() => setShowFirstPeriodModal(true)}
+                  title="Click to view 1st Period goals breakdown"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-xs text-muted-foreground">🏒 1st Period Stats</span>
+                    <span className="text-[9px] bg-green-600/30 text-green-300 px-1 py-0.5 rounded">Breakdown</span>
+                  </div>
+                  <div className="text-xl font-bold text-green-400">
+                    0-3 | {firstPeriodStats.pct03}%
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">Games 0-3 Goals</div>
+                  <div className="text-[10px] mt-1">
+                    <span className="text-gray-400">L3:</span>
+                    <span className="text-green-400 ml-1">{firstPeriodStats.l3Pct}%</span>
+                    <span className="text-muted-foreground mx-1">|</span>
+                    <span className="text-gray-400">L5:</span>
+                    <span className="text-green-400 ml-1">{firstPeriodStats.l5Pct}%</span>
+                  </div>
+                </div>
+                {/* Divider */}
+                <div className="border-l border-purple-500/30"></div>
+                {/* 1st Period Bets */}
+                <div 
+                  className="text-center cursor-pointer hover:opacity-80 transition-all"
+                  onClick={() => setShowFirstPeriodBetsModal(true)}
+                  title="Click to view 1st Period betting record"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-xs text-muted-foreground">💰 1st Period Bets</span>
+                    <span className="text-[9px] bg-purple-600/30 text-purple-300 px-1 py-0.5 rounded">Record</span>
+                  </div>
+                  <div className="text-xl font-bold">
+                    <span className="text-green-400">{firstPeriodBets.summary?.total?.wins || 0}</span>
+                    <span className="text-gray-500 mx-1">-</span>
+                    <span className="text-red-400">{firstPeriodBets.summary?.total?.losses || 0}</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {firstPeriodBets.summary?.total?.wins + firstPeriodBets.summary?.total?.losses > 0 
+                      ? `${((firstPeriodBets.summary?.total?.wins / (firstPeriodBets.summary?.total?.wins + firstPeriodBets.summary?.total?.losses)) * 100).toFixed(1)}% Win`
+                      : 'No bets'}
+                  </div>
+                  <div className={`text-[10px] font-bold ${(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.total?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  </div>
+                </div>
               </div>
             </div>
           )}
-          {/* NHL 1st Period Bets Badge - Only show for NHL */}
-          {league === 'NHL' && (
-            <div 
-              className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-lg px-4 py-2 cursor-pointer hover:border-purple-400/50 transition-all"
-              onClick={() => setShowFirstPeriodBetsModal(true)}
-              title="Click to view 1st Period betting record"
-            >
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-xs text-muted-foreground">💰 1st Period Bets</span>
-                <span className="text-[10px] bg-purple-600/30 text-purple-300 px-1.5 py-0.5 rounded">Record</span>
-              </div>
-              <div className="text-xl font-bold text-center">
-                <span className="text-green-400">{firstPeriodBets.summary?.total?.wins || 0}</span>
-                <span className="text-gray-500 mx-1">-</span>
-                <span className="text-red-400">{firstPeriodBets.summary?.total?.losses || 0}</span>
-              </div>
-              <div className="text-[10px] text-muted-foreground text-center">
-                {firstPeriodBets.summary?.total?.wins + firstPeriodBets.summary?.total?.losses > 0 
-                  ? `${((firstPeriodBets.summary?.total?.wins / (firstPeriodBets.summary?.total?.wins + firstPeriodBets.summary?.total?.losses)) * 100).toFixed(1)}% Win`
-                  : 'No bets'}
-              </div>
-              <div className={`text-[10px] text-center mt-1 border-t border-purple-500/20 pt-1 font-bold ${(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.total?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-              </div>
-            </div>
-          )}
+
           {/* Live Lines Toggle */}
           {day === 'today' && (
             <button
