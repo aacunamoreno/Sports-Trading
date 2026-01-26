@@ -178,11 +178,11 @@ export default function Opportunities() {
   const [updatingBetResults, setUpdatingBetResults] = useState(false);
   const [updatingRecords, setUpdatingRecords] = useState(false);
   const [rankingPPGRecord, setRankingPPGRecord] = useState({ high: { hits: 0, misses: 0 }, low: { hits: 0, misses: 0 } });
-  const [publicRecord, setPublicRecord] = useState({ hits: 0, misses: 0 });
+  const [publicRecord, setPublicRecord] = useState({ hits: 0, misses: 0, winPct: 0 });
   const [publicThreshold, setPublicThreshold] = useState(57);
   const [loadingPublicRecord, setLoadingPublicRecord] = useState(false);
   // O/U Public record state
-  const [ouPublicRecord, setOuPublicRecord] = useState({ hits: 0, misses: 0, overRecord: '0-0', underRecord: '0-0' });
+  const [ouPublicRecord, setOuPublicRecord] = useState({ hits: 0, misses: 0, winPct: 0, overRecord: '0-0', underRecord: '0-0' });
   const [loadingOuPublicRecord, setLoadingOuPublicRecord] = useState(false);
   const [showOuPublicModal, setShowOuPublicModal] = useState(false);
   const [firstPeriodZeros, setFirstPeriodZeros] = useState({ total: 0, l3: 0, l5: 0, lastUpdated: null });
@@ -249,17 +249,42 @@ export default function Opportunities() {
   };
 
   // Fetch public record when threshold changes
+  // January 1-24 baseline records (manual data from Covers.com analysis)
+  // NOTE: These baselines are ONLY for NHL - other leagues start fresh from API
+  const JANUARY_BASELINE = {
+    NHL: {
+      publicML: { hits: 44, misses: 41 },  // Jan 1-24 Public ML record
+      publicOU: { hits: 59, misses: 46 }   // Jan 1-24 Public O/U record
+    }
+  };
+
   const fetchPublicRecordByThreshold = async (threshold) => {
     setLoadingPublicRecord(true);
     try {
       const response = await axios.get(`${API}/records/public-by-threshold/${league}?threshold=${threshold}`);
+      
+      // Add January baseline ONLY for NHL (other leagues use API data only)
+      const baseline = JANUARY_BASELINE[league]?.publicML || { hits: 0, misses: 0 };
+      const totalHits = baseline.hits + (response.data.hits || 0);
+      const totalMisses = baseline.misses + (response.data.misses || 0);
+      const totalGames = totalHits + totalMisses;
+      const winPct = totalGames > 0 ? Math.round((totalHits / totalGames) * 1000) / 10 : 0;
+      
       setPublicRecord({
-        hits: response.data.hits,
-        misses: response.data.misses,
-        winPct: response.data.win_pct
+        hits: totalHits,
+        misses: totalMisses,
+        winPct: winPct
       });
     } catch (error) {
       console.error('Error fetching public record:', error);
+      // On error, show baseline only (for NHL) or zeros (for other leagues)
+      const baseline = JANUARY_BASELINE[league]?.publicML || { hits: 0, misses: 0 };
+      const totalGames = baseline.hits + baseline.misses;
+      setPublicRecord({
+        hits: baseline.hits,
+        misses: baseline.misses,
+        winPct: totalGames > 0 ? Math.round((baseline.hits / totalGames) * 1000) / 10 : 0
+      });
     } finally {
       setLoadingPublicRecord(false);
     }
@@ -270,10 +295,18 @@ export default function Opportunities() {
     setLoadingOuPublicRecord(true);
     try {
       const response = await axios.get(`${API}/records/ou-public/${league}?threshold=61`);
+      
+      // Add January baseline ONLY for NHL (other leagues use API data only)
+      const baseline = JANUARY_BASELINE[league]?.publicOU || { hits: 0, misses: 0 };
+      const totalHits = baseline.hits + (response.data.hits || 0);
+      const totalMisses = baseline.misses + (response.data.misses || 0);
+      const totalGames = totalHits + totalMisses;
+      const winPct = totalGames > 0 ? Math.round((totalHits / totalGames) * 1000) / 10 : 0;
+      
       setOuPublicRecord({
-        hits: response.data.hits,
-        misses: response.data.misses,
-        winPct: response.data.win_pct,
+        hits: totalHits,
+        misses: totalMisses,
+        winPct: winPct,
         overRecord: response.data.over_record,
         underRecord: response.data.under_record,
         overPct: response.data.over_pct,
@@ -282,6 +315,16 @@ export default function Opportunities() {
       });
     } catch (error) {
       console.error('Error fetching O/U public record:', error);
+      // On error, show baseline only (for NHL) or zeros (for other leagues)
+      const baseline = JANUARY_BASELINE[league]?.publicOU || { hits: 0, misses: 0 };
+      const totalGames = baseline.hits + baseline.misses;
+      setOuPublicRecord({
+        hits: baseline.hits,
+        misses: baseline.misses,
+        winPct: totalGames > 0 ? Math.round((baseline.hits / totalGames) * 1000) / 10 : 0,
+        overRecord: '0-0',
+        underRecord: '0-0'
+      });
     } finally {
       setLoadingOuPublicRecord(false);
     }
@@ -731,22 +774,15 @@ export default function Opportunities() {
 
   const handleUpdateRecords = async () => {
     setUpdatingRecords(true);
-    toast.info('Recalculating all records from 12/22/25...');
+    toast.info('Updating Public ML and O/U records...');
     try {
-      const response = await axios.post(`${API}/process/update-records?start_date=2025-12-22`, {}, { timeout: 60000 });
+      // Refresh Public ML record
+      await fetchPublicRecordByThreshold(publicThreshold);
       
-      if (response.data.status === 'success') {
-        const records = response.data.records;
-        const leagueData = records[league];
-        
-        // Update the displayed records
-        setBettingRecord({ hits: leagueData.betting.wins, misses: leagueData.betting.losses });
-        setEdgeRecord({ hits: leagueData.edge.hits, misses: leagueData.edge.misses });
-        
-        toast.success(`Records updated! Betting: ${leagueData.betting.wins}-${leagueData.betting.losses}, Edge: ${leagueData.edge.hits}-${leagueData.edge.misses}`);
-      } else {
-        toast.error('Failed to update records');
-      }
+      // Refresh O/U Public record
+      await fetchOuPublicRecord();
+      
+      toast.success(`Public records updated! ML: ${publicRecord.hits}-${publicRecord.misses}, O/U: ${ouPublicRecord.hits}-${ouPublicRecord.misses}`);
     } catch (error) {
       console.error('Error updating records:', error);
       toast.error('Failed to update records');
@@ -1244,6 +1280,7 @@ export default function Opportunities() {
                 {publicRecord.winPct}% Win Rate
               </div>
             )}
+            {league === 'NHL' && <div className="text-[9px] text-yellow-400 text-center mt-1 italic">Includes Jan 1-24 data</div>}
           </div>
           {/* O/U Public Consensus Badge - Click to open O/U breakdown */}
           <div 
@@ -1271,6 +1308,7 @@ export default function Opportunities() {
                 {ouPublicRecord.winPct}% Win Rate
               </div>
             )}
+            {league === 'NHL' && <div className="text-[9px] text-yellow-400 text-center mt-1 italic">Includes Jan 1-24 data</div>}
           </div>
           {/* NHL 1st Period Badge - Only show for NHL - Click to open breakdown */}
           {league === 'NHL' && (
