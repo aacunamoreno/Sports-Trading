@@ -5333,6 +5333,8 @@ async def scrape_covers_overunder_consensus(league: str, target_date: str) -> Di
                 
                 logger.debug(f"[Covers O/U] {away_team} @ {home_team}: Over {over_pct}%, Under {under_pct}%, Total {total}")
             
+            # Log all keys for debugging
+            logger.info(f"[Covers O/U Consensus] Keys scraped: {list(ou_consensus_data.keys())}")
             logger.info(f"[Covers O/U Consensus] Scraped {len(ou_consensus_data)} games for {league} on {target_date}")
             return ou_consensus_data
             
@@ -11961,26 +11963,30 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     away_abbrev = nhl_name_to_abbrev.get(away, away[:3])
                     home_abbrev = nhl_name_to_abbrev.get(home, home[:3])
                     
-                    # Try to find matching game in O/U consensus data
-                    game_key = f"{away_abbrev}_{home_abbrev}"
-                    ou_data = ou_consensus_data.get(game_key)
+                    logger.debug(f"[O/U Match] Looking for {away} ({away_abbrev}) @ {home} ({home_abbrev})")
                     
-                    # Try alternate keys if direct match fails
-                    if not ou_data:
-                        # Try with full names
-                        game_key_full = f"{away}_{home}"
-                        ou_data = ou_consensus_data.get(game_key_full)
-                    
-                    # Try fuzzy match if still not found
-                    if not ou_data:
-                        for key, data in ou_consensus_data.items():
-                            key_away = data.get('away_team', '').upper()
-                            key_home = data.get('home_team', '').upper()
-                            # Check if abbreviations match
-                            if (key_away == away_abbrev or key_away == away) and (key_home == home_abbrev or key_home == home):
-                                ou_data = data
-                                logger.debug(f"[O/U Consensus] Fuzzy matched {away} @ {home} -> {key}")
-                                break
+                    # Try to find matching game in O/U consensus data by iterating all entries
+                    ou_data = None
+                    for key, data in ou_consensus_data.items():
+                        covers_away = data.get('away_team', '').upper()
+                        covers_home = data.get('home_team', '').upper()
+                        
+                        # Match by abbreviation
+                        if covers_away == away_abbrev and covers_home == home_abbrev:
+                            ou_data = data
+                            logger.debug(f"[O/U Match] Found by abbrev: {covers_away}_{covers_home}")
+                            break
+                        # Match by full name
+                        if covers_away == away and covers_home == home:
+                            ou_data = data
+                            logger.debug(f"[O/U Match] Found by full name: {covers_away}_{covers_home}")
+                            break
+                        # Try partial match (covers abbrev in full name or vice versa)
+                        if (covers_away in away or away in covers_away or covers_away == away_abbrev) and \
+                           (covers_home in home or home in covers_home or covers_home == home_abbrev):
+                            ou_data = data
+                            logger.debug(f"[O/U Match] Found by partial: {covers_away}_{covers_home}")
+                            break
                     
                     if ou_data:
                         over_pct = ou_data.get('over_pct')
