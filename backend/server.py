@@ -5152,10 +5152,40 @@ async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Di
                 rows.forEach(row => {
                     const cells = row.querySelectorAll('td');
                     if (cells.length >= 5) {
+                        // Get matchup cell
+                        const matchupCell = cells[0];
+                        
+                        // Get consensus cell - extract percentages in DOM order (away first, home second)
+                        const consensusCell = cells[2];
+                        const consensusLines = [];
+                        // Get all text nodes/spans in order they appear in DOM
+                        const consensusChildren = consensusCell.querySelectorAll('div, span, p');
+                        if (consensusChildren.length >= 2) {
+                            consensusChildren.forEach(child => {
+                                const text = child.innerText.trim();
+                                if (text.includes('%') || /^\d+$/.test(text)) {
+                                    consensusLines.push(text);
+                                }
+                            });
+                        }
+                        // Fallback: split by newline
+                        if (consensusLines.length < 2) {
+                            consensusCell.innerText.split('\\n').forEach(line => {
+                                const trimmed = line.trim();
+                                if (trimmed.includes('%') || /^\d+%?$/.test(trimmed)) {
+                                    consensusLines.push(trimmed);
+                                }
+                            });
+                        }
+                        
+                        // Get sides cell
+                        const sidesCell = cells[3];
+                        
                         results.push({
-                            matchup: cells[0].innerText,
-                            consensus: cells[2].innerText,
-                            sides: cells[3].innerText
+                            matchup: matchupCell.innerText,
+                            consensus: consensusLines.join(' '),
+                            consensusRaw: consensusCell.innerText,
+                            sides: sidesCell.innerText
                         });
                     }
                 });
@@ -5166,77 +5196,64 @@ async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Di
             await browser.close()
             
             # Parse each row
-            # Format: Matchup = "NBA\n AWAY\n HOME", Consensus = "AWAY%\nHOME%", Sides = "AWAY_SPREAD\nHOME_SPREAD"
             for row in rows_data:
-                matchup_parts = row.get('matchup', '').replace('\n', ' ').split()
-                consensus_parts = row.get('consensus', '').replace('\n', ' ').split()
-                sides_parts = row.get('sides', '').replace('\n', ' ').split()
+                matchup_raw = row.get('matchup', '')
+                consensus_raw = row.get('consensusRaw', row.get('consensus', ''))
+                sides_raw = row.get('sides', '')
                 
-                # Filter out league name and get teams
-                teams = [p for p in matchup_parts if p.upper() not in ['NBA', 'NHL', 'NCAAB', 'NFL', 'MLB'] and len(p) >= 2]
+                # Extract teams from matchup - split by newlines to get away and home
+                matchup_lines = [line.strip() for line in matchup_raw.split('\n') if line.strip()]
+                # Filter out league name
+                teams = [t for t in matchup_lines if t.upper() not in ['NBA', 'NHL', 'NCAAB', 'NFL', 'MLB', '']]
                 
-                if len(teams) >= 2:
-                    away_team = teams[0].upper()
-                    home_team = teams[1].upper()
+                if len(teams) < 2:
+                    continue
                     
-                    # Parse percentages (e.g., "58%" -> 58)
-                    # IMPORTANT: Covers shows percentages in DESCENDING order (highest first)
-                    # But Sides (spreads) are in MATCHUP order (away first, home second)
-                    pcts = []
-                    for part in consensus_parts:
-                        pct_match = re.match(r'(\d+)%?', part.replace('%', ''))
-                        if pct_match:
-                            pcts.append(int(pct_match.group(1)))
-                    
-                    # Parse spreads - these ARE in matchup order (away first, home second)
-                    spreads = []
-                    for part in sides_parts:
-                        spread_match = re.match(r'([+-]?\d+\.?\d*)', part)
-                        if spread_match:
-                            spreads.append(float(spread_match.group(1)))
-                    
-                    # Assign percentages correctly using spreads
-                    away_pct = None
-                    home_pct = None
-                    away_spread = None
-                    home_spread = None
-                    
-                    if len(spreads) >= 2:
-                        away_spread = spreads[0]
-                        home_spread = spreads[1]
-                    
-                    if len(pcts) >= 2:
-                        first_pct = pcts[0]   # Higher percentage (Covers shows highest first)
-                        second_pct = pcts[1]  # Lower percentage
-                        
-                        # The team with LOWER (more negative) spread is the FAVORITE
-                        # The FAVORITE should have the HIGHER consensus percentage
-                        if away_spread is not None and home_spread is not None:
-                            if away_spread < home_spread:
-                                # Away team is favorite -> gets higher pct
-                                away_pct = first_pct
-                                home_pct = second_pct
-                            else:
-                                # Home team is favorite -> gets higher pct
-                                away_pct = second_pct
-                                home_pct = first_pct
-                            logger.debug(f"[Covers] {away_team} spread={away_spread}, {home_team} spread={home_spread} -> {away_team}={away_pct}%, {home_team}={home_pct}%")
-                        else:
-                            # Fallback: assume Covers order matches matchup order
-                            away_pct = first_pct
-                            home_pct = second_pct
-                    
-                    consensus_data[away_team] = {
-                        'consensus_pct': away_pct,
-                        'spread': away_spread,
-                        'opponent': home_team
-                    }
-                    consensus_data[home_team] = {
-                        'consensus_pct': home_pct,
-                        'spread': home_spread,
-                        'opponent': away_team
-                    }
-                    logger.debug(f"[Covers] {away_team} {away_pct}% @ {away_spread} vs {home_team} {home_pct}% @ {home_spread}")
+                away_team = teams[0].upper()
+                home_team = teams[1].upper()
+                
+                # Extract percentages from consensus - CRITICAL: split by newlines to preserve order
+                # Covers format: "away_pct%\nhome_pct%" where each appears on its own line
+                consensus_lines = [line.strip() for line in consensus_raw.split('\n') if line.strip()]
+                pcts = []
+                for line in consensus_lines:
+                    pct_match = re.search(r'(\d+)%?', line)
+                    if pct_match:
+                        pcts.append(int(pct_match.group(1)))
+                
+                # Extract spreads from sides - same logic
+                sides_lines = [line.strip() for line in sides_raw.split('\n') if line.strip()]
+                spreads = []
+                for line in sides_lines:
+                    spread_match = re.search(r'([+-]?\d+\.?\d*)', line)
+                    if spread_match:
+                        spreads.append(float(spread_match.group(1)))
+                
+                # Log raw data for debugging
+                logger.info(f"[Covers Raw] {away_team}@{home_team}: pcts={pcts}, spreads={spreads}")
+                
+                # Assign values
+                away_pct = pcts[0] if len(pcts) >= 1 else None
+                home_pct = pcts[1] if len(pcts) >= 2 else None
+                away_spread = spreads[0] if len(spreads) >= 1 else None
+                home_spread = spreads[1] if len(spreads) >= 2 else None
+                
+                # Validate: percentages should sum to ~100
+                if away_pct and home_pct and abs((away_pct + home_pct) - 100) > 5:
+                    logger.warning(f"[Covers] Percentages don't sum to 100: {away_team}={away_pct}%, {home_team}={home_pct}%")
+                
+                logger.info(f"[Covers] Final: {away_team} ({away_pct}%) @ {home_team} ({home_pct}%)")
+                
+                consensus_data[away_team] = {
+                    'consensus_pct': away_pct,
+                    'spread': away_spread,
+                    'opponent': home_team
+                }
+                consensus_data[home_team] = {
+                    'consensus_pct': home_pct,
+                    'spread': home_spread,
+                    'opponent': away_team
+                }
             
             logger.info(f"[Covers Consensus] Scraped {len(consensus_data)} team consensus entries for {league} on {target_date}")
             return consensus_data
