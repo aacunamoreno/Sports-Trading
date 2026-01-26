@@ -350,7 +350,7 @@ async def auto_start_monitoring():
                 # Start background monitoring loop
                 asyncio.create_task(monitoring_loop())
                 
-                logger.info("Bet monitoring auto-started with background loop (5 min intervals, paused 11:00 PM - 7:00 AM Arizona)")
+                logger.info("Bet monitoring auto-started with background loop (5 min intervals, 24/7)")
             else:
                 logger.info("Bet monitoring not auto-started (disabled in config)")
         else:
@@ -394,19 +394,8 @@ async def monitoring_loop():
         loop_iteration += 1
         try:
             if monitoring_enabled:
-                # Check if we're in sleep hours
+                # 24/7 monitoring - no sleep hours
                 now_arizona = datetime.now(arizona_tz)
-                current_hour = now_arizona.hour
-                current_minute = now_arizona.minute
-                current_time_minutes = current_hour * 60 + current_minute
-                
-                sleep_start = 23 * 60 + 0   # 11:00 PM
-                sleep_end = 7 * 60 + 0       # 7:00 AM
-                
-                if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
-                    logger.info(f"[Loop #{loop_iteration}] Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - waiting 5 min...")
-                    await asyncio.sleep(300)  # Check again in 5 minutes during sleep
-                    continue
                 
                 # Run monitoring check - wrapped in its own try/except
                 logger.info(f"[Loop #{loop_iteration}] Starting monitoring cycle...")
@@ -2574,7 +2563,7 @@ async def send_activity_summary():
 {check_times_text}
 
 ✅ *System Status:* Active
-🕐 *Sleep Hours:* 10:00 PM - 7:00 AM
+🕐 *Monitoring:* 24/7 (Always On)
 
 _Betting summaries follow..._
         """
@@ -5747,25 +5736,16 @@ async def send_check_notification(check_time, new_bets_found):
 
 
 async def watchdog_check():
-    """Watchdog to ensure monitoring is running - runs every 5 minutes"""
+    """Watchdog to ensure monitoring is running - runs every 5 minutes (24/7)"""
     global last_check_time, monitoring_enabled
     
     if not monitoring_enabled:
         return
     
-    # Check if we're in sleep hours
+    # 24/7 monitoring - no sleep hours
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
     now_arizona = datetime.now(arizona_tz)
-    current_hour = now_arizona.hour
-    current_minute = now_arizona.minute
-    current_time_minutes = current_hour * 60 + current_minute
-    
-    sleep_start = 22 * 60 + 0   # 10:00 PM
-    sleep_end = 7 * 60 + 0      # 7:00 AM
-    
-    if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
-        return  # Don't check during sleep hours
     
     # Check if last check was more than 20 minutes ago
     if last_check_time:
@@ -5909,22 +5889,10 @@ async def monitor_open_bets():
     if not monitoring_enabled:
         return new_bets_count
     
-    # Check if we're in sleep hours (10:45 PM - 6:00 AM Arizona time)
-    # Arizona is UTC-7 (no daylight saving)
+    # 24/7 monitoring - no sleep hours
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
     now_arizona = datetime.now(arizona_tz)
-    current_hour = now_arizona.hour
-    current_minute = now_arizona.minute
-    current_time_minutes = current_hour * 60 + current_minute
-    
-    # Sleep window: 11:00 PM to 7:00 AM (active 7am-11pm)
-    sleep_start = 23 * 60 + 0   # 11:00 PM = 1380 minutes
-    sleep_end = 7 * 60 + 0       # 7:00 AM = 420 minutes
-    
-    if current_time_minutes >= sleep_start or current_time_minutes < sleep_end:
-        logger.info(f"Sleep hours ({now_arizona.strftime('%I:%M %p')} Arizona) - skipping bet check")
-        return new_bets_count
     
     logger.info(f"Checking plays888.co for new bets... ({now_arizona.strftime('%I:%M %p')} Arizona)")
     
