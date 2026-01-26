@@ -17595,20 +17595,20 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57, star
         cursor = db[collection_name].find({"date": {"$gte": start_date}})
         docs = await cursor.to_list(length=1000)
         
+        logger.info(f"[Public ML] Found {len(docs)} documents from {start_date} onwards for {league_upper}")
+        
         total_hits = 0
         total_misses = 0
+        games_detail = []
         
         for doc in docs:
             games = doc.get('games', [])
+            game_date = doc.get('date', '')
             
             for g in games:
-                # For NHL, use moneyline consensus (away_ml_pct, home_ml_pct)
-                if league_upper == 'NHL':
-                    away_pct = g.get('away_ml_pct') or g.get('away_consensus_pct') or 0
-                    home_pct = g.get('home_ml_pct') or g.get('home_consensus_pct') or 0
-                else:
-                    away_pct = g.get('away_consensus_pct') or 0
-                    home_pct = g.get('home_consensus_pct') or 0
+                # Get consensus percentages - same field names for all leagues
+                away_pct = g.get('away_consensus_pct') or 0
+                home_pct = g.get('home_consensus_pct') or 0
                 
                 is_away_public = away_pct >= home_pct
                 public_pct = away_pct if is_away_public else home_pct
@@ -17620,6 +17620,8 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57, star
                 # Get scores
                 away_score = g.get('away_score')
                 home_score = g.get('home_score')
+                away_team = g.get('away_team', 'Unknown')
+                home_team = g.get('home_team', 'Unknown')
                 
                 if away_score is None or home_score is None:
                     continue
@@ -17631,16 +17633,20 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57, star
                             # Public picked away team to win
                             public_won = float(away_score) > float(home_score)
                             push = float(away_score) == float(home_score)
+                            public_team = away_team
                         else:
                             # Public picked home team to win
                             public_won = float(home_score) > float(away_score)
                             push = float(home_score) == float(away_score)
+                            public_team = home_team
                     else:
                         # For other leagues, use spread
                         if is_away_public:
                             public_spread = g.get('away_spread')
+                            public_team = away_team
                         else:
                             public_spread = g.get('spread')
+                            public_team = home_team
                         
                         if public_spread is None:
                             continue
@@ -17655,15 +17661,29 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57, star
                     if push:
                         continue
                     
+                    logger.info(f"[Public ML] {away_team} @ {home_team}: Public={public_team} ({public_pct}%) - Score {away_score}-{home_score} = {'HIT' if public_won else 'MISS'}")
+                    
+                    games_detail.append({
+                        "date": game_date,
+                        "matchup": f"{away_team} @ {home_team}",
+                        "public_team": public_team,
+                        "public_pct": public_pct,
+                        "score": f"{away_score}-{home_score}",
+                        "result": "HIT" if public_won else "MISS"
+                    })
+                    
                     if public_won:
                         total_hits += 1
                     else:
                         total_misses += 1
-                except (ValueError, TypeError):
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"[Public ML] Error calculating for {away_team} @ {home_team}: {e}")
                     continue
         
         total_games = total_hits + total_misses
         win_pct = (total_hits / total_games * 100) if total_games > 0 else 0
+        
+        logger.info(f"[Public ML] {league_upper} from {start_date}: {total_hits}-{total_misses} ({win_pct:.1f}%)")
         
         return {
             "league": league_upper,
@@ -17673,7 +17693,8 @@ async def get_public_records_by_threshold(league: str, threshold: int = 57, star
             "hits": total_hits,
             "misses": total_misses,
             "total_games": total_games,
-            "win_pct": round(win_pct, 1)
+            "win_pct": round(win_pct, 1),
+            "games": games_detail[-20:]
         }
     except Exception as e:
         logger.error(f"Error calculating public record by threshold: {e}")
@@ -17701,6 +17722,8 @@ async def get_ou_public_records(league: str, threshold: int = 61, start_date: st
         cursor = db[collection_name].find({"date": {"$gte": start_date}})
         docs = await cursor.to_list(length=1000)
         
+        logger.info(f"[O/U Public] Found {len(docs)} documents from {start_date} onwards for {league_upper}")
+        
         total_hits = 0
         total_misses = 0
         over_hits = 0
@@ -17714,46 +17737,68 @@ async def get_ou_public_records(league: str, threshold: int = 61, start_date: st
             game_date = doc.get('date', '')
             
             for g in games:
+                # Get O/U consensus data
                 ou_public_pick = g.get('ou_public_pick')
                 ou_public_pct = g.get('ou_public_pct') or 0
-                ou_public_hit = g.get('ou_public_hit')
                 
                 # Only count games with strong O/U public pick (threshold+)
                 if not ou_public_pick or ou_public_pct < threshold:
                     continue
                 
-                # Only count completed games
-                if ou_public_hit is None:
+                # Get final score and line
+                final_score = g.get('final_score')
+                ou_line = g.get('total') or g.get('opening_line')
+                
+                # Only count completed games with valid line
+                if final_score is None or ou_line is None:
                     continue
                 
                 away_team = g.get('away_team', 'Unknown')
                 home_team = g.get('home_team', 'Unknown')
-                final_score = g.get('final_score')
-                ou_line = g.get('total') or g.get('opening_line')
                 
-                game_info = {
-                    "date": game_date,
-                    "matchup": f"{away_team} @ {home_team}",
-                    "pick": ou_public_pick,
-                    "pct": ou_public_pct,
-                    "line": ou_line,
-                    "final": final_score,
-                    "result": "HIT" if ou_public_hit else "MISS"
-                }
-                games_detail.append(game_info)
-                
-                if ou_public_hit:
-                    total_hits += 1
+                # Calculate result in real-time
+                try:
+                    final_float = float(final_score)
+                    line_float = float(ou_line)
+                    
+                    # Check for push
+                    if final_float == line_float:
+                        continue  # Push doesn't count
+                    
+                    # Calculate if public pick hit
                     if ou_public_pick == 'OVER':
-                        over_hits += 1
+                        is_hit = final_float > line_float
+                    else:  # UNDER
+                        is_hit = final_float < line_float
+                    
+                    game_info = {
+                        "date": game_date,
+                        "matchup": f"{away_team} @ {home_team}",
+                        "pick": ou_public_pick,
+                        "pct": ou_public_pct,
+                        "line": ou_line,
+                        "final": final_score,
+                        "result": "HIT" if is_hit else "MISS"
+                    }
+                    games_detail.append(game_info)
+                    
+                    logger.info(f"[O/U Public] {away_team} @ {home_team}: {ou_public_pick} {ou_public_pct}% - Line {ou_line} vs Final {final_score} = {'HIT' if is_hit else 'MISS'}")
+                    
+                    if is_hit:
+                        total_hits += 1
+                        if ou_public_pick == 'OVER':
+                            over_hits += 1
+                        else:
+                            under_hits += 1
                     else:
-                        under_hits += 1
-                else:
-                    total_misses += 1
-                    if ou_public_pick == 'OVER':
-                        over_misses += 1
-                    else:
-                        under_misses += 1
+                        total_misses += 1
+                        if ou_public_pick == 'OVER':
+                            over_misses += 1
+                        else:
+                            under_misses += 1
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"[O/U Public] Error calculating for {away_team} @ {home_team}: {e}")
+                    continue
         
         total_games = total_hits + total_misses
         win_pct = (total_hits / total_games * 100) if total_games > 0 else 0
@@ -17761,6 +17806,8 @@ async def get_ou_public_records(league: str, threshold: int = 61, start_date: st
         under_total = under_hits + under_misses
         over_pct = (over_hits / over_total * 100) if over_total > 0 else 0
         under_pct = (under_hits / under_total * 100) if under_total > 0 else 0
+        
+        logger.info(f"[O/U Public] {league_upper} from {start_date}: {total_hits}-{total_misses} ({win_pct:.1f}%)")
         
         return {
             "league": league_upper,
