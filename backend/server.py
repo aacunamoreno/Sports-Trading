@@ -15025,9 +15025,8 @@ async def update_nhl_scores(date: str = None):
         
         logger.info(f"[NHL Scores] Scraped {len(scraped_games)} games from CBS Sports")
         
-        # Scrape betting consensus from Covers.com
-        consensus_data = await scrape_covers_consensus('NHL', date)
-        logger.info(f"[NHL Scores] Scraped {len(consensus_data)} team consensus entries from Covers.com")
+        # NOTE: Do NOT scrape Covers.com here - that's only for "Refresh Lines & Bets"
+        # Update Scores only updates final scores from CBS Sports
         
         # Get database games
         db_data = await db.nhl_opportunities.find_one({"date": date}, {"_id": 0})
@@ -15125,6 +15124,8 @@ async def update_nhl_scores(date: str = None):
         updated_count = 0
         hits = 0
         misses = 0
+        ou_public_hits = 0
+        ou_public_misses = 0
         results = []
         
         # NHL edge threshold is 0.5
@@ -15138,30 +15139,9 @@ async def update_nhl_scores(date: str = None):
                 game['away_score'] = matched.get('away_score')
                 game['home_score'] = matched.get('home_score')
                 
-                # Add consensus data
-                away_abbrev = get_team_abbrev(game.get('away_team', ''))
-                home_abbrev = get_team_abbrev(game.get('home_team', ''))
-                
-                away_consensus = consensus_data.get(away_abbrev, {})
-                home_consensus = consensus_data.get(home_abbrev, {})
-                
-                game['away_consensus_pct'] = away_consensus.get('consensus_pct')
-                game['home_consensus_pct'] = home_consensus.get('consensus_pct')
-                
-                # Store spreads from Covers.com for Public Record calculation
-                if away_consensus.get('spread') is not None:
-                    game['away_spread'] = away_consensus.get('spread')
-                if home_consensus.get('spread') is not None and game.get('spread') is None:
-                    game['spread'] = home_consensus.get('spread')
-                
-                # Determine which team has higher consensus (the "public pick")
-                if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
-                    if away_consensus['consensus_pct'] > home_consensus['consensus_pct']:
-                        game['public_pick'] = game.get('away_team')
-                        game['public_pick_pct'] = away_consensus['consensus_pct']
-                    else:
-                        game['public_pick'] = game.get('home_team')
-                        game['public_pick_pct'] = home_consensus['consensus_pct']
+                # NOTE: Do NOT update consensus/moneyline data here
+                # That should only be done via "Refresh Lines & Bets" button
+                # Update Scores only updates: final_score, away_score, home_score, result, result_hit, ou_public_hit
                 
                 line = game.get('total') or game.get('opening_line')
                 recommendation = game.get('recommendation')
@@ -15191,6 +15171,34 @@ async def update_nhl_scores(date: str = None):
                             misses += 1
                     else:
                         game['result_hit'] = None
+                    
+                    # Calculate O/U Public hit if there's a public O/U pick (61%+ consensus)
+                    ou_public_pick = game.get('ou_public_pick')
+                    ou_public_pct = game.get('ou_public_pct') or 0
+                    
+                    if ou_public_pick and ou_public_pct >= 61:
+                        try:
+                            line_float = float(line)
+                            final_float = float(final_score)
+                            
+                            if final_float == line_float:
+                                game['ou_public_hit'] = None  # Push
+                                game['ou_public_result'] = 'PUSH'
+                            elif ou_public_pick == 'OVER':
+                                game['ou_public_hit'] = final_float > line_float
+                                game['ou_public_result'] = 'HIT' if game['ou_public_hit'] else 'MISS'
+                            elif ou_public_pick == 'UNDER':
+                                game['ou_public_hit'] = final_float < line_float
+                                game['ou_public_result'] = 'HIT' if game['ou_public_hit'] else 'MISS'
+                            
+                            if game.get('ou_public_hit') == True:
+                                ou_public_hits += 1
+                            elif game.get('ou_public_hit') == False:
+                                ou_public_misses += 1
+                                
+                            logger.info(f"[O/U Public] {game.get('away_team')} @ {game.get('home_team')}: {ou_public_pick} {ou_public_pct}% - Line {line} vs Final {final_score} = {game.get('ou_public_result')}")
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"[O/U Public] Error calculating for {game.get('away_team')} @ {game.get('home_team')}: {e}")
                 
                 updated_count += 1
                 status = "HIT" if game.get('result_hit') == True else "MISS" if game.get('result_hit') == False else "NO_REC"
@@ -15224,6 +15232,8 @@ async def update_nhl_scores(date: str = None):
             "edge_hits": hits,
             "edge_misses": misses,
             "hit_rate": f"{hits/(hits+misses)*100:.1f}%" if hits + misses > 0 else "N/A",
+            "ou_public_hits": ou_public_hits,
+            "ou_public_misses": ou_public_misses,
             "results": results
         }
         
