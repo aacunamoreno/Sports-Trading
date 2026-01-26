@@ -1,4 +1,8 @@
-
+import React, { useEffect, useState, useRef } from 'react';
+import axios from 'axios';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { RefreshCw, TrendingUp, TrendingDown, Target, Wifi, Calendar, Download, Upload, Pencil, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
