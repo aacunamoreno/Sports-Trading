@@ -5247,9 +5247,36 @@ async def scrape_covers_overunder_consensus(league: str, target_date: str) -> Di
                         let awayTeam = '';
                         let homeTeam = '';
                         
+                        // Try getting teams from links first
                         if (teamLinks.length >= 2) {
                             awayTeam = teamLinks[0].innerText.trim();
                             homeTeam = teamLinks[1].innerText.trim();
+                        } else if (teamLinks.length === 1) {
+                            // Only one link - try to get second team from text content
+                            awayTeam = teamLinks[0].innerText.trim();
+                            // Try to extract second team from full cell text
+                            const fullText = matchupCell.innerText;
+                            const lines = fullText.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+                            if (lines.length >= 2) {
+                                // Find non-league lines (NHL, NBA, etc are league names)
+                                const teamLines = lines.filter(l => !['NHL', 'NBA', 'NCAAB', 'NFL', 'MLB'].includes(l.toUpperCase()));
+                                if (teamLines.length >= 2) {
+                                    awayTeam = teamLines[0];
+                                    homeTeam = teamLines[1];
+                                } else if (teamLines.length === 1) {
+                                    awayTeam = teamLines[0];
+                                }
+                            }
+                        } else {
+                            // No links - try to get from cell text
+                            const fullText = matchupCell.innerText;
+                            const lines = fullText.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+                            // Filter out league names
+                            const teamLines = lines.filter(l => !['NHL', 'NBA', 'NCAAB', 'NFL', 'MLB'].includes(l.toUpperCase()));
+                            if (teamLines.length >= 2) {
+                                awayTeam = teamLines[0];
+                                homeTeam = teamLines[1];
+                            }
                         }
                         
                         // Get consensus cell - contains "XX % Over" or "XX % Under" and the opposite %
@@ -5264,12 +5291,16 @@ async def scrape_covers_overunder_consensus(league: str, target_date: str) -> Di
                         const picksCell = cells[4];
                         const picksText = picksCell.innerText;
                         
+                        // Log for debugging
+                        console.log('Matchup cell:', matchupCell.innerText, '-> Away:', awayTeam, 'Home:', homeTeam);
+                        
                         results.push({
                             away: awayTeam,
                             home: homeTeam,
                             consensus: consensusText,
                             total: totalText,
-                            picks: picksText
+                            picks: picksText,
+                            rawMatchup: matchupCell.innerText
                         });
                     }
                 });
@@ -5283,6 +5314,9 @@ async def scrape_covers_overunder_consensus(league: str, target_date: str) -> Di
             for row in rows_data:
                 away_team = row.get('away', '').upper()
                 home_team = row.get('home', '').upper()
+                raw_matchup = row.get('rawMatchup', '')
+                
+                logger.info(f"[Covers O/U] Raw matchup: '{raw_matchup}' -> Away: '{away_team}', Home: '{home_team}'")
                 consensus_text = row.get('consensus', '')
                 total_text = row.get('total', '')
                 picks_text = row.get('picks', '')
