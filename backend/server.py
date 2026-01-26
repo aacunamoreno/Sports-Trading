@@ -5144,7 +5144,7 @@ async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Di
             await page.wait_for_load_state("networkidle")
             await page.wait_for_timeout(3000)
             
-            # Extract data from the table using specific column structure
+            # Extract data from the table - using Picks column to determine correct percentage assignment
             rows_data = await page.evaluate("""() => {
                 const results = [];
                 const rows = document.querySelectorAll('table tbody tr');
@@ -5152,40 +5152,78 @@ async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Di
                 rows.forEach(row => {
                     const cells = row.querySelectorAll('td');
                     if (cells.length >= 5) {
-                        // Get matchup cell
+                        // Cell 0: Matchup (Away team first line, Home team second line)
+                        // Cell 2: Consensus (two percentages)
+                        // Cell 3: Sides (spreads)
+                        // Cell 4: Picks (number of votes - Away first, Home second)
+                        
                         const matchupCell = cells[0];
-                        
-                        // Get consensus cell - extract percentages in DOM order (away first, home second)
                         const consensusCell = cells[2];
-                        const consensusLines = [];
-                        // Get all text nodes/spans in order they appear in DOM
-                        const consensusChildren = consensusCell.querySelectorAll('div, span, p');
-                        if (consensusChildren.length >= 2) {
-                            consensusChildren.forEach(child => {
-                                const text = child.innerText.trim();
-                                if (text.includes('%') || /^\d+$/.test(text)) {
-                                    consensusLines.push(text);
-                                }
-                            });
-                        }
-                        // Fallback: split by newline
-                        if (consensusLines.length < 2) {
-                            consensusCell.innerText.split('\\n').forEach(line => {
-                                const trimmed = line.trim();
-                                if (trimmed.includes('%') || /^\d+%?$/.test(trimmed)) {
-                                    consensusLines.push(trimmed);
-                                }
-                            });
+                        const sidesCell = cells[3];
+                        const picksCell = cells[4];
+                        
+                        // Extract picks - these are ALWAYS in matchup order (away first, home second)
+                        const picksLines = picksCell.innerText.split('\\n').filter(l => l.trim());
+                        let awayPicks = null;
+                        let homePicks = null;
+                        if (picksLines.length >= 2) {
+                            const match1 = picksLines[0].match(/(\\d+)/);
+                            const match2 = picksLines[1].match(/(\\d+)/);
+                            if (match1) awayPicks = parseInt(match1[1]);
+                            if (match2) homePicks = parseInt(match2[1]);
                         }
                         
-                        // Get sides cell
-                        const sidesCell = cells[3];
+                        // Extract all percentages from consensus
+                        const consensusText = consensusCell.innerText;
+                        const pctMatches = consensusText.match(/(\\d+)%?/g);
+                        let pcts = [];
+                        if (pctMatches) {
+                            pcts = pctMatches.map(p => parseInt(p.replace('%', '')));
+                        }
+                        
+                        // Extract spreads
+                        const sidesLines = sidesCell.innerText.split('\\n').filter(l => l.trim());
+                        let awaySide = null;
+                        let homeSide = null;
+                        if (sidesLines.length >= 2) {
+                            const match1 = sidesLines[0].match(/([+-]?\\d+\\.?\\d*)/);
+                            const match2 = sidesLines[1].match(/([+-]?\\d+\\.?\\d*)/);
+                            if (match1) awaySide = parseFloat(match1[1]);
+                            if (match2) homeSide = parseFloat(match2[1]);
+                        }
+                        
+                        // Now assign percentages based on picks
+                        // The team with MORE picks has the HIGHER percentage
+                        let awayPct = null;
+                        let homePct = null;
+                        
+                        if (pcts.length >= 2 && awayPicks !== null && homePicks !== null) {
+                            const highPct = Math.max(...pcts);
+                            const lowPct = Math.min(...pcts);
+                            
+                            if (awayPicks > homePicks) {
+                                // Away team has more picks = higher percentage
+                                awayPct = highPct;
+                                homePct = lowPct;
+                            } else if (homePicks > awayPicks) {
+                                // Home team has more picks = higher percentage
+                                awayPct = lowPct;
+                                homePct = highPct;
+                            } else {
+                                // Equal picks = equal percentages (50/50)
+                                awayPct = pcts[0];
+                                homePct = pcts[1];
+                            }
+                        }
                         
                         results.push({
                             matchup: matchupCell.innerText,
-                            consensus: consensusLines.join(' '),
-                            consensusRaw: consensusCell.innerText,
-                            sides: sidesCell.innerText
+                            awayPct: awayPct,
+                            homePct: homePct,
+                            awayPicks: awayPicks,
+                            homePicks: homePicks,
+                            awaySide: awaySide,
+                            homeSide: homeSide
                         });
                     }
                 });
@@ -5195,15 +5233,12 @@ async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Di
             
             await browser.close()
             
-            # Parse each row
+            # Parse each row - using pre-extracted values with picks-based assignment
             for row in rows_data:
                 matchup_raw = row.get('matchup', '')
-                consensus_raw = row.get('consensusRaw', row.get('consensus', ''))
-                sides_raw = row.get('sides', '')
                 
-                # Extract teams from matchup - split by newlines to get away and home
+                # Extract teams from matchup
                 matchup_lines = [line.strip() for line in matchup_raw.split('\n') if line.strip()]
-                # Filter out league name
                 teams = [t for t in matchup_lines if t.upper() not in ['NBA', 'NHL', 'NCAAB', 'NFL', 'MLB', '']]
                 
                 if len(teams) < 2:
@@ -5212,37 +5247,20 @@ async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Di
                 away_team = teams[0].upper()
                 home_team = teams[1].upper()
                 
-                # Extract percentages from consensus - CRITICAL: split by newlines to preserve order
-                # Covers format: "away_pct%\nhome_pct%" where each appears on its own line
-                consensus_lines = [line.strip() for line in consensus_raw.split('\n') if line.strip()]
-                pcts = []
-                for line in consensus_lines:
-                    pct_match = re.search(r'(\d+)%?', line)
-                    if pct_match:
-                        pcts.append(int(pct_match.group(1)))
+                # Get pre-calculated values from JavaScript
+                away_pct = row.get('awayPct')
+                home_pct = row.get('homePct')
+                away_picks = row.get('awayPicks')
+                home_picks = row.get('homePicks')
+                away_spread = row.get('awaySide')
+                home_spread = row.get('homeSide')
                 
-                # Extract spreads from sides - same logic
-                sides_lines = [line.strip() for line in sides_raw.split('\n') if line.strip()]
-                spreads = []
-                for line in sides_lines:
-                    spread_match = re.search(r'([+-]?\d+\.?\d*)', line)
-                    if spread_match:
-                        spreads.append(float(spread_match.group(1)))
+                # Log for debugging
+                logger.info(f"[Covers] {away_team} ({away_pct}%, {away_picks} picks) @ {home_team} ({home_pct}%, {home_picks} picks)")
                 
-                # Log raw data for debugging
-                logger.info(f"[Covers Raw] {away_team}@{home_team}: pcts={pcts}, spreads={spreads}")
-                
-                # Assign values
-                away_pct = pcts[0] if len(pcts) >= 1 else None
-                home_pct = pcts[1] if len(pcts) >= 2 else None
-                away_spread = spreads[0] if len(spreads) >= 1 else None
-                home_spread = spreads[1] if len(spreads) >= 2 else None
-                
-                # Validate: percentages should sum to ~100
+                # Validate
                 if away_pct and home_pct and abs((away_pct + home_pct) - 100) > 5:
                     logger.warning(f"[Covers] Percentages don't sum to 100: {away_team}={away_pct}%, {home_team}={home_pct}%")
-                
-                logger.info(f"[Covers] Final: {away_team} ({away_pct}%) @ {home_team} ({home_pct}%)")
                 
                 consensus_data[away_team] = {
                     'consensus_pct': away_pct,
