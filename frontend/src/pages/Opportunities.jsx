@@ -1694,6 +1694,7 @@ export default function Opportunities() {
                   <th className="text-center py-3 px-1"></th>
                   <th className="text-left py-3 px-2">Home</th>
                   {showHistoricalColumns && <th className="text-center py-3 px-2" title="Public Consensus Pick (Moneyline)">Public ML</th>}
+                  {!showHistoricalColumns && <th className="text-center py-3 px-2" title="Public Consensus Pick (61%+ Moneyline)">Public ML</th>}
                   <th className="text-center py-3 px-2">Open</th>
                   <th className="text-center py-3 px-2">Line</th>
                   <th className="text-center py-3 px-1" title="Public O/U Consensus (61%+)">Public O/U</th>
@@ -2076,6 +2077,61 @@ export default function Opportunities() {
                                     {publicPickResult}
                                   </span>
                                 )}
+                              </div>
+                            );
+                          })()}
+                        </td>
+                      )}
+                      {/* Public ML column for Tomorrow (non-historical) - shows team with 61%+ consensus and their moneyline */}
+                      {!showHistoricalColumns && (
+                        <td className="py-3 px-2 text-center">
+                          {(() => {
+                            const awayPct = game.away_consensus_pct || 0;
+                            const homePct = game.home_consensus_pct || 0;
+                            
+                            // Determine which team has higher consensus
+                            if (awayPct === 0 && homePct === 0) {
+                              return <span className="text-muted-foreground">-</span>;
+                            }
+                            
+                            const isAwayPublicPick = awayPct >= homePct;
+                            const publicPct = isAwayPublicPick ? awayPct : homePct;
+                            const publicTeam = isAwayPublicPick ? game.away_team : game.home_team;
+                            
+                            // Only show if 61%+ threshold
+                            const threshold = league === 'NHL' ? 61 : 56;
+                            if (publicPct < threshold) {
+                              return <span className="text-muted-foreground">-</span>;
+                            }
+                            
+                            // Get the moneyline for the public pick team
+                            // For NHL: moneyline is stored in game.moneyline (for the favorite)
+                            let displayML = null;
+                            if (league === 'NHL') {
+                              // Check if we have moneyline data
+                              if (game.moneyline) {
+                                // moneyline_team tells us which team the moneyline belongs to
+                                const mlTeam = game.moneyline_team || game.home_team;
+                                if (mlTeam === publicTeam || mlTeam?.includes(publicTeam?.split(' ').pop())) {
+                                  displayML = game.moneyline;
+                                } else {
+                                  // Calculate opposite moneyline (approximate)
+                                  displayML = game.moneyline < 0 ? Math.round(game.moneyline / -1.1) : Math.round(game.moneyline * -1.1);
+                                }
+                              }
+                            }
+                            
+                            return (
+                              <div className="flex flex-col items-center">
+                                <span className="text-xs text-cyan-400">{publicTeam?.split(' ').pop()}</span>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs text-emerald-400 font-bold">{publicPct}%</span>
+                                  {displayML && (
+                                    <span className={`font-mono text-xs ${displayML < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                      {displayML > 0 ? '+' : ''}{displayML}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             );
                           })()}
