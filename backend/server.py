@@ -5372,11 +5372,30 @@ async def scrape_covers_overunder_consensus(league: str, target_date: str) -> Di
             
             # Parse each row
             for row in rows_data:
-                away_team = row.get('away', '').upper()
-                home_team = row.get('home', '').upper()
+                away_team = row.get('away', '').upper().strip()
+                home_team = row.get('home', '').upper().strip()
                 raw_matchup = row.get('rawMatchup', '')
                 
-                logger.info(f"[Covers O/U] Raw matchup: '{raw_matchup}' -> Away: '{away_team}', Home: '{home_team}'")
+                # If away_team is a league name, try to extract teams from raw matchup
+                league_names = ['NHL', 'NBA', 'NCAAB', 'NFL', 'MLB', 'NCAAF']
+                if away_team in league_names or not home_team:
+                    # Parse raw matchup to extract team names
+                    # Format is usually: "NHL\nCOL\nTOR" or similar
+                    lines = raw_matchup.replace('\r', '').split('\n')
+                    lines = [l.strip() for l in lines if l.strip()]
+                    # Filter out league names and other non-team text
+                    team_lines = [l for l in lines if l.upper() not in league_names and len(l) >= 2 and len(l) <= 15]
+                    
+                    if len(team_lines) >= 2:
+                        away_team = team_lines[0].upper()
+                        home_team = team_lines[1].upper()
+                    elif len(team_lines) == 1 and home_team and home_team not in league_names:
+                        away_team = team_lines[0].upper()
+                    else:
+                        logger.warning(f"[Covers O/U] Could not parse teams from: '{raw_matchup}' -> lines: {team_lines}")
+                        continue
+                
+                logger.info(f"[Covers O/U] Raw matchup: '{raw_matchup[:50]}...' -> Away: '{away_team}', Home: '{home_team}'")
                 consensus_text = row.get('consensus', '')
                 total_text = row.get('total', '')
                 picks_text = row.get('picks', '')
