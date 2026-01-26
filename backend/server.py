@@ -8079,11 +8079,19 @@ async def scrape_tomorrows_opening_lines():
                 
                 # Also scrape Covers.com for consensus data (moneylines/spreads)
                 consensus_data = {}
+                ou_consensus_data = {}
                 try:
                     consensus_data = await scrape_covers_consensus(league, tomorrow)
                     logger.info(f"[8PM Job] Fetched consensus data for {len(consensus_data)} teams from Covers.com")
                 except Exception as ce:
                     logger.warning(f"[8PM Job] Could not fetch Covers consensus for {league}: {ce}")
+                
+                # Also scrape O/U consensus from Covers.com
+                try:
+                    ou_consensus_data = await scrape_covers_overunder_consensus(league, tomorrow)
+                    logger.info(f"[8PM Job] Fetched O/U consensus data for {len(ou_consensus_data)} games from Covers.com")
+                except Exception as ce:
+                    logger.warning(f"[8PM Job] Could not fetch Covers O/U consensus for {league}: {ce}")
                 
                 if games:
                     # Create full game documents for the opportunities collection
@@ -8155,6 +8163,35 @@ async def scrape_tomorrows_opening_lines():
                                 if away_consensus or home_consensus:
                                     logger.debug(f"[8PM Job] Added consensus for {away} @ {home}: Away {away_consensus}, Home {home_consensus}")
                             
+                            # Try to add O/U consensus data from Covers.com
+                            if ou_consensus_data:
+                                # Match by team names
+                                for game_key, ou_data in ou_consensus_data.items():
+                                    ou_away = ou_data.get('away_team', '').upper()
+                                    ou_home = ou_data.get('home_team', '').upper()
+                                    away_upper = away.upper()
+                                    home_upper = home.upper()
+                                    
+                                    # Check if this O/U data matches our game
+                                    if (ou_away in away_upper or away_upper in ou_away or 
+                                        ou_home in home_upper or home_upper in ou_home):
+                                        over_pct = ou_data.get('over_pct', 0)
+                                        under_pct = ou_data.get('under_pct', 0)
+                                        
+                                        game_doc['over_consensus_pct'] = over_pct
+                                        game_doc['under_consensus_pct'] = under_pct
+                                        
+                                        # Set ou_public_pick if threshold met (61%+)
+                                        if over_pct >= 61:
+                                            game_doc['ou_public_pick'] = 'OVER'
+                                            game_doc['ou_public_pct'] = over_pct
+                                        elif under_pct >= 61:
+                                            game_doc['ou_public_pick'] = 'UNDER'
+                                            game_doc['ou_public_pct'] = under_pct
+                                        
+                                        logger.debug(f"[8PM Job] Added O/U consensus for {away} @ {home}: Over {over_pct}%, Under {under_pct}%")
+                                        break
+                            
                             processed_games.append(game_doc)
                             
                             # Also store in opening_lines collection for tracking
@@ -8166,6 +8203,8 @@ async def scrape_tomorrows_opening_lines():
                         data_source = "cbssports.com opening lines"
                         if consensus_data:
                             data_source += " + covers.com consensus"
+                        if ou_consensus_data:
+                            data_source += " + covers.com O/U"
                         
                         # Create or update the opportunities document
                         await collection.update_one(
