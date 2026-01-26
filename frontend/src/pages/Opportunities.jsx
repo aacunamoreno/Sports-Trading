@@ -1,8 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { RefreshCw, TrendingUp, TrendingDown, Target, Wifi, Calendar, Download, Upload, Pencil, Check, X } from 'lucide-react';
+
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -1964,8 +1960,8 @@ export default function Opportunities() {
                             const isAwayPublicPick = awayPct >= homePct;
                             const publicPct = isAwayPublicPick ? awayPct : homePct;
                             
-                            // NHL uses 61% threshold, others use 56%
-                            const threshold = league === 'NHL' ? 61 : 56;
+                            // All leagues use 61% threshold
+                            const threshold = 61;
                             if (publicPct < threshold) {
                               return <span className="text-muted-foreground">-</span>;
                             }
@@ -2098,8 +2094,8 @@ export default function Opportunities() {
                             const publicPct = isAwayPublicPick ? awayPct : homePct;
                             const publicTeam = isAwayPublicPick ? game.away_team : game.home_team;
                             
-                            // Only show if 61%+ threshold
-                            const threshold = league === 'NHL' ? 61 : 56;
+                            // Only show if 61%+ threshold (same for all leagues)
+                            const threshold = 61;
                             if (publicPct < threshold) {
                               return <span className="text-muted-foreground">-</span>;
                             }
