@@ -1901,8 +1901,8 @@ export default function Opportunities() {
                             <span className="text-xs font-mono text-blue-400/70">
                               {game.away_ppg_rank || game.away_gpg_rank}/{game.away_last3_rank}
                             </span>
-                            {/* Show consensus % next to ranking if away team has higher % - in RED (always show if available) */}
-                            {game.away_consensus_pct && game.away_consensus_pct > (game.home_consensus_pct || 0) && (
+                            {/* Show consensus % next to ranking if away team has higher % AND meets 61% threshold */}
+                            {game.away_consensus_pct && game.away_consensus_pct >= 61 && game.away_consensus_pct > (game.home_consensus_pct || 0) && (
                               <span className="text-xs font-bold text-red-500">
                                 {game.away_consensus_pct}%
                               </span>
@@ -1933,8 +1933,8 @@ export default function Opportunities() {
                             <span className="text-xs font-mono text-orange-400/70">
                               {game.home_ppg_rank || game.home_gpg_rank}/{game.home_last3_rank}
                             </span>
-                            {/* Show consensus % next to ranking if home team has higher % - in RED (always show if available) */}
-                            {game.home_consensus_pct && game.home_consensus_pct > (game.away_consensus_pct || 0) && (
+                            {/* Show consensus % next to ranking if home team has higher % AND meets 61% threshold */}
+                            {game.home_consensus_pct && game.home_consensus_pct >= 61 && game.home_consensus_pct > (game.away_consensus_pct || 0) && (
                               <span className="text-xs font-bold text-red-500">
                                 {game.home_consensus_pct}%
                               </span>
