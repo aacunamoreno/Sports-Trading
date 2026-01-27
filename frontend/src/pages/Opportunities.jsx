@@ -2500,11 +2500,12 @@ export default function Opportunities() {
                             const typeCounts = {};
                             betTypes.forEach(t => { typeCounts[t] = (typeCounts[t] || 0) + 1; });
                             
-                            // Check if this is NHL 1st Period bet
+                            // Check if this is NHL 1st Period bet (either old format with u1.5/u2.5 or new format with 1P prefix)
                             const isNHL1stPeriod = league === 'NHL' && betTypes.some(t => 
-                              t?.toLowerCase()?.includes('total') && 
-                              (t?.includes('u1.5') || t?.includes('u2.5') || t?.includes('u3.5') || t?.includes('u4.5') ||
-                               t?.includes('U1.5') || t?.includes('U2.5') || t?.includes('U3.5') || t?.includes('U4.5'))
+                              (t?.toLowerCase()?.includes('total') && 
+                               (t?.includes('u1.5') || t?.includes('u2.5') || t?.includes('u3.5') || t?.includes('u4.5') ||
+                                t?.includes('U1.5') || t?.includes('U2.5') || t?.includes('U3.5') || t?.includes('U4.5'))) ||
+                              t?.startsWith('1P ') || t?.startsWith('2P ') || t?.startsWith('3P ')
                             );
                             
                             if (isNHL1stPeriod) {
@@ -2512,15 +2513,25 @@ export default function Opportunities() {
                               return (
                                 <div className="flex flex-col gap-1">
                                   {uniqueTypes.map((betType, idx) => {
-                                    // Extract the line (u1.5, u2.5, etc.)
-                                    const lineMatch = betType?.match(/[uU](\d\.?\d?)/);
-                                    const line = lineMatch ? `u${lineMatch[1]}` : betType;
+                                    // Extract the line - handle both old format (TOTAL U1.5) and new format (1P U1.5)
+                                    let line = betType;
+                                    if (betType?.startsWith('1P ') || betType?.startsWith('2P ') || betType?.startsWith('3P ')) {
+                                      // New format: "1P U1.5" or "2P O2.5"
+                                      line = betType;
+                                    } else {
+                                      // Old format: extract u1.5, u2.5, etc.
+                                      const lineMatch = betType?.match(/[uUoO](\d\.?\d?)/);
+                                      line = lineMatch ? `U${lineMatch[1]}` : betType;
+                                    }
                                     const count = typeCounts[betType];
+                                    // Format the risk amount
+                                    const riskAmt = game.total_risk || 0;
+                                    const riskDisplay = riskAmt >= 1000 ? `$${(riskAmt/1000).toFixed(1)}K` : `$${riskAmt}`;
                                     
                                     return (
                                       <div key={idx} className="px-2 py-0.5 rounded text-[10px] font-medium bg-yellow-500/20 text-yellow-400">
                                         <div className="flex items-center justify-center gap-1">
-                                          ⏳ {line} / $???{count > 1 ? ` x${count}` : ''}
+                                          ⏳ {line}{count > 1 ? ` x${count}` : ''}{riskAmt > 0 ? ` / ${riskDisplay}` : ''}
                                         </div>
                                       </div>
                                     );
@@ -2530,6 +2541,10 @@ export default function Opportunities() {
                             }
                             
                             // Default format for non-1st period bets
+                            // Format the risk amount
+                            const riskAmt = game.total_risk || 0;
+                            const riskDisplay = riskAmt >= 1000 ? `$${(riskAmt/1000).toFixed(1)}K` : (riskAmt > 0 ? `$${riskAmt}` : '');
+                            
                             return (
                               <div className="flex flex-col gap-1">
                                 {uniqueTypes.map((betType, idx) => {
@@ -2546,7 +2561,7 @@ export default function Opportunities() {
                                           ? 'bg-orange-500/30 text-orange-400'
                                           : 'bg-purple-500/30 text-purple-400'
                                     }`}>
-                                      {isOver ? '⬆️' : isUnder ? '⬇️' : '📊'} {betType}{count > 1 ? ` x${count}` : ''}
+                                      {isOver ? '⬆️' : isUnder ? '⬇️' : '📊'} {betType}{count > 1 ? ` x${count}` : ''}{riskDisplay && idx === 0 ? ` ${riskDisplay}` : ''}
                                     </span>
                                   );
                                 })}
