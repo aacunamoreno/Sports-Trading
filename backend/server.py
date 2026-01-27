@@ -19218,7 +19218,7 @@ async def scrape_first_period_bets_enano():
         traceback.print_exc()
         return {"bets": [], "summary": {}}
 async def update_first_period_bets():
-    """Update cached 1st Period bets data - MERGES new data with existing"""
+    """Update cached 1st Period bets data - MERGES new data with existing and adds baseline"""
     try:
         logger.info("Updating 1st Period bets for ENANO...")
         new_data = await scrape_first_period_bets_enano()
@@ -19229,6 +19229,13 @@ async def update_first_period_bets():
         # Get existing data from database
         existing_data = await db.first_period_bets.find_one({"_id": "enano_bets"})
         existing_bets = existing_data.get("bets", []) if existing_data else []
+        
+        # Get baseline summary (historical record before we started tracking individual bets)
+        # This is PRESERVED and never overwritten by scraping
+        baseline_summary = None
+        if existing_data and existing_data.get("baseline_summary"):
+            baseline_summary = existing_data.get("baseline_summary")
+            logger.info(f"[1st Period Bets] Preserving baseline: {baseline_summary}")
         
         # MERGE: Add new bets that don't already exist, update existing ones
         # Create a dict of existing bets by key (date + game)
@@ -19258,7 +19265,7 @@ async def update_first_period_bets():
         merged_bets.sort(key=lambda x: x.get("date", ""), reverse=True)
         
         # RECALCULATE summary from ALL merged bets (not incremental)
-        merged_summary = {
+        bets_summary = {
             "u15": {"wins": 0, "losses": 0, "profit": 0},
             "u25": {"wins": 0, "losses": 0, "profit": 0},
             "u35": {"wins": 0, "losses": 0, "profit": 0},
@@ -19272,30 +19279,60 @@ async def update_first_period_bets():
                 line_bet = bet.get(line_key)
                 if line_bet and line_bet.get("result") in ["win", "loss"]:
                     if line_bet["result"] == "win":
-                        merged_summary[line_key]["wins"] += 1
-                        merged_summary[line_key]["profit"] += line_bet.get("win", 0)
-                        merged_summary["total"]["wins"] += 1
-                        merged_summary["total"]["profit"] += line_bet.get("win", 0)
+                        bets_summary[line_key]["wins"] += 1
+                        bets_summary[line_key]["profit"] += line_bet.get("win", 0)
+                        bets_summary["total"]["wins"] += 1
+                        bets_summary["total"]["profit"] += line_bet.get("win", 0)
                     elif line_bet["result"] == "loss":
-                        merged_summary[line_key]["losses"] += 1
-                        merged_summary[line_key]["profit"] -= line_bet.get("risk", 0)
-                        merged_summary["total"]["losses"] += 1
-                        merged_summary["total"]["profit"] -= line_bet.get("risk", 0)
+                        bets_summary[line_key]["losses"] += 1
+                        bets_summary[line_key]["profit"] -= line_bet.get("risk", 0)
+                        bets_summary["total"]["losses"] += 1
+                        bets_summary["total"]["profit"] -= line_bet.get("risk", 0)
+        
+        # COMBINE: Add baseline to bets_summary for final summary
+        merged_summary = {
+            "u15": {"wins": 0, "losses": 0, "profit": 0},
+            "u25": {"wins": 0, "losses": 0, "profit": 0},
+            "u35": {"wins": 0, "losses": 0, "profit": 0},
+            "u45": {"wins": 0, "losses": 0, "profit": 0},
+            "total": {"wins": 0, "losses": 0, "profit": 0}
+        }
+        
+        # Start with baseline if it exists
+        if baseline_summary:
+            for key in ["u15", "u25", "u35", "u45", "total"]:
+                if key in baseline_summary:
+                    merged_summary[key]["wins"] = baseline_summary[key].get("wins", 0)
+                    merged_summary[key]["losses"] = baseline_summary[key].get("losses", 0)
+                    merged_summary[key]["profit"] = baseline_summary[key].get("profit", 0)
+        
+        # Add current bets summary
+        for key in ["u15", "u25", "u35", "u45", "total"]:
+            merged_summary[key]["wins"] += bets_summary[key]["wins"]
+            merged_summary[key]["losses"] += bets_summary[key]["losses"]
+            merged_summary[key]["profit"] += bets_summary[key]["profit"]
+        
+        # Build the update document - preserve baseline_summary if it exists
+        update_doc = {
+            "bets": merged_bets,
+            "summary": merged_summary,
+            "bets_only_summary": bets_summary,  # Summary of just the tracked bets (no baseline)
+            "last_updated": datetime.now(timezone.utc)
+        }
+        
+        # Preserve baseline_summary in the document
+        if baseline_summary:
+            update_doc["baseline_summary"] = baseline_summary
         
         # Save merged data to database
         await db.first_period_bets.update_one(
             {"_id": "enano_bets"},
-            {
-                "$set": {
-                    "bets": merged_bets,
-                    "summary": merged_summary,
-                    "last_updated": datetime.now(timezone.utc)
-                }
-            },
+            {"$set": update_doc},
             upsert=True
         )
         
-        logger.info(f"1st Period bets MERGED: {len(merged_bets)} total games (+{bets_added} new, {bets_updated} updated), Summary: {merged_summary['total']}")
+        logger.info(f"1st Period bets MERGED: {len(merged_bets)} tracked games (+{bets_added} new, {bets_updated} updated)")
+        logger.info(f"1st Period Summary (with baseline): {merged_summary['total']}")
         return {"bets": merged_bets, "summary": merged_summary}
     except Exception as e:
         logger.error(f"Error updating 1st Period bets: {e}")
@@ -19339,6 +19376,104 @@ async def refresh_first_period_bets():
         return {"status": "success", **data}
     except Exception as e:
         logger.error(f"Error refreshing 1st Period bets: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/nhl/first-period-bets/set-baseline")
+async def set_first_period_baseline(data: dict):
+    """
+    Set the baseline (historical record) for 1st Period bets.
+    This baseline is ADDED to the tracked bets summary.
+    
+    Example payload:
+    {
+        "wins": 17,
+        "losses": 5,
+        "profit": 26309.40
+    }
+    
+    Or with detailed breakdown:
+    {
+        "total": {"wins": 17, "losses": 5, "profit": 26309.40},
+        "u15": {"wins": 10, "losses": 3, "profit": 5000},
+        "u25": {"wins": 5, "losses": 2, "profit": 15000},
+        "u35": {"wins": 1, "losses": 0, "profit": 3000},
+        "u45": {"wins": 1, "losses": 0, "profit": 3309.40}
+    }
+    """
+    try:
+        # Support simple format (just wins/losses/profit) or detailed format
+        if "total" in data:
+            baseline_summary = data
+        else:
+            # Simple format - put everything in total
+            baseline_summary = {
+                "u15": {"wins": 0, "losses": 0, "profit": 0},
+                "u25": {"wins": 0, "losses": 0, "profit": 0},
+                "u35": {"wins": 0, "losses": 0, "profit": 0},
+                "u45": {"wins": 0, "losses": 0, "profit": 0},
+                "total": {
+                    "wins": data.get("wins", 0),
+                    "losses": data.get("losses", 0),
+                    "profit": data.get("profit", 0)
+                }
+            }
+        
+        # Update the baseline in the database
+        await db.first_period_bets.update_one(
+            {"_id": "enano_bets"},
+            {"$set": {"baseline_summary": baseline_summary}},
+            upsert=True
+        )
+        
+        logger.info(f"[1st Period Bets] Baseline set: {baseline_summary['total']}")
+        
+        # Recalculate the full summary with new baseline
+        updated_data = await update_first_period_bets()
+        
+        return {
+            "status": "success",
+            "baseline_summary": baseline_summary,
+            "new_total_summary": updated_data.get("summary", {})
+        }
+    except Exception as e:
+        logger.error(f"Error setting 1st Period baseline: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/nhl/first-period-bets/baseline")
+async def get_first_period_baseline():
+    """Get the current baseline for 1st Period bets"""
+    try:
+        doc = await db.first_period_bets.find_one({"_id": "enano_bets"})
+        if doc and doc.get("baseline_summary"):
+            return {
+                "baseline_summary": doc["baseline_summary"],
+                "bets_only_summary": doc.get("bets_only_summary", {}),
+                "total_summary": doc.get("summary", {})
+            }
+        return {"baseline_summary": None, "message": "No baseline set"}
+    except Exception as e:
+        logger.error(f"Error getting baseline: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/nhl/first-period-bets/baseline")
+async def clear_first_period_baseline():
+    """Clear the baseline (reset to just tracked bets)"""
+    try:
+        await db.first_period_bets.update_one(
+            {"_id": "enano_bets"},
+            {"$unset": {"baseline_summary": ""}}
+        )
+        
+        # Recalculate summary without baseline
+        updated_data = await update_first_period_bets()
+        
+        return {
+            "status": "success",
+            "message": "Baseline cleared",
+            "new_summary": updated_data.get("summary", {})
+        }
+    except Exception as e:
+        logger.error(f"Error clearing baseline: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/nhl/first-period-bets/test-data")
