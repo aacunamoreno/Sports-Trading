@@ -16395,7 +16395,18 @@ async def update_nhl_bet_results(date: str = None):
                     if 'NHL' in look_ahead.upper() and 'REGULATION' in look_ahead.upper():
                         is_reg_time_bet = True
                 
-                if is_nhl_bet or is_reg_time_bet:
+                # Check for RBL marker (used for 1st Period, 2nd Period bets)
+                is_rbl_nhl_bet = False
+                if line.upper() == 'RBL':
+                    # Look ahead for Hockey/NHL keywords
+                    look_ahead = ' '.join([l.strip() for l in lines[i:min(len(lines), i+8)]])
+                    if 'HOCKEY' in look_ahead.upper() or 'NHL' in look_ahead.upper() or \
+                       '1ST PERIOD' in look_ahead.upper() or '2ND PERIOD' in look_ahead.upper() or \
+                       '3RD PERIOD' in look_ahead.upper() or 'REGULATION' in look_ahead.upper():
+                        is_rbl_nhl_bet = True
+                        logger.info(f"[NHL Bet Results] Found RBL NHL bet at line {i}: {line}")
+                
+                if is_nhl_bet or is_reg_time_bet or is_rbl_nhl_bet:
                     # Look FORWARD for bet details
                     forward_start = i
                     forward_end = min(len(lines), i + 15)  # NHL bets may have more lines
@@ -16412,27 +16423,60 @@ async def update_nhl_bet_results(date: str = None):
                         # Handle half values with ½ symbol
                         total_match = re.search(r'TOTAL\s+([ou])(\d+)[½]?\.?(\d*)', forward_context, re.IGNORECASE)
                         
+                        # Also try slash format for RBL bets: "Over 2.5" or "Under 1.5"
+                        slash_total_match = None
+                        if not total_match and is_rbl_nhl_bet:
+                            slash_total_match = re.search(r'(Over|Under)\s+(\d+\.?\d*)', forward_context, re.IGNORECASE)
+                        
                         # Extract teams - handle REG.TIME suffix
                         # Pattern: (TEAM1 [REG.TIME] vrs TEAM2 [REG.TIME])
                         teams_match = re.search(r'\(([A-Z\s\.]+?)\s+vrs\s+([A-Z\s\.]+?)\)', forward_context, re.IGNORECASE)
                         
-                        if total_match and teams_match:
-                            bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
-                            # Handle half values
-                            base_num = float(total_match.group(2))
-                            if '½' in forward_context[total_match.start():total_match.end()+2]:
-                                bet_line = base_num + 0.5
-                            elif total_match.group(3):
-                                bet_line = float(f"{total_match.group(2)}.{total_match.group(3)}")
+                        # Also try slash format for RBL bets: "Team A vs Team B"
+                        slash_teams_match = None
+                        if not teams_match and is_rbl_nhl_bet:
+                            slash_teams_match = re.search(r'([A-Za-z][A-Za-z\s\.]+?)\s+vs\s+([A-Za-z][A-Za-z\s\.]+?)\s*/', forward_context, re.IGNORECASE)
+                        
+                        # Use whichever match we found
+                        effective_total_match = total_match or slash_total_match
+                        effective_teams_match = teams_match or slash_teams_match
+                        
+                        if effective_total_match and effective_teams_match:
+                            if total_match:
+                                bet_type = 'OVER' if total_match.group(1).lower() == 'o' else 'UNDER'
+                                # Handle half values
+                                base_num = float(total_match.group(2))
+                                if '½' in forward_context[total_match.start():total_match.end()+2]:
+                                    bet_line = base_num + 0.5
+                                elif total_match.group(3):
+                                    bet_line = float(f"{total_match.group(2)}.{total_match.group(3)}")
+                                else:
+                                    bet_line = base_num
                             else:
-                                bet_line = base_num
+                                # Slash format
+                                bet_type = slash_total_match.group(1).upper()
+                                bet_line = float(slash_total_match.group(2))
                             
-                            away_team = normalize_team(teams_match.group(1))
-                            home_team = normalize_team(teams_match.group(2))
+                            if teams_match:
+                                away_team = normalize_team(teams_match.group(1))
+                                home_team = normalize_team(teams_match.group(2))
+                            else:
+                                # Slash format teams
+                                away_team = normalize_team(slash_teams_match.group(1))
+                                home_team = normalize_team(slash_teams_match.group(2))
+                            
+                            # Detect period type for display
+                            period_prefix = ''
+                            if '1ST PERIOD' in forward_context.upper():
+                                period_prefix = '1P '
+                            elif '2ND PERIOD' in forward_context.upper():
+                                period_prefix = '2P '
+                            elif '3RD PERIOD' in forward_context.upper():
+                                period_prefix = '3P '
                             
                             # Extract result - look for WIN or LOSE AFTER the teams
                             result = None
-                            teams_pos = forward_context.upper().find('VRS')
+                            teams_pos = forward_context.upper().find('VRS') if 'VRS' in forward_context.upper() else forward_context.upper().find(' VS ')
                             if teams_pos > 0:
                                 after_teams = forward_context[teams_pos:]
                                 result_match = re.search(r'\b(WIN|LOSE|LOSS|PUSH)\b', after_teams, re.IGNORECASE)
@@ -16457,14 +16501,16 @@ async def update_nhl_bet_results(date: str = None):
                                 bet_info = {
                                     'away_team': away_team,
                                     'home_team': home_team,
-                                    'bet_type': bet_type,
+                                    'bet_type': f'{period_prefix}{bet_type}' if period_prefix else bet_type,
                                     'bet_line': bet_line,
                                     'result': result,
-                                    'is_reg_time': is_reg_time_bet
+                                    'is_reg_time': is_reg_time_bet,
+                                    'is_period_bet': bool(period_prefix)
                                 }
                                 settled_bets.append(bet_info)
                                 reg_marker = " (REG TIME)" if is_reg_time_bet else ""
-                                logger.info(f"[NHL Bet Results] Found: {away_team} @ {home_team} {bet_type} {bet_line}{reg_marker} -> {result}")
+                                period_marker = f" ({period_prefix.strip()})" if period_prefix else ""
+                                logger.info(f"[NHL Bet Results] Found: {away_team} @ {home_team} {bet_type} {bet_line}{reg_marker}{period_marker} -> {result}")
                 
                 i += 1
             
