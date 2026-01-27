@@ -12086,8 +12086,46 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         'WAS': ['WASHINGTON', 'WIZARDS'],
                     }
                     
+                    # NCAAB team abbreviation mapping (Covers uses school abbreviations)
+                    # Names must match exactly what's in the database
+                    ncaab_abbrev_map = {
+                        'TST': ['TARLETON ST', 'TARLETON ST.', 'TARLETON STATE', 'TEXAS STATE', 'TEXAS ST'],
+                        'SCST': ['SC STATE', 'S.C. STATE', 'SOUTH CAROLINA STATE'],
+                        'FAMU': ['FLORIDA A&M', 'FLORIDA AM', 'FLA A&M'],
+                        'DSU': ['DELAWARE ST', 'DELAWARE ST.', 'DELAWARE STATE'],
+                        'JKST': ['JACKSON ST', 'JACKSON ST.', 'JACKSON STATE'],
+                        'AC': ['ABILENE CHR', 'ABILENE CHR.', 'ABILENE CHRISTIAN'],
+                        'LOU': ['LOUISVILLE'],
+                        'DUKE': ['DUKE'],
+                        'ARIZ': ['ARIZONA'],
+                        'BYU': ['BYU', 'BRIGHAM YOUNG'],
+                        'MORG': ['MORGAN ST', 'MORGAN ST.', 'MORGAN STATE'],
+                        'NORF': ['NORFOLK ST', 'NORFOLK ST.', 'NORFOLK STATE'],
+                        'UTRGV': ['UT-RIO GRANDE VALLEY', 'UT RIO GRANDE VALLEY', 'UTRGV'],
+                        'AMCC': ['TX A&M-CC', 'TEXAS A&M-CC', 'A&M-CORPUS CHRISTI', 'TEXAS A&M-CORPUS CHRISTI'],
+                        'ALCN': ['ALCORN ST', 'ALCORN ST.', 'ALCORN STATE'],
+                        'COOK': ['BETHUNE-COOK', 'BETHUNE-COOK.', 'BETHUNE-COOKMAN'],
+                        'CCSU': ['CCSU', 'CENTRAL CONN', 'CENTRAL CONNECTICUT', 'CENT CONN'],
+                        'STONE': ['STONEHILL'],
+                        'PSU': ['PENN ST', 'PENN ST.', 'PENN STATE'],
+                        'OSU': ['OHIO ST', 'OHIO ST.', 'OHIO STATE'],
+                        'LMC': ['LE MOYNE', 'LEMOYNE'],
+                        'FDU': ['FDU', 'FAIRLEIGH DICKINSON'],
+                        'HOW': ['HOWARD'],
+                        'COPP': ['COPPIN ST', 'COPPIN ST.', 'COPPIN STATE'],
+                        'MDSHORE': ['MD.-E. SHORE', 'MD-E. SHORE', 'MD-EASTERN SHORE', 'MARYLAND-EASTERN SHORE'],
+                        'NCCENT': ['NC CENTRAL', 'N.C. CENTRAL', 'NORTH CAROLINA CENTRAL'],
+                        'WAG': ['WAGNER'],
+                        'LIU': ['LIU', 'LONG ISLAND'],
+                    }
+                    
                     # Select the correct abbreviation map based on league
-                    abbrev_map = nhl_abbrev_map if league.upper() == 'NHL' else nba_abbrev_map
+                    if league.upper() == 'NHL':
+                        abbrev_map = nhl_abbrev_map
+                    elif league.upper() == 'NCAAB':
+                        abbrev_map = ncaab_abbrev_map
+                    else:
+                        abbrev_map = nba_abbrev_map
                     
                     # Try abbreviation mapping if direct match fails
                     if away_consensus is None or home_consensus is None:
