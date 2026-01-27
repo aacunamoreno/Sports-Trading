@@ -19108,7 +19108,8 @@ async def scrape_first_period_bets_enano():
                 "result": result,
                 "profit": profit,
                 "period_type": period_type,
-                "bet_type": bet_type
+                "bet_type": bet_type,
+                "count": 1  # Track number of identical bets
             }
             
             # Build line key based on period type and bet type
@@ -19121,10 +19122,17 @@ async def scrape_first_period_bets_enano():
             else:
                 line_key = f"u{line_num}5"
             
-            # Store the bet
+            # Store the bet - ACCUMULATE if duplicate instead of overwriting
             if games[game_key].get(line_key) is not None:
-                logger.warning(f"[Period Bets] OVERWRITE: {game_key} {line_key}")
-            games[game_key][line_key] = bet_info
+                existing = games[game_key][line_key]
+                # Accumulate the amounts
+                existing["risk"] += risk
+                existing["win"] += win_amt
+                existing["profit"] += profit
+                existing["count"] = existing.get("count", 1) + 1
+                logger.info(f"[Period Bets] ACCUMULATED: {game_key} {line_key} (now {existing['count']}x, total risk=${existing['risk']:.2f})")
+            else:
+                games[game_key][line_key] = bet_info
             games[game_key]["total_result"] += profit
             logger.info(f"[Period Bets] -> {game_key} {line_key} = {result} ({profit:+.2f})")
         
