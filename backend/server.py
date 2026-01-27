@@ -12005,6 +12005,51 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     if home in consensus_data:
                         home_consensus = consensus_data[home].get('consensus_pct')
                     
+                    # NHL team abbreviation mapping (Covers uses 2-3 letter codes like TB, BOS, NYR)
+                    nhl_abbrev_map = {
+                        'ANA': ['ANAHEIM', 'DUCKS'],
+                        'ARI': ['ARIZONA', 'COYOTES'],
+                        'BOS': ['BOSTON', 'BRUINS'],
+                        'BUF': ['BUFFALO', 'SABRES'],
+                        'CAL': ['CALGARY', 'FLAMES'],
+                        'CGY': ['CALGARY', 'FLAMES'],
+                        'CAR': ['CAROLINA', 'HURRICANES'],
+                        'CHI': ['CHICAGO', 'BLACKHAWKS'],
+                        'COL': ['COLORADO', 'AVALANCHE'],
+                        'CBJ': ['COLUMBUS', 'BLUE JACKETS'],
+                        'DAL': ['DALLAS', 'STARS'],
+                        'DET': ['DETROIT', 'RED WINGS'],
+                        'EDM': ['EDMONTON', 'OILERS'],
+                        'FLA': ['FLORIDA', 'PANTHERS'],
+                        'LA': ['LOS ANGELES', 'LA KINGS', 'KINGS'],
+                        'LAK': ['LOS ANGELES', 'LA KINGS', 'KINGS'],
+                        'MIN': ['MINNESOTA', 'WILD'],
+                        'MTL': ['MONTREAL', 'CANADIENS'],
+                        'NSH': ['NASHVILLE', 'PREDATORS'],
+                        'NJ': ['NEW JERSEY', 'DEVILS'],
+                        'NJD': ['NEW JERSEY', 'DEVILS'],
+                        'NYI': ['NY ISLANDERS', 'NEW YORK ISLANDERS', 'ISLANDERS'],
+                        'NYR': ['NY RANGERS', 'NEW YORK RANGERS', 'RANGERS'],
+                        'OTT': ['OTTAWA', 'SENATORS'],
+                        'PHI': ['PHILADELPHIA', 'FLYERS'],
+                        'PIT': ['PITTSBURGH', 'PENGUINS'],
+                        'SJ': ['SAN JOSE', 'SHARKS'],
+                        'SJS': ['SAN JOSE', 'SHARKS'],
+                        'SEA': ['SEATTLE', 'KRAKEN'],
+                        'STL': ['ST. LOUIS', 'ST LOUIS', 'BLUES'],
+                        'TB': ['TAMPA BAY', 'LIGHTNING', 'TAMPA'],
+                        'TBL': ['TAMPA BAY', 'LIGHTNING', 'TAMPA'],
+                        'TOR': ['TORONTO', 'MAPLE LEAFS'],
+                        'UTA': ['UTAH', 'HOCKEY CLUB', 'UTAH HC'],
+                        'UTAH': ['UTAH', 'HOCKEY CLUB', 'UTAH HC'],
+                        'VAN': ['VANCOUVER', 'CANUCKS'],
+                        'VGK': ['VEGAS', 'GOLDEN KNIGHTS'],
+                        'VEG': ['VEGAS', 'GOLDEN KNIGHTS'],
+                        'WAS': ['WASHINGTON', 'CAPITALS'],
+                        'WSH': ['WASHINGTON', 'CAPITALS'],
+                        'WPG': ['WINNIPEG', 'JETS'],
+                    }
+                    
                     # NBA team abbreviation mapping for better matching
                     nba_abbrev_map = {
                         'ATL': ['ATLANTA', 'HAWKS'],
@@ -12041,9 +12086,12 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         'WAS': ['WASHINGTON', 'WIZARDS'],
                     }
                     
+                    # Select the correct abbreviation map based on league
+                    abbrev_map = nhl_abbrev_map if league.upper() == 'NHL' else nba_abbrev_map
+                    
                     # Try abbreviation mapping if direct match fails
                     if away_consensus is None or home_consensus is None:
-                        for abbrev, names in nba_abbrev_map.items():
+                        for abbrev, names in abbrev_map.items():
                             if abbrev in consensus_data:
                                 team_pct = consensus_data[abbrev].get('consensus_pct')
                                 # Check if this abbreviation matches away team
@@ -12051,14 +12099,14 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                                     for name in names:
                                         if name in away or away in name:
                                             away_consensus = team_pct
-                                            logger.debug(f"[Consensus] Abbrev matched {away} -> {abbrev} ({team_pct}%)")
+                                            logger.info(f"[Consensus] Abbrev matched {away} -> {abbrev} ({team_pct}%)")
                                             break
                                 # Check if this abbreviation matches home team
                                 if home_consensus is None:
                                     for name in names:
                                         if name in home or home in name:
                                             home_consensus = team_pct
-                                            logger.debug(f"[Consensus] Abbrev matched {home} -> {abbrev} ({team_pct}%)")
+                                            logger.info(f"[Consensus] Abbrev matched {home} -> {abbrev} ({team_pct}%)")
                                             break
                     
                     # Update game with consensus data
