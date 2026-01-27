@@ -16531,12 +16531,21 @@ async def update_nhl_bet_results(date: str = None):
             bet_home = (bet.get('home_team') or '').lower()
             
             # Match by team names (partial match for variations)
-            away_match = bet_away in db_away or db_away in bet_away or \
-                        any(word in db_away for word in bet_away.split() if len(word) > 3)
-            home_match = bet_home in db_home or db_home in bet_home or \
-                        any(word in db_home for word in bet_home.split() if len(word) > 3)
+            def teams_match(team1, team2):
+                return team1 in team2 or team2 in team1 or \
+                       any(word in team2 for word in team1.split() if len(word) > 3)
             
-            return away_match and home_match
+            # Try normal order first (bet_away=db_away, bet_home=db_home)
+            normal_match = teams_match(bet_away, db_away) and teams_match(bet_home, db_home)
+            
+            # Also try inverted order (bet_away=db_home, bet_home=db_away)
+            # This handles cases where plays888 shows teams in different order than CBS Sports
+            inverted_match = teams_match(bet_away, db_home) and teams_match(bet_home, db_away)
+            
+            if normal_match or inverted_match:
+                logger.debug(f"[Match Teams] Matched: db={db_away}@{db_home} bet={bet_away}@{bet_home} inverted={inverted_match}")
+                return True
+            return False
         
         for game in db_games:
             # Find matching bet
@@ -19134,35 +19143,45 @@ async def scrape_first_period_bets_enano():
         for game_key, game in games.items():
             # Calculate total bet (sum of all risks)
             total_bet = 0
-            for line_key in ["u15", "u25", "u35", "u45"]:
+            # Check both formats: "u15" and "1p_u15"
+            for line_key in ["u15", "u25", "u35", "u45", "1p_u15", "1p_u25", "1p_u35", "1p_u45"]:
                 bet = game.get(line_key)
                 if bet and bet.get("risk"):
                     total_bet += bet["risk"]
             
+            # Normalize keys to simple format for frontend
             bets_list.append({
                 "date": game["date"],
                 "game": f"{game['team1']} @ {game['team2']}",
-                "u15": game.get("u15"),
-                "u25": game.get("u25"),
-                "u35": game.get("u35"),
-                "u45": game.get("u45"),
+                "u15": game.get("u15") or game.get("1p_u15"),
+                "u25": game.get("u25") or game.get("1p_u25"),
+                "u35": game.get("u35") or game.get("1p_u35"),
+                "u45": game.get("u45") or game.get("1p_u45"),
+                "reg_u65": game.get("reg_u65"),  # Regulation time bets
                 "total_bet": total_bet,
                 "result": game.get("total_result", 0)
             })
             
-            for line_key in ["u15", "u25", "u35", "u45"]:
+            for line_key in ["u15", "u25", "u35", "u45", "1p_u15", "1p_u25", "1p_u35", "1p_u45"]:
                 bet = game.get(line_key)
                 if bet and bet.get("result") not in ["cancel", "pending", None]:
+                    # Normalize key for summary (remove 1p_ prefix)
+                    summary_key = line_key.replace("1p_", "")
+                    if summary_key not in summary:
+                        summary_key = "total"  # Fallback to total
+                    
                     if bet["result"] == "win":
-                        summary[line_key]["wins"] += 1
-                        summary[line_key]["profit"] += bet["win"]
+                        if summary_key in summary:
+                            summary[summary_key]["wins"] += 1
+                            summary[summary_key]["profit"] += bet.get("win", 0)
                         summary["total"]["wins"] += 1
-                        summary["total"]["profit"] += bet["win"]
+                        summary["total"]["profit"] += bet.get("win", 0)
                     elif bet["result"] == "loss":
-                        summary[line_key]["losses"] += 1
-                        summary[line_key]["profit"] -= bet["risk"]
+                        if summary_key in summary:
+                            summary[summary_key]["losses"] += 1
+                            summary[summary_key]["profit"] -= bet.get("risk", 0)
                         summary["total"]["losses"] += 1
-                        summary["total"]["profit"] -= bet["risk"]
+                        summary["total"]["profit"] -= bet.get("risk", 0)
         
         bets_list.sort(key=lambda x: x["date"], reverse=True)
         
