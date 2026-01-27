@@ -12276,6 +12276,32 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     away = game.get('away_team', '').upper()
                     home = game.get('home_team', '').upper()
                     
+                    # NCAAB abbreviation mapping for O/U consensus matching
+                    ncaab_name_to_abbrev = {
+                        'LE MOYNE': 'LMC', 'LEMOYNE': 'LMC',
+                        'FDU': 'FDU', 'FAIRLEIGH DICKINSON': 'FDU',
+                        'ALCORN ST': 'ALCN', 'ALCORN ST.': 'ALCN', 'ALCORN STATE': 'ALCN',
+                        'BETHUNE-COOK': 'COOK', 'BETHUNE-COOK.': 'COOK', 'BETHUNE-COOKMAN': 'COOK',
+                        'ARIZONA': 'ARIZ',
+                        'BYU': 'BYU', 'BRIGHAM YOUNG': 'BYU',
+                        'JACKSON ST': 'JKST', 'JACKSON ST.': 'JKST', 'JACKSON STATE': 'JKST',
+                        'FLORIDA A&M': 'FAMU', 'FLORIDA AM': 'FAMU',
+                        'MORGAN ST': 'MORG', 'MORGAN ST.': 'MORG', 'MORGAN STATE': 'MORG',
+                        'NORFOLK ST': 'NORF', 'NORFOLK ST.': 'NORF', 'NORFOLK STATE': 'NORF',
+                        'UTRGV': 'UTRGV', 'UT-RIO GRANDE VALLEY': 'UTRGV', 'UT RIO GRANDE VALLEY': 'UTRGV',
+                        'TX A&M-CC': 'AMCC', 'TEXAS A&M-CC': 'AMCC', 'A&M-CORPUS CHRISTI': 'AMCC',
+                        'LOUISVILLE': 'LOU',
+                        'DUKE': 'DUKE',
+                        'CCSU': 'CCSU', 'CENTRAL CONN': 'CCSU', 'CENTRAL CONNECTICUT': 'CCSU',
+                        'STONEHILL': 'STONE',
+                        'PENN ST': 'PSU', 'PENN ST.': 'PSU', 'PENN STATE': 'PSU',
+                        'OHIO ST': 'OSU', 'OHIO ST.': 'OSU', 'OHIO STATE': 'OSU',
+                        'ABILENE CHR': 'AC', 'ABILENE CHR.': 'AC', 'ABILENE CHRISTIAN': 'AC',
+                        'TARLETON ST': 'TST', 'TARLETON ST.': 'TST', 'TARLETON STATE': 'TST',
+                        'DELAWARE ST': 'DSU', 'DELAWARE ST.': 'DSU', 'DELAWARE STATE': 'DSU',
+                        'SC STATE': 'SCST', 'S.C. STATE': 'SCST', 'SOUTH CAROLINA STATE': 'SCST',
+                    }
+                    
                     # NHL abbreviation mapping for O/U consensus matching
                     nhl_name_to_abbrev = {
                         'ANAHEIM': 'ANA', 'DUCKS': 'ANA',
@@ -12313,11 +12339,20 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         'WINNIPEG': 'WPG', 'JETS': 'WPG',
                     }
                     
-                    # Convert full team names to abbreviations for matching
-                    away_abbrev = nhl_name_to_abbrev.get(away, away[:3])
-                    home_abbrev = nhl_name_to_abbrev.get(home, home[:3])
+                    # Select the correct abbreviation map based on league
+                    if league.upper() == 'NHL':
+                        name_to_abbrev = nhl_name_to_abbrev
+                    elif league.upper() == 'NCAAB':
+                        name_to_abbrev = ncaab_name_to_abbrev
+                    else:
+                        # NBA - use first 3 letters as default
+                        name_to_abbrev = {}
                     
-                    logger.debug(f"[O/U Match] Looking for {away} ({away_abbrev}) @ {home} ({home_abbrev})")
+                    # Convert full team names to abbreviations for matching
+                    away_abbrev = name_to_abbrev.get(away, away[:3])
+                    home_abbrev = name_to_abbrev.get(home, home[:3])
+                    
+                    logger.info(f"[O/U Match] Looking for {away} ({away_abbrev}) @ {home} ({home_abbrev})")
                     
                     # Try to find matching game in O/U consensus data by iterating all entries
                     ou_data = None
