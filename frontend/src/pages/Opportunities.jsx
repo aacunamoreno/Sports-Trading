@@ -2395,6 +2395,7 @@ export default function Opportunities() {
                                   const isWin = bet.result === 'win';
                                   const isLoss = bet.result === 'loss';
                                   const isPending = !bet.result || bet.result === 'pending';
+                                  const betCount = bet.count || 1;
                                   
                                   return (
                                     <div key={idx} className={`px-2 py-0.5 rounded text-[10px] font-medium ${
@@ -2403,7 +2404,7 @@ export default function Opportunities() {
                                       'bg-yellow-500/20 text-yellow-400'
                                     }`}>
                                       <div className="flex items-center justify-center gap-1">
-                                        {isWin ? '✓' : isLoss ? '✗' : '⏳'} {bet.line} - ${bet.risk?.toLocaleString()} / {isPending ? '$ ???' : (isWin ? `$${bet.win?.toLocaleString()}` : `-$${bet.risk?.toLocaleString()}`)}
+                                        {isWin ? '✓' : isLoss ? '✗' : '⏳'} {bet.line}{betCount > 1 ? ` x${betCount}` : ''} - ${bet.risk?.toLocaleString()} / {isPending ? '$ ???' : (isWin ? `$${bet.win?.toLocaleString()}` : `-$${bet.risk?.toLocaleString()}`)}
                                       </div>
                                     </div>
                                   );
