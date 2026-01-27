@@ -12047,12 +12047,12 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         if period_prefix:
                             bet_type_display = f'{period_prefix}O{bet_line}' if bet_line else f'{period_prefix}OVER'
                         else:
-                            bet_type_display = 'OVER'
+                            bet_type_display = f'TOTAL O{bet_line}' if bet_line else 'OVER'
                     elif 'under' in bet_type_raw.lower() or bet_type_raw.lower().startswith('u') or ' U' in bet_type_raw.upper():
                         if period_prefix:
                             bet_type_display = f'{period_prefix}U{bet_line}' if bet_line else f'{period_prefix}UNDER'
                         else:
-                            bet_type_display = 'UNDER'
+                            bet_type_display = f'TOTAL U{bet_line}' if bet_line else 'UNDER'
                 else:
                     # It's a spread bet (like "DUKE -26" or "LEHIGH -5")
                     is_spread_bet = True
@@ -12065,6 +12065,10 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     game['bet_lines'] = []
                 if 'bet_count' not in game:
                     game['bet_count'] = 0
+                if 'total_risk' not in game:
+                    game['total_risk'] = 0
+                if 'total_to_win' not in game:
+                    game['total_to_win'] = 0
                 
                 # Add this bet to the arrays
                 game['bet_types'].append(bet_type_display)
@@ -12075,6 +12079,12 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         game['bet_lines'].append(None)
                 else:
                     game['bet_lines'].append(None)
+                
+                # Add risk and to_win amounts
+                current_risk = bet.get('risk', 0) or bet.get('total_risk', 0) or bet.get('wager', 0) or 0
+                current_to_win = bet.get('to_win', 0) or bet.get('total_win', 0) or 0
+                game['total_risk'] += current_risk
+                game['total_to_win'] += current_to_win
                 
                 game['bet_count'] += bet.get('bet_count', 1)  # Use bet's count (for x2 bets)
                 
@@ -12124,7 +12134,9 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     "has_bet": True,
                     "bet_type": game.get('bet_type', 'TOTAL'),
                     "bet_types": game.get('bet_types', []),
-                    "bet_count": game.get('bet_count', 1)
+                    "bet_count": game.get('bet_count', 1),
+                    "total_risk": game.get('total_risk', 0),
+                    "total_to_win": game.get('total_to_win', 0)
                 })
         
         # Scrape public consensus percentages from Covers.com
