@@ -12256,10 +12256,12 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                     }
                     
                     # NBA team abbreviation mapping for better matching
+                    # IMPORTANTE: Covers.com usa algunas abreviaciones diferentes (BK, PHO, NO)
                     nba_abbrev_map = {
                         'ATL': ['ATLANTA', 'HAWKS'],
                         'BOS': ['BOSTON', 'CELTICS'],
                         'BKN': ['BROOKLYN', 'NETS'],
+                        'BK': ['BROOKLYN', 'NETS'],  # Covers usa BK
                         'CHA': ['CHARLOTTE', 'HORNETS'],
                         'CHI': ['CHICAGO', 'BULLS'],
                         'CLE': ['CLEVELAND', 'CAVALIERS', 'CAVS'],
@@ -12277,11 +12279,14 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         'MIL': ['MILWAUKEE', 'BUCKS'],
                         'MIN': ['MINNESOTA', 'TIMBERWOLVES', 'WOLVES'],
                         'NOP': ['NEW ORLEANS', 'PELICANS'],
+                        'NO': ['NEW ORLEANS', 'PELICANS'],  # Covers usa NO
                         'NYK': ['NEW YORK', 'KNICKS', 'NY KNICKS'],
+                        'NY': ['NEW YORK', 'KNICKS'],  # Covers puede usar NY
                         'OKC': ['OKLAHOMA CITY', 'THUNDER', 'OKLA CITY'],
                         'ORL': ['ORLANDO', 'MAGIC'],
                         'PHI': ['PHILADELPHIA', '76ERS', 'SIXERS'],
                         'PHX': ['PHOENIX', 'SUNS'],
+                        'PHO': ['PHOENIX', 'SUNS'],  # Covers usa PHO
                         'POR': ['PORTLAND', 'TRAIL BLAZERS', 'BLAZERS'],
                         'SAC': ['SACRAMENTO', 'KINGS'],
                         'SAS': ['SAN ANTONIO', 'SPURS'],
