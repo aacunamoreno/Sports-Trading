@@ -2784,6 +2784,15 @@ async def check_results_for_account(conn: dict):
                         else if (sport === 'CBB' || sport === 'NCAAB') country = 'NCAAB';
                         else if (sport === 'SOC' || sport.includes('SOCCER')) country = 'Soccer';
                         else if (sport.includes('TEN')) country = 'Tennis';
+                        // RBL with Hockey/NHL keywords = NHL bet (1st Period, 2nd Period, Regulation Time)
+                        else if (sport === 'RBL') {
+                            const rowUpper = rowText.toUpperCase();
+                            if (rowUpper.includes('HOCKEY') || rowUpper.includes('/ NHL') || 
+                                rowUpper.includes('1ST PERIOD') || rowUpper.includes('2ND PERIOD') || 
+                                rowUpper.includes('REGULATION')) {
+                                country = 'NHL';
+                            }
+                        }
                     }
                     
                     // Extract game name - look for text after STRAIGHT BET or similar
@@ -3729,8 +3738,8 @@ class Plays888Service:
                         if live_match:
                             teams_match = live_match
                     if teams_match:
-                        away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
-                        home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                        away_team = teams_match.group(1).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
+                        home_team = teams_match.group(2).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
                         
                         # Check for international/European basketball (not NCAAB)
                         intl_patterns = ['CSM ', 'BC ', 'KK ', 'TARGU', 'PLOIESTI', 'BUCHAREST', 'CLUJ', 
@@ -3752,6 +3761,9 @@ class Plays888Service:
                             # Assume NCAAB/CBB for college basketball
                             sport = 'NCAAB'
                         
+                        # Capture description from nearby lines for period/team total detection
+                        description_context = ' '.join(lines[max(0, i-3):min(len(lines), i+3)])
+                        
                         # Look for risk amount
                         risk_match = re.search(r'(\d{1,},?\d+\.?\d*)\s*/\s*(\d{1,},?\d+\.?\d*)', lines[i+1] if i+1 < len(lines) else '')
                         risk_amount = 0
@@ -3767,7 +3779,8 @@ class Plays888Service:
                             "bet_type": bet_type,
                             "total_line": total_line,
                             "risk": risk_amount,
-                            "to_win": win_amount
+                            "to_win": win_amount,
+                            "description": description_context[:200]  # First 200 chars for period detection
                         })
                 
                 elif spread_match:
@@ -3793,8 +3806,8 @@ class Plays888Service:
                     
                     teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
                     if teams_match:
-                        away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
-                        home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                        away_team = teams_match.group(1).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
+                        home_team = teams_match.group(2).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
                     
                     # Check for international/European basketball (not NCAAB)
                     # Romanian, European teams often have patterns like "CSM", "BC", "KK", etc.
@@ -3845,6 +3858,9 @@ class Plays888Service:
                         risk_amount = float(risk_match.group(1).replace(',', ''))
                         win_amount = float(risk_match.group(2).replace(',', ''))
                     
+                    # Capture description from nearby lines
+                    description_context = ' '.join(lines[max(0, i-3):min(len(lines), i+3)])
+                    
                     raw_bets.append({
                         "sport": sport,
                         "away_team": away_team,
@@ -3853,7 +3869,8 @@ class Plays888Service:
                         "spread_line": spread_value,
                         "risk": risk_amount,
                         "to_win": win_amount,
-                        "is_spread": True  # Flag for spread bets
+                        "is_spread": True,  # Flag for spread bets
+                        "description": description_context[:200]
                     })
                 
                 elif live_total_match and not total_match:
@@ -3924,6 +3941,9 @@ class Plays888Service:
                             risk_amount = float(risk_match.group(1).replace(',', ''))
                             win_amount = float(risk_match.group(2).replace(',', ''))
                         
+                        # Capture description from nearby lines for period/team total detection
+                        description_context = ' '.join(lines[max(0, i-5):min(len(lines), i+5)])
+                        
                         logger.info(f"[OpenBets] Found live bet: {away_team} vs {home_team} - {bet_type} {total_line} (sport={sport})")
                         
                         raw_bets.append({
@@ -3934,7 +3954,8 @@ class Plays888Service:
                             "total_line": total_line,
                             "risk": risk_amount,
                             "to_win": win_amount,
-                            "is_live": True  # Flag for live bets
+                            "is_live": True,  # Flag for live bets
+                            "description": description_context[:200]  # First 200 chars for period detection
                         })
                 
                 i += 1
@@ -4073,8 +4094,8 @@ class Plays888Service:
                     # Extract team names
                     teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
                     if teams_match:
-                        away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
-                        home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                        away_team = teams_match.group(1).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
+                        home_team = teams_match.group(2).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
                         
                         # Detect sport
                         detected_league = detect_league(away_team) or detect_league(home_team)
@@ -6129,6 +6150,15 @@ async def monitor_single_account(conn: dict):
                             else if (sportText === 'NFL') country = 'NFL';
                             else if (sportText === 'CBB' || sportText === 'NCAAB') country = 'NCAAB';
                             else if (sportText === 'SOC' || sportText.includes('SOCCER')) country = 'Soccer';
+                            // RBL with Hockey/NHL keywords = NHL bet (1st Period, 2nd Period, Regulation Time)
+                            else if (sportText === 'RBL') {
+                                const descUpper = description.toUpperCase();
+                                if (descUpper.includes('HOCKEY') || descUpper.includes('NHL') || 
+                                    descUpper.includes('1ST PERIOD') || descUpper.includes('2ND PERIOD') || 
+                                    descUpper.includes('REGULATION')) {
+                                    country = 'NHL';
+                                }
+                            }
                         }
                         
                         // Parse risk/win amounts (format: "1100.00 / 1000.00" or "500.00 / 9500.00")
@@ -6260,6 +6290,23 @@ async def monitor_single_account(conn: dict):
                             betType = 'Straight';
                         }
                         
+                        // Extract away_team and home_team from game string
+                        let awayTeam = '';
+                        let homeTeam = '';
+                        if (game && (game.includes(' vs ') || game.includes(' vrs '))) {
+                            const vsIndex = game.toLowerCase().indexOf(' vs ');
+                            const vrsIndex = game.toLowerCase().indexOf(' vrs ');
+                            const splitIndex = vsIndex >= 0 ? vsIndex : vrsIndex;
+                            const separator = vsIndex >= 0 ? ' vs ' : ' vrs ';
+                            if (splitIndex > 0) {
+                                awayTeam = game.substring(0, splitIndex).trim();
+                                homeTeam = game.substring(splitIndex + separator.length).trim();
+                                // Clean period suffixes from team names
+                                awayTeam = awayTeam.replace(/ 1ST PERIOD/gi, '').replace(/ 2ND PERIOD/gi, '').replace(/ REG\.TIME/gi, '').trim();
+                                homeTeam = homeTeam.replace(/ 1ST PERIOD/gi, '').replace(/ 2ND PERIOD/gi, '').replace(/ REG\.TIME/gi, '').trim();
+                            }
+                        }
+                        
                         bets.push({
                             ticket: ticket,
                             description: description,
@@ -6272,7 +6319,9 @@ async def monitor_single_account(conn: dict):
                             country: country,
                             odds: odds,
                             wager: wager,
-                            toWin: toWin
+                            toWin: toWin,
+                            awayTeam: awayTeam,
+                            homeTeam: homeTeam
                         });
                     }
                 }
@@ -6399,8 +6448,9 @@ async def monitor_single_account(conn: dict):
                     logger.info(f"Corrected sport from RBL to NBA based on description")
                 elif 'BASKETBALL / NCAAB' in desc_upper or 'COLLEGE' in desc_upper or '/ CBB' in desc_upper:
                     sport = 'NCAAB'
-                elif 'HOCKEY / NHL' in desc_upper or '/ NHL' in desc_upper:
+                elif 'HOCKEY / NHL' in desc_upper or '/ NHL' in desc_upper or ('HOCKEY' in desc_upper and ('1ST PERIOD' in desc_upper or '2ND PERIOD' in desc_upper or 'REGULATION' in desc_upper)):
                     sport = 'NHL'
+                    logger.info(f"Corrected sport from RBL to NHL based on description: {desc_upper[:80]}")
                 elif 'FOOTBALL / NFL' in desc_upper or '/ NFL' in desc_upper:
                     sport = 'NFL'
             
@@ -6423,6 +6473,10 @@ async def monitor_single_account(conn: dict):
             to_win_short = f"${to_win/1000:.1f}K" if to_win >= 1000 else f"${to_win:.0f}" if to_win else "$0"
             game_short = game[:20] + '...' if len(game) > 20 else game
             bet_type_short = bet_type[:15] if len(bet_type) > 15 else bet_type
+            
+            # Extract away_team and home_team from bet_info
+            away_team = bet_info.get('awayTeam', '')
+            home_team = bet_info.get('homeTeam', '')
             
             # Store in database with account info for filtering
             bet_doc = {
@@ -6449,6 +6503,9 @@ async def monitor_single_account(conn: dict):
                 "to_win_short": to_win_short,
                 "game_short": game_short,
                 "bet_type_short": bet_type_short,
+                "away_team": away_team,
+                "home_team": home_team,
+                "sport": sport,
                 "notes": f"Account: {username}. Auto-detected from plays888.co. Sport: {sport}"
             }
             await db.bet_history.insert_one(bet_doc)
@@ -10950,6 +11007,32 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
                 i += 1
                 continue
             
+            # NEW: Check for slash format first (RBL/Live bets)
+            # Format: "Team A vs Team B / 1st Period / Total / Over 0.5" or "Team A vs Team B / 2nd Period / Team A team total / Over 0.5"
+            slash_format_match = re.search(r'([A-Za-z][A-Za-z\s\.]+?)\s+vs\s+([A-Za-z][A-Za-z\s\.]+?)\s*/\s*(?:1st|2nd|Game|Regulation)', line, re.IGNORECASE)
+            if slash_format_match:
+                away_team = slash_format_match.group(1).strip()
+                home_team = slash_format_match.group(2).strip()
+                
+                # Look for Over/Under in the same line
+                over_under_match = re.search(r'(Over|Under)\s+(\d+\.?\d*)', line, re.IGNORECASE)
+                if over_under_match:
+                    bet_type = over_under_match.group(1).upper()
+                    bet_line = float(over_under_match.group(2))
+                    
+                    raw_bets.append({
+                        "sport": sport or 'NHL',  # RBL bets with period info are usually NHL
+                        "away_team": away_team,
+                        "home_team": home_team,
+                        "bet_type": bet_type,
+                        "total_line": bet_line,
+                        "is_spread": False,
+                        "description": line[:100]  # Keep first 100 chars for reference
+                    })
+                    logger.info(f"[History] Found slash-format bet: {bet_type} {bet_line} ({away_team} vs {home_team})")
+                    i += 1
+                    continue
+            
             # Look for TOTAL bets: "TOTAL o143-110" or "TOTAL u159-110"
             total_match = re.search(r'TOTAL\s+([ou])(\d+\.?\d*)(½)?[-+]\d+', line, re.IGNORECASE)
             
@@ -10971,8 +11054,11 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
                 
                 teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
                 if teams_match:
-                    away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
-                    home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                    away_team = teams_match.group(1).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
+                    home_team = teams_match.group(2).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
+                    
+                    # Capture description context for period detection
+                    description_context = ' '.join(lines[max(0, i-3):min(len(lines), i+3)])
                     
                     raw_bets.append({
                         "sport": sport or 'NCAAB',
@@ -10980,7 +11066,8 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
                         "home_team": home_team,
                         "bet_type": bet_type,
                         "total_line": bet_line,
-                        "is_spread": False
+                        "is_spread": False,
+                        "description": description_context[:200]
                     })
                     logger.info(f"[History] Found TOTAL bet: {bet_type} {bet_line} ({away_team} vs {home_team})")
             
@@ -11011,8 +11098,11 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
                 
                 teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
                 if teams_match:
-                    away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
-                    home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                    away_team = teams_match.group(1).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
+                    home_team = teams_match.group(2).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
+                    
+                    # Capture description context for period detection
+                    description_context = ' '.join(lines[max(0, i-3):min(len(lines), i+3)])
                     
                     raw_bets.append({
                         "sport": sport or 'NCAAB',
@@ -11020,7 +11110,8 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
                         "home_team": home_team,
                         "bet_type": bet_type,
                         "total_line": bet_line,
-                        "is_spread": False
+                        "is_spread": False,
+                        "description": description_context[:200]
                     })
                     logger.info(f"[History] Found o/u TOTAL bet: {bet_type} {bet_line} ({away_team} vs {home_team})")
             
@@ -11050,8 +11141,11 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
                 
                 teams_match = re.search(r'\(([^)]+)\s+(?:REG\.TIME\s+)?vrs\s+([^)]+?)(?:\s+REG\.TIME)?\)', teams_text, re.IGNORECASE)
                 if teams_match:
-                    away_team = teams_match.group(1).strip().replace(' REG.TIME', '')
-                    home_team = teams_match.group(2).strip().replace(' REG.TIME', '')
+                    away_team = teams_match.group(1).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
+                    home_team = teams_match.group(2).strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
+                
+                # Capture description context
+                description_context = ' '.join(lines[max(0, i-3):min(len(lines), i+3)])
                 
                 raw_bets.append({
                     "sport": sport or 'NCAAB',
@@ -11059,7 +11153,8 @@ async def scrape_todays_history_bets(page, league: str, target_date: str) -> Lis
                     "home_team": home_team,
                     "bet_type": bet_type,
                     "spread_line": spread_value,
-                    "is_spread": True
+                    "is_spread": True,
+                    "description": description_context[:200]
                 })
                 logger.info(f"[History] Found SPREAD bet: {bet_type} ({away_team} vs {home_team})")
             
@@ -11541,13 +11636,14 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                 
                 # Check if this bet matches the current league
                 is_league_match = False
-                logger.debug(f"[Refresh Bets] Checking bet: sport={bet_sport}, away={bet_away}, home={bet_home}")
+                logger.info(f"[Refresh Bets] Checking bet: sport={bet_sport}, away={bet_away}, home={bet_home}, desc={bet_description[:80] if bet_description else 'N/A'}")
                 if league.upper() == 'NBA' and 'NBA' in bet_sport:
                     is_league_match = True
                 elif league.upper() == 'NHL':
                     # NHL bets can be marked as "NHL", "SOC", or "RBL" (for 2nd Period, Regulation Time, etc.)
                     if 'NHL' in bet_sport:
                         is_league_match = True
+                        logger.info(f"[Refresh Bets] Matched NHL sport: {bet_away} vs {bet_home}")
                     elif bet_sport == 'SOC' and ('NHL' in bet_description or 'REGULATION' in bet_description):
                         is_league_match = True
                         logger.info(f"[Refresh Bets] Matched SOC bet as NHL: {bet_away} vs {bet_home}")
@@ -11563,6 +11659,7 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                         is_league_match = True
                 
                 if not is_league_match:
+                    logger.info(f"[Refresh Bets] NO MATCH for {league}: sport={bet_sport}, desc contains hockey={('HOCKEY' in bet_description)}, nhl={('NHL' in bet_description)}")
                     continue
                 
                 # Filter by bet amount:
@@ -11911,18 +12008,51 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                 # #3.75 - Capture the bet line and type
                 bet_line = bet.get('total_line') or bet.get('line') or bet.get('total')
                 bet_type_raw = bet.get('bet_type', '')
+                bet_desc_upper = bet_description.upper() if bet_description else ''
                 
                 # Determine if this is a spread bet or total bet
                 is_spread_bet = False
                 is_total_bet = False
                 bet_type_display = bet_type_raw
                 
+                # Detect period and team total from description
+                period_prefix = ''
+                is_team_total = False
+                
+                # Check for period indicators in description
+                if '1ST PERIOD' in bet_desc_upper:
+                    period_prefix = '1P '
+                elif '2ND PERIOD' in bet_desc_upper:
+                    period_prefix = '2P '
+                elif '3RD PERIOD' in bet_desc_upper:
+                    period_prefix = '3P '
+                
+                # Check for team total (individual team total, not game total)
+                # These are bets like "Philadelphia Flyers team total / Over 0.5"
+                # We want to SKIP these - only track period totals of the full game
+                if 'TEAM TOTAL' in bet_desc_upper:
+                    is_team_total = True
+                    logger.info(f"[Refresh Bets] Skipping team-specific total bet: {bet_away} vs {bet_home} - {bet_desc_upper[:80]}")
+                    continue  # Skip this bet - we don't track individual team totals
+                
                 if 'total' in bet_type_raw.lower() or 'over' in bet_type_raw.lower() or 'under' in bet_type_raw.lower():
                     is_total_bet = True
-                    if 'over' in bet_type_raw.lower() or bet_type_raw.lower().startswith('o'):
-                        bet_type_display = 'OVER'
-                    elif 'under' in bet_type_raw.lower() or bet_type_raw.lower().startswith('u'):
-                        bet_type_display = 'UNDER'
+                    # Extract the line from bet_type if available (e.g., "TOTAL O0.5" -> 0.5)
+                    import re
+                    line_match = re.search(r'[OU](\d+\.?\d*)', bet_type_raw.upper())
+                    if line_match and not bet_line:
+                        bet_line = float(line_match.group(1))
+                    
+                    if 'over' in bet_type_raw.lower() or bet_type_raw.lower().startswith('o') or ' O' in bet_type_raw.upper():
+                        if period_prefix:
+                            bet_type_display = f'{period_prefix}O{bet_line}' if bet_line else f'{period_prefix}OVER'
+                        else:
+                            bet_type_display = 'OVER'
+                    elif 'under' in bet_type_raw.lower() or bet_type_raw.lower().startswith('u') or ' U' in bet_type_raw.upper():
+                        if period_prefix:
+                            bet_type_display = f'{period_prefix}U{bet_line}' if bet_line else f'{period_prefix}UNDER'
+                        else:
+                            bet_type_display = 'UNDER'
                 else:
                     # It's a spread bet (like "DUKE -26" or "LEHIGH -5")
                     is_spread_bet = True
@@ -16167,12 +16297,12 @@ async def update_nhl_bet_results(date: str = None):
             def normalize_team(team_str):
                 if not team_str:
                     return None
-                # Clean up REG.TIME suffix
-                team_upper = team_str.upper().strip().replace(' REG.TIME', '').replace('REG.TIME', '')
+                # Clean up REG.TIME and period suffixes
+                team_upper = team_str.upper().strip().replace(' REG.TIME', '').replace('REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
                 for key, value in NHL_TEAMS.items():
                     if key in team_upper:
                         return value
-                return team_str.strip().replace(' REG.TIME', '')
+                return team_str.strip().replace(' REG.TIME', '').replace(' 1ST PERIOD', '').replace(' 2ND PERIOD', '')
             
             # Convert date format from YYYY-MM-DD to M/DD/YYYY for matching
             date_parts = date.split('-')
@@ -18722,8 +18852,8 @@ async def scrape_first_period_bets_enano():
             
             # ===== PATTERN 3: RBL Format (2nd Period Team Total) =====
             elif is_rbl_2nd_period:
-                # Extract Over or Under and line
-                ou_match = re.search(r'(OVER|UNDER)\s*(\d)\.5', ticket_upper)
+                # Extract Over or Under and line (including 0.5)
+                ou_match = re.search(r'(OVER|UNDER)\s*(\d+)\.5', ticket_upper)
                 if ou_match:
                     bet_type = "O" if ou_match.group(1) == "OVER" else "U"
                     line_num = int(ou_match.group(2))
