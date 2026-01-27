@@ -15387,23 +15387,27 @@ async def update_nba_scores(date: str = None):
                 game['home_consensus_pct'] = home_consensus.get('consensus_pct')
                 
                 # Store spreads from Covers.com for Public Record calculation
-                if away_consensus.get('spread') is not None:
+                # Update consensus data - ONLY if not already set (don't overwrite with potentially erroneous next-day data)
+                # Covers.com sometimes has incorrect lines the day after games complete
+                if away_consensus.get('spread') is not None and game.get('away_spread') is None:
                     game['away_spread'] = away_consensus.get('spread')
                 if home_consensus.get('spread') is not None and game.get('spread') is None:
                     game['spread'] = home_consensus.get('spread')
                 
                 # Determine which team has higher consensus (the "public pick") - only if meets 61% threshold
-                if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
-                    if away_consensus['consensus_pct'] > home_consensus['consensus_pct']:
-                        # Only set public_pick if away team has 61%+
-                        if away_consensus['consensus_pct'] >= 61:
-                            game['public_pick'] = game.get('away_team')
-                            game['public_pick_pct'] = away_consensus['consensus_pct']
-                    else:
-                        # Only set public_pick if home team has 61%+
-                        if home_consensus['consensus_pct'] >= 61:
-                            game['public_pick'] = game.get('home_team')
-                            game['public_pick_pct'] = home_consensus['consensus_pct']
+                # ONLY set if not already set (preserve original consensus data)
+                if game.get('public_pick') is None:
+                    if away_consensus.get('consensus_pct') and home_consensus.get('consensus_pct'):
+                        if away_consensus['consensus_pct'] > home_consensus['consensus_pct']:
+                            # Only set public_pick if away team has 61%+
+                            if away_consensus['consensus_pct'] >= 61:
+                                game['public_pick'] = game.get('away_team')
+                                game['public_pick_pct'] = away_consensus['consensus_pct']
+                        else:
+                            # Only set public_pick if home team has 61%+
+                            if home_consensus['consensus_pct'] >= 61:
+                                game['public_pick'] = game.get('home_team')
+                                game['public_pick_pct'] = home_consensus['consensus_pct']
                 
                 line = game.get('total') or game.get('opening_line')
                 recommendation = game.get('recommendation')
@@ -19209,40 +19213,85 @@ async def scrape_first_period_bets_enano():
         traceback.print_exc()
         return {"bets": [], "summary": {}}
 async def update_first_period_bets():
-    """Update cached 1st Period bets data - REPLACES all data with fresh scrape"""
+    """Update cached 1st Period bets data - MERGES new data with existing"""
     try:
         logger.info("Updating 1st Period bets for ENANO...")
         new_data = await scrape_first_period_bets_enano()
         
-        # Get the fresh data directly from scraper - NO MERGE
-        bets = new_data.get("bets", [])
-        summary = new_data.get("summary", {})
+        # Get the fresh data from scraper
+        new_bets = new_data.get("bets", [])
         
-        # Ensure summary has all required keys
-        if not summary:
-            summary = {
-                "u15": {"wins": 0, "losses": 0, "profit": 0},
-                "u25": {"wins": 0, "losses": 0, "profit": 0},
-                "u35": {"wins": 0, "losses": 0, "profit": 0},
-                "u45": {"wins": 0, "losses": 0, "profit": 0},
-                "total": {"wins": 0, "losses": 0, "profit": 0}
-            }
+        # Get existing data from database
+        existing_data = await db.first_period_bets.find_one({"_id": "enano_bets"})
+        existing_bets = existing_data.get("bets", []) if existing_data else []
         
-        # REPLACE all data (not merge)
+        # MERGE: Add new bets that don't already exist, update existing ones
+        # Create a dict of existing bets by key (date + game)
+        bets_dict = {}
+        for bet in existing_bets:
+            key = f"{bet.get('date', '')}_{bet.get('game', '')}"
+            bets_dict[key] = bet
+        
+        # Add/update with new bets
+        bets_added = 0
+        bets_updated = 0
+        for new_bet in new_bets:
+            key = f"{new_bet.get('date', '')}_{new_bet.get('game', '')}"
+            if key not in bets_dict:
+                bets_dict[key] = new_bet
+                bets_added += 1
+                logger.info(f"[1st Period Bets] Added new game: {new_bet.get('game')} on {new_bet.get('date')}")
+            else:
+                # Update existing bet with new data (in case results changed)
+                bets_dict[key] = new_bet
+                bets_updated += 1
+        
+        # Convert back to list
+        merged_bets = list(bets_dict.values())
+        
+        # Sort bets by date (newest first)
+        merged_bets.sort(key=lambda x: x.get("date", ""), reverse=True)
+        
+        # RECALCULATE summary from ALL merged bets (not incremental)
+        merged_summary = {
+            "u15": {"wins": 0, "losses": 0, "profit": 0},
+            "u25": {"wins": 0, "losses": 0, "profit": 0},
+            "u35": {"wins": 0, "losses": 0, "profit": 0},
+            "u45": {"wins": 0, "losses": 0, "profit": 0},
+            "total": {"wins": 0, "losses": 0, "profit": 0}
+        }
+        
+        for bet in merged_bets:
+            # Check each line type (u15, u25, u35, u45)
+            for line_key in ["u15", "u25", "u35", "u45"]:
+                line_bet = bet.get(line_key)
+                if line_bet and line_bet.get("result") in ["win", "loss"]:
+                    if line_bet["result"] == "win":
+                        merged_summary[line_key]["wins"] += 1
+                        merged_summary[line_key]["profit"] += line_bet.get("win", 0)
+                        merged_summary["total"]["wins"] += 1
+                        merged_summary["total"]["profit"] += line_bet.get("win", 0)
+                    elif line_bet["result"] == "loss":
+                        merged_summary[line_key]["losses"] += 1
+                        merged_summary[line_key]["profit"] -= line_bet.get("risk", 0)
+                        merged_summary["total"]["losses"] += 1
+                        merged_summary["total"]["profit"] -= line_bet.get("risk", 0)
+        
+        # Save merged data to database
         await db.first_period_bets.update_one(
             {"_id": "enano_bets"},
             {
                 "$set": {
-                    "bets": bets,
-                    "summary": summary,
+                    "bets": merged_bets,
+                    "summary": merged_summary,
                     "last_updated": datetime.now(timezone.utc)
                 }
             },
             upsert=True
         )
         
-        logger.info(f"1st Period bets REPLACED: {len(bets)} games, Summary: {summary['total']}")
-        return {"bets": bets, "summary": summary}
+        logger.info(f"1st Period bets MERGED: {len(merged_bets)} total games (+{bets_added} new, {bets_updated} updated), Summary: {merged_summary['total']}")
+        return {"bets": merged_bets, "summary": merged_summary}
     except Exception as e:
         logger.error(f"Error updating 1st Period bets: {e}")
         import traceback
