@@ -3232,10 +3232,12 @@ export default function Opportunities() {
                       <tr className="border-b border-gray-700">
                         <th className="text-left py-2 px-2 text-gray-400 bg-gray-900">Date</th>
                         <th className="text-left py-2 px-2 text-gray-400 bg-gray-900">Game</th>
-                        <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">U1.5</th>
-                        <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">U2.5</th>
-                        <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">U3.5</th>
-                        <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">U4.5</th>
+                        <th className="text-center py-2 px-1 text-gray-400 bg-gray-900">U1.5</th>
+                        <th className="text-center py-2 px-1 text-gray-400 bg-gray-900">U2.5</th>
+                        <th className="text-center py-2 px-1 text-gray-400 bg-gray-900">U3.5</th>
+                        <th className="text-center py-2 px-1 text-gray-400 bg-gray-900">U4.5</th>
+                        <th className="text-center py-2 px-1 text-gray-400 bg-gray-900">O1.5</th>
+                        <th className="text-center py-2 px-1 text-gray-400 bg-gray-900">Reg</th>
                         <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">Bet</th>
                         <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">Result</th>
                       </tr>
@@ -3246,9 +3248,9 @@ export default function Opportunities() {
                           <tr key={idx} className="border-b border-gray-800 hover:bg-gray-800/50">
                             <td className="py-2 px-2 text-gray-300">{bet.date}</td>
                             <td className="py-2 px-2 text-white font-medium">{bet.game}</td>
-                            <td className="py-2 px-2 text-center">
+                            <td className="py-2 px-1 text-center">
                               {bet.u15 ? (
-                                <div className={`rounded px-2 py-1 ${bet.u15.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+                                <div className={`rounded px-1 py-1 ${bet.u15.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
                                   <div className={`font-bold text-xs ${bet.u15.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>
                                     {bet.u15.result === 'win' ? 'WIN' : 'LOSS'}
                                   </div>
@@ -3260,9 +3262,9 @@ export default function Opportunities() {
                                 <span className="text-gray-600">-</span>
                               )}
                             </td>
-                            <td className="py-2 px-2 text-center">
+                            <td className="py-2 px-1 text-center">
                               {bet.u25 ? (
-                                <div className={`rounded px-2 py-1 ${bet.u25.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+                                <div className={`rounded px-1 py-1 ${bet.u25.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
                                   <div className={`font-bold text-xs ${bet.u25.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>
                                     {bet.u25.result === 'win' ? 'WIN' : 'LOSS'}
                                   </div>
@@ -3274,9 +3276,9 @@ export default function Opportunities() {
                                 <span className="text-gray-600">-</span>
                               )}
                             </td>
-                            <td className="py-2 px-2 text-center">
+                            <td className="py-2 px-1 text-center">
                               {bet.u35 ? (
-                                <div className={`rounded px-2 py-1 ${bet.u35.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+                                <div className={`rounded px-1 py-1 ${bet.u35.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
                                   <div className={`font-bold text-xs ${bet.u35.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>
                                     {bet.u35.result === 'win' ? 'WIN' : 'LOSS'}
                                   </div>
@@ -3288,9 +3290,9 @@ export default function Opportunities() {
                                 <span className="text-gray-600">-</span>
                               )}
                             </td>
-                            <td className="py-2 px-2 text-center">
+                            <td className="py-2 px-1 text-center">
                               {bet.u45 ? (
-                                <div className={`rounded px-2 py-1 ${bet.u45.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+                                <div className={`rounded px-1 py-1 ${bet.u45.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
                                   <div className={`font-bold text-xs ${bet.u45.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>
                                     {bet.u45.result === 'win' ? 'WIN' : 'LOSS'}
                                   </div>
@@ -3302,9 +3304,37 @@ export default function Opportunities() {
                                 <span className="text-gray-600">-</span>
                               )}
                             </td>
+                            <td className="py-2 px-1 text-center">
+                              {bet.o15 ? (
+                                <div className={`rounded px-1 py-1 ${bet.o15.result === 'win' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+                                  <div className={`font-bold text-xs ${bet.o15.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>
+                                    {bet.o15.result === 'win' ? 'WIN' : 'LOSS'}
+                                  </div>
+                                  <div className={`text-[10px] ${bet.o15.result === 'win' ? 'text-green-300' : 'text-red-300'}`}>
+                                    ${bet.o15.risk?.toLocaleString()}→{bet.o15.result === 'win' ? '$' + bet.o15.win?.toLocaleString() : '-$' + bet.o15.risk?.toLocaleString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-600">-</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-1 text-center">
+                              {bet.reg_u65 ? (
+                                <div className={`rounded px-1 py-1 ${bet.reg_u65.result === 'win' ? 'bg-blue-900/30' : 'bg-red-900/30'}`}>
+                                  <div className={`font-bold text-xs ${bet.reg_u65.result === 'win' ? 'text-blue-400' : 'text-red-400'}`}>
+                                    {bet.reg_u65.result === 'win' ? 'WIN' : 'LOSS'}
+                                  </div>
+                                  <div className={`text-[10px] ${bet.reg_u65.result === 'win' ? 'text-blue-300' : 'text-red-300'}`}>
+                                    ${bet.reg_u65.risk?.toLocaleString()}→{bet.reg_u65.result === 'win' ? '$' + bet.reg_u65.win?.toLocaleString() : '-$' + bet.reg_u65.risk?.toLocaleString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-600">-</span>
+                              )}
+                            </td>
                             <td className="py-2 px-2 text-center">
                               <span className="text-yellow-400 font-medium">
-                                ${((bet.u15?.risk || 0) + (bet.u25?.risk || 0) + (bet.u35?.risk || 0) + (bet.u45?.risk || 0)).toLocaleString()}
+                                ${((bet.u15?.risk || 0) + (bet.u25?.risk || 0) + (bet.u35?.risk || 0) + (bet.u45?.risk || 0) + (bet.o15?.risk || 0) + (bet.reg_u65?.risk || 0)).toLocaleString()}
                               </span>
                             </td>
                             <td className="py-2 px-2 text-center">
@@ -3316,7 +3346,7 @@ export default function Opportunities() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="8" className="py-8 text-center text-gray-500">
+                          <td colSpan="10" className="py-8 text-center text-gray-500">
                             No 1st Period bets found. Click "Update Scores" to refresh data from plays888.co
                           </td>
                         </tr>
@@ -3330,39 +3360,51 @@ export default function Opportunities() {
                           <td colSpan="2" className="py-2 px-2 text-gray-300 text-sm">
                             Tracked ({firstPeriodBets.bets?.length} games)
                           </td>
-                          <td className="py-2 px-2 text-center">
+                          <td className="py-2 px-1 text-center">
                             <div className="text-xs text-gray-400">
-                              {firstPeriodBets.bets_only_summary?.u15?.wins || firstPeriodBets.bets?.filter(b => b.u15?.result === 'win').length || 0}W-
-                              {firstPeriodBets.bets_only_summary?.u15?.losses || firstPeriodBets.bets?.filter(b => b.u15?.result === 'loss').length || 0}L
+                              {firstPeriodBets.bets?.filter(b => b.u15?.result === 'win').length || 0}W-
+                              {firstPeriodBets.bets?.filter(b => b.u15?.result === 'loss').length || 0}L
                             </div>
                           </td>
-                          <td className="py-2 px-2 text-center">
+                          <td className="py-2 px-1 text-center">
                             <div className="text-xs text-gray-400">
-                              {firstPeriodBets.bets_only_summary?.u25?.wins || firstPeriodBets.bets?.filter(b => b.u25?.result === 'win').length || 0}W-
-                              {firstPeriodBets.bets_only_summary?.u25?.losses || firstPeriodBets.bets?.filter(b => b.u25?.result === 'loss').length || 0}L
+                              {firstPeriodBets.bets?.filter(b => b.u25?.result === 'win').length || 0}W-
+                              {firstPeriodBets.bets?.filter(b => b.u25?.result === 'loss').length || 0}L
                             </div>
                           </td>
-                          <td className="py-2 px-2 text-center">
+                          <td className="py-2 px-1 text-center">
                             <div className="text-xs text-gray-400">
-                              {firstPeriodBets.bets_only_summary?.u35?.wins || firstPeriodBets.bets?.filter(b => b.u35?.result === 'win').length || 0}W-
-                              {firstPeriodBets.bets_only_summary?.u35?.losses || firstPeriodBets.bets?.filter(b => b.u35?.result === 'loss').length || 0}L
+                              {firstPeriodBets.bets?.filter(b => b.u35?.result === 'win').length || 0}W-
+                              {firstPeriodBets.bets?.filter(b => b.u35?.result === 'loss').length || 0}L
                             </div>
                           </td>
-                          <td className="py-2 px-2 text-center">
+                          <td className="py-2 px-1 text-center">
                             <div className="text-xs text-gray-400">
-                              {firstPeriodBets.bets_only_summary?.u45?.wins || firstPeriodBets.bets?.filter(b => b.u45?.result === 'win').length || 0}W-
-                              {firstPeriodBets.bets_only_summary?.u45?.losses || firstPeriodBets.bets?.filter(b => b.u45?.result === 'loss').length || 0}L
+                              {firstPeriodBets.bets?.filter(b => b.u45?.result === 'win').length || 0}W-
+                              {firstPeriodBets.bets?.filter(b => b.u45?.result === 'loss').length || 0}L
+                            </div>
+                          </td>
+                          <td className="py-2 px-1 text-center">
+                            <div className="text-xs text-gray-400">
+                              {firstPeriodBets.bets?.filter(b => b.o15?.result === 'win').length || 0}W-
+                              {firstPeriodBets.bets?.filter(b => b.o15?.result === 'loss').length || 0}L
+                            </div>
+                          </td>
+                          <td className="py-2 px-1 text-center">
+                            <div className="text-xs text-blue-400">
+                              {firstPeriodBets.bets?.filter(b => b.reg_u65?.result === 'win').length || 0}W-
+                              {firstPeriodBets.bets?.filter(b => b.reg_u65?.result === 'loss').length || 0}L
                             </div>
                           </td>
                           <td className="py-2 px-2 text-center">
                             <span className="text-yellow-400 text-sm">
-                              ${firstPeriodBets.bets?.reduce((sum, b) => sum + (b.u15?.risk || 0) + (b.u25?.risk || 0) + (b.u35?.risk || 0) + (b.u45?.risk || 0), 0).toLocaleString()}
+                              ${firstPeriodBets.bets?.reduce((sum, b) => sum + (b.u15?.risk || 0) + (b.u25?.risk || 0) + (b.u35?.risk || 0) + (b.u45?.risk || 0) + (b.o15?.risk || 0) + (b.reg_u65?.risk || 0), 0).toLocaleString()}
                             </span>
                           </td>
                           <td className="py-2 px-2 text-center">
-                            <span className={`font-bold text-sm ${(firstPeriodBets.bets_only_summary?.total?.profit || firstPeriodBets.bets?.reduce((sum, b) => sum + (b.result || 0), 0) || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                              {(firstPeriodBets.bets_only_summary?.total?.profit || firstPeriodBets.bets?.reduce((sum, b) => sum + (b.result || 0), 0) || 0) >= 0 ? '+' : ''}
-                              ${Math.abs(firstPeriodBets.bets_only_summary?.total?.profit || firstPeriodBets.bets?.reduce((sum, b) => sum + (b.result || 0), 0) || 0).toLocaleString()}
+                            <span className={`font-bold text-sm ${(firstPeriodBets.bets?.reduce((sum, b) => sum + (b.result || 0), 0) || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {(firstPeriodBets.bets?.reduce((sum, b) => sum + (b.result || 0), 0) || 0) >= 0 ? '+' : ''}
+                              ${Math.abs(firstPeriodBets.bets?.reduce((sum, b) => sum + (b.result || 0), 0) || 0).toLocaleString()}
                             </span>
                           </td>
                         </tr>
@@ -3370,30 +3412,41 @@ export default function Opportunities() {
                         <tr className="border-t-2 border-purple-500/50 bg-purple-900/90">
                           <td colSpan="2" className="py-3 px-2 text-white font-bold">
                             SEASON TOTAL
-                            {firstPeriodBets.baseline_summary && <span className="text-xs text-purple-300 ml-1">(incl. baseline)</span>}
                           </td>
-                          <td className="py-3 px-2 text-center">
+                          <td className="py-3 px-1 text-center">
                             <div className="text-xs text-gray-400">{firstPeriodBets.summary?.u15?.wins || 0}W-{firstPeriodBets.summary?.u15?.losses || 0}L</div>
                             <div className={`font-bold text-xs ${(firstPeriodBets.summary?.u15?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                               {(firstPeriodBets.summary?.u15?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.u15?.profit || 0).toLocaleString()}
                             </div>
                           </td>
-                          <td className="py-3 px-2 text-center">
+                          <td className="py-3 px-1 text-center">
                             <div className="text-xs text-gray-400">{firstPeriodBets.summary?.u25?.wins || 0}W-{firstPeriodBets.summary?.u25?.losses || 0}L</div>
                             <div className={`font-bold text-xs ${(firstPeriodBets.summary?.u25?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                               {(firstPeriodBets.summary?.u25?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.u25?.profit || 0).toLocaleString()}
                             </div>
                           </td>
-                          <td className="py-3 px-2 text-center">
+                          <td className="py-3 px-1 text-center">
                             <div className="text-xs text-gray-400">{firstPeriodBets.summary?.u35?.wins || 0}W-{firstPeriodBets.summary?.u35?.losses || 0}L</div>
                             <div className={`font-bold text-xs ${(firstPeriodBets.summary?.u35?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                               {(firstPeriodBets.summary?.u35?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.u35?.profit || 0).toLocaleString()}
                             </div>
                           </td>
-                          <td className="py-3 px-2 text-center">
+                          <td className="py-3 px-1 text-center">
                             <div className="text-xs text-gray-400">{firstPeriodBets.summary?.u45?.wins || 0}W-{firstPeriodBets.summary?.u45?.losses || 0}L</div>
                             <div className={`font-bold text-xs ${(firstPeriodBets.summary?.u45?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                               {(firstPeriodBets.summary?.u45?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.u45?.profit || 0).toLocaleString()}
+                            </div>
+                          </td>
+                          <td className="py-3 px-1 text-center">
+                            <div className="text-xs text-gray-400">{firstPeriodBets.summary?.o15?.wins || 0}W-{firstPeriodBets.summary?.o15?.losses || 0}L</div>
+                            <div className={`font-bold text-xs ${(firstPeriodBets.summary?.o15?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {(firstPeriodBets.summary?.o15?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.o15?.profit || 0).toLocaleString()}
+                            </div>
+                          </td>
+                          <td className="py-3 px-1 text-center">
+                            <div className="text-xs text-blue-400">{firstPeriodBets.summary?.reg_u65?.wins || 0}W-{firstPeriodBets.summary?.reg_u65?.losses || 0}L</div>
+                            <div className={`font-bold text-xs ${(firstPeriodBets.summary?.reg_u65?.profit || 0) >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                              {(firstPeriodBets.summary?.reg_u65?.profit || 0) >= 0 ? '+' : ''}${Math.abs(firstPeriodBets.summary?.reg_u65?.profit || 0).toLocaleString()}
                             </div>
                           </td>
                           <td className="py-3 px-2 text-center">
