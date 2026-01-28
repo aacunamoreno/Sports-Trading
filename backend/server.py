@@ -2178,18 +2178,33 @@ async def add_bet_to_compilation(account: str, bet_details: dict):
             "created_at": datetime.now(timezone.utc)
         }
         await db.daily_compilations.insert_one(compilation)
-    else:
-        # Check if ticket already exists in compilation - prevent duplicates
-        existing_tickets = [b.get('ticket') for b in compilation.get('bets', [])]
-        if ticket in existing_tickets:
-            logger.debug(f"Ticket {ticket} already in compilation for {account}, skipping")
-            return
     
-    # Add bet to compilation
-    await db.daily_compilations.update_one(
-        {"account": account, "date": today},
+    # ALWAYS check if ticket already exists - prevent duplicates (moved outside else block)
+    existing_tickets = [b.get('ticket') for b in compilation.get('bets', [])]
+    if ticket and ticket in existing_tickets:
+        logger.debug(f"Ticket {ticket} already in compilation for {account}, skipping")
+        return
+    
+    # Use atomic operation to prevent race conditions
+    # Only add if ticket doesn't already exist
+    result = await db.daily_compilations.update_one(
+        {
+            "account": account, 
+            "date": today,
+            "bets.ticket": {"$ne": ticket}  # Only update if ticket NOT in bets
+        },
         {"$push": {"bets": bet_entry}}
     )
+    
+    # Check if bet was actually added (modified_count > 0)
+    if result.modified_count == 0:
+        # Ticket might already exist (race condition) - verify
+        existing = await db.daily_compilations.find_one(
+            {"account": account, "date": today, "bets.ticket": ticket}
+        )
+        if existing:
+            logger.debug(f"Ticket {ticket} already in compilation for {account} (race condition prevented)")
+            return
     
     # Update Telegram message
     await update_compilation_message(account)
@@ -2272,6 +2287,51 @@ async def send_telegram_notification(bet_details: dict, account: str = None):
         
     except Exception as e:
         logger.error(f"Failed to send Telegram notification: {str(e)}")
+
+
+async def cleanup_duplicate_bets_in_compilations():
+    """Remove duplicate bets from all compilations based on ticket number"""
+    from zoneinfo import ZoneInfo
+    arizona_tz = ZoneInfo('America/Phoenix')
+    today = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    
+    cleaned = {"jac075": 0, "jac083": 0}
+    
+    for account in ["jac075", "jac083"]:
+        compilation = await db.daily_compilations.find_one({
+            "account": account,
+            "date": today
+        })
+        
+        if not compilation or not compilation.get('bets'):
+            continue
+        
+        bets = compilation['bets']
+        seen_tickets = set()
+        unique_bets = []
+        duplicates_removed = 0
+        
+        for bet in bets:
+            ticket = bet.get('ticket')
+            if ticket and ticket not in seen_tickets:
+                seen_tickets.add(ticket)
+                unique_bets.append(bet)
+            elif ticket:
+                duplicates_removed += 1
+                logger.info(f"[Cleanup] Removing duplicate ticket {ticket} from {account}")
+        
+        if duplicates_removed > 0:
+            await db.daily_compilations.update_one(
+                {"account": account, "date": today},
+                {"$set": {"bets": unique_bets}}
+            )
+            cleaned[account] = duplicates_removed
+            logger.info(f"[Cleanup] Removed {duplicates_removed} duplicate bets from {account}'s compilation")
+            
+            # Update Telegram message after cleanup
+            await update_compilation_message(account)
+    
+    return cleaned
 
 
 async def get_plays888_daily_totals(username: str, password: str) -> dict:
@@ -6809,6 +6869,24 @@ async def cleanup_telegram_messages():
         }
     except Exception as e:
         logger.error(f"Cleanup error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/telegram/cleanup-duplicates")
+async def cleanup_duplicate_bets():
+    """Remove duplicate bets from today's compilations and refresh Telegram messages"""
+    try:
+        result = await cleanup_duplicate_bets_in_compilations()
+        
+        total_removed = sum(result.values())
+        
+        return {
+            "success": True,
+            "message": f"Removed {total_removed} duplicate bets",
+            "details": result
+        }
+    except Exception as e:
+        logger.error(f"Duplicate cleanup error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/telegram/scheduled-deletions")
