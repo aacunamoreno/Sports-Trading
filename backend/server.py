@@ -19275,43 +19275,53 @@ async def scrape_first_period_bets_enano():
                                     inputs[i].value = "{week['range']}";
                                     // Trigger change event
                                     inputs[i].dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                    return true;
+                                    return {{ success: true, oldValue: val, newValue: inputs[i].value }};
                                 }}
                             }}
                             // Also try by looking for specific patterns
                             var allInputs = document.getElementsByTagName('input');
                             for (var i = 0; i < allInputs.length; i++) {{
                                 if (allInputs[i].value && allInputs[i].value.match(/\\d{{2}}\\/\\d{{2}}\\/\\d{{4}}\\s*To/)) {{
+                                    var oldVal = allInputs[i].value;
                                     allInputs[i].value = "{week['range']}";
                                     allInputs[i].dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                    return true;
+                                    return {{ success: true, oldValue: oldVal, newValue: allInputs[i].value }};
                                 }}
                             }}
-                            return false;
+                            return {{ success: false }};
                         }})()
                     '''
                     
                     result = await service.page.evaluate(js_code)
-                    logger.info(f"[1st Period Bets] Set date via JS for week {idx+1}: {result}")
+                    logger.info(f"[1st Period Bets] Week {idx+1}: Set date input: {result}")
                     
-                    await service.page.wait_for_timeout(500)
+                    await service.page.wait_for_timeout(300)
                     
-                    # Find and click Submit button
-                    submit_btn = await service.page.query_selector('input[type="submit"][value="Submit"], input[value="Submit"]')
-                    if submit_btn:
-                        await submit_btn.click()
-                        await service.page.wait_for_load_state('networkidle')
-                        await service.page.wait_for_timeout(2000)
+                    # Click Submit and wait for navigation using Promise.all pattern
+                    try:
+                        # This ensures we wait for the page to actually navigate
+                        async with service.page.expect_navigation(timeout=15000, wait_until='networkidle'):
+                            await service.page.click('input[type="submit"][value="Submit"]')
+                        await service.page.wait_for_timeout(1000)
+                    except Exception as nav_err:
+                        logger.warning(f"[1st Period Bets] Week {idx+1} navigation: {nav_err}")
+                        # Try alternative: just click and wait
+                        await service.page.click('input[type="submit"][value="Submit"]')
+                        await service.page.wait_for_timeout(3000)
                     
                     # Get page content
                     page_text = await service.page.inner_text('body')
                     
+                    # Extract the actual displayed date range from the page to verify it changed
+                    displayed_match = re.search(r'From\s+(\d{2}/\d{2}/\d{4})\s+to\s+(\d{2}/\d{2}/\d{4})', page_text, re.IGNORECASE)
+                    displayed_range = displayed_match.group(0) if displayed_match else "unknown"
+                    
                     # Check if there's any betting data in this week
                     if 'STRAIGHT BET' in page_text.upper() or 'TOTAL' in page_text.upper():
-                        all_page_text += f"\n\n=== WEEK {idx+1}: {week['range']} ===\n\n" + page_text
-                        logger.info(f"[1st Period Bets] Week {idx+1}/{len(week_ranges)}: {week['range']} - Found data ({len(page_text)} chars)")
+                        all_page_text += f"\n\n=== WEEK {idx+1}: {week['range']} (displayed: {displayed_range}) ===\n\n" + page_text
+                        logger.info(f"[1st Period Bets] Week {idx+1}/{len(week_ranges)}: Requested {week['range']}, Page shows: {displayed_range}, {len(page_text)} chars")
                     else:
-                        logger.info(f"[1st Period Bets] Week {idx+1}/{len(week_ranges)}: {week['range']} - No betting data")
+                        logger.info(f"[1st Period Bets] Week {idx+1}/{len(week_ranges)}: {week['range']} - No betting data (page shows: {displayed_range})")
                     
                 except Exception as e:
                     logger.warning(f"[1st Period Bets] Error on week {week['range']}: {e}")
