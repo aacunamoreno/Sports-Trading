@@ -19261,63 +19261,69 @@ async def scrape_first_period_bets_enano():
             
             logger.info(f"[1st Period Bets] Will iterate through {len(week_ranges)} weeks")
             
-            # Find the date input field
-            # Looking at the HTML, it appears to be a text input
-            date_input = await service.page.query_selector('input[type="text"]')
-            
-            if not date_input:
-                # Try other selectors
-                date_input = await service.page.query_selector('input[id*="date" i], input[name*="date" i], input[class*="date" i]')
-            
-            if date_input:
-                logger.info("[1st Period Bets] Found date input field")
-                
-                for idx, week in enumerate(week_ranges):
+            for idx, week in enumerate(week_ranges):
+                try:
+                    # Use JavaScript to set the date input value directly
+                    # This bypasses the date picker UI
+                    js_code = f'''
+                        (function() {{
+                            // Find the date input - it's the first text input in the form
+                            var inputs = document.querySelectorAll('input[type="text"]');
+                            for (var i = 0; i < inputs.length; i++) {{
+                                var val = inputs[i].value;
+                                if (val && val.includes('To')) {{
+                                    inputs[i].value = "{week['range']}";
+                                    // Trigger change event
+                                    inputs[i].dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    return true;
+                                }}
+                            }}
+                            // Also try by looking for specific patterns
+                            var allInputs = document.getElementsByTagName('input');
+                            for (var i = 0; i < allInputs.length; i++) {{
+                                if (allInputs[i].value && allInputs[i].value.match(/\\d{{2}}\\/\\d{{2}}\\/\\d{{4}}\\s*To/)) {{
+                                    allInputs[i].value = "{week['range']}";
+                                    allInputs[i].dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    return true;
+                                }}
+                            }}
+                            return false;
+                        }})()
+                    '''
+                    
+                    result = await service.page.evaluate(js_code)
+                    logger.info(f"[1st Period Bets] Set date via JS for week {idx+1}: {result}")
+                    
+                    await service.page.wait_for_timeout(500)
+                    
+                    # Find and click Submit button
+                    submit_btn = await service.page.query_selector('input[type="submit"][value="Submit"], input[value="Submit"]')
+                    if submit_btn:
+                        await submit_btn.click()
+                        await service.page.wait_for_load_state('networkidle')
+                        await service.page.wait_for_timeout(2000)
+                    
+                    # Get page content
+                    page_text = await service.page.inner_text('body')
+                    
+                    # Check if there's any betting data in this week
+                    if 'STRAIGHT BET' in page_text.upper() or 'TOTAL' in page_text.upper():
+                        all_page_text += f"\n\n=== WEEK {idx+1}: {week['range']} ===\n\n" + page_text
+                        logger.info(f"[1st Period Bets] Week {idx+1}/{len(week_ranges)}: {week['range']} - Found data ({len(page_text)} chars)")
+                    else:
+                        logger.info(f"[1st Period Bets] Week {idx+1}/{len(week_ranges)}: {week['range']} - No betting data")
+                    
+                except Exception as e:
+                    logger.warning(f"[1st Period Bets] Error on week {week['range']}: {e}")
+                    # Try to recover by reloading the page
                     try:
-                        # Clear and fill the date input
-                        await date_input.click()
-                        await date_input.fill('')
-                        await service.page.wait_for_timeout(300)
-                        await date_input.fill(week['range'])
-                        await service.page.wait_for_timeout(300)
-                        
-                        # Find and click Submit button
-                        submit_btn = await service.page.query_selector('input[type="submit"][value="Submit"], input[value="Submit"], button:has-text("Submit")')
-                        if submit_btn:
-                            await submit_btn.click()
-                            await service.page.wait_for_load_state('networkidle')
-                            await service.page.wait_for_timeout(1500)
-                        
-                        # Get page content
-                        page_text = await service.page.inner_text('body')
-                        
-                        # Check if there's any betting data in this week
-                        if 'STRAIGHT BET' in page_text.upper() or 'NHL' in page_text.upper() or 'RBL' in page_text.upper():
-                            all_page_text += f"\n\n=== WEEK {idx+1}: {week['range']} ===\n\n" + page_text
-                            logger.info(f"[1st Period Bets] Week {idx+1}/{len(week_ranges)}: {week['range']} - Found data ({len(page_text)} chars)")
-                        else:
-                            logger.info(f"[1st Period Bets] Week {idx+1}/{len(week_ranges)}: {week['range']} - No betting data")
-                        
-                        # Re-find date input after page reload
-                        date_input = await service.page.query_selector('input[type="text"]')
-                        if not date_input:
-                            date_input = await service.page.query_selector('input[id*="date" i], input[name*="date" i]')
-                        
-                    except Exception as e:
-                        logger.warning(f"[1st Period Bets] Error on week {week['range']}: {e}")
-                        # Try to recover
-                        try:
-                            await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
-                            await service.page.wait_for_load_state('networkidle')
-                            date_input = await service.page.query_selector('input[type="text"]')
-                        except:
-                            pass
-                        continue
-            else:
-                # No date input found, just get current page
-                logger.warning("[1st Period Bets] No date input found, getting current page only")
-                all_page_text = await service.page.inner_text('body')
-                
+                        await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
+                        await service.page.wait_for_load_state('networkidle')
+                        await service.page.wait_for_timeout(1000)
+                    except:
+                        pass
+                    continue
+                    
         except Exception as e:
             logger.error(f"[1st Period Bets] Error iterating weeks: {e}")
             import traceback
