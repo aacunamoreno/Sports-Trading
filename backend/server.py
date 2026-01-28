@@ -19196,6 +19196,8 @@ async def scrape_first_period_bets_enano():
     """
     Scrape 1st Period NHL bets from plays888.co History page for ENANO (jac075).
     Returns list of bets grouped by game with U1.5, U2.5, U3.5, U4.5 columns.
+    
+    Attempts to get full season history by selecting date range if available.
     """
     import re
     from collections import defaultdict
@@ -19219,23 +19221,90 @@ async def scrape_first_period_bets_enano():
         # Navigate to History page
         await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
         await service.page.wait_for_load_state('networkidle')
-        await service.page.wait_for_timeout(3000)
+        await service.page.wait_for_timeout(2000)
         
         logger.info("[1st Period Bets] Navigated to History page")
         
-        # Get the raw page text
-        page_text = await service.page.inner_text('body')
+        # Try to select "All" or expand date range to get full history
+        all_page_text = ""
+        
+        try:
+            # Look for a dropdown or selector to show more history
+            # Common patterns: "Show All", "All Time", date range selectors
+            
+            # Try to find and click "All" option in any dropdown
+            all_selector = await service.page.query_selector('select option[value*="all" i], select option:contains("All")')
+            if all_selector:
+                parent_select = await all_selector.evaluate_handle('el => el.closest("select")')
+                if parent_select:
+                    await parent_select.select_option(label="All")
+                    await service.page.wait_for_timeout(2000)
+                    logger.info("[1st Period Bets] Selected 'All' option")
+            
+            # Try to find date range inputs and set to season start
+            start_date_input = await service.page.query_selector('input[type="date"][name*="start" i], input[id*="from" i], input[name*="from" i]')
+            if start_date_input:
+                # Set start date to October 1st (NHL season start)
+                await start_date_input.fill('2025-10-01')
+                logger.info("[1st Period Bets] Set start date to 2025-10-01")
+                
+                # Try to submit/refresh
+                submit_btn = await service.page.query_selector('input[type="submit"], button[type="submit"]')
+                if submit_btn:
+                    await submit_btn.click()
+                    await service.page.wait_for_load_state('networkidle')
+                    await service.page.wait_for_timeout(3000)
+                    logger.info("[1st Period Bets] Submitted date filter")
+            
+            # Check for pagination and collect all pages
+            page_num = 1
+            max_pages = 20  # Safety limit
+            
+            while page_num <= max_pages:
+                # Get current page text
+                page_text = await service.page.inner_text('body')
+                all_page_text += page_text + "\n\n"
+                logger.info(f"[1st Period Bets] Collected page {page_num}, text length: {len(page_text)}")
+                
+                # Look for "Next" button or page numbers
+                next_btn = await service.page.query_selector('a:has-text("Next"), a:has-text(">>"), input[value="Next"]')
+                if next_btn:
+                    is_disabled = await next_btn.get_attribute('disabled')
+                    if is_disabled:
+                        logger.info("[1st Period Bets] Next button disabled, reached last page")
+                        break
+                    
+                    await next_btn.click()
+                    await service.page.wait_for_load_state('networkidle')
+                    await service.page.wait_for_timeout(2000)
+                    page_num += 1
+                else:
+                    # No next button, check for numbered pagination
+                    next_page = await service.page.query_selector(f'a:has-text("{page_num + 1}")')
+                    if next_page:
+                        await next_page.click()
+                        await service.page.wait_for_load_state('networkidle')
+                        await service.page.wait_for_timeout(2000)
+                        page_num += 1
+                    else:
+                        logger.info(f"[1st Period Bets] No more pages found after page {page_num}")
+                        break
+            
+        except Exception as e:
+            logger.warning(f"[1st Period Bets] Error trying to expand history: {e}")
+            # Fall back to just getting current page
+            all_page_text = await service.page.inner_text('body')
         
         await service.close()
         
-        logger.info(f"[1st Period Bets] Page text length: {len(page_text)}")
+        logger.info(f"[1st Period Bets] Total collected text length: {len(all_page_text)}")
         
         # Store all individual bets
         all_bets = []
         
         # Split text into ticket sections by date pattern
         ticket_pattern = r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{1,2}:\d{2}\s*(?:AM|PM))'
-        parts = re.split(ticket_pattern, page_text, flags=re.IGNORECASE)
+        parts = re.split(ticket_pattern, all_page_text, flags=re.IGNORECASE)
         
         # Reconstruct tickets
         tickets = []
@@ -19708,6 +19777,8 @@ async def get_first_period_bets():
             return {
                 "bets": cached.get("bets", []),
                 "summary": cached.get("summary", {}),
+                "baseline_summary": cached.get("baseline_summary"),  # Include baseline info for frontend
+                "bets_only_summary": cached.get("bets_only_summary"),  # Summary of just tracked bets
                 "last_updated": cached.get("last_updated")
             }
         
@@ -19720,6 +19791,8 @@ async def get_first_period_bets():
                 "u45": {"wins": 0, "losses": 0, "profit": 0},
                 "total": {"wins": 0, "losses": 0, "profit": 0}
             },
+            "baseline_summary": None,
+            "bets_only_summary": None,
             "last_updated": None
         }
     except Exception as e:
