@@ -19263,30 +19263,39 @@ async def scrape_first_period_bets_enano():
             
             for idx, week in enumerate(week_ranges):
                 try:
-                    # Use JavaScript to set the date input value directly
-                    # This bypasses the date picker UI
+                    # Use JavaScript to set the date input value AND submit the form
+                    # ASP.NET forms can be tricky with click events, so we submit directly
                     js_code = f'''
                         (function() {{
                             // Find the date input - it's the first text input in the form
                             var inputs = document.querySelectorAll('input[type="text"]');
+                            var dateInput = null;
+                            
                             for (var i = 0; i < inputs.length; i++) {{
                                 var val = inputs[i].value;
                                 if (val && val.includes('To')) {{
-                                    inputs[i].value = "{week['range']}";
-                                    // Trigger change event
-                                    inputs[i].dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                    return {{ success: true, oldValue: val, newValue: inputs[i].value }};
+                                    dateInput = inputs[i];
+                                    break;
                                 }}
                             }}
-                            // Also try by looking for specific patterns
-                            var allInputs = document.getElementsByTagName('input');
-                            for (var i = 0; i < allInputs.length; i++) {{
-                                if (allInputs[i].value && allInputs[i].value.match(/\\d{{2}}\\/\\d{{2}}\\/\\d{{4}}\\s*To/)) {{
-                                    var oldVal = allInputs[i].value;
-                                    allInputs[i].value = "{week['range']}";
-                                    allInputs[i].dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                    return {{ success: true, oldValue: oldVal, newValue: allInputs[i].value }};
+                            
+                            if (!dateInput) {{
+                                // Also try by looking for specific patterns
+                                var allInputs = document.getElementsByTagName('input');
+                                for (var i = 0; i < allInputs.length; i++) {{
+                                    if (allInputs[i].value && allInputs[i].value.match(/\\d{{2}}\\/\\d{{2}}\\/\\d{{4}}\\s*To/)) {{
+                                        dateInput = allInputs[i];
+                                        break;
+                                    }}
                                 }}
+                            }}
+                            
+                            if (dateInput) {{
+                                var oldVal = dateInput.value;
+                                dateInput.value = "{week['range']}";
+                                // Trigger change event
+                                dateInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                return {{ success: true, oldValue: oldVal, newValue: dateInput.value }};
                             }}
                             return {{ success: false }};
                         }})()
@@ -19295,19 +19304,38 @@ async def scrape_first_period_bets_enano():
                     result = await service.page.evaluate(js_code)
                     logger.info(f"[1st Period Bets] Week {idx+1}: Set date input: {result}")
                     
-                    await service.page.wait_for_timeout(300)
+                    await service.page.wait_for_timeout(500)
                     
-                    # Click Submit and wait for navigation using Promise.all pattern
+                    # Submit the form using JavaScript - more reliable than clicking
+                    submit_js = '''
+                        (function() {
+                            // Try to find and click the submit button via JS
+                            var submitBtn = document.querySelector('input[type="submit"][value="Submit"]');
+                            if (submitBtn) {
+                                submitBtn.click();
+                                return { method: 'button_click', found: true };
+                            }
+                            
+                            // Alternative: submit the form directly
+                            var form = document.querySelector('form[name="aspnetForm"]') || document.querySelector('form');
+                            if (form) {
+                                form.submit();
+                                return { method: 'form_submit', found: true };
+                            }
+                            
+                            return { method: 'none', found: false };
+                        })()
+                    '''
+                    
+                    submit_result = await service.page.evaluate(submit_js)
+                    logger.info(f"[1st Period Bets] Week {idx+1}: Submit method: {submit_result}")
+                    
+                    # Wait for the page to load after form submission
                     try:
-                        # This ensures we wait for the page to actually navigate
-                        async with service.page.expect_navigation(timeout=15000, wait_until='networkidle'):
-                            await service.page.click('input[type="submit"][value="Submit"]')
-                        await service.page.wait_for_timeout(1000)
-                    except Exception as nav_err:
-                        logger.warning(f"[1st Period Bets] Week {idx+1} navigation: {nav_err}")
-                        # Try alternative: just click and wait
-                        await service.page.click('input[type="submit"][value="Submit"]')
-                        await service.page.wait_for_timeout(3000)
+                        await service.page.wait_for_load_state('networkidle', timeout=15000)
+                    except:
+                        pass
+                    await service.page.wait_for_timeout(2000)
                     
                     # Get page content
                     page_text = await service.page.inner_text('body')
