@@ -8704,31 +8704,197 @@ async def populate_ppg_and_dots_for_tomorrow(scraped_ppg_data=None, target_date=
             
             edge_threshold = edge_thresholds.get(league, 8)
             
+            # NCAAB team name normalization mapping (Plays888 -> TeamRankings)
+            ncaab_name_map = {
+                # State abbreviations
+                'Miss Valley St.': 'Mississippi Valley State', 'Miss. Valley St.': 'Mississippi Valley State',
+                'Southern U.': 'Southern', 'Southern Univ.': 'Southern',
+                'Illinois St.': 'Illinois State', 'Murray St.': 'Murray State',
+                'La. Tech': 'Louisiana Tech', 'Utah St.': 'Utah State',
+                'Wash. St.': 'Washington State', 'Oregon St.': 'Oregon State',
+                'Colo. St.': 'Colorado State', 'San Diego St.': 'San Diego State',
+                'San Fran.': 'San Francisco', 'Fla. St.': 'Florida State',
+                'Florida St.': 'Florida State', 'Michigan St.': 'Michigan State',
+                'Ohio St.': 'Ohio State', 'Penn St.': 'Penn State',
+                'Iowa St.': 'Iowa State', 'Kansas St.': 'Kansas State',
+                'Boise St.': 'Boise State', 'Fresno St.': 'Fresno State',
+                'Arizona St.': 'Arizona State', 'Ball St.': 'Ball State',
+                'Kent St.': 'Kent State', 'N.C. State': 'NC State',
+                'NC State': 'NC State', 'Appalachian St.': 'Appalachian State',
+                'Georgia St.': 'Georgia State', 'Wichita St.': 'Wichita State',
+                'Wright St.': 'Wright State', 'Youngstown St.': 'Youngstown State',
+                'Portland St.': 'Portland State', 'Sacramento St.': 'Sacramento State',
+                'San Jose St.': 'San Jose State', 'Idaho St.': 'Idaho State',
+                'Weber St.': 'Weber State', 'Montana St.': 'Montana State',
+                'N. Dakota St.': 'North Dakota State', 'S. Dakota St.': 'South Dakota State',
+                'Morehead St.': 'Morehead State', 'E. Kentucky': 'Eastern Kentucky',
+                'W. Kentucky': 'Western Kentucky', 'E. Michigan': 'Eastern Michigan',
+                'W. Michigan': 'Western Michigan', 'N. Illinois': 'Northern Illinois',
+                'S. Illinois': 'Southern Illinois', 'E. Illinois': 'Eastern Illinois',
+                'W. Illinois': 'Western Illinois', 'SE Missouri St.': 'Southeast Missouri State',
+                'SE Missouri': 'Southeast Missouri State', 'SIU Edwardsville': 'SIU-Edwardsville',
+                'UT Martin': 'Tennessee-Martin', 'Ark.-Pine Bluff': 'Arkansas-Pine Bluff',
+                'UAPB': 'Arkansas-Pine Bluff', 'Alcorn St.': 'Alcorn State',
+                'Jackson St.': 'Jackson State', 'Grambling St.': 'Grambling',
+                'Grambling': 'Grambling', 'Prairie View': 'Prairie View A&M',
+                'Texas Southern': 'Texas Southern', 'Alabama St.': 'Alabama State',
+                'Alabama A&M': 'Alabama A&M', 'Bethune-Cookman': 'Bethune-Cookman',
+                'Fla. A&M': 'Florida A&M', 'FAMU': 'Florida A&M',
+                'N.C. A&T': 'NC A&T', 'NC A&T': 'NC A&T',
+                'Norfolk St.': 'Norfolk State', 'Morgan St.': 'Morgan State',
+                'Delaware St.': 'Delaware State', 'Coppin St.': 'Coppin State',
+                'S.C. State': 'South Carolina State', 'SC State': 'South Carolina State',
+                'Howard': 'Howard', 'Hampton': 'Hampton',
+                # Directional schools
+                'N. Colorado': 'Northern Colorado', 'N. Arizona': 'Northern Arizona',
+                'N. Iowa': 'Northern Iowa', 'S. Alabama': 'South Alabama',
+                'S. Carolina': 'South Carolina', 'N. Carolina': 'North Carolina',
+                'W. Virginia': 'West Virginia', 'E. Carolina': 'East Carolina',
+                'E. Washington': 'Eastern Washington', 'C. Michigan': 'Central Michigan',
+                'C. Arkansas': 'Central Arkansas', 'C. Connecticut': 'Central Connecticut',
+                'Cent. Arkansas': 'Central Arkansas', 'Cent. Michigan': 'Central Michigan',
+                # Texas schools
+                'Texas A&M': 'Texas A&M', 'UTEP': 'UTEP', 'UTSA': 'UTSA',
+                'UT Arlington': 'Texas-Arlington', 'UTA': 'Texas-Arlington',
+                'UT Rio Grande': 'Texas-Rio Grande Valley', 'UTRGV': 'Texas-Rio Grande Valley',
+                'Texas St.': 'Texas State', 'Sam Houston': 'Sam Houston State',
+                'Sam Houston St.': 'Sam Houston State', 'Stephen F. Austin': 'Stephen F. Austin',
+                'SFA': 'Stephen F. Austin', 'Abilene Christian': 'Abilene Christian',
+                'Tarleton St.': 'Tarleton State', 'Lamar': 'Lamar',
+                # California schools
+                'USC': 'USC', 'UCLA': 'UCLA', 'Cal': 'California',
+                'Cal St. Fullerton': 'Cal State Fullerton', 'CSUF': 'Cal State Fullerton',
+                'Cal St. Northridge': 'Cal State Northridge', 'CSUN': 'Cal State Northridge',
+                'Long Beach St.': 'Long Beach State', 'Cal Poly': 'Cal Poly',
+                'UC Davis': 'UC Davis', 'UC Irvine': 'UC Irvine',
+                'UC Riverside': 'UC Riverside', 'UC San Diego': 'UC San Diego',
+                'UC Santa Barbara': 'UC Santa Barbara', 'UCSB': 'UC Santa Barbara',
+                'Pepperdine': 'Pepperdine', 'LMU': 'Loyola Marymount',
+                'Loyola Marymount': 'Loyola Marymount', 'Santa Clara': 'Santa Clara',
+                'San Diego': 'San Diego', 'Pacific': 'Pacific',
+                'St. Mary\'s': 'Saint Mary\'s', "Saint Mary's": "Saint Mary's",
+                'Gonzaga': 'Gonzaga', 'Portland': 'Portland',
+                # Other common variations
+                'UConn': 'Connecticut', 'Connecticut': 'Connecticut',
+                'UMass': 'Massachusetts', 'Massachusetts': 'Massachusetts',
+                'Miami': 'Miami', 'Miami (FL)': 'Miami', 'Miami FL': 'Miami',
+                'Miami (OH)': 'Miami (OH)', 'Miami OH': 'Miami (OH)',
+                'St. John\'s': "St. John's", "St. John's": "St. John's",
+                'St. Joseph\'s': "Saint Joseph's", "Saint Joseph's": "Saint Joseph's",
+                'St. Peter\'s': "Saint Peter's", 'St. Bonaventure': 'St. Bonaventure',
+                'Loyola-Md.': 'Loyola (MD)', 'Loyola MD': 'Loyola (MD)',
+                'Loyola Chicago': 'Loyola Chicago', 'Loyola-Chicago': 'Loyola Chicago',
+                'VCU': 'VCU', 'SMU': 'SMU', 'TCU': 'TCU', 'BYU': 'BYU',
+                'LSU': 'LSU', 'Ole Miss': 'Ole Miss', 'Miss. St.': 'Mississippi State',
+                'Mississippi St.': 'Mississippi State', 'Miss St.': 'Mississippi State',
+                'Ark. St.': 'Arkansas State', 'Arkansas St.': 'Arkansas State',
+                'Tulsa': 'Tulsa', 'Tulane': 'Tulane', 'Memphis': 'Memphis',
+                'Cincinnati': 'Cincinnati', 'UCF': 'UCF', 'USF': 'South Florida',
+                'South Florida': 'South Florida', 'Temple': 'Temple',
+                'La Salle': 'La Salle', 'Duquesne': 'Duquesne',
+                'Dayton': 'Dayton', 'Xavier': 'Xavier', 'Butler': 'Butler',
+                'Creighton': 'Creighton', 'Marquette': 'Marquette',
+                'DePaul': 'DePaul', 'Providence': 'Providence',
+                'Villanova': 'Villanova', 'Seton Hall': 'Seton Hall',
+                'Georgetown': 'Georgetown', 'Syracuse': 'Syracuse',
+                'Pittsburgh': 'Pittsburgh', 'Pitt': 'Pittsburgh',
+                'Notre Dame': 'Notre Dame', 'Boston College': 'Boston College',
+                'Wake Forest': 'Wake Forest', 'Duke': 'Duke',
+                'Virginia': 'Virginia', 'Virginia Tech': 'Virginia Tech',
+                'Louisville': 'Louisville', 'Clemson': 'Clemson',
+                'Georgia Tech': 'Georgia Tech', 'Ga. Tech': 'Georgia Tech',
+                'Northwestern': 'Northwestern', 'Wisconsin': 'Wisconsin',
+                'Minnesota': 'Minnesota', 'Nebraska': 'Nebraska',
+                'Purdue': 'Purdue', 'Indiana': 'Indiana', 'Illinois': 'Illinois',
+                'Maryland': 'Maryland', 'Rutgers': 'Rutgers',
+                'N\'western': 'Northwestern', 'N. Western': 'Northwestern',
+                'Seattle': 'Seattle', 'Seattle U': 'Seattle',
+                'Army': 'Army', 'Navy': 'Navy', 'Air Force': 'Air Force',
+                'Lehigh': 'Lehigh', 'Bucknell': 'Bucknell', 'Colgate': 'Colgate',
+                'Lafayette': 'Lafayette', 'American': 'American',
+                'Boston U': 'Boston University', 'Boston U.': 'Boston University',
+                'Holy Cross': 'Holy Cross', 'Fordham': 'Fordham',
+                'Richmond': 'Richmond', 'Davidson': 'Davidson',
+                'George Mason': 'George Mason', 'GMU': 'George Mason',
+                'George Washington': 'George Washington', 'GW': 'George Washington',
+                'St. Louis': 'Saint Louis', 'Saint Louis': 'Saint Louis',
+                'UNC': 'North Carolina', 'North Carolina': 'North Carolina',
+                'Stanford': 'Stanford', 'Oregon': 'Oregon', 'Washington': 'Washington',
+                'Colorado': 'Colorado', 'Utah': 'Utah', 'Arizona': 'Arizona',
+                'USC': 'USC', 'Cal': 'California', 'California': 'California',
+                # Queens and other newer teams
+                'Queens': 'Queens (NC)', 'Queens NC': 'Queens (NC)',
+                'Bellarmine': 'Bellarmine', 'Lindenwood': 'Lindenwood',
+                'Southern Ind.': 'Southern Indiana', 'Southern Indiana': 'Southern Indiana',
+                'Stonehill': 'Stonehill', 'Le Moyne': 'Le Moyne',
+                'Mercyhurst': 'Mercyhurst',
+                # More state schools
+                'Texas': 'Texas', 'Oklahoma': 'Oklahoma', 'Oklahoma St.': 'Oklahoma State',
+                'Baylor': 'Baylor', 'Kansas': 'Kansas', 'Houston': 'Houston',
+                'Auburn': 'Auburn', 'Alabama': 'Alabama', 'Tennessee': 'Tennessee',
+                'Kentucky': 'Kentucky', 'Florida': 'Florida', 'Georgia': 'Georgia',
+                'Vanderbilt': 'Vanderbilt', 'Arkansas': 'Arkansas',
+                'Missouri': 'Missouri', 'Texas Tech': 'Texas Tech',
+                'Iowa': 'Iowa', 'Michigan': 'Michigan',
+            }
+            
+            def normalize_ncaab_team(name, ppg_dict):
+                """Try to find team in PPG dict with normalization"""
+                if not name:
+                    return name
+                # Direct match
+                if name in ppg_dict:
+                    return name
+                # Try mapped name
+                if name in ncaab_name_map:
+                    mapped = ncaab_name_map[name]
+                    if mapped in ppg_dict:
+                        return mapped
+                # Try case-insensitive match
+                name_lower = name.lower()
+                for key in ppg_dict:
+                    if key.lower() == name_lower:
+                        return key
+                # Try partial match (team name contains)
+                for key in ppg_dict:
+                    if name_lower in key.lower() or key.lower() in name_lower:
+                        return key
+                # Return original if no match found
+                return name
+            
             # Process each game
             for game in games:
                 away = game.get('away_team') or game.get('away', '')
                 home = game.get('home_team') or game.get('home', '')
                 total = game.get('total')
                 
+                # Normalize team names for NCAAB
+                if league == 'NCAAB':
+                    away_normalized = normalize_ncaab_team(away, ppg_season)
+                    home_normalized = normalize_ncaab_team(home, ppg_season)
+                else:
+                    away_normalized = away
+                    home_normalized = home
+                
                 logger.info(f"[8PM Job #2] Processing: {away} @ {home}, total={total}")
                 
-                # Get rankings
-                away_season_rank = ppg_season.get(away, 16)
-                away_last3_rank = ppg_last3.get(away, 16)
-                home_season_rank = ppg_season.get(home, 16)
-                home_last3_rank = ppg_last3.get(home, 16)
+                # Get rankings using normalized names
+                away_season_rank = ppg_season.get(away_normalized, 16)
+                away_last3_rank = ppg_last3.get(away_normalized, 16)
+                home_season_rank = ppg_season.get(home_normalized, 16)
+                home_last3_rank = ppg_last3.get(home_normalized, 16)
                 
                 # Debug: Check if team was found
-                if away not in ppg_season:
-                    logger.warning(f"[8PM Job #2] Team NOT FOUND in ppg_season: '{away}'")
-                if home not in ppg_season:
-                    logger.warning(f"[8PM Job #2] Team NOT FOUND in ppg_season: '{home}'")
+                if away_normalized not in ppg_season:
+                    logger.warning(f"[8PM Job #2] Team NOT FOUND in ppg_season: '{away}' (tried: '{away_normalized}')")
+                if home_normalized not in ppg_season:
+                    logger.warning(f"[8PM Job #2] Team NOT FOUND in ppg_season: '{home}' (tried: '{home_normalized}')")
                 
-                # Get PPG values
-                away_season_ppg = ppg_season_values.get(away, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 20.0))
-                away_last3_ppg = ppg_last3_values.get(away, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 20.0))
-                home_season_ppg = ppg_season_values.get(home, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 20.0))
-                home_last3_ppg = ppg_last3_values.get(home, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 20.0))
+                # Get PPG values using normalized names
+                away_season_ppg = ppg_season_values.get(away_normalized, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 70.0))
+                away_last3_ppg = ppg_last3_values.get(away_normalized, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 70.0))
+                home_season_ppg = ppg_season_values.get(home_normalized, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 70.0))
+                home_last3_ppg = ppg_last3_values.get(home_normalized, 100.0 if league == 'NBA' else (3.0 if league == 'NHL' else 70.0))
                 
                 # Calculate combined PPG using the formula:
                 # (Team1 Season PPG + Team2 Season PPG + Team1 L3 PPG + Team2 L3 PPG) / 2
