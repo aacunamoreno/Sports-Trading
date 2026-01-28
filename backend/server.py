@@ -390,6 +390,8 @@ async def monitoring_loop():
     except Exception as e:
         logger.error(f"Error checking for missed checks: {e}")
     
+    consecutive_errors = 0  # Track consecutive errors for aggressive cleanup
+    
     while True:
         loop_iteration += 1
         try:
@@ -404,18 +406,33 @@ async def monitoring_loop():
                     except Exception as cleanup_err:
                         logger.warning(f"Browser cleanup warning: {cleanup_err}")
                 
+                # If we've had 3+ consecutive errors, do aggressive cleanup
+                if consecutive_errors >= 3:
+                    logger.warning(f"[Loop #{loop_iteration}] {consecutive_errors} consecutive errors - triggering aggressive cleanup")
+                    await aggressive_resource_cleanup()
+                    consecutive_errors = 0  # Reset after cleanup
+                
                 # Run monitoring check - wrapped in its own try/except
                 logger.info(f"[Loop #{loop_iteration}] Starting monitoring cycle...")
                 try:
                     await run_monitoring_cycle()
                     logger.info(f"[Loop #{loop_iteration}] Monitoring cycle completed successfully")
+                    consecutive_errors = 0  # Reset on success
                 except Exception as e:
-                    logger.error(f"[Loop #{loop_iteration}] Monitoring cycle error (loop continues): {str(e)}", exc_info=True)
-                    # After an error, try to cleanup any orphaned browsers
-                    try:
+                    consecutive_errors += 1
+                    error_msg = str(e)
+                    logger.error(f"[Loop #{loop_iteration}] Monitoring cycle error #{consecutive_errors} (loop continues): {error_msg}", exc_info=True)
+                    
+                    # Check for resource-related errors
+                    if 'Resource temporarily unavailable' in error_msg or 'Target crashed' in error_msg or 'Timeout' in error_msg:
+                        logger.warning(f"[Loop #{loop_iteration}] Resource error detected - running cleanup")
                         await cleanup_zombie_browsers()
-                    except:
-                        pass
+                    else:
+                        # After any error, try to cleanup any orphaned browsers
+                        try:
+                            await cleanup_zombie_browsers()
+                        except:
+                            pass
                 
                 # Fixed 5 minute interval
                 next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
@@ -464,24 +481,55 @@ async def cleanup_zombie_browsers():
     """Kill any zombie chromium processes that might be lingering"""
     import subprocess
     try:
-        # Kill any orphaned chromium processes older than 5 minutes
+        # Kill any orphaned chromium processes
         result = subprocess.run(
-            ['pkill', '-f', 'chromium'],
+            ['pkill', '-9', '-f', 'chromium'],
             capture_output=True,
             timeout=5
         )
         if result.returncode == 0:
             logger.info("[Cleanup] Killed orphaned chromium processes")
+        
+        # Also kill any playwright processes
+        subprocess.run(['pkill', '-9', '-f', 'playwright'], capture_output=True, timeout=5)
+        
+        # Kill any node processes that might be stuck
+        subprocess.run(['pkill', '-9', '-f', 'node.*playwright'], capture_output=True, timeout=5)
+        
     except subprocess.TimeoutExpired:
-        logger.warning("[Cleanup] Timeout killing chromium processes")
+        logger.warning("[Cleanup] Timeout killing processes")
     except FileNotFoundError:
         # pkill not available, try alternative
         try:
-            subprocess.run(['killall', 'chromium'], capture_output=True, timeout=5)
+            subprocess.run(['killall', '-9', 'chromium'], capture_output=True, timeout=5)
         except:
             pass
     except Exception as e:
-        logger.debug(f"[Cleanup] No chromium processes to kill or error: {e}")
+        logger.debug(f"[Cleanup] No processes to kill or error: {e}")
+
+
+async def aggressive_resource_cleanup():
+    """More aggressive cleanup when system is in trouble"""
+    import subprocess
+    import gc
+    
+    logger.warning("[AGGRESSIVE CLEANUP] Starting emergency resource cleanup...")
+    
+    try:
+        # Force kill ALL chromium processes
+        subprocess.run(['pkill', '-9', 'chromium'], capture_output=True, timeout=10)
+        subprocess.run(['pkill', '-9', 'chrome'], capture_output=True, timeout=10)
+        subprocess.run(['pkill', '-9', '-f', 'playwright'], capture_output=True, timeout=10)
+        
+        # Force Python garbage collection
+        gc.collect()
+        
+        # Wait a moment for resources to be freed
+        await asyncio.sleep(3)
+        
+        logger.warning("[AGGRESSIVE CLEANUP] Completed - resources should be freed")
+    except Exception as e:
+        logger.error(f"[AGGRESSIVE CLEANUP] Error during cleanup: {e}")
 
 
 async def run_monitoring_cycle():
