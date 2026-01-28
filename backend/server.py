@@ -19197,13 +19197,14 @@ async def scrape_first_period_bets_enano():
     Scrape 1st Period NHL bets from plays888.co History page for ENANO (jac075).
     Returns list of bets grouped by game with U1.5, U2.5, U3.5, U4.5 columns.
     
-    Attempts to get full season history by selecting date range if available.
+    Iterates through all weeks from NHL season start to get full history.
     """
     import re
     from collections import defaultdict
+    from datetime import datetime, timedelta
     
     try:
-        logger.info("[1st Period Bets] Starting scrape for ENANO...")
+        logger.info("[1st Period Bets] Starting FULL SEASON scrape for ENANO...")
         
         # Initialize browser service
         service = Plays888Service()
@@ -19225,74 +19226,100 @@ async def scrape_first_period_bets_enano():
         
         logger.info("[1st Period Bets] Navigated to History page")
         
-        # Try to select "All" or expand date range to get full history
+        # Collect all page text from all weeks
         all_page_text = ""
         
         try:
-            # Look for a dropdown or selector to show more history
-            # Common patterns: "Show All", "All Time", date range selectors
+            # Find the Week Date dropdown
+            week_dropdown = await service.page.query_selector('select, input[type="text"][id*="date" i], input[id*="week" i]')
             
-            # Try to find and click "All" option in any dropdown
-            all_selector = await service.page.query_selector('select option[value*="all" i], select option:contains("All")')
-            if all_selector:
-                parent_select = await all_selector.evaluate_handle('el => el.closest("select")')
-                if parent_select:
-                    await parent_select.select_option(label="All")
-                    await service.page.wait_for_timeout(2000)
-                    logger.info("[1st Period Bets] Selected 'All' option")
-            
-            # Try to find date range inputs and set to season start
-            start_date_input = await service.page.query_selector('input[type="date"][name*="start" i], input[id*="from" i], input[name*="from" i]')
-            if start_date_input:
-                # Set start date to October 1st (NHL season start)
-                await start_date_input.fill('2025-10-01')
-                logger.info("[1st Period Bets] Set start date to 2025-10-01")
+            if week_dropdown:
+                # Get all available week options
+                tag_name = await week_dropdown.evaluate('el => el.tagName.toLowerCase()')
                 
-                # Try to submit/refresh
-                submit_btn = await service.page.query_selector('input[type="submit"], button[type="submit"]')
-                if submit_btn:
-                    await submit_btn.click()
-                    await service.page.wait_for_load_state('networkidle')
-                    await service.page.wait_for_timeout(3000)
-                    logger.info("[1st Period Bets] Submitted date filter")
-            
-            # Check for pagination and collect all pages
-            page_num = 1
-            max_pages = 20  # Safety limit
-            
-            while page_num <= max_pages:
-                # Get current page text
-                page_text = await service.page.inner_text('body')
-                all_page_text += page_text + "\n\n"
-                logger.info(f"[1st Period Bets] Collected page {page_num}, text length: {len(page_text)}")
-                
-                # Look for "Next" button or page numbers
-                next_btn = await service.page.query_selector('a:has-text("Next"), a:has-text(">>"), input[value="Next"]')
-                if next_btn:
-                    is_disabled = await next_btn.get_attribute('disabled')
-                    if is_disabled:
-                        logger.info("[1st Period Bets] Next button disabled, reached last page")
-                        break
+                if tag_name == 'select':
+                    # It's a dropdown - get all options
+                    options = await service.page.query_selector_all('select option')
+                    option_values = []
+                    for opt in options:
+                        value = await opt.get_attribute('value')
+                        text = await opt.inner_text()
+                        if value:
+                            option_values.append({'value': value, 'text': text})
                     
-                    await next_btn.click()
-                    await service.page.wait_for_load_state('networkidle')
-                    await service.page.wait_for_timeout(2000)
-                    page_num += 1
+                    logger.info(f"[1st Period Bets] Found {len(option_values)} week options in dropdown")
+                    
+                    # Iterate through each week
+                    for idx, opt in enumerate(option_values):
+                        try:
+                            await week_dropdown.select_option(value=opt['value'])
+                            
+                            # Click Submit button
+                            submit_btn = await service.page.query_selector('input[type="submit"][value="Submit"], button:has-text("Submit")')
+                            if submit_btn:
+                                await submit_btn.click()
+                                await service.page.wait_for_load_state('networkidle')
+                                await service.page.wait_for_timeout(1500)
+                            
+                            # Get page content
+                            page_text = await service.page.inner_text('body')
+                            all_page_text += f"\n\n=== WEEK: {opt['text']} ===\n\n" + page_text
+                            
+                            logger.info(f"[1st Period Bets] Collected week {idx+1}/{len(option_values)}: {opt['text']}")
+                            
+                            # Re-find dropdown after page reload
+                            week_dropdown = await service.page.query_selector('select')
+                            
+                        except Exception as e:
+                            logger.warning(f"[1st Period Bets] Error on week {opt['text']}: {e}")
+                            continue
                 else:
-                    # No next button, check for numbered pagination
-                    next_page = await service.page.query_selector(f'a:has-text("{page_num + 1}")')
-                    if next_page:
-                        await next_page.click()
-                        await service.page.wait_for_load_state('networkidle')
-                        await service.page.wait_for_timeout(2000)
-                        page_num += 1
-                    else:
-                        logger.info(f"[1st Period Bets] No more pages found after page {page_num}")
-                        break
-            
+                    # It's a date input - try to set date ranges manually
+                    # Generate weeks from October 2025 to now
+                    from zoneinfo import ZoneInfo
+                    arizona_tz = ZoneInfo('America/Phoenix')
+                    
+                    season_start = datetime(2025, 10, 1)
+                    today = datetime.now(arizona_tz).replace(tzinfo=None)
+                    
+                    current_week_start = season_start
+                    week_num = 0
+                    
+                    while current_week_start < today:
+                        week_end = current_week_start + timedelta(days=6)
+                        date_range = f"{current_week_start.strftime('%m/%d/%Y')} To {week_end.strftime('%m/%d/%Y')}"
+                        
+                        try:
+                            # Try to set the date input
+                            await week_dropdown.fill(date_range)
+                            
+                            submit_btn = await service.page.query_selector('input[type="submit"][value="Submit"], button:has-text("Submit")')
+                            if submit_btn:
+                                await submit_btn.click()
+                                await service.page.wait_for_load_state('networkidle')
+                                await service.page.wait_for_timeout(1500)
+                            
+                            page_text = await service.page.inner_text('body')
+                            all_page_text += f"\n\n=== WEEK: {date_range} ===\n\n" + page_text
+                            
+                            week_num += 1
+                            logger.info(f"[1st Period Bets] Collected week {week_num}: {date_range}")
+                            
+                            # Re-find input
+                            week_dropdown = await service.page.query_selector('input[type="text"][id*="date" i], input[id*="week" i]')
+                            
+                        except Exception as e:
+                            logger.warning(f"[1st Period Bets] Error on week {date_range}: {e}")
+                        
+                        current_week_start = week_end + timedelta(days=1)
+            else:
+                # No dropdown found, just get current page
+                logger.warning("[1st Period Bets] No week selector found, getting current page only")
+                all_page_text = await service.page.inner_text('body')
+                
         except Exception as e:
-            logger.warning(f"[1st Period Bets] Error trying to expand history: {e}")
-            # Fall back to just getting current page
+            logger.error(f"[1st Period Bets] Error iterating weeks: {e}")
+            # Fall back to current page
             all_page_text = await service.page.inner_text('body')
         
         await service.close()
