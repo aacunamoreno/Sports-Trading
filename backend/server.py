@@ -19798,6 +19798,8 @@ async def get_first_period_bets():
     Combines:
     1. Historical weeks from first_period_bets_history collection
     2. Current week scrape from first_period_bets collection
+    
+    Deduplicates by date+game to avoid counting same bet twice.
     """
     try:
         # Get current week data (scraped)
@@ -19807,22 +19809,29 @@ async def get_first_period_bets():
         # Get all historical weeks
         historical_weeks = await db.first_period_bets_history.find({}).to_list(100)
         
-        # Combine all bets
-        all_bets = []
+        # Use a dict to deduplicate by date+game
+        bets_dict = {}
         
         # Add historical bets first (older weeks)
         for week in historical_weeks:
             week_bets = week.get("bets", [])
             for bet in week_bets:
-                # Mark as historical
-                bet["source"] = "history"
-                bet["week_id"] = week.get("_id", "unknown")
-                all_bets.append(bet)
+                key = f"{bet.get('date', '')}_{bet.get('game', '')}"
+                if key not in bets_dict:
+                    bet["source"] = "history"
+                    bet["week_id"] = week.get("_id", "unknown")
+                    bets_dict[key] = bet
         
-        # Add current week bets
+        # Add current week bets (will NOT overwrite historical - history takes precedence)
+        # This prevents duplicates when current week overlaps with a backed-up week
         for bet in current_bets:
-            bet["source"] = "current"
-            all_bets.append(bet)
+            key = f"{bet.get('date', '')}_{bet.get('game', '')}"
+            if key not in bets_dict:
+                bet["source"] = "current"
+                bets_dict[key] = bet
+        
+        # Convert back to list
+        all_bets = list(bets_dict.values())
         
         # Sort all bets by date (newest first)
         all_bets.sort(key=lambda x: x.get("date", ""), reverse=True)
@@ -19859,6 +19868,8 @@ async def get_first_period_bets():
         # Count weeks
         historical_count = len(historical_weeks)
         current_count = 1 if current_bets else 0
+        
+        logger.info(f"[1st Period Bets] GET: {len(all_bets)} games (deduped), {combined_summary['total']['wins']}W-{combined_summary['total']['losses']}L, ${combined_summary['total']['profit']:+,.2f}")
         
         return {
             "bets": all_bets,
