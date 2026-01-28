@@ -1717,48 +1717,8 @@ async def build_enano_comparison_message() -> str:
         else:
             today_bets.append(bet)
     
-    # Find ENANO-only bets (not in TIPSTER) - track matched bets to handle duplicates
-    enano_only_bets = []
-    matched_enano_indices = set()  # Track which ENANO bets were matched
-    
-    # First, identify which ENANO bets match TIPSTER bets
-    for tipster_bet in tipster_bets:
-        tipster_game = tipster_bet.get('game_short', tipster_bet.get('game', '')).upper()
-        tipster_game_full = tipster_bet.get('game', '').upper()
-        tipster_type = tipster_bet.get('bet_type_short', tipster_bet.get('bet_type', '')).upper()
-        
-        for i, enano_bet in enumerate(enano_bets):
-            if i in matched_enano_indices:
-                continue  # Already matched to another TIPSTER bet
-            
-            enano_game = enano_bet.get('game_short', enano_bet.get('game', '')).upper()
-            enano_game_full = enano_bet.get('game', '').upper()
-            enano_type = enano_bet.get('bet_type_short', enano_bet.get('bet_type', '')).upper()
-            
-            game_match = enano_game in tipster_game or tipster_game in enano_game
-            
-            if not game_match and enano_game_full and tipster_game_full:
-                # Exclude common words that don't identify specific games
-                exclude_words = {'GAMES', 'GAME', 'TOTAL', 'OVER', 'UNDER', 'STRAIGHT', 'BET', 'VRS', 'THE'}
-                enano_words = set(enano_game_full.replace('VS', ' ').replace('/', ' ').replace(',', ' ').split())
-                tipster_words = set(tipster_game_full.replace('VS', ' ').replace('/', ' ').replace(',', ' ').split())
-                # Filter out common/excluded words
-                enano_words = {w for w in enano_words if w not in exclude_words}
-                tipster_words = {w for w in tipster_words if w not in exclude_words}
-                common_words = enano_words & tipster_words
-                significant_common = [w for w in common_words if len(w) > 3]
-                if len(significant_common) >= 1:
-                    game_match = True
-            
-            if game_match:
-                # Same game = match (regardless of bet type)
-                matched_enano_indices.add(i)
-                break  # Only match one ENANO bet per TIPSTER bet
-    
-    # Unmatched ENANO bets go to ENANO Only
-    for i, enano_bet in enumerate(enano_bets):
-        if i not in matched_enano_indices:
-            enano_only_bets.append(enano_bet)
+    # Note: enano_only_bets will be calculated AFTER processing all bets
+    # using shown_enano_indices to know which ENANO bets were actually displayed
     
     bet_num = 1
     
