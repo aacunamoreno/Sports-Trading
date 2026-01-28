@@ -3145,16 +3145,29 @@ export default function Opportunities() {
                 ×
               </button>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-gray-400 mb-2">
               NHL 1st Period Under bets placed by ENANO (Jac075) - 2025-2026 Season
             </p>
+            
+            {/* Baseline info if exists */}
+            {firstPeriodBets.baseline_summary && (
+              <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg px-3 py-2 mb-4">
+                <p className="text-xs text-yellow-400">
+                  ⚠️ El summary incluye historial previo no detallado: {firstPeriodBets.baseline_summary.total?.wins || 0}W-{firstPeriodBets.baseline_summary.total?.losses || 0}L 
+                  ({firstPeriodBets.baseline_summary.total?.profit >= 0 ? '+' : ''}${(firstPeriodBets.baseline_summary.total?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2})})
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  La tabla muestra solo los {firstPeriodBets.bets?.length || 0} juegos más recientes trackeados individualmente.
+                </p>
+              </div>
+            )}
             
             {loadingFirstPeriodBets ? (
               <div className="text-center py-8 text-gray-400">Loading bets from plays888.co...</div>
             ) : (
               <>
                 {/* Summary by line */}
-                <div className="grid grid-cols-5 gap-3 mb-6">
+                <div className="grid grid-cols-5 gap-3 mb-4">
                   <div className="bg-gray-800/50 rounded-lg p-3 text-center">
                     <div className="text-xs text-gray-400">TOTAL</div>
                     <div className="text-lg font-bold">
@@ -3213,7 +3226,7 @@ export default function Opportunities() {
                 </div>
 
                 {/* Bets table with scroll */}
-                <div className="max-h-[45vh] overflow-y-auto overflow-x-auto border border-gray-700 rounded-lg">
+                <div className="max-h-[60vh] overflow-y-auto overflow-x-auto border border-gray-700 rounded-lg">
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-gray-900 z-10">
                       <tr className="border-b border-gray-700">
@@ -3312,8 +3325,53 @@ export default function Opportunities() {
                     {/* Total footer row - sticky at bottom */}
                     {firstPeriodBets.bets?.length > 0 && (
                       <tfoot className="sticky bottom-0 z-10">
+                        {/* Row for tracked bets only (shown in table) */}
+                        <tr className="border-t-2 border-gray-600 bg-gray-800/90">
+                          <td colSpan="2" className="py-2 px-2 text-gray-300 text-sm">
+                            Tracked ({firstPeriodBets.bets?.length} games)
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            <div className="text-xs text-gray-400">
+                              {firstPeriodBets.bets_only_summary?.u15?.wins || firstPeriodBets.bets?.filter(b => b.u15?.result === 'win').length || 0}W-
+                              {firstPeriodBets.bets_only_summary?.u15?.losses || firstPeriodBets.bets?.filter(b => b.u15?.result === 'loss').length || 0}L
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            <div className="text-xs text-gray-400">
+                              {firstPeriodBets.bets_only_summary?.u25?.wins || firstPeriodBets.bets?.filter(b => b.u25?.result === 'win').length || 0}W-
+                              {firstPeriodBets.bets_only_summary?.u25?.losses || firstPeriodBets.bets?.filter(b => b.u25?.result === 'loss').length || 0}L
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            <div className="text-xs text-gray-400">
+                              {firstPeriodBets.bets_only_summary?.u35?.wins || firstPeriodBets.bets?.filter(b => b.u35?.result === 'win').length || 0}W-
+                              {firstPeriodBets.bets_only_summary?.u35?.losses || firstPeriodBets.bets?.filter(b => b.u35?.result === 'loss').length || 0}L
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            <div className="text-xs text-gray-400">
+                              {firstPeriodBets.bets_only_summary?.u45?.wins || firstPeriodBets.bets?.filter(b => b.u45?.result === 'win').length || 0}W-
+                              {firstPeriodBets.bets_only_summary?.u45?.losses || firstPeriodBets.bets?.filter(b => b.u45?.result === 'loss').length || 0}L
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            <span className="text-yellow-400 text-sm">
+                              ${firstPeriodBets.bets?.reduce((sum, b) => sum + (b.u15?.risk || 0) + (b.u25?.risk || 0) + (b.u35?.risk || 0) + (b.u45?.risk || 0), 0).toLocaleString()}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            <span className={`font-bold text-sm ${(firstPeriodBets.bets_only_summary?.total?.profit || firstPeriodBets.bets?.reduce((sum, b) => sum + (b.result || 0), 0) || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {(firstPeriodBets.bets_only_summary?.total?.profit || firstPeriodBets.bets?.reduce((sum, b) => sum + (b.result || 0), 0) || 0) >= 0 ? '+' : ''}
+                              ${Math.abs(firstPeriodBets.bets_only_summary?.total?.profit || firstPeriodBets.bets?.reduce((sum, b) => sum + (b.result || 0), 0) || 0).toLocaleString()}
+                            </span>
+                          </td>
+                        </tr>
+                        {/* Grand total row (includes baseline) */}
                         <tr className="border-t-2 border-purple-500/50 bg-purple-900/90">
-                          <td colSpan="2" className="py-3 px-2 text-white font-bold">TOTAL ({firstPeriodBets.bets?.length} games)</td>
+                          <td colSpan="2" className="py-3 px-2 text-white font-bold">
+                            SEASON TOTAL
+                            {firstPeriodBets.baseline_summary && <span className="text-xs text-purple-300 ml-1">(incl. baseline)</span>}
+                          </td>
                           <td className="py-3 px-2 text-center">
                             <div className="text-xs text-gray-400">{firstPeriodBets.summary?.u15?.wins || 0}W-{firstPeriodBets.summary?.u15?.losses || 0}L</div>
                             <div className={`font-bold text-xs ${(firstPeriodBets.summary?.u15?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -3339,9 +3397,7 @@ export default function Opportunities() {
                             </div>
                           </td>
                           <td className="py-3 px-2 text-center">
-                            <span className="text-yellow-400 font-bold">
-                              ${firstPeriodBets.bets?.reduce((sum, b) => sum + (b.u15?.risk || 0) + (b.u25?.risk || 0) + (b.u35?.risk || 0) + (b.u45?.risk || 0), 0).toLocaleString()}
-                            </span>
+                            <span className="text-yellow-400 font-bold">-</span>
                           </td>
                           <td className="py-3 px-2 text-center">
                             <span className={`font-bold text-lg ${(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
