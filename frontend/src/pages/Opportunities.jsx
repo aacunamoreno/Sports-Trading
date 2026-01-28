@@ -3212,19 +3212,19 @@ export default function Opportunities() {
                   </div>
                 </div>
 
-                {/* Bets table */}
-                <div className="overflow-x-auto">
+                {/* Bets table with scroll */}
+                <div className="max-h-[45vh] overflow-y-auto overflow-x-auto border border-gray-700 rounded-lg">
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 bg-gray-900 z-10">
                       <tr className="border-b border-gray-700">
-                        <th className="text-left py-2 px-2 text-gray-400">Date</th>
-                        <th className="text-left py-2 px-2 text-gray-400">Game</th>
-                        <th className="text-center py-2 px-2 text-gray-400">U1.5</th>
-                        <th className="text-center py-2 px-2 text-gray-400">U2.5</th>
-                        <th className="text-center py-2 px-2 text-gray-400">U3.5</th>
-                        <th className="text-center py-2 px-2 text-gray-400">U4.5</th>
-                        <th className="text-center py-2 px-2 text-gray-400">Bet</th>
-                        <th className="text-center py-2 px-2 text-gray-400">Result</th>
+                        <th className="text-left py-2 px-2 text-gray-400 bg-gray-900">Date</th>
+                        <th className="text-left py-2 px-2 text-gray-400 bg-gray-900">Game</th>
+                        <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">U1.5</th>
+                        <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">U2.5</th>
+                        <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">U3.5</th>
+                        <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">U4.5</th>
+                        <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">Bet</th>
+                        <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">Result</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3309,10 +3309,10 @@ export default function Opportunities() {
                         </tr>
                       )}
                     </tbody>
-                    {/* Total footer row */}
+                    {/* Total footer row - sticky at bottom */}
                     {firstPeriodBets.bets?.length > 0 && (
-                      <tfoot>
-                        <tr className="border-t-2 border-purple-500/50 bg-purple-900/20">
+                      <tfoot className="sticky bottom-0 z-10">
+                        <tr className="border-t-2 border-purple-500/50 bg-purple-900/90">
                           <td colSpan="2" className="py-3 px-2 text-white font-bold">TOTAL ({firstPeriodBets.bets?.length} games)</td>
                           <td className="py-3 px-2 text-center">
                             <div className="text-xs text-gray-400">{firstPeriodBets.summary?.u15?.wins || 0}W-{firstPeriodBets.summary?.u15?.losses || 0}L</div>
