@@ -19834,11 +19834,12 @@ async def get_first_period_bets():
             "u35": {"wins": 0, "losses": 0, "profit": 0},
             "u45": {"wins": 0, "losses": 0, "profit": 0},
             "o15": {"wins": 0, "losses": 0, "profit": 0},
+            "reg_u65": {"wins": 0, "losses": 0, "profit": 0},
             "total": {"wins": 0, "losses": 0, "profit": 0}
         }
         
         for bet in all_bets:
-            for line_key in ["u15", "u25", "u35", "u45", "o15"]:
+            for line_key in ["u15", "u25", "u35", "u45", "o15", "reg_u65"]:
                 line_bet = bet.get(line_key)
                 if line_bet and line_bet.get("result") in ["win", "loss"]:
                     if line_key not in combined_summary:
