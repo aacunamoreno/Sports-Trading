@@ -397,6 +397,13 @@ async def monitoring_loop():
                 # 24/7 monitoring - no sleep hours
                 now_arizona = datetime.now(arizona_tz)
                 
+                # Every 10 loops (~50 min), cleanup any zombie chromium processes
+                if loop_iteration % 10 == 0:
+                    try:
+                        await cleanup_zombie_browsers()
+                    except Exception as cleanup_err:
+                        logger.warning(f"Browser cleanup warning: {cleanup_err}")
+                
                 # Run monitoring check - wrapped in its own try/except
                 logger.info(f"[Loop #{loop_iteration}] Starting monitoring cycle...")
                 try:
@@ -404,6 +411,11 @@ async def monitoring_loop():
                     logger.info(f"[Loop #{loop_iteration}] Monitoring cycle completed successfully")
                 except Exception as e:
                     logger.error(f"[Loop #{loop_iteration}] Monitoring cycle error (loop continues): {str(e)}", exc_info=True)
+                    # After an error, try to cleanup any orphaned browsers
+                    try:
+                        await cleanup_zombie_browsers()
+                    except:
+                        pass
                 
                 # Fixed 5 minute interval
                 next_interval = random.randint(MIN_INTERVAL, MAX_INTERVAL)
@@ -439,11 +451,37 @@ async def monitoring_loop():
         except Exception as e:
             # This catch-all ensures the loop NEVER dies
             logger.error(f"[Loop #{loop_iteration}] UNEXPECTED ERROR in monitoring loop (will retry in 60s): {str(e)}", exc_info=True)
+            # Try cleanup after unexpected errors
+            try:
+                await cleanup_zombie_browsers()
+            except:
+                pass
             await asyncio.sleep(60)  # Wait 1 minute before retrying
             continue  # Explicitly continue the loop
 
 
-async def run_monitoring_cycle():
+async def cleanup_zombie_browsers():
+    """Kill any zombie chromium processes that might be lingering"""
+    import subprocess
+    try:
+        # Kill any orphaned chromium processes older than 5 minutes
+        result = subprocess.run(
+            ['pkill', '-f', 'chromium'],
+            capture_output=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            logger.info("[Cleanup] Killed orphaned chromium processes")
+    except subprocess.TimeoutExpired:
+        logger.warning("[Cleanup] Timeout killing chromium processes")
+    except FileNotFoundError:
+        # pkill not available, try alternative
+        try:
+            subprocess.run(['killall', 'chromium'], capture_output=True, timeout=5)
+        except:
+            pass
+    except Exception as e:
+        logger.debug(f"[Cleanup] No chromium processes to kill or error: {e}")async def run_monitoring_cycle():
     """Run a single monitoring cycle with notifications"""
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
@@ -3079,14 +3117,56 @@ class Plays888Service:
             raise
     
     async def close(self):
-        if self.page:
-            await self.page.close()
-        if self.context:
-            await self.context.close()
-        if self.browser:
-            await self.browser.close()
-        if self.playwright:
-            await self.playwright.stop()
+        """Close all browser resources with forced cleanup"""
+        try:
+            if self.page:
+                try:
+                    await asyncio.wait_for(self.page.close(), timeout=5.0)
+                except (asyncio.TimeoutError, Exception) as e:
+                    logger.debug(f"Page close warning: {e}")
+                self.page = None
+        except:
+            pass
+        
+        try:
+            if self.context:
+                try:
+                    await asyncio.wait_for(self.context.close(), timeout=5.0)
+                except (asyncio.TimeoutError, Exception) as e:
+                    logger.debug(f"Context close warning: {e}")
+                self.context = None
+        except:
+            pass
+        
+        try:
+            if self.browser:
+                try:
+                    await asyncio.wait_for(self.browser.close(), timeout=10.0)
+                except (asyncio.TimeoutError, Exception) as e:
+                    logger.debug(f"Browser close warning: {e}")
+                self.browser = None
+        except:
+            pass
+        
+        try:
+            if self.playwright:
+                try:
+                    await asyncio.wait_for(self.playwright.stop(), timeout=5.0)
+                except (asyncio.TimeoutError, Exception) as e:
+                    logger.debug(f"Playwright stop warning: {e}")
+                self.playwright = None
+        except:
+            pass
+    
+    async def __aenter__(self):
+        """Async context manager entry - allows 'async with Plays888Service() as service:'"""
+        await self.initialize()
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit - guarantees close() is called"""
+        await self.close()
+        return False  # Don't suppress exceptions
     
     async def login(self, username: str, password: str) -> Dict[str, Any]:
         try:
