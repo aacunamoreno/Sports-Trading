@@ -10386,6 +10386,23 @@ async def scrape_opening_lines_endpoint(target_date: str = None):
     if not target_date:
         target_date = (datetime.now(arizona_tz) + timedelta(days=1)).strftime('%Y-%m-%d')
     
+    # SAFETY CHECK: Prevent accidental overwrite of TODAY's data
+    today_arizona = datetime.now(arizona_tz).strftime('%Y-%m-%d')
+    if target_date == today_arizona:
+        # Check if today's data already has games with results (don't overwrite finished games)
+        for league in ['NBA', 'NHL', 'NCAAB']:
+            collection = db[f"{league.lower()}_opportunities"]
+            existing = await collection.find_one({"date": today_arizona})
+            if existing and existing.get('games'):
+                # Check if any game has a final score or result
+                for game in existing['games']:
+                    if game.get('final_score') or game.get('away_score') or game.get('result') or game.get('time') == 'FINAL':
+                        logger.warning(f"[SAFETY] Blocking scrape-openers for TODAY ({today_arizona}) - {league} already has finished games!")
+                        raise HTTPException(
+                            status_code=400, 
+                            detail=f"Cannot overwrite today's data ({today_arizona}) - games have already started/finished. Use 'Refresh Lines' instead."
+                        )
+    
     logger.info(f"[8PM Job] Starting scrape-openers for date: {target_date}")
     
     results = {
@@ -13160,15 +13177,17 @@ async def refresh_opportunities(day: str = "today", use_live_lines: bool = False
             if not games_raw:
                 cached = await db.nba_opportunities.find_one({"date": target_date}, {"_id": 0})
                 if cached and cached.get('games'):
-                    for g in cached['games']:
-                        games_raw.append({
-                            "time": g.get('time', ''),
-                            "away": g.get('away_team', g.get('away', '')),
-                            "home": g.get('home_team', g.get('home', '')),
-                            "total": g.get('total')
-                        })
-                    data_source = "cached (from last night's scrape)"
-                    logger.info(f"Using {len(games_raw)} cached games from database for {target_date}")
+                    # IMPORTANT: When using cache, preserve ALL fields including lines
+                    # This prevents losing data when scraping after games have finished
+                    logger.info(f"[Scrape Today] Using FULL cached data for {target_date} - preserving all fields")
+                    return {
+                        "date": target_date,
+                        "games": cached.get('games', []),
+                        "plays": cached.get('plays', []),
+                        "last_updated": datetime.now(timezone.utc).isoformat(),
+                        "data_source": "cached (preserved)",
+                        "ppg_populated": cached.get('ppg_populated', False)
+                    }
         
         # For TOMORROW: Use scoresandodds.com for schedule/lines
         elif day == "tomorrow":
@@ -13770,15 +13789,17 @@ async def refresh_nhl_opportunities(day: str = "today", use_live_lines: bool = F
             # First try to load from database cache (from last night's 8pm scrape)
             cached = await db.nhl_opportunities.find_one({"date": target_date}, {"_id": 0})
             if cached and cached.get('games'):
-                for g in cached['games']:
-                    games_raw.append({
-                        "time": g.get('time', ''),
-                        "away": g.get('away_team', g.get('away', '')),
-                        "home": g.get('home_team', g.get('home', '')),
-                        "total": g.get('total')
-                    })
-                data_source = "cached (from last night's scrape)"
-                logger.info(f"Using {len(games_raw)} cached NHL games from database for {target_date}")
+                # IMPORTANT: When using cache, preserve ALL fields including lines
+                # This prevents losing data when scraping after games have finished
+                logger.info(f"[Scrape Today] Using FULL cached NHL data for {target_date} - preserving all fields")
+                return {
+                    "date": target_date,
+                    "games": cached.get('games', []),
+                    "plays": cached.get('plays', []),
+                    "last_updated": datetime.now(timezone.utc).isoformat(),
+                    "data_source": "cached (preserved)",
+                    "gpg_populated": cached.get('gpg_populated', False)
+                }
         
         # Add games from open bets that might have started but aren't in the schedule
         # This ensures we show all games with active bets
@@ -17879,15 +17900,17 @@ async def refresh_nfl_opportunities(day: str = "today", use_live_lines: bool = F
         if not games_raw and day in ["today", "tomorrow"]:
             cached = await db.nfl_opportunities.find_one({"date": target_date}, {"_id": 0})
             if cached and cached.get('games'):
-                for g in cached['games']:
-                    games_raw.append({
-                        "time": g.get('time', ''),
-                        "away": g.get('away_team', g.get('away', '')),
-                        "home": g.get('home_team', g.get('home', '')),
-                        "total": g.get('total')
-                    })
-                data_source = "cached (from last night's scrape)"
-                logger.info(f"Using {len(games_raw)} cached NFL games from database for {target_date}")
+                # IMPORTANT: When using cache, preserve ALL fields including lines
+                # This prevents losing data when scraping after games have finished
+                logger.info(f"[Scrape Today] Using FULL cached NFL data for {target_date} - preserving all fields")
+                return {
+                    "date": target_date,
+                    "games": cached.get('games', []),
+                    "plays": cached.get('plays', []),
+                    "last_updated": datetime.now(timezone.utc).isoformat(),
+                    "data_source": "cached (preserved)",
+                    "ppg_populated": cached.get('ppg_populated', False)
+                }
         
         # Process open bets for NFL
         nfl_open_bets = {}
@@ -20554,6 +20577,240 @@ async def recalculate_edges(league: str, data: dict = None):
         logger.error(f"Error recalculating edges: {e}")
         import traceback
         traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== BACKUP AND RESTORE SYSTEM ====================
+
+@api_router.post("/backup/create")
+async def create_backup(collections: List[str] = None):
+    """
+    Create a backup of specified MongoDB collections.
+    If no collections specified, backs up all opportunity collections.
+    
+    Default collections: nba_opportunities, nhl_opportunities, ncaab_opportunities, nfl_opportunities
+    """
+    try:
+        if collections is None:
+            collections = [
+                'nba_opportunities', 
+                'nhl_opportunities', 
+                'ncaab_opportunities', 
+                'nfl_opportunities',
+                'betting_records',
+                'first_period_bets'
+            ]
+        
+        from zoneinfo import ZoneInfo
+        arizona_tz = ZoneInfo('America/Phoenix')
+        timestamp = datetime.now(arizona_tz).strftime('%Y%m%d_%H%M%S')
+        
+        backup_data = {
+            "backup_id": f"backup_{timestamp}",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at_arizona": datetime.now(arizona_tz).strftime('%Y-%m-%d %I:%M %p'),
+            "collections": {}
+        }
+        
+        for coll_name in collections:
+            try:
+                coll = db[coll_name]
+                docs = await coll.find({}).to_list(1000)
+                # Convert ObjectId to string for JSON serialization
+                for doc in docs:
+                    if '_id' in doc:
+                        doc['_id'] = str(doc['_id'])
+                backup_data["collections"][coll_name] = docs
+                logger.info(f"[Backup] Backed up {len(docs)} documents from {coll_name}")
+            except Exception as e:
+                logger.error(f"[Backup] Error backing up {coll_name}: {e}")
+                backup_data["collections"][coll_name] = {"error": str(e)}
+        
+        # Store backup in database
+        backup_data["_id"] = backup_data["backup_id"]
+        await db.backups.replace_one(
+            {"_id": backup_data["backup_id"]},
+            backup_data,
+            upsert=True
+        )
+        
+        # Keep only last 10 backups
+        all_backups = await db.backups.find({}, {"_id": 1}).sort("created_at", -1).to_list(100)
+        if len(all_backups) > 10:
+            old_backups = [b["_id"] for b in all_backups[10:]]
+            await db.backups.delete_many({"_id": {"$in": old_backups}})
+            logger.info(f"[Backup] Cleaned up {len(old_backups)} old backups")
+        
+        return {
+            "status": "success",
+            "backup_id": backup_data["backup_id"],
+            "created_at": backup_data["created_at_arizona"],
+            "collections_backed_up": list(backup_data["collections"].keys()),
+            "document_counts": {k: len(v) if isinstance(v, list) else 0 for k, v in backup_data["collections"].items()}
+        }
+        
+    except Exception as e:
+        logger.error(f"[Backup] Error creating backup: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/backup/list")
+async def list_backups():
+    """List all available backups"""
+    try:
+        backups = await db.backups.find(
+            {}, 
+            {"_id": 1, "created_at": 1, "created_at_arizona": 1, "collections": 1}
+        ).sort("created_at", -1).to_list(20)
+        
+        result = []
+        for backup in backups:
+            collections_info = {}
+            if backup.get("collections"):
+                for coll_name, docs in backup["collections"].items():
+                    if isinstance(docs, list):
+                        collections_info[coll_name] = len(docs)
+                    else:
+                        collections_info[coll_name] = "error"
+            
+            result.append({
+                "backup_id": backup["_id"],
+                "created_at": backup.get("created_at_arizona", backup.get("created_at")),
+                "collections": collections_info
+            })
+        
+        return {"backups": result}
+        
+    except Exception as e:
+        logger.error(f"[Backup] Error listing backups: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/backup/restore/{backup_id}")
+async def restore_backup(backup_id: str, collections: List[str] = None):
+    """
+    Restore data from a backup.
+    If collections is specified, only restore those collections.
+    Otherwise restore all collections in the backup.
+    
+    WARNING: This will REPLACE current data with backup data!
+    """
+    try:
+        backup = await db.backups.find_one({"_id": backup_id})
+        if not backup:
+            raise HTTPException(status_code=404, detail=f"Backup {backup_id} not found")
+        
+        restored = {}
+        backup_collections = backup.get("collections", {})
+        
+        # If specific collections requested, only restore those
+        collections_to_restore = collections if collections else list(backup_collections.keys())
+        
+        for coll_name in collections_to_restore:
+            if coll_name not in backup_collections:
+                restored[coll_name] = {"error": "not in backup"}
+                continue
+            
+            docs = backup_collections[coll_name]
+            if not isinstance(docs, list):
+                restored[coll_name] = {"error": "invalid backup data"}
+                continue
+            
+            try:
+                coll = db[coll_name]
+                
+                # For each document, use its original identifier to replace
+                restored_count = 0
+                for doc in docs:
+                    # Remove string _id, MongoDB will handle it
+                    doc_id = doc.pop('_id', None)
+                    
+                    # Find the best identifier for the document
+                    if 'date' in doc:
+                        # Opportunities collections use date as key
+                        await coll.replace_one(
+                            {"date": doc["date"]},
+                            doc,
+                            upsert=True
+                        )
+                    elif doc_id:
+                        # Use original _id
+                        from bson import ObjectId
+                        try:
+                            obj_id = ObjectId(doc_id)
+                        except:
+                            obj_id = doc_id
+                        doc['_id'] = obj_id
+                        await coll.replace_one(
+                            {"_id": obj_id},
+                            doc,
+                            upsert=True
+                        )
+                    restored_count += 1
+                
+                restored[coll_name] = {"restored": restored_count}
+                logger.info(f"[Restore] Restored {restored_count} documents to {coll_name}")
+                
+            except Exception as e:
+                logger.error(f"[Restore] Error restoring {coll_name}: {e}")
+                restored[coll_name] = {"error": str(e)}
+        
+        return {
+            "status": "success",
+            "backup_id": backup_id,
+            "backup_date": backup.get("created_at_arizona"),
+            "restored": restored
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Restore] Error restoring backup: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.delete("/backup/{backup_id}")
+async def delete_backup(backup_id: str):
+    """Delete a specific backup"""
+    try:
+        result = await db.backups.delete_one({"_id": backup_id})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail=f"Backup {backup_id} not found")
+        
+        return {"status": "success", "deleted": backup_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Backup] Error deleting backup: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/backup/download/{backup_id}")
+async def download_backup(backup_id: str):
+    """Download a backup as JSON file"""
+    try:
+        backup = await db.backups.find_one({"_id": backup_id})
+        if not backup:
+            raise HTTPException(status_code=404, detail=f"Backup {backup_id} not found")
+        
+        # Convert to JSON
+        import json
+        backup_json = json.dumps(backup, indent=2, default=str)
+        
+        from fastapi.responses import Response
+        return Response(
+            content=backup_json,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f"attachment; filename={backup_id}.json"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Backup] Error downloading backup: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
