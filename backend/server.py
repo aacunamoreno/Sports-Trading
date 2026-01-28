@@ -19354,11 +19354,22 @@ async def scrape_first_period_bets_enano():
         
         logger.info(f"[1st Period Bets] Split into {len(tickets)} ticket sections")
         
+        # Track processed ticket numbers to avoid duplicates
+        processed_ticket_nums = set()
+        
         # Count how many are period bets (1st, 2nd, or Regulation)
         nhl_count = 0
         rbl_count = 0
         
         for idx, ticket in enumerate(tickets):
+            # Extract ticket number to check for duplicates
+            ticket_num_match = re.search(r'Ticket\s*#[:\s]*(\d+)', ticket, re.IGNORECASE)
+            if ticket_num_match:
+                ticket_num = ticket_num_match.group(1)
+                if ticket_num in processed_ticket_nums:
+                    # Skip duplicate ticket
+                    continue
+                processed_ticket_nums.add(ticket_num)
             ticket_upper = ticket.upper()
             
             # Check patterns - expanded to include 2nd Period and Regulation Time
@@ -19944,6 +19955,23 @@ async def clear_first_period_baseline():
         }
     except Exception as e:
         logger.error(f"Error clearing baseline: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/nhl/first-period-bets/reset")
+async def reset_first_period_bets():
+    """
+    Completely reset all 1st Period bets data.
+    This will delete all tracked bets and baseline, starting fresh.
+    """
+    try:
+        await db.first_period_bets.delete_one({"_id": "enano_bets"})
+        
+        return {
+            "status": "success",
+            "message": "All 1st Period bets data has been reset. Run 'Update Bet Results' to scrape fresh data."
+        }
+    except Exception as e:
+        logger.error(f"Error resetting 1st period bets: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/nhl/first-period-bets/test-data")
