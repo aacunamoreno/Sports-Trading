@@ -481,7 +481,10 @@ async def cleanup_zombie_browsers():
         except:
             pass
     except Exception as e:
-        logger.debug(f"[Cleanup] No chromium processes to kill or error: {e}")async def run_monitoring_cycle():
+        logger.debug(f"[Cleanup] No chromium processes to kill or error: {e}")
+
+
+async def run_monitoring_cycle():
     """Run a single monitoring cycle with notifications"""
     from zoneinfo import ZoneInfo
     arizona_tz = ZoneInfo('America/Phoenix')
