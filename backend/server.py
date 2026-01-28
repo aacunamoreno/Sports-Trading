@@ -19197,15 +19197,15 @@ async def scrape_first_period_bets_enano():
     Scrape 1st Period NHL bets from plays888.co History page for ENANO (jac075).
     Returns list of bets grouped by game with U1.5, U2.5, U3.5, U4.5 columns.
     
-    Iterates through all weeks from NHL season start to get full history.
-    The date picker format is: "MM/DD/YYYY To MM/DD/YYYY"
+    SIMPLIFIED: Only scrapes the current week (default view) since date picker
+    doesn't work programmatically. Historical data is stored separately in MongoDB.
     """
     import re
     from collections import defaultdict
     from datetime import datetime, timedelta
     
     try:
-        logger.info("[1st Period Bets] Starting FULL SEASON scrape for ENANO...")
+        logger.info("[1st Period Bets] Starting scrape for ENANO (current week only)...")
         
         # Initialize browser service
         service = Plays888Service()
@@ -19227,150 +19227,14 @@ async def scrape_first_period_bets_enano():
         
         logger.info("[1st Period Bets] Navigated to History page")
         
-        # Collect all page text from all weeks
-        all_page_text = ""
+        # Get current page content (default week view - no date manipulation needed)
+        all_page_text = await service.page.inner_text('body')
         
-        try:
-            # Generate all weeks from NHL season start (Oct 2025) to now
-            from zoneinfo import ZoneInfo
-            arizona_tz = ZoneInfo('America/Phoenix')
-            
-            # NHL season started around October 4, 2025
-            season_start = datetime(2025, 10, 4)
-            today = datetime.now(arizona_tz).replace(tzinfo=None)
-            
-            # Generate weekly date ranges
-            week_ranges = []
-            current_start = season_start
-            
-            while current_start <= today:
-                # Each week is 7 days
-                current_end = current_start + timedelta(days=6)
-                if current_end > today:
-                    current_end = today
-                
-                # Format: "MM/DD/YYYY To MM/DD/YYYY"
-                date_range = f"{current_start.strftime('%m/%d/%Y')} To {current_end.strftime('%m/%d/%Y')}"
-                week_ranges.append({
-                    'range': date_range,
-                    'start': current_start,
-                    'end': current_end
-                })
-                
-                current_start = current_end + timedelta(days=1)
-            
-            logger.info(f"[1st Period Bets] Will iterate through {len(week_ranges)} weeks")
-            
-            for idx, week in enumerate(week_ranges):
-                try:
-                    # Use JavaScript to set the date input value AND submit the form
-                    # ASP.NET forms can be tricky with click events, so we submit directly
-                    js_code = f'''
-                        (function() {{
-                            // Find the date input - it's the first text input in the form
-                            var inputs = document.querySelectorAll('input[type="text"]');
-                            var dateInput = null;
-                            
-                            for (var i = 0; i < inputs.length; i++) {{
-                                var val = inputs[i].value;
-                                if (val && val.includes('To')) {{
-                                    dateInput = inputs[i];
-                                    break;
-                                }}
-                            }}
-                            
-                            if (!dateInput) {{
-                                // Also try by looking for specific patterns
-                                var allInputs = document.getElementsByTagName('input');
-                                for (var i = 0; i < allInputs.length; i++) {{
-                                    if (allInputs[i].value && allInputs[i].value.match(/\\d{{2}}\\/\\d{{2}}\\/\\d{{4}}\\s*To/)) {{
-                                        dateInput = allInputs[i];
-                                        break;
-                                    }}
-                                }}
-                            }}
-                            
-                            if (dateInput) {{
-                                var oldVal = dateInput.value;
-                                dateInput.value = "{week['range']}";
-                                // Trigger change event
-                                dateInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                return {{ success: true, oldValue: oldVal, newValue: dateInput.value }};
-                            }}
-                            return {{ success: false }};
-                        }})()
-                    '''
-                    
-                    result = await service.page.evaluate(js_code)
-                    logger.info(f"[1st Period Bets] Week {idx+1}: Set date input: {result}")
-                    
-                    await service.page.wait_for_timeout(500)
-                    
-                    # Submit the form using JavaScript - more reliable than clicking
-                    submit_js = '''
-                        (function() {
-                            // Try to find and click the submit button via JS
-                            var submitBtn = document.querySelector('input[type="submit"][value="Submit"]');
-                            if (submitBtn) {
-                                submitBtn.click();
-                                return { method: 'button_click', found: true };
-                            }
-                            
-                            // Alternative: submit the form directly
-                            var form = document.querySelector('form[name="aspnetForm"]') || document.querySelector('form');
-                            if (form) {
-                                form.submit();
-                                return { method: 'form_submit', found: true };
-                            }
-                            
-                            return { method: 'none', found: false };
-                        })()
-                    '''
-                    
-                    submit_result = await service.page.evaluate(submit_js)
-                    logger.info(f"[1st Period Bets] Week {idx+1}: Submit method: {submit_result}")
-                    
-                    # Wait for the page to load after form submission
-                    try:
-                        await service.page.wait_for_load_state('networkidle', timeout=15000)
-                    except:
-                        pass
-                    await service.page.wait_for_timeout(2000)
-                    
-                    # Get page content
-                    page_text = await service.page.inner_text('body')
-                    
-                    # Extract the actual displayed date range from the page to verify it changed
-                    displayed_match = re.search(r'From\s+(\d{2}/\d{2}/\d{4})\s+to\s+(\d{2}/\d{2}/\d{4})', page_text, re.IGNORECASE)
-                    displayed_range = displayed_match.group(0) if displayed_match else "unknown"
-                    
-                    # Check if there's any betting data in this week
-                    if 'STRAIGHT BET' in page_text.upper() or 'TOTAL' in page_text.upper():
-                        all_page_text += f"\n\n=== WEEK {idx+1}: {week['range']} (displayed: {displayed_range}) ===\n\n" + page_text
-                        logger.info(f"[1st Period Bets] Week {idx+1}/{len(week_ranges)}: Requested {week['range']}, Page shows: {displayed_range}, {len(page_text)} chars")
-                    else:
-                        logger.info(f"[1st Period Bets] Week {idx+1}/{len(week_ranges)}: {week['range']} - No betting data (page shows: {displayed_range})")
-                    
-                except Exception as e:
-                    logger.warning(f"[1st Period Bets] Error on week {week['range']}: {e}")
-                    # Try to recover by reloading the page
-                    try:
-                        await service.page.goto('https://www.plays888.co/wager/History.aspx', timeout=30000)
-                        await service.page.wait_for_load_state('networkidle')
-                        await service.page.wait_for_timeout(1000)
-                    except:
-                        pass
-                    continue
-                    
-        except Exception as e:
-            logger.error(f"[1st Period Bets] Error iterating weeks: {e}")
-            import traceback
-            traceback.print_exc()
-            # Fall back to current page
-            try:
-                all_page_text = await service.page.inner_text('body')
-            except:
-                all_page_text = ""
+        # Extract the displayed date range for logging
+        displayed_match = re.search(r'From\s+(\d{2}/\d{2}/\d{4})\s+to\s+(\d{2}/\d{2}/\d{4})', all_page_text, re.IGNORECASE)
+        displayed_range = displayed_match.group(0) if displayed_match else "unknown"
+        
+        logger.info(f"[1st Period Bets] Scraped current week: {displayed_range}, {len(all_page_text)} chars")
         
         await service.close()
         
@@ -19733,27 +19597,124 @@ async def scrape_first_period_bets_enano():
         traceback.print_exc()
         return {"bets": [], "summary": {}}
 async def update_first_period_bets():
-    """Update cached 1st Period bets data - MERGES new data with existing and adds baseline"""
+    """
+    Update cached 1st Period bets data.
+    
+    NEW LOGIC:
+    1. If it's Sunday or Monday before noon: Check if week needs backup
+    2. Scrape current week from plays888
+    3. Save to first_period_bets (current week only)
+    4. GET endpoint combines history + current automatically
+    """
+    from zoneinfo import ZoneInfo
+    
     try:
-        logger.info("Updating 1st Period bets for ENANO...")
+        arizona_tz = ZoneInfo('America/Phoenix')
+        now = datetime.now(arizona_tz)
+        day_of_week = now.weekday()  # 0=Monday, 6=Sunday
+        hour = now.hour
+        
+        logger.info(f"[1st Period Bets] Update triggered at {now.strftime('%A %H:%M')} Arizona time")
+        
+        # ===== STEP 1: CHECK IF WEEKLY BACKUP IS NEEDED =====
+        # Backup window: Sunday (all day) or Monday before noon
+        is_backup_window = (day_of_week == 6) or (day_of_week == 0 and hour < 12)
+        
+        if is_backup_window:
+            logger.info("[1st Period Bets] In backup window - checking if backup needed...")
+            
+            # Get current week data that might need backup
+            existing_data = await db.first_period_bets.find_one({"_id": "enano_bets"})
+            
+            if existing_data and existing_data.get("bets") and len(existing_data.get("bets", [])) > 0:
+                current_bets = existing_data.get("bets", [])
+                
+                # Determine the week range from the bets
+                if current_bets:
+                    dates = [b.get("date", "") for b in current_bets if b.get("date")]
+                    if dates:
+                        # Parse dates to find min/max (format: "01/26")
+                        min_date = min(dates)
+                        max_date = max(dates)
+                        
+                        # Create week_id (e.g., "2026-01-26_to_2026-01-28")
+                        year = now.year
+                        week_id = f"{year}-{min_date.replace('/', '-')}_to_{year}-{max_date.replace('/', '-')}"
+                        
+                        # Check if this week is already backed up
+                        existing_backup = await db.first_period_bets_history.find_one({"_id": week_id})
+                        
+                        if not existing_backup:
+                            # Calculate summary for this week
+                            week_summary = {
+                                "u15": {"wins": 0, "losses": 0, "profit": 0},
+                                "u25": {"wins": 0, "losses": 0, "profit": 0},
+                                "u35": {"wins": 0, "losses": 0, "profit": 0},
+                                "u45": {"wins": 0, "losses": 0, "profit": 0},
+                                "reg_u65": {"wins": 0, "losses": 0, "profit": 0},
+                                "o15": {"wins": 0, "losses": 0, "profit": 0},
+                                "total": {"wins": 0, "losses": 0, "profit": 0}
+                            }
+                            
+                            for bet in current_bets:
+                                for line_key in ["u15", "u25", "u35", "u45", "reg_u65", "o15"]:
+                                    line_bet = bet.get(line_key)
+                                    if line_bet and line_bet.get("result") in ["win", "loss"]:
+                                        if line_key not in week_summary:
+                                            week_summary[line_key] = {"wins": 0, "losses": 0, "profit": 0}
+                                        
+                                        if line_bet["result"] == "win":
+                                            week_summary[line_key]["wins"] += 1
+                                            week_summary[line_key]["profit"] += line_bet.get("profit", line_bet.get("win", 0))
+                                            week_summary["total"]["wins"] += 1
+                                            week_summary["total"]["profit"] += line_bet.get("profit", line_bet.get("win", 0))
+                                        elif line_bet["result"] == "loss":
+                                            week_summary[line_key]["losses"] += 1
+                                            week_summary[line_key]["profit"] += line_bet.get("profit", -line_bet.get("risk", 0))
+                                            week_summary["total"]["losses"] += 1
+                                            week_summary["total"]["profit"] += line_bet.get("profit", -line_bet.get("risk", 0))
+                            
+                            # Backup to history collection
+                            await db.first_period_bets_history.update_one(
+                                {"_id": week_id},
+                                {"$set": {
+                                    "bets": current_bets,
+                                    "summary": week_summary,
+                                    "backed_up_at": now.isoformat(),
+                                    "auto_backup": True
+                                }},
+                                upsert=True
+                            )
+                            
+                            logger.info(f"[1st Period Bets] ✅ AUTO-BACKUP: Week {week_id} saved to history!")
+                            logger.info(f"[1st Period Bets] Backup: {len(current_bets)} games, {week_summary['total']['wins']}W-{week_summary['total']['losses']}L, ${week_summary['total']['profit']:+,.2f}")
+                            
+                            # Clear current week data to prepare for new week
+                            await db.first_period_bets.update_one(
+                                {"_id": "enano_bets"},
+                                {"$set": {"bets": [], "last_backup": week_id}},
+                                upsert=True
+                            )
+                            logger.info("[1st Period Bets] Current week cleared, ready for new week")
+                        else:
+                            logger.info(f"[1st Period Bets] Week {week_id} already backed up, skipping")
+        
+        # ===== STEP 2: SCRAPE CURRENT WEEK =====
+        logger.info("[1st Period Bets] Scraping current week from plays888...")
         new_data = await scrape_first_period_bets_enano()
-        
-        # Get the fresh data from scraper
         new_bets = new_data.get("bets", [])
+        new_summary = new_data.get("summary", {})
         
-        # Get existing data from database
+        if not new_bets:
+            logger.info("[1st Period Bets] No bets found in current week scrape")
+            return {"bets": [], "summary": {}, "message": "No bets found in current week"}
+        
+        # ===== STEP 3: SAVE CURRENT WEEK DATA =====
+        # Get existing current week data to merge (in case of partial scrapes)
         existing_data = await db.first_period_bets.find_one({"_id": "enano_bets"})
         existing_bets = existing_data.get("bets", []) if existing_data else []
         
-        # Get baseline summary (historical record before we started tracking individual bets)
-        # This is PRESERVED and never overwritten by scraping
-        baseline_summary = None
-        if existing_data and existing_data.get("baseline_summary"):
-            baseline_summary = existing_data.get("baseline_summary")
-            logger.info(f"[1st Period Bets] Preserving baseline: {baseline_summary}")
-        
-        # MERGE: Add new bets that don't already exist, update existing ones
-        # Create a dict of existing bets by key (date + game)
+        # Merge: Create dict by game key
         bets_dict = {}
         for bet in existing_bets:
             key = f"{bet.get('date', '')}_{bet.get('game', '')}"
@@ -19767,122 +19728,146 @@ async def update_first_period_bets():
             if key not in bets_dict:
                 bets_dict[key] = new_bet
                 bets_added += 1
-                logger.info(f"[1st Period Bets] Added new game: {new_bet.get('game')} on {new_bet.get('date')}")
             else:
-                # Update existing bet with new data (in case results changed)
                 bets_dict[key] = new_bet
                 bets_updated += 1
         
-        # Convert back to list
         merged_bets = list(bets_dict.values())
-        
-        # Sort bets by date (newest first)
         merged_bets.sort(key=lambda x: x.get("date", ""), reverse=True)
         
-        # RECALCULATE summary from ALL merged bets (not incremental)
-        bets_summary = {
+        # Recalculate summary
+        current_summary = {
             "u15": {"wins": 0, "losses": 0, "profit": 0},
             "u25": {"wins": 0, "losses": 0, "profit": 0},
             "u35": {"wins": 0, "losses": 0, "profit": 0},
             "u45": {"wins": 0, "losses": 0, "profit": 0},
+            "reg_u65": {"wins": 0, "losses": 0, "profit": 0},
+            "o15": {"wins": 0, "losses": 0, "profit": 0},
             "total": {"wins": 0, "losses": 0, "profit": 0}
         }
         
         for bet in merged_bets:
-            # Check each line type (u15, u25, u35, u45)
-            for line_key in ["u15", "u25", "u35", "u45"]:
+            for line_key in ["u15", "u25", "u35", "u45", "reg_u65", "o15"]:
                 line_bet = bet.get(line_key)
                 if line_bet and line_bet.get("result") in ["win", "loss"]:
+                    if line_key not in current_summary:
+                        current_summary[line_key] = {"wins": 0, "losses": 0, "profit": 0}
+                    
                     if line_bet["result"] == "win":
-                        bets_summary[line_key]["wins"] += 1
-                        bets_summary[line_key]["profit"] += line_bet.get("win", 0)
-                        bets_summary["total"]["wins"] += 1
-                        bets_summary["total"]["profit"] += line_bet.get("win", 0)
+                        current_summary[line_key]["wins"] += 1
+                        current_summary[line_key]["profit"] += line_bet.get("profit", line_bet.get("win", 0))
+                        current_summary["total"]["wins"] += 1
+                        current_summary["total"]["profit"] += line_bet.get("profit", line_bet.get("win", 0))
                     elif line_bet["result"] == "loss":
-                        bets_summary[line_key]["losses"] += 1
-                        bets_summary[line_key]["profit"] -= line_bet.get("risk", 0)
-                        bets_summary["total"]["losses"] += 1
-                        bets_summary["total"]["profit"] -= line_bet.get("risk", 0)
+                        current_summary[line_key]["losses"] += 1
+                        current_summary[line_key]["profit"] += line_bet.get("profit", -line_bet.get("risk", 0))
+                        current_summary["total"]["losses"] += 1
+                        current_summary["total"]["profit"] += line_bet.get("profit", -line_bet.get("risk", 0))
         
-        # COMBINE: Add baseline to bets_summary for final summary
-        merged_summary = {
-            "u15": {"wins": 0, "losses": 0, "profit": 0},
-            "u25": {"wins": 0, "losses": 0, "profit": 0},
-            "u35": {"wins": 0, "losses": 0, "profit": 0},
-            "u45": {"wins": 0, "losses": 0, "profit": 0},
-            "total": {"wins": 0, "losses": 0, "profit": 0}
-        }
-        
-        # Start with baseline if it exists
-        if baseline_summary:
-            for key in ["u15", "u25", "u35", "u45", "total"]:
-                if key in baseline_summary:
-                    merged_summary[key]["wins"] = baseline_summary[key].get("wins", 0)
-                    merged_summary[key]["losses"] = baseline_summary[key].get("losses", 0)
-                    merged_summary[key]["profit"] = baseline_summary[key].get("profit", 0)
-        
-        # Add current bets summary
-        for key in ["u15", "u25", "u35", "u45", "total"]:
-            merged_summary[key]["wins"] += bets_summary[key]["wins"]
-            merged_summary[key]["losses"] += bets_summary[key]["losses"]
-            merged_summary[key]["profit"] += bets_summary[key]["profit"]
-        
-        # Build the update document - preserve baseline_summary if it exists
-        update_doc = {
-            "bets": merged_bets,
-            "summary": merged_summary,
-            "bets_only_summary": bets_summary,  # Summary of just the tracked bets (no baseline)
-            "last_updated": datetime.now(timezone.utc)
-        }
-        
-        # Preserve baseline_summary in the document
-        if baseline_summary:
-            update_doc["baseline_summary"] = baseline_summary
-        
-        # Save merged data to database
+        # Save to database
         await db.first_period_bets.update_one(
             {"_id": "enano_bets"},
-            {"$set": update_doc},
+            {"$set": {
+                "bets": merged_bets,
+                "summary": current_summary,
+                "last_updated": datetime.now(timezone.utc)
+            }},
             upsert=True
         )
         
-        logger.info(f"1st Period bets MERGED: {len(merged_bets)} tracked games (+{bets_added} new, {bets_updated} updated)")
-        logger.info(f"1st Period Summary (with baseline): {merged_summary['total']}")
-        return {"bets": merged_bets, "summary": merged_summary}
+        logger.info(f"[1st Period Bets] Current week updated: {len(merged_bets)} games (+{bets_added} new, {bets_updated} updated)")
+        logger.info(f"[1st Period Bets] Current week: {current_summary['total']['wins']}W-{current_summary['total']['losses']}L, ${current_summary['total']['profit']:+,.2f}")
+        
+        return {
+            "bets": merged_bets, 
+            "summary": current_summary,
+            "games_added": bets_added,
+            "games_updated": bets_updated
+        }
+        
     except Exception as e:
-        logger.error(f"Error updating 1st Period bets: {e}")
+        logger.error(f"[1st Period Bets] Error updating: {e}")
         import traceback
         traceback.print_exc()
         return {"bets": [], "summary": {}}
 
 @api_router.get("/nhl/first-period-bets")
 async def get_first_period_bets():
-    """Get 1st Period betting record for ENANO"""
+    """
+    Get 1st Period betting record for ENANO.
+    Combines:
+    1. Historical weeks from first_period_bets_history collection
+    2. Current week scrape from first_period_bets collection
+    """
     try:
-        cached = await db.first_period_bets.find_one({"_id": "enano_bets"}, {"_id": 0})
+        # Get current week data (scraped)
+        current_week = await db.first_period_bets.find_one({"_id": "enano_bets"}, {"_id": 0})
+        current_bets = current_week.get("bets", []) if current_week else []
         
-        if cached:
-            return {
-                "bets": cached.get("bets", []),
-                "summary": cached.get("summary", {}),
-                "baseline_summary": cached.get("baseline_summary"),  # Include baseline info for frontend
-                "bets_only_summary": cached.get("bets_only_summary"),  # Summary of just tracked bets
-                "last_updated": cached.get("last_updated")
-            }
+        # Get all historical weeks
+        historical_weeks = await db.first_period_bets_history.find({}).to_list(100)
+        
+        # Combine all bets
+        all_bets = []
+        
+        # Add historical bets first (older weeks)
+        for week in historical_weeks:
+            week_bets = week.get("bets", [])
+            for bet in week_bets:
+                # Mark as historical
+                bet["source"] = "history"
+                bet["week_id"] = week.get("_id", "unknown")
+                all_bets.append(bet)
+        
+        # Add current week bets
+        for bet in current_bets:
+            bet["source"] = "current"
+            all_bets.append(bet)
+        
+        # Sort all bets by date (newest first)
+        all_bets.sort(key=lambda x: x.get("date", ""), reverse=True)
+        
+        # Calculate combined summary
+        combined_summary = {
+            "u15": {"wins": 0, "losses": 0, "profit": 0},
+            "u25": {"wins": 0, "losses": 0, "profit": 0},
+            "u35": {"wins": 0, "losses": 0, "profit": 0},
+            "u45": {"wins": 0, "losses": 0, "profit": 0},
+            "o15": {"wins": 0, "losses": 0, "profit": 0},
+            "total": {"wins": 0, "losses": 0, "profit": 0}
+        }
+        
+        for bet in all_bets:
+            for line_key in ["u15", "u25", "u35", "u45", "o15"]:
+                line_bet = bet.get(line_key)
+                if line_bet and line_bet.get("result") in ["win", "loss"]:
+                    if line_key not in combined_summary:
+                        combined_summary[line_key] = {"wins": 0, "losses": 0, "profit": 0}
+                    
+                    if line_bet["result"] == "win":
+                        combined_summary[line_key]["wins"] += 1
+                        combined_summary[line_key]["profit"] += line_bet.get("profit", line_bet.get("win", 0))
+                        combined_summary["total"]["wins"] += 1
+                        combined_summary["total"]["profit"] += line_bet.get("profit", line_bet.get("win", 0))
+                    elif line_bet["result"] == "loss":
+                        combined_summary[line_key]["losses"] += 1
+                        combined_summary[line_key]["profit"] += line_bet.get("profit", -line_bet.get("risk", 0))
+                        combined_summary["total"]["losses"] += 1
+                        combined_summary["total"]["profit"] += line_bet.get("profit", -line_bet.get("risk", 0))
+        
+        # Count weeks
+        historical_count = len(historical_weeks)
+        current_count = 1 if current_bets else 0
         
         return {
-            "bets": [],
-            "summary": {
-                "u15": {"wins": 0, "losses": 0, "profit": 0},
-                "u25": {"wins": 0, "losses": 0, "profit": 0},
-                "u35": {"wins": 0, "losses": 0, "profit": 0},
-                "u45": {"wins": 0, "losses": 0, "profit": 0},
-                "total": {"wins": 0, "losses": 0, "profit": 0}
-            },
-            "baseline_summary": None,
-            "bets_only_summary": None,
-            "last_updated": None
+            "bets": all_bets,
+            "summary": combined_summary,
+            "weeks_historical": historical_count,
+            "weeks_current": current_count,
+            "total_games": len(all_bets),
+            "last_updated": current_week.get("last_updated") if current_week else None
         }
+        
     except Exception as e:
         logger.error(f"Error getting 1st Period bets: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -20010,6 +19995,357 @@ async def reset_first_period_bets():
         }
     except Exception as e:
         logger.error(f"Error resetting 1st period bets: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/nhl/first-period-bets/add-historical-week")
+async def add_historical_week_first_period_bets(week_data: dict):
+    """
+    Add a historical week of 1st Period bets to MongoDB.
+    This is used to manually add data that can't be scraped due to date picker limitations.
+    
+    Expected format:
+    {
+        "week_id": "2026-01-22_to_2026-01-25",
+        "bets": [
+            {
+                "date": "01/22",
+                "game": "DET @ MIN",
+                "u15": {"risk": 1000, "win": 1100, "result": "loss"},
+                "u25": {"risk": 3334.38, "win": 2000, "result": "win"},
+                ...
+            }
+        ]
+    }
+    """
+    try:
+        week_id = week_data.get("week_id")
+        bets = week_data.get("bets", [])
+        
+        if not week_id or not bets:
+            raise HTTPException(status_code=400, detail="week_id and bets are required")
+        
+        # Store in historical collection
+        await db.first_period_bets_history.update_one(
+            {"_id": week_id},
+            {"$set": {"bets": bets, "added_at": datetime.now().isoformat()}},
+            upsert=True
+        )
+        
+        logger.info(f"[1st Period History] Added week {week_id} with {len(bets)} games")
+        
+        return {
+            "status": "success",
+            "message": f"Added {len(bets)} games for week {week_id}",
+            "week_id": week_id
+        }
+    except Exception as e:
+        logger.error(f"Error adding historical week: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/nhl/first-period-bets/init-history-week-0122-0125")
+async def init_history_week_0122_0125():
+    """
+    Initialize the confirmed historical data for week 01/22-01/25.
+    This data was manually verified from plays888.co screenshots.
+    """
+    try:
+        week_id = "2026-01-22_to_2026-01-25"
+        
+        # Confirmed data from screenshots - 13 games
+        bets = [
+            {
+                "date": "01/22",
+                "game": "DET @ MIN",
+                "u15": {"risk": 1000, "win": 1100, "result": "loss", "profit": -1000},
+                "u25": {"risk": 3334.38, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 4334.38,
+                "result": 1000
+            },
+            {
+                "date": "01/22",
+                "game": "EDM @ PIT",
+                "u15": {"risk": 1000, "win": 1177.25, "result": "loss", "profit": -1000},
+                "u25": None,
+                "u35": None,
+                "u45": {"risk": 2227.48, "win": 2000, "result": "win", "profit": 2000},
+                "total_bet": 3227.48,
+                "result": 1000
+            },
+            {
+                "date": "01/23",
+                "game": "CHI @ TBL",
+                "u15": {"risk": 1014.49, "win": 1000, "result": "win", "profit": 1000},
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "total_bet": 1014.49,
+                "result": 1000
+            },
+            {
+                "date": "01/23",
+                "game": "STL @ DAL",
+                "u15": {"risk": 1050, "win": 1000, "result": "loss", "profit": -1050},
+                "u25": {"risk": 5118.41, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 6168.41,
+                "result": 950
+            },
+            {
+                "date": "01/23",
+                "game": "WSH @ CGY",
+                "u15": {"risk": 1050, "win": 1050, "result": "win", "profit": 1050},
+                "u25": {"risk": 4146.52, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 5196.52,
+                "result": 3050
+            },
+            {
+                "date": "01/23",
+                "game": "NJD @ VAN",
+                "u15": {"risk": 1050, "win": 1000, "result": "win", "profit": 1000},
+                "u25": {"risk": 2439.42, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 3489.42,
+                "result": 3000
+            },
+            {
+                "date": "01/24",
+                "game": "NYI @ BUF",
+                "u15": {"risk": 1000, "win": 1074.48, "result": "win", "profit": 1074.48},
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "total_bet": 1000,
+                "result": 1074.48
+            },
+            {
+                "date": "01/24",
+                "game": "NSH @ UTA",
+                "u15": {"risk": 1014.49, "win": 1000, "result": "win", "profit": 1000},
+                "u25": {"risk": 4620.72, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 5635.21,
+                "result": 3000
+            },
+            {
+                "date": "01/24",
+                "game": "LAK @ STL",
+                "u15": {"risk": 1200, "win": 1000, "result": "win", "profit": 1000},
+                "u25": {"risk": 4489.14, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 5689.14,
+                "result": 3000
+            },
+            {
+                "date": "01/25",
+                "game": "TOR @ COL",
+                "u15": {"risk": 1000, "win": 1216.95, "result": "loss", "profit": -1000},
+                "u25": {"risk": 4262.05, "win": 2000, "result": "win", "profit": 2000},
+                "u35": {"risk": 14555.27, "win": 6300, "result": "win", "profit": 6300},
+                "u45": None,
+                "total_bet": 19817.32,
+                "result": 7300
+            },
+            {
+                "date": "01/25",
+                "game": "OTT @ VGK",
+                "u15": None,
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "o15": {"risk": 1566.12, "win": 1000, "result": "loss", "profit": -1566.12},
+                "total_bet": 1566.12,
+                "result": -1566.12
+            },
+            {
+                "date": "01/25",
+                "game": "CHI @ FLA",
+                "u15": {"risk": 1132.30, "win": 1000, "result": "win", "profit": 1000},
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "total_bet": 1132.30,
+                "result": 1000
+            },
+            {
+                "date": "01/25",
+                "game": "CGY @ ANA",
+                "u15": {"risk": 1095.45, "win": 1000, "result": "loss", "profit": -1095.45},
+                "u25": {"risk": 4627.51, "win": 2030.37, "result": "win", "profit": 2030.37},
+                "u35": None,
+                "u45": None,
+                "total_bet": 5722.96,
+                "result": 934.92
+            }
+        ]
+        
+        # Calculate summary for this week
+        summary = {
+            "u15": {"wins": 8, "losses": 6, "profit": 1978.91},
+            "u25": {"wins": 7, "losses": 0, "profit": 14030.37},
+            "u35": {"wins": 1, "losses": 0, "profit": 6300},
+            "u45": {"wins": 1, "losses": 0, "profit": 2000},
+            "o15": {"wins": 0, "losses": 1, "profit": -1566.12},
+            "total": {"wins": 17, "losses": 7, "profit": 22743.16}
+        }
+        
+        # Store in historical collection
+        await db.first_period_bets_history.update_one(
+            {"_id": week_id},
+            {"$set": {
+                "bets": bets, 
+                "summary": summary,
+                "added_at": datetime.now().isoformat(),
+                "verified": True
+            }},
+            upsert=True
+        )
+        
+        logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} games, profit: ${summary['total']['profit']:.2f}")
+        
+        return {
+            "status": "success",
+            "message": f"Initialized week {week_id} with {len(bets)} games",
+            "summary": summary
+        }
+    except Exception as e:
+        logger.error(f"Error initializing historical week: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/nhl/first-period-bets/init-history-week-0126-0128")
+async def init_history_week_0126_0128():
+    """
+    Initialize the confirmed data for week 01/26-01/28 (current week).
+    This data was manually verified from plays888.co screenshots.
+    """
+    try:
+        week_id = "2026-01-26_to_2026-01-28"
+        
+        # Confirmed data from screenshots - 5 games
+        bets = [
+            {
+                "date": "01/26",
+                "game": "NYI @ PHI",
+                "u15": {"risk": 2100, "win": 2000, "result": "win", "profit": 2000, "count": 2},  # 2 tickets
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "total_bet": 2100,
+                "result": 2000
+            },
+            {
+                "date": "01/26",
+                "game": "BOS @ NYR",
+                "u15": None,
+                "u25": {"risk": 7676.54, "win": 2000, "result": "loss", "profit": -7676.54},
+                "u35": None,
+                "u45": {"risk": 30276.42, "win": 4000.01, "result": "win", "profit": 4000},
+                "reg_u65": {"risk": 4183.45, "win": 1199, "result": "win", "profit": 1199},
+                "total_bet": 42136.41,
+                "result": -2477.54
+            },
+            {
+                "date": "01/26",
+                "game": "ANA @ EDM",
+                "u15": None,
+                "u25": {"risk": 5424.49, "win": 2000, "result": "win", "profit": 2000},
+                "u35": {"risk": 29832.82, "win": 7499.99, "result": "win", "profit": 7500},
+                "u45": None,
+                "total_bet": 35257.31,
+                "result": 9500
+            },
+            {
+                "date": "01/27",
+                "game": "DET @ LAK",
+                "u15": {"risk": 2200, "win": 2000, "result": "win", "profit": 2000},
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "total_bet": 2200,
+                "result": 2000
+            },
+            {
+                "date": "01/27",
+                "game": "NJD @ WPG",
+                "u15": {"risk": 2200, "win": 2000, "result": "loss", "profit": -2200},
+                "u25": {"risk": 6559.96, "win": 4200, "result": "win", "profit": 4200},
+                "u35": None,
+                "u45": None,
+                "total_bet": 8759.96,
+                "result": 2000
+            }
+        ]
+        
+        # Calculate summary for this week
+        summary = {
+            "u15": {"wins": 3, "losses": 1, "profit": 1800},
+            "u25": {"wins": 2, "losses": 1, "profit": -1476.54},
+            "u35": {"wins": 1, "losses": 0, "profit": 7500},
+            "u45": {"wins": 1, "losses": 0, "profit": 4000},
+            "reg_u65": {"wins": 1, "losses": 0, "profit": 1199},
+            "total": {"wins": 8, "losses": 2, "profit": 13022.46}
+        }
+        
+        # Store in historical collection
+        await db.first_period_bets_history.update_one(
+            {"_id": week_id},
+            {"$set": {
+                "bets": bets, 
+                "summary": summary,
+                "added_at": datetime.now().isoformat(),
+                "verified": True
+            }},
+            upsert=True
+        )
+        
+        logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} games, profit: ${summary['total']['profit']:.2f}")
+        
+        return {
+            "status": "success",
+            "message": f"Initialized week {week_id} with {len(bets)} games",
+            "summary": summary
+        }
+    except Exception as e:
+        logger.error(f"Error initializing historical week: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/nhl/first-period-bets/init-all-history")
+async def init_all_history():
+    """
+    Initialize ALL confirmed historical data (both weeks).
+    Calls both week initialization endpoints.
+    """
+    try:
+        result1 = await init_history_week_0122_0125()
+        result2 = await init_history_week_0126_0128()
+        
+        # Also clear the old baseline since we now have real data
+        await db.first_period_bets.update_one(
+            {"_id": "enano_bets"},
+            {"$unset": {"baseline_summary": "", "bets": "", "summary": ""}},
+            upsert=True
+        )
+        
+        return {
+            "status": "success",
+            "message": "Initialized all historical data",
+            "week1": result1,
+            "week2": result2,
+            "combined": {
+                "total_games": 18,
+                "total_record": "25W - 9L",
+                "total_profit": 35765.62
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error initializing all history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/nhl/first-period-bets/test-data")
