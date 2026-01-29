@@ -510,7 +510,8 @@ export default function Opportunities() {
         const data = await res.json();
         setFirstPeriodBets({
           bets: data.bets || [],
-          summary: data.summary || {}
+          summary: data.summary || {},
+          last_update: data.last_update || null
         });
       } catch (e) {
         console.error('Error fetching 1st Period bets:', e);
@@ -531,7 +532,8 @@ export default function Opportunities() {
         const data = await res.json();
         setFirstPeriodBets({
           bets: data.bets || [],
-          summary: data.summary || {}
+          summary: data.summary || {},
+          last_update: data.last_update || null
         });
       } catch (e) {
         console.error('Error fetching 1st Period bets summary:', e);
