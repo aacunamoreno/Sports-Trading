@@ -19806,8 +19806,14 @@ async def get_first_period_bets():
         current_week = await db.first_period_bets.find_one({"_id": "enano_bets"}, {"_id": 0})
         current_bets = current_week.get("bets", []) if current_week else []
         
+        logger.info(f"[1st Period GET] Current week bets: {len(current_bets)}")
+        
         # Get all historical weeks
         historical_weeks = await db.first_period_bets_history.find({}).to_list(100)
+        
+        logger.info(f"[1st Period GET] Historical weeks: {len(historical_weeks)}")
+        for week in historical_weeks:
+            logger.info(f"[1st Period GET] Week {week.get('_id')}: {len(week.get('bets', []))} bets")
         
         # Use a dict to deduplicate by date+game
         bets_dict = {}
@@ -19822,6 +19828,8 @@ async def get_first_period_bets():
                     bet["week_id"] = week.get("_id", "unknown")
                     bets_dict[key] = bet
         
+        logger.info(f"[1st Period GET] After historical: {len(bets_dict)} unique bets")
+        
         # Add current week bets (will NOT overwrite historical - history takes precedence)
         # This prevents duplicates when current week overlaps with a backed-up week
         for bet in current_bets:
@@ -19829,12 +19837,15 @@ async def get_first_period_bets():
             if key not in bets_dict:
                 bet["source"] = "current"
                 bets_dict[key] = bet
+                logger.info(f"[1st Period GET] Added from current: {key}")
         
         # Convert back to list
         all_bets = list(bets_dict.values())
         
         # Sort all bets by date (newest first)
         all_bets.sort(key=lambda x: x.get("date", ""), reverse=True)
+        
+        logger.info(f"[1st Period GET] Total unique bets: {len(all_bets)}")
         
         # Calculate combined summary
         combined_summary = {
@@ -19865,11 +19876,16 @@ async def get_first_period_bets():
                         combined_summary["total"]["losses"] += 1
                         combined_summary["total"]["profit"] += line_bet.get("profit", -line_bet.get("risk", 0))
         
+        # Log individual line summaries
+        for line_key in ["u15", "u25", "u35", "u45", "o15", "reg_u65"]:
+            if combined_summary.get(line_key, {}).get("wins", 0) > 0 or combined_summary.get(line_key, {}).get("losses", 0) > 0:
+                logger.info(f"[1st Period GET] {line_key}: {combined_summary[line_key]['wins']}W-{combined_summary[line_key]['losses']}L, ${combined_summary[line_key]['profit']:+,.2f}")
+        
         # Count weeks
         historical_count = len(historical_weeks)
         current_count = 1 if current_bets else 0
         
-        logger.info(f"[1st Period Bets] GET: {len(all_bets)} games (deduped), {combined_summary['total']['wins']}W-{combined_summary['total']['losses']}L, ${combined_summary['total']['profit']:+,.2f}")
+        logger.info(f"[1st Period GET] FINAL: {len(all_bets)} games, {combined_summary['total']['wins']}W-{combined_summary['total']['losses']}L, ${combined_summary['total']['profit']:+,.2f}")
         
         return {
             "bets": all_bets,
