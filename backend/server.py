@@ -20080,35 +20080,26 @@ async def init_history_week_0122_0125():
         week_id = "2026-01-22_to_2026-01-25"
         
         # Confirmed data from screenshots - 13 games
+        # U1.5: 8W-6L, U2.5: 7W-0L, U3.5: 1W-0L, U4.5: 1W-0L, O1.5: 0W-1L
         bets = [
             {
                 "date": "01/22",
                 "game": "DET @ MIN",
                 "u15": {"risk": 1000, "win": 1100, "result": "loss", "profit": -1000},
                 "u25": {"risk": 3334.38, "win": 2000, "result": "win", "profit": 2000},
-                "u35": None,
-                "u45": None,
-                "total_bet": 4334.38,
                 "result": 1000
             },
             {
                 "date": "01/22",
                 "game": "EDM @ PIT",
                 "u15": {"risk": 1000, "win": 1177.25, "result": "loss", "profit": -1000},
-                "u25": None,
-                "u35": None,
                 "u45": {"risk": 2227.48, "win": 2000, "result": "win", "profit": 2000},
-                "total_bet": 3227.48,
                 "result": 1000
             },
             {
                 "date": "01/23",
                 "game": "CHI @ TBL",
                 "u15": {"risk": 1014.49, "win": 1000, "result": "win", "profit": 1000},
-                "u25": None,
-                "u35": None,
-                "u45": None,
-                "total_bet": 1014.49,
                 "result": 1000
             },
             {
@@ -20116,9 +20107,6 @@ async def init_history_week_0122_0125():
                 "game": "STL @ DAL",
                 "u15": {"risk": 1050, "win": 1000, "result": "loss", "profit": -1050},
                 "u25": {"risk": 5118.41, "win": 2000, "result": "win", "profit": 2000},
-                "u35": None,
-                "u45": None,
-                "total_bet": 6168.41,
                 "result": 950
             },
             {
@@ -20126,9 +20114,6 @@ async def init_history_week_0122_0125():
                 "game": "WSH @ CGY",
                 "u15": {"risk": 1050, "win": 1050, "result": "win", "profit": 1050},
                 "u25": {"risk": 4146.52, "win": 2000, "result": "win", "profit": 2000},
-                "u35": None,
-                "u45": None,
-                "total_bet": 5196.52,
                 "result": 3050
             },
             {
@@ -20136,19 +20121,12 @@ async def init_history_week_0122_0125():
                 "game": "NJD @ VAN",
                 "u15": {"risk": 1050, "win": 1000, "result": "win", "profit": 1000},
                 "u25": {"risk": 2439.42, "win": 2000, "result": "win", "profit": 2000},
-                "u35": None,
-                "u45": None,
-                "total_bet": 3489.42,
                 "result": 3000
             },
             {
                 "date": "01/24",
                 "game": "NYI @ BUF",
                 "u15": {"risk": 1000, "win": 1074.48, "result": "win", "profit": 1074.48},
-                "u25": None,
-                "u35": None,
-                "u45": None,
-                "total_bet": 1000,
                 "result": 1074.48
             },
             {
@@ -20156,9 +20134,6 @@ async def init_history_week_0122_0125():
                 "game": "NSH @ UTA",
                 "u15": {"risk": 1014.49, "win": 1000, "result": "win", "profit": 1000},
                 "u25": {"risk": 4620.72, "win": 2000, "result": "win", "profit": 2000},
-                "u35": None,
-                "u45": None,
-                "total_bet": 5635.21,
                 "result": 3000
             },
             {
@@ -20166,9 +20141,6 @@ async def init_history_week_0122_0125():
                 "game": "LAK @ STL",
                 "u15": {"risk": 1200, "win": 1000, "result": "win", "profit": 1000},
                 "u25": {"risk": 4489.14, "win": 2000, "result": "win", "profit": 2000},
-                "u35": None,
-                "u45": None,
-                "total_bet": 5689.14,
                 "result": 3000
             },
             {
@@ -20177,29 +20149,18 @@ async def init_history_week_0122_0125():
                 "u15": {"risk": 1000, "win": 1216.95, "result": "loss", "profit": -1000},
                 "u25": {"risk": 4262.05, "win": 2000, "result": "win", "profit": 2000},
                 "u35": {"risk": 14555.27, "win": 6300, "result": "win", "profit": 6300},
-                "u45": None,
-                "total_bet": 19817.32,
                 "result": 7300
             },
             {
                 "date": "01/25",
                 "game": "OTT @ VGK",
-                "u15": None,
-                "u25": None,
-                "u35": None,
-                "u45": None,
                 "o15": {"risk": 1566.12, "win": 1000, "result": "loss", "profit": -1566.12},
-                "total_bet": 1566.12,
                 "result": -1566.12
             },
             {
                 "date": "01/25",
                 "game": "CHI @ FLA",
                 "u15": {"risk": 1132.30, "win": 1000, "result": "win", "profit": 1000},
-                "u25": None,
-                "u35": None,
-                "u45": None,
-                "total_bet": 1132.30,
                 "result": 1000
             },
             {
@@ -20207,41 +20168,26 @@ async def init_history_week_0122_0125():
                 "game": "CGY @ ANA",
                 "u15": {"risk": 1095.45, "win": 1000, "result": "loss", "profit": -1095.45},
                 "u25": {"risk": 4627.51, "win": 2030.37, "result": "win", "profit": 2030.37},
-                "u35": None,
-                "u45": None,
-                "total_bet": 5722.96,
                 "result": 934.92
             }
         ]
-        
-        # Calculate summary for this week
-        summary = {
-            "u15": {"wins": 8, "losses": 6, "profit": 1978.91},
-            "u25": {"wins": 7, "losses": 0, "profit": 14030.37},
-            "u35": {"wins": 1, "losses": 0, "profit": 6300},
-            "u45": {"wins": 1, "losses": 0, "profit": 2000},
-            "o15": {"wins": 0, "losses": 1, "profit": -1566.12},
-            "total": {"wins": 17, "losses": 7, "profit": 22743.16}
-        }
         
         # Store in historical collection
         await db.first_period_bets_history.update_one(
             {"_id": week_id},
             {"$set": {
                 "bets": bets, 
-                "summary": summary,
                 "added_at": datetime.now().isoformat(),
                 "verified": True
             }},
             upsert=True
         )
         
-        logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} games, profit: ${summary['total']['profit']:.2f}")
+        logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} games")
         
         return {
             "status": "success",
-            "message": f"Initialized week {week_id} with {len(bets)} games",
-            "summary": summary
+            "message": f"Initialized week {week_id} with {len(bets)} games"
         }
     except Exception as e:
         logger.error(f"Error initializing historical week: {e}")
@@ -20250,53 +20196,47 @@ async def init_history_week_0122_0125():
 @api_router.post("/nhl/first-period-bets/init-history-week-0126-0128")
 async def init_history_week_0126_0128():
     """
-    Initialize the confirmed data for week 01/26-01/28 (current week).
+    Initialize the confirmed data for week 01/26-01/28.
     This data was manually verified from plays888.co screenshots.
+    NYI @ PHI has 2 separate U1.5 tickets (both WIN).
     """
     try:
         week_id = "2026-01-26_to_2026-01-28"
         
-        # Confirmed data from screenshots - 5 games
+        # Confirmed data - 6 entries (NYI@PHI split into 2 for correct counting)
+        # U1.5: 3W-1L, U2.5: 2W-1L, U3.5: 1W-0L, U4.5: 1W-0L, Reg: 1W-0L
         bets = [
             {
                 "date": "01/26",
-                "game": "NYI @ PHI",
-                "u15": {"risk": 2100, "win": 2000, "result": "win", "profit": 2000, "count": 2},  # 2 tickets
-                "u25": None,
-                "u35": None,
-                "u45": None,
-                "total_bet": 2100,
-                "result": 2000
+                "game": "NYI @ PHI (1)",
+                "u15": {"risk": 1050, "win": 1000, "result": "win", "profit": 1000},
+                "result": 1000
+            },
+            {
+                "date": "01/26",
+                "game": "NYI @ PHI (2)",
+                "u15": {"risk": 1050, "win": 1000, "result": "win", "profit": 1000},
+                "result": 1000
             },
             {
                 "date": "01/26",
                 "game": "BOS @ NYR",
-                "u15": None,
                 "u25": {"risk": 7676.54, "win": 2000, "result": "loss", "profit": -7676.54},
-                "u35": None,
                 "u45": {"risk": 30276.42, "win": 4000.01, "result": "win", "profit": 4000},
                 "reg_u65": {"risk": 4183.45, "win": 1199, "result": "win", "profit": 1199},
-                "total_bet": 42136.41,
                 "result": -2477.54
             },
             {
                 "date": "01/26",
                 "game": "ANA @ EDM",
-                "u15": None,
                 "u25": {"risk": 5424.49, "win": 2000, "result": "win", "profit": 2000},
                 "u35": {"risk": 29832.82, "win": 7499.99, "result": "win", "profit": 7500},
-                "u45": None,
-                "total_bet": 35257.31,
                 "result": 9500
             },
             {
                 "date": "01/27",
                 "game": "DET @ LAK",
                 "u15": {"risk": 2200, "win": 2000, "result": "win", "profit": 2000},
-                "u25": None,
-                "u35": None,
-                "u45": None,
-                "total_bet": 2200,
                 "result": 2000
             },
             {
@@ -20304,41 +20244,26 @@ async def init_history_week_0126_0128():
                 "game": "NJD @ WPG",
                 "u15": {"risk": 2200, "win": 2000, "result": "loss", "profit": -2200},
                 "u25": {"risk": 6559.96, "win": 4200, "result": "win", "profit": 4200},
-                "u35": None,
-                "u45": None,
-                "total_bet": 8759.96,
                 "result": 2000
             }
         ]
-        
-        # Calculate summary for this week
-        summary = {
-            "u15": {"wins": 3, "losses": 1, "profit": 1800},
-            "u25": {"wins": 2, "losses": 1, "profit": -1476.54},
-            "u35": {"wins": 1, "losses": 0, "profit": 7500},
-            "u45": {"wins": 1, "losses": 0, "profit": 4000},
-            "reg_u65": {"wins": 1, "losses": 0, "profit": 1199},
-            "total": {"wins": 8, "losses": 2, "profit": 13022.46}
-        }
         
         # Store in historical collection
         await db.first_period_bets_history.update_one(
             {"_id": week_id},
             {"$set": {
                 "bets": bets, 
-                "summary": summary,
                 "added_at": datetime.now().isoformat(),
                 "verified": True
             }},
             upsert=True
         )
         
-        logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} games, profit: ${summary['total']['profit']:.2f}")
+        logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} entries")
         
         return {
             "status": "success",
-            "message": f"Initialized week {week_id} with {len(bets)} games",
-            "summary": summary
+            "message": f"Initialized week {week_id} with {len(bets)} entries"
         }
     except Exception as e:
         logger.error(f"Error initializing historical week: {e}")
@@ -20347,29 +20272,35 @@ async def init_history_week_0126_0128():
 @api_router.post("/nhl/first-period-bets/init-all-history")
 async def init_all_history():
     """
-    Initialize ALL confirmed historical data (both weeks).
-    Calls both week initialization endpoints.
+    Initialize ALL confirmed historical data.
+    Clears existing data and reinitializes from scratch.
+    
+    Expected final result: 25W-9L, +$35,765.62
+    - Week 01/22-01/25: 13 games, 17W-7L, +$22,743.16
+    - Week 01/26-01/28: 6 entries (NYI@PHI x2), 8W-2L, +$13,022.46
     """
     try:
-        result1 = await init_history_week_0122_0125()
-        result2 = await init_history_week_0126_0128()
+        # Clear ALL existing data first
+        await db.first_period_bets_history.delete_many({})
+        await db.first_period_bets.delete_many({})
         
-        # Also clear the old baseline since we now have real data
-        await db.first_period_bets.update_one(
-            {"_id": "enano_bets"},
-            {"$unset": {"baseline_summary": "", "bets": "", "summary": ""}},
-            upsert=True
-        )
+        logger.info("[1st Period] Cleared all existing data")
+        
+        # Initialize week 1
+        result1 = await init_history_week_0122_0125()
+        
+        # Initialize week 2
+        result2 = await init_history_week_0126_0128()
         
         return {
             "status": "success",
-            "message": "Initialized all historical data",
+            "message": "Initialized all historical data - 25W-9L, +$35,765.62",
             "week1": result1,
             "week2": result2,
-            "combined": {
-                "total_games": 18,
-                "total_record": "25W - 9L",
-                "total_profit": 35765.62
+            "expected": {
+                "total_entries": 19,
+                "record": "25W-9L",
+                "profit": 35765.62
             }
         }
     except Exception as e:
