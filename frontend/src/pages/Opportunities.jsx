@@ -1343,14 +1343,14 @@ export default function Opportunities() {
                 </div>
                 {/* Divider */}
                 <div className="border-l border-purple-500/30"></div>
-                {/* 1st Period Bets */}
+                {/* NHL Period Bets */}
                 <div 
                   className="text-center cursor-pointer hover:opacity-80 transition-all"
                   onClick={() => setShowFirstPeriodBetsModal(true)}
                   title="Click to view 1st Period betting record"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    <span className="text-xs text-muted-foreground">💰 1st Period Bets</span>
+                    <span className="text-xs text-muted-foreground">💰 NHL Period Bets</span>
                     <span className="text-[9px] bg-purple-600/30 text-purple-300 px-1 py-0.5 rounded">Record</span>
                   </div>
                   <div className="text-xl font-bold">
@@ -1363,9 +1363,23 @@ export default function Opportunities() {
                       ? `${((firstPeriodBets.summary?.total?.wins / (firstPeriodBets.summary?.total?.wins + firstPeriodBets.summary?.total?.losses)) * 100).toFixed(1)}% Win`
                       : 'No bets'}
                   </div>
-                  <div className={`text-[10px] font-bold ${(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className={`text-sm font-bold ${(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.total?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                   </div>
+                  {/* Last Update indicator */}
+                  {firstPeriodBets.last_update && (
+                    <div className="mt-1 pt-1 border-t border-gray-700">
+                      <div className="text-[9px] text-gray-500">Last Update:</div>
+                      <div className="text-[10px] font-medium">
+                        <span className="text-green-400">{firstPeriodBets.last_update?.wins || 0}</span>
+                        <span className="text-gray-500">-</span>
+                        <span className="text-red-400">{firstPeriodBets.last_update?.losses || 0}</span>
+                      </div>
+                      <div className={`text-[10px] font-bold ${(firstPeriodBets.last_update?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {(firstPeriodBets.last_update?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.last_update?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -3227,11 +3241,11 @@ export default function Opportunities() {
 
                 {/* Bets table with scroll */}
                 <div className="max-h-[60vh] overflow-y-auto overflow-x-auto border border-gray-700 rounded-lg">
-                  <table className="w-full text-sm">
+                  <table className="w-full min-w-max text-sm">
                     <thead className="sticky top-0 bg-gray-900 z-10">
                       <tr className="border-b border-gray-700">
                         <th className="text-left py-2 px-2 text-gray-400 bg-gray-900 w-16">Date</th>
-                        <th className="text-left py-2 px-2 text-gray-400 bg-gray-900 w-24">Game</th>
+                        <th className="text-left py-2 px-2 text-gray-400 bg-gray-900 whitespace-nowrap">Game</th>
                         <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">U1.5</th>
                         <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">U2.5</th>
                         <th className="text-center py-2 px-2 text-gray-400 bg-gray-900">U3.5</th>
@@ -3246,7 +3260,7 @@ export default function Opportunities() {
                         firstPeriodBets.bets.map((bet, idx) => (
                           <tr key={idx} className="border-b border-gray-800 hover:bg-gray-800/50">
                             <td className="py-2 px-2 text-gray-300 text-sm">{bet.date}</td>
-                            <td className="py-2 px-2 text-white font-medium text-sm">{bet.game}</td>
+                            <td className="py-2 px-2 text-white font-medium text-sm whitespace-nowrap">{bet.game}</td>
                             <td className="py-2 px-2 text-center">
                               {bet.u15 ? (
                                 <span className={`font-bold text-sm ${bet.u15.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>
