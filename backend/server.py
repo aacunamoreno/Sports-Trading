@@ -19898,6 +19898,28 @@ async def get_first_period_bets():
             if combined_summary.get(line_key, {}).get("wins", 0) > 0 or combined_summary.get(line_key, {}).get("losses", 0) > 0:
                 logger.info(f"[1st Period GET] {line_key}: {combined_summary[line_key]['wins']}W-{combined_summary[line_key]['losses']}L, ${combined_summary[line_key]['profit']:+,.2f}")
         
+        # Calculate last_update (most recent date's results)
+        last_update = {"wins": 0, "losses": 0, "profit": 0, "date": None}
+        if all_bets:
+            # Find the most recent date
+            most_recent_date = max(bet.get("date", "") for bet in all_bets)
+            last_update["date"] = most_recent_date
+            
+            # Calculate stats for that date
+            for bet in all_bets:
+                if bet.get("date") == most_recent_date:
+                    for line_key in ["u15", "u25", "u35", "u45", "o15", "reg_u65"]:
+                        line_bet = bet.get(line_key)
+                        if line_bet and line_bet.get("result") in ["win", "loss"]:
+                            if line_bet["result"] == "win":
+                                last_update["wins"] += 1
+                                last_update["profit"] += line_bet.get("profit", 0)
+                            elif line_bet["result"] == "loss":
+                                last_update["losses"] += 1
+                                last_update["profit"] += line_bet.get("profit", 0)
+            
+            logger.info(f"[1st Period GET] Last Update ({most_recent_date}): {last_update['wins']}W-{last_update['losses']}L, ${last_update['profit']:+,.2f}")
+        
         # Count weeks
         historical_count = len(historical_weeks)
         current_count = 1 if current_bets else 0
@@ -19907,6 +19929,7 @@ async def get_first_period_bets():
         return {
             "bets": all_bets,
             "summary": combined_summary,
+            "last_update": last_update,
             "weeks_historical": historical_count,
             "weeks_current": current_count,
             "total_games": len(all_bets),
