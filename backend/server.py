@@ -19815,32 +19815,49 @@ async def get_first_period_bets():
         for week in historical_weeks:
             logger.info(f"[1st Period GET] Week {week.get('_id')}: {len(week.get('bets', []))} bets")
         
-        # Use a dict to deduplicate by date+game
+        # Use a dict to deduplicate by date+game (normalize game name)
         bets_dict = {}
+        
+        def normalize_game_key(date, game):
+            """Normalize game name for deduplication - remove (1), (2) suffixes"""
+            import re
+            # Remove suffixes like (1), (2), etc.
+            normalized_game = re.sub(r'\s*\(\d+\)\s*$', '', game).strip()
+            return f"{date}_{normalized_game}"
         
         # Add historical bets first (older weeks)
         for week in historical_weeks:
             week_bets = week.get("bets", [])
             for bet in week_bets:
-                key = f"{bet.get('date', '')}_{bet.get('game', '')}"
-                if key not in bets_dict:
+                key = normalize_game_key(bet.get('date', ''), bet.get('game', ''))
+                # For historical, we want to keep all entries (including (1) and (2))
+                # But use the normalized key to check for duplicates from current week
+                original_key = f"{bet.get('date', '')}_{bet.get('game', '')}"
+                if original_key not in bets_dict:
                     bet["source"] = "history"
                     bet["week_id"] = week.get("_id", "unknown")
-                    bets_dict[key] = bet
+                    bets_dict[original_key] = bet
+                    # Also mark the normalized key as seen
+                    if key != original_key and key not in bets_dict:
+                        bets_dict[key] = "seen"  # Mark as seen but don't add duplicate
         
-        logger.info(f"[1st Period GET] After historical: {len(bets_dict)} unique bets")
+        logger.info(f"[1st Period GET] After historical: {len([v for v in bets_dict.values() if v != 'seen'])} unique bets")
         
         # Add current week bets (will NOT overwrite historical - history takes precedence)
         # This prevents duplicates when current week overlaps with a backed-up week
         for bet in current_bets:
-            key = f"{bet.get('date', '')}_{bet.get('game', '')}"
-            if key not in bets_dict:
+            key = normalize_game_key(bet.get('date', ''), bet.get('game', ''))
+            original_key = f"{bet.get('date', '')}_{bet.get('game', '')}"
+            # Skip if either normalized or original key exists
+            if key not in bets_dict and original_key not in bets_dict:
                 bet["source"] = "current"
-                bets_dict[key] = bet
-                logger.info(f"[1st Period GET] Added from current: {key}")
+                bets_dict[original_key] = bet
+                logger.info(f"[1st Period GET] Added from current: {original_key}")
+            else:
+                logger.info(f"[1st Period GET] Skipped duplicate from current: {original_key} (matched {key})")
         
-        # Convert back to list
-        all_bets = list(bets_dict.values())
+        # Convert back to list (exclude "seen" markers)
+        all_bets = [v for v in bets_dict.values() if v != "seen"]
         
         # Sort all bets by date (newest first)
         all_bets.sort(key=lambda x: x.get("date", ""), reverse=True)
@@ -20074,121 +20091,111 @@ async def add_historical_week_first_period_bets(week_data: dict):
 async def init_history_week_0122_0125():
     """
     Initialize the confirmed historical data for week 01/22-01/25.
-    This data was manually verified from plays888.co screenshots.
+    Manually verified from plays888.co screenshots.
+    Record: 17W-7L, Profit: +$22,743.28
     """
     try:
         week_id = "2026-01-22_to_2026-01-25"
         
-        # Confirmed data from screenshots - 13 games
-        # U1.5: 8W-6L, U2.5: 7W-0L, U3.5: 1W-0L, U4.5: 1W-0L, O1.5: 0W-1L
         bets = [
             {
                 "date": "01/22",
                 "game": "DET @ MIN",
-                "u15": {"risk": 1000, "win": 1100, "result": "loss", "profit": -1000},
-                "u25": {"risk": 3334.38, "win": 2000, "result": "win", "profit": 2000},
+                "u15": {"result": "loss", "profit": -1000},
+                "u25": {"result": "win", "profit": 2000},
                 "result": 1000
             },
             {
                 "date": "01/22",
                 "game": "EDM @ PIT",
-                "u15": {"risk": 1000, "win": 1177.25, "result": "loss", "profit": -1000},
-                "u45": {"risk": 2227.48, "win": 2000, "result": "win", "profit": 2000},
+                "u15": {"result": "loss", "profit": -1000},
+                "u45": {"result": "win", "profit": 2000},
                 "result": 1000
             },
             {
                 "date": "01/23",
                 "game": "CHI @ TBL",
-                "u15": {"risk": 1014.49, "win": 1000, "result": "win", "profit": 1000},
+                "u15": {"result": "win", "profit": 1000},
                 "result": 1000
             },
             {
                 "date": "01/23",
                 "game": "STL @ DAL",
-                "u15": {"risk": 1050, "win": 1000, "result": "loss", "profit": -1050},
-                "u25": {"risk": 5118.41, "win": 2000, "result": "win", "profit": 2000},
+                "u15": {"result": "loss", "profit": -1050},
+                "u25": {"result": "win", "profit": 2000},
                 "result": 950
             },
             {
                 "date": "01/23",
                 "game": "WSH @ CGY",
-                "u15": {"risk": 1050, "win": 1050, "result": "win", "profit": 1050},
-                "u25": {"risk": 4146.52, "win": 2000, "result": "win", "profit": 2000},
+                "u15": {"result": "win", "profit": 1050},
+                "u25": {"result": "win", "profit": 2000},
                 "result": 3050
             },
             {
                 "date": "01/23",
                 "game": "NJD @ VAN",
-                "u15": {"risk": 1050, "win": 1000, "result": "win", "profit": 1000},
-                "u25": {"risk": 2439.42, "win": 2000, "result": "win", "profit": 2000},
+                "u15": {"result": "win", "profit": 1000},
+                "u25": {"result": "win", "profit": 2000},
                 "result": 3000
             },
             {
                 "date": "01/24",
                 "game": "NYI @ BUF",
-                "u15": {"risk": 1000, "win": 1074.48, "result": "win", "profit": 1074.48},
+                "u15": {"result": "win", "profit": 1074.48},
                 "result": 1074.48
             },
             {
                 "date": "01/24",
                 "game": "NSH @ UTA",
-                "u15": {"risk": 1014.49, "win": 1000, "result": "win", "profit": 1000},
-                "u25": {"risk": 4620.72, "win": 2000, "result": "win", "profit": 2000},
+                "u15": {"result": "win", "profit": 1000},
+                "u25": {"result": "win", "profit": 2000},
                 "result": 3000
             },
             {
                 "date": "01/24",
                 "game": "LAK @ STL",
-                "u15": {"risk": 1200, "win": 1000, "result": "win", "profit": 1000},
-                "u25": {"risk": 4489.14, "win": 2000, "result": "win", "profit": 2000},
+                "u15": {"result": "win", "profit": 1000},
+                "u25": {"result": "win", "profit": 2000},
                 "result": 3000
             },
             {
                 "date": "01/25",
                 "game": "TOR @ COL",
-                "u15": {"risk": 1000, "win": 1216.95, "result": "loss", "profit": -1000},
-                "u25": {"risk": 4262.05, "win": 2000, "result": "win", "profit": 2000},
-                "u35": {"risk": 14555.27, "win": 6300, "result": "win", "profit": 6300},
+                "u15": {"result": "loss", "profit": -1000},
+                "u25": {"result": "win", "profit": 2000},
+                "u35": {"result": "win", "profit": 6300},
                 "result": 7300
             },
             {
                 "date": "01/25",
                 "game": "OTT @ VGK",
-                "o15": {"risk": 1566.12, "win": 1000, "result": "loss", "profit": -1566.12},
+                "o15": {"result": "loss", "profit": -1566.12},
                 "result": -1566.12
             },
             {
                 "date": "01/25",
                 "game": "CHI @ FLA",
-                "u15": {"risk": 1132.30, "win": 1000, "result": "win", "profit": 1000},
+                "u15": {"result": "win", "profit": 1000},
                 "result": 1000
             },
             {
                 "date": "01/25",
                 "game": "CGY @ ANA",
-                "u15": {"risk": 1095.45, "win": 1000, "result": "loss", "profit": -1095.45},
-                "u25": {"risk": 4627.51, "win": 2030.37, "result": "win", "profit": 2030.37},
+                "u15": {"result": "loss", "profit": -1095.45},
+                "u25": {"result": "win", "profit": 2030.37},
                 "result": 934.92
             }
         ]
         
-        # Store in historical collection
         await db.first_period_bets_history.update_one(
             {"_id": week_id},
-            {"$set": {
-                "bets": bets, 
-                "added_at": datetime.now().isoformat(),
-                "verified": True
-            }},
+            {"$set": {"bets": bets, "added_at": datetime.now().isoformat(), "verified": True}},
             upsert=True
         )
         
         logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} games")
-        
-        return {
-            "status": "success",
-            "message": f"Initialized week {week_id} with {len(bets)} games"
-        }
+        return {"status": "success", "message": f"Initialized week {week_id} with {len(bets)} games"}
     except Exception as e:
         logger.error(f"Error initializing historical week: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -20197,74 +20204,64 @@ async def init_history_week_0122_0125():
 async def init_history_week_0126_0128():
     """
     Initialize the confirmed data for week 01/26-01/28.
-    This data was manually verified from plays888.co screenshots.
-    NYI @ PHI has 2 separate U1.5 tickets (both WIN).
+    Manually verified from plays888.co screenshots.
+    NYI @ PHI has 2 separate U1.5 tickets (both WIN +$1000 each).
+    Record: 8W-2L, Profit: +$13,022.46
     """
     try:
         week_id = "2026-01-26_to_2026-01-28"
         
-        # Confirmed data - 6 entries (NYI@PHI split into 2 for correct counting)
-        # U1.5: 3W-1L, U2.5: 2W-1L, U3.5: 1W-0L, U4.5: 1W-0L, Reg: 1W-0L
         bets = [
             {
                 "date": "01/26",
                 "game": "NYI @ PHI (1)",
-                "u15": {"risk": 1050, "win": 1000, "result": "win", "profit": 1000},
+                "u15": {"result": "win", "profit": 1000},
                 "result": 1000
             },
             {
                 "date": "01/26",
                 "game": "NYI @ PHI (2)",
-                "u15": {"risk": 1050, "win": 1000, "result": "win", "profit": 1000},
+                "u15": {"result": "win", "profit": 1000},
                 "result": 1000
             },
             {
                 "date": "01/26",
                 "game": "BOS @ NYR",
-                "u25": {"risk": 7676.54, "win": 2000, "result": "loss", "profit": -7676.54},
-                "u45": {"risk": 30276.42, "win": 4000.01, "result": "win", "profit": 4000},
-                "reg_u65": {"risk": 4183.45, "win": 1199, "result": "win", "profit": 1199},
+                "u25": {"result": "loss", "profit": -7676.54},
+                "u45": {"result": "win", "profit": 4000},
+                "reg_u65": {"result": "win", "profit": 1199},
                 "result": -2477.54
             },
             {
                 "date": "01/26",
                 "game": "ANA @ EDM",
-                "u25": {"risk": 5424.49, "win": 2000, "result": "win", "profit": 2000},
-                "u35": {"risk": 29832.82, "win": 7499.99, "result": "win", "profit": 7500},
+                "u25": {"result": "win", "profit": 2000},
+                "u35": {"result": "win", "profit": 7500},
                 "result": 9500
             },
             {
                 "date": "01/27",
                 "game": "DET @ LAK",
-                "u15": {"risk": 2200, "win": 2000, "result": "win", "profit": 2000},
+                "u15": {"result": "win", "profit": 2000},
                 "result": 2000
             },
             {
                 "date": "01/27",
                 "game": "NJD @ WPG",
-                "u15": {"risk": 2200, "win": 2000, "result": "loss", "profit": -2200},
-                "u25": {"risk": 6559.96, "win": 4200, "result": "win", "profit": 4200},
+                "u15": {"result": "loss", "profit": -2200},
+                "u25": {"result": "win", "profit": 4200},
                 "result": 2000
             }
         ]
         
-        # Store in historical collection
         await db.first_period_bets_history.update_one(
             {"_id": week_id},
-            {"$set": {
-                "bets": bets, 
-                "added_at": datetime.now().isoformat(),
-                "verified": True
-            }},
+            {"$set": {"bets": bets, "added_at": datetime.now().isoformat(), "verified": True}},
             upsert=True
         )
         
         logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} entries")
-        
-        return {
-            "status": "success",
-            "message": f"Initialized week {week_id} with {len(bets)} entries"
-        }
+        return {"status": "success", "message": f"Initialized week {week_id} with {len(bets)} entries"}
     except Exception as e:
         logger.error(f"Error initializing historical week: {e}")
         raise HTTPException(status_code=500, detail=str(e))
