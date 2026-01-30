@@ -19982,26 +19982,43 @@ async def get_first_period_bets():
         # Get all historical weeks
         historical_weeks = await db.first_period_bets_history.find({}).to_list(100)
         
+        # Helper function to normalize game names for deduplication
+        import re
+        def normalize_game_key(game_name):
+            """Remove (1), (2) suffixes for comparison"""
+            return re.sub(r'\s*\(\d+\)\s*$', '', game_name).strip()
+        
         # Use a dict to deduplicate by date+game
         bets_dict = {}
+        seen_normalized = set()  # Track normalized keys to prevent duplicates
         
         # Add historical bets first (older weeks)
         for week in historical_weeks:
             week_bets = week.get("bets", [])
             for bet in week_bets:
                 key = f"{bet.get('date', '')}_{bet.get('game', '')}"
+                normalized_key = f"{bet.get('date', '')}_{normalize_game_key(bet.get('game', ''))}"
                 if key not in bets_dict:
                     bet["source"] = "history"
                     bet["week_id"] = week.get("_id", "unknown")
                     bets_dict[key] = bet
+                    seen_normalized.add(normalized_key)
+        
+        logger.info(f"[1st Period GET] After historical: {len(bets_dict)} bets, {len(seen_normalized)} normalized keys")
         
         # Add current week bets (will NOT overwrite historical - history takes precedence)
         # This prevents duplicates when current week overlaps with a backed-up week
         for bet in current_bets:
             key = f"{bet.get('date', '')}_{bet.get('game', '')}"
-            if key not in bets_dict:
+            normalized_key = f"{bet.get('date', '')}_{normalize_game_key(bet.get('game', ''))}"
+            # Skip if either exact key or normalized key already exists
+            if key not in bets_dict and normalized_key not in seen_normalized:
                 bet["source"] = "current"
                 bets_dict[key] = bet
+                seen_normalized.add(normalized_key)
+                logger.info(f"[1st Period GET] Added from current: {key}")
+            else:
+                logger.info(f"[1st Period GET] Skipped duplicate: {key} (normalized: {normalized_key})")
         
         # Convert back to list
         all_bets = list(bets_dict.values())
