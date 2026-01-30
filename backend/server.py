@@ -19580,10 +19580,10 @@ async def scrape_first_period_bets_enano():
             # CRITICAL: Sort teams alphabetically to create consistent game key
             sorted_teams = tuple(sorted([team1_abbrev, team2_abbrev]))
             
-            # Extract amounts
+            # Extract amounts - support large numbers like 65915.96
             risk = 0
             win = 0
-            amount_match = re.search(r'(\d{1,4}(?:,\d{3})*\.\d{2})\s*/\s*(\d{1,4}(?:,\d{3})*\.\d{2})', ticket)
+            amount_match = re.search(r'(\d{1,6}(?:,\d{3})*\.\d{2})\s*/\s*(\d{1,6}(?:,\d{3})*\.\d{2})', ticket)
             if amount_match:
                 risk = float(amount_match.group(1).replace(',', ''))
                 win = float(amount_match.group(2).replace(',', ''))
@@ -20059,11 +20059,34 @@ async def get_first_period_bets():
         historical_count = len(historical_weeks)
         current_count = 1 if current_bets else 0
         
+        # Calculate last_update (most recent date's results)
+        last_update = {"wins": 0, "losses": 0, "profit": 0, "date": None}
+        if all_bets:
+            # Find the most recent date
+            most_recent_date = max(bet.get("date", "") for bet in all_bets)
+            last_update["date"] = most_recent_date
+            
+            # Calculate stats for that date
+            for bet in all_bets:
+                if bet.get("date") == most_recent_date:
+                    for line_key in ["u15", "u25", "u35", "u45", "o15", "reg_u65", "1p_u15", "1p_u25", "1p_u35", "1p_u45"]:
+                        line_bet = bet.get(line_key)
+                        if line_bet and line_bet.get("result") in ["win", "loss"]:
+                            if line_bet["result"] == "win":
+                                last_update["wins"] += 1
+                                last_update["profit"] += line_bet.get("profit", 0)
+                            elif line_bet["result"] == "loss":
+                                last_update["losses"] += 1
+                                last_update["profit"] += line_bet.get("profit", 0)
+            
+            logger.info(f"[1st Period GET] Last Update ({most_recent_date}): {last_update['wins']}W-{last_update['losses']}L, ${last_update['profit']:+,.2f}")
+        
         logger.info(f"[1st Period Bets] GET: {len(all_bets)} games (deduped), {combined_summary['total']['wins']}W-{combined_summary['total']['losses']}L, ${combined_summary['total']['profit']:+,.2f}")
         
         return {
             "bets": all_bets,
             "summary": combined_summary,
+            "last_update": last_update,
             "weeks_historical": historical_count,
             "weeks_current": current_count,
             "total_games": len(all_bets),
