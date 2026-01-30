@@ -5278,6 +5278,134 @@ async def scrape_cbssports_nhl(target_date: str) -> List[Dict[str, Any]]:
         return []
 
 
+async def scrape_nhl_api_schedule(target_date: str) -> List[Dict[str, Any]]:
+    """
+    Scrape NHL games from the official NHL API (no Playwright needed).
+    This is a fallback when CBS Sports and ScoresAndOdds fail due to Playwright issues.
+    
+    Note: The NHL API doesn't provide betting lines, so this only returns teams and times.
+    Lines will need to be fetched separately or left empty.
+    
+    Args:
+        target_date: Date in 'YYYY-MM-DD' format
+    
+    Returns:
+        List of games with teams and times (no betting lines)
+    """
+    logger.info(f"[NHL API Fallback] Fetching schedule for {target_date}")
+    
+    # NHL API team name mapping (from placeName to our format)
+    nhl_api_team_map = {
+        'Washington': 'Washington', 'Boston': 'Boston', 'New York': 'NY Rangers',
+        'Islanders': 'NY Islanders', 'Philadelphia': 'Philadelphia', 'Pittsburgh': 'Pittsburgh',
+        'New Jersey': 'New Jersey', 'Columbus': 'Columbus', 'Carolina': 'Carolina',
+        'Florida': 'Florida', 'Tampa Bay': 'Tampa Bay', 'Toronto': 'Toronto',
+        'Montréal': 'Montreal', 'Montreal': 'Montreal', 'Ottawa': 'Ottawa', 'Buffalo': 'Buffalo',
+        'Detroit': 'Detroit', 'Chicago': 'Chicago', 'St. Louis': 'St. Louis', 'St Louis': 'St. Louis',
+        'Nashville': 'Nashville', 'Dallas': 'Dallas', 'Minnesota': 'Minnesota',
+        'Winnipeg': 'Winnipeg', 'Colorado': 'Colorado', 'Utah': 'Utah',
+        'Vegas': 'Vegas', 'Seattle': 'Seattle', 'San Jose': 'San Jose',
+        'Los Angeles': 'LA Kings', 'Anaheim': 'Anaheim', 'Edmonton': 'Edmonton',
+        'Calgary': 'Calgary', 'Vancouver': 'Vancouver',
+        # Full names
+        'Capitals': 'Washington', 'Bruins': 'Boston', 'Rangers': 'NY Rangers',
+        'Flyers': 'Philadelphia', 'Penguins': 'Pittsburgh', 'Devils': 'New Jersey',
+        'Blue Jackets': 'Columbus', 'Hurricanes': 'Carolina', 'Panthers': 'Florida',
+        'Lightning': 'Tampa Bay', 'Maple Leafs': 'Toronto', 'Canadiens': 'Montreal',
+        'Senators': 'Ottawa', 'Sabres': 'Buffalo', 'Red Wings': 'Detroit',
+        'Blackhawks': 'Chicago', 'Blues': 'St. Louis', 'Predators': 'Nashville',
+        'Stars': 'Dallas', 'Wild': 'Minnesota', 'Jets': 'Winnipeg',
+        'Avalanche': 'Colorado', 'Golden Knights': 'Vegas', 'Kraken': 'Seattle',
+        'Sharks': 'San Jose', 'Kings': 'LA Kings', 'Ducks': 'Anaheim',
+        'Oilers': 'Edmonton', 'Flames': 'Calgary', 'Canucks': 'Vancouver',
+        'Hockey Club': 'Utah'
+    }
+    
+    def normalize_api_team(team_data):
+        """Extract and normalize team name from NHL API response"""
+        if not team_data:
+            return None
+        # Try different name fields
+        place_name = team_data.get('placeName', {})
+        if isinstance(place_name, dict):
+            name = place_name.get('default', '')
+        else:
+            name = str(place_name)
+        
+        # Also check common name
+        common_name = team_data.get('commonName', {})
+        if isinstance(common_name, dict):
+            common = common_name.get('default', '')
+        else:
+            common = str(common_name) if common_name else ''
+        
+        # Try to match
+        for key, val in nhl_api_team_map.items():
+            if key.lower() in name.lower() or key.lower() in common.lower():
+                return val
+        
+        # Fallback to place name
+        return name if name else None
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Get schedule for the target date
+            response = await client.get(f"https://api-web.nhle.com/v1/schedule/{target_date}")
+            
+            if response.status_code != 200:
+                logger.warning(f"[NHL API Fallback] Failed to fetch schedule: HTTP {response.status_code}")
+                return []
+            
+            data = response.json()
+            games = []
+            
+            # Parse the response
+            for day_data in data.get("gameWeek", []):
+                if day_data.get("date") != target_date:
+                    continue
+                    
+                for game in day_data.get("games", []):
+                    away_team = normalize_api_team(game.get("awayTeam", {}))
+                    home_team = normalize_api_team(game.get("homeTeam", {}))
+                    
+                    if not away_team or not home_team:
+                        continue
+                    
+                    # Parse start time
+                    start_time_utc = game.get("startTimeUTC", "")
+                    time_str = "TBD"
+                    if start_time_utc:
+                        try:
+                            from zoneinfo import ZoneInfo
+                            utc_dt = datetime.fromisoformat(start_time_utc.replace('Z', '+00:00'))
+                            arizona_tz = ZoneInfo('America/Phoenix')
+                            arizona_dt = utc_dt.astimezone(arizona_tz)
+                            time_str = arizona_dt.strftime('%I:%M %p').lstrip('0')
+                        except:
+                            pass
+                    
+                    game_doc = {
+                        'away_team': away_team,
+                        'home_team': home_team,
+                        'time': time_str,
+                        'total': None,  # NHL API doesn't provide betting lines
+                        'moneyline': None,
+                        'moneyline_team': None,
+                        'game_id': game.get('id'),
+                        'game_state': game.get('gameState', 'FUT')
+                    }
+                    games.append(game_doc)
+            
+            logger.info(f"[NHL API Fallback] Found {len(games)} games for {target_date}")
+            return games
+            
+    except Exception as e:
+        logger.error(f"[NHL API Fallback] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
 async def scrape_covers_consensus(league: str, target_date: str) -> Dict[str, Dict]:
     """
     Scrape betting consensus percentages and spreads from Covers.com
@@ -8368,6 +8496,10 @@ async def scrape_tomorrows_opening_lines():
                     games = await scrape_cbssports_nba(tomorrow)
                 elif league == 'NHL':
                     games = await scrape_cbssports_nhl(tomorrow)
+                    if not games:
+                        # Fallback to NHL API if CBS fails
+                        logger.warning(f"[8PM Job] CBS Sports failed for NHL, trying NHL API fallback...")
+                        games = await scrape_nhl_api_schedule(tomorrow)
                 else:
                     games = await scrape_scoresandodds(league.upper(), tomorrow)
                 
@@ -10535,6 +10667,13 @@ async def scrape_opening_lines_endpoint(target_date: str = None):
                         games = await scrape_scoresandodds(league.upper(), target_date)
                         if games:
                             league_result["data_source"] = "scoresandodds.com"
+                        else:
+                            # Final fallback: NHL API (no lines, but at least gets games)
+                            logger.warning(f"[8PM Job] CBS Sports and ScoresAndOdds failed for NHL, trying NHL API fallback...")
+                            games = await scrape_nhl_api_schedule(target_date)
+                            if games:
+                                league_result["data_source"] = "nhl-api (no lines)"
+                                logger.info(f"[8PM Job] NHL API fallback successful: {len(games)} games found")
                             
                 elif league == 'NCAAB':
                     games = await scrape_cbssports_ncaab(target_date)
@@ -11726,6 +11865,10 @@ async def refresh_lines_and_bets(league: str = "NBA", day: str = "today"):
                 live_games = await scrape_cbssports_nba(target_date)
             elif league.upper() == "NHL":
                 live_games = await scrape_cbssports_nhl(target_date)
+                if not live_games:
+                    # Fallback to NHL API if CBS fails
+                    logger.warning(f"[Refresh Lines] CBS Sports failed for NHL, trying NHL API fallback...")
+                    live_games = await scrape_nhl_api_schedule(target_date)
             else:
                 live_games = []
             
@@ -15873,7 +16016,12 @@ async def update_nhl_scores(date: str = None):
         # Scrape scores from CBS Sports (same source as Process #1)
         scraped_games = await scrape_cbssports_nhl(date)
         
-        logger.info(f"[NHL Scores] Scraped {len(scraped_games)} games from CBS Sports")
+        if not scraped_games:
+            # Fallback to NHL API if CBS fails
+            logger.warning(f"[NHL Scores] CBS Sports failed, trying NHL API fallback...")
+            scraped_games = await scrape_nhl_api_schedule(date)
+        
+        logger.info(f"[NHL Scores] Scraped {len(scraped_games)} games")
         
         # NOTE: Do NOT scrape Covers.com here - that's only for "Refresh Lines & Bets"
         # Update Scores only updates final scores from CBS Sports
@@ -18286,6 +18434,10 @@ async def scrape_specific_date(target_date: str):
                     games = await scrape_cbssports_nba(target_date)
                 elif league == 'NHL':
                     games = await scrape_cbssports_nhl(target_date)
+                    if not games:
+                        # Fallback to NHL API if CBS fails
+                        logger.warning(f"[Manual Scrape] CBS Sports failed for NHL, trying NHL API fallback...")
+                        games = await scrape_nhl_api_schedule(target_date)
                 else:
                     games = []
                 
@@ -19806,63 +19958,35 @@ async def get_first_period_bets():
         current_week = await db.first_period_bets.find_one({"_id": "enano_bets"}, {"_id": 0})
         current_bets = current_week.get("bets", []) if current_week else []
         
-        logger.info(f"[1st Period GET] Current week bets: {len(current_bets)}")
-        
         # Get all historical weeks
         historical_weeks = await db.first_period_bets_history.find({}).to_list(100)
         
-        logger.info(f"[1st Period GET] Historical weeks: {len(historical_weeks)}")
-        for week in historical_weeks:
-            logger.info(f"[1st Period GET] Week {week.get('_id')}: {len(week.get('bets', []))} bets")
-        
-        # Use a dict to deduplicate by date+game (normalize game name)
+        # Use a dict to deduplicate by date+game
         bets_dict = {}
-        
-        def normalize_game_key(date, game):
-            """Normalize game name for deduplication - remove (1), (2) suffixes"""
-            import re
-            # Remove suffixes like (1), (2), etc.
-            normalized_game = re.sub(r'\s*\(\d+\)\s*$', '', game).strip()
-            return f"{date}_{normalized_game}"
         
         # Add historical bets first (older weeks)
         for week in historical_weeks:
             week_bets = week.get("bets", [])
             for bet in week_bets:
-                key = normalize_game_key(bet.get('date', ''), bet.get('game', ''))
-                # For historical, we want to keep all entries (including (1) and (2))
-                # But use the normalized key to check for duplicates from current week
-                original_key = f"{bet.get('date', '')}_{bet.get('game', '')}"
-                if original_key not in bets_dict:
+                key = f"{bet.get('date', '')}_{bet.get('game', '')}"
+                if key not in bets_dict:
                     bet["source"] = "history"
                     bet["week_id"] = week.get("_id", "unknown")
-                    bets_dict[original_key] = bet
-                    # Also mark the normalized key as seen
-                    if key != original_key and key not in bets_dict:
-                        bets_dict[key] = "seen"  # Mark as seen but don't add duplicate
-        
-        logger.info(f"[1st Period GET] After historical: {len([v for v in bets_dict.values() if v != 'seen'])} unique bets")
+                    bets_dict[key] = bet
         
         # Add current week bets (will NOT overwrite historical - history takes precedence)
         # This prevents duplicates when current week overlaps with a backed-up week
         for bet in current_bets:
-            key = normalize_game_key(bet.get('date', ''), bet.get('game', ''))
-            original_key = f"{bet.get('date', '')}_{bet.get('game', '')}"
-            # Skip if either normalized or original key exists
-            if key not in bets_dict and original_key not in bets_dict:
+            key = f"{bet.get('date', '')}_{bet.get('game', '')}"
+            if key not in bets_dict:
                 bet["source"] = "current"
-                bets_dict[original_key] = bet
-                logger.info(f"[1st Period GET] Added from current: {original_key}")
-            else:
-                logger.info(f"[1st Period GET] Skipped duplicate from current: {original_key} (matched {key})")
+                bets_dict[key] = bet
         
-        # Convert back to list (exclude "seen" markers)
-        all_bets = [v for v in bets_dict.values() if v != "seen"]
+        # Convert back to list
+        all_bets = list(bets_dict.values())
         
         # Sort all bets by date (newest first)
         all_bets.sort(key=lambda x: x.get("date", ""), reverse=True)
-        
-        logger.info(f"[1st Period GET] Total unique bets: {len(all_bets)}")
         
         # Calculate combined summary
         combined_summary = {
@@ -19893,43 +20017,15 @@ async def get_first_period_bets():
                         combined_summary["total"]["losses"] += 1
                         combined_summary["total"]["profit"] += line_bet.get("profit", -line_bet.get("risk", 0))
         
-        # Log individual line summaries
-        for line_key in ["u15", "u25", "u35", "u45", "o15", "reg_u65"]:
-            if combined_summary.get(line_key, {}).get("wins", 0) > 0 or combined_summary.get(line_key, {}).get("losses", 0) > 0:
-                logger.info(f"[1st Period GET] {line_key}: {combined_summary[line_key]['wins']}W-{combined_summary[line_key]['losses']}L, ${combined_summary[line_key]['profit']:+,.2f}")
-        
-        # Calculate last_update (most recent date's results)
-        last_update = {"wins": 0, "losses": 0, "profit": 0, "date": None}
-        if all_bets:
-            # Find the most recent date
-            most_recent_date = max(bet.get("date", "") for bet in all_bets)
-            last_update["date"] = most_recent_date
-            
-            # Calculate stats for that date
-            for bet in all_bets:
-                if bet.get("date") == most_recent_date:
-                    for line_key in ["u15", "u25", "u35", "u45", "o15", "reg_u65"]:
-                        line_bet = bet.get(line_key)
-                        if line_bet and line_bet.get("result") in ["win", "loss"]:
-                            if line_bet["result"] == "win":
-                                last_update["wins"] += 1
-                                last_update["profit"] += line_bet.get("profit", 0)
-                            elif line_bet["result"] == "loss":
-                                last_update["losses"] += 1
-                                last_update["profit"] += line_bet.get("profit", 0)
-            
-            logger.info(f"[1st Period GET] Last Update ({most_recent_date}): {last_update['wins']}W-{last_update['losses']}L, ${last_update['profit']:+,.2f}")
-        
         # Count weeks
         historical_count = len(historical_weeks)
         current_count = 1 if current_bets else 0
         
-        logger.info(f"[1st Period GET] FINAL: {len(all_bets)} games, {combined_summary['total']['wins']}W-{combined_summary['total']['losses']}L, ${combined_summary['total']['profit']:+,.2f}")
+        logger.info(f"[1st Period Bets] GET: {len(all_bets)} games (deduped), {combined_summary['total']['wins']}W-{combined_summary['total']['losses']}L, ${combined_summary['total']['profit']:+,.2f}")
         
         return {
             "bets": all_bets,
             "summary": combined_summary,
-            "last_update": last_update,
             "weeks_historical": historical_count,
             "weeks_current": current_count,
             "total_games": len(all_bets),
@@ -20114,111 +20210,175 @@ async def add_historical_week_first_period_bets(week_data: dict):
 async def init_history_week_0122_0125():
     """
     Initialize the confirmed historical data for week 01/22-01/25.
-    Manually verified from plays888.co screenshots.
-    Record: 17W-7L, Profit: +$22,743.28
+    This data was manually verified from plays888.co screenshots.
     """
     try:
         week_id = "2026-01-22_to_2026-01-25"
         
+        # Confirmed data from screenshots - 13 games
         bets = [
             {
                 "date": "01/22",
                 "game": "DET @ MIN",
-                "u15": {"result": "loss", "profit": -1000},
-                "u25": {"result": "win", "profit": 2000},
+                "u15": {"risk": 1000, "win": 1100, "result": "loss", "profit": -1000},
+                "u25": {"risk": 3334.38, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 4334.38,
                 "result": 1000
             },
             {
                 "date": "01/22",
                 "game": "EDM @ PIT",
-                "u15": {"result": "loss", "profit": -1000},
-                "u45": {"result": "win", "profit": 2000},
+                "u15": {"risk": 1000, "win": 1177.25, "result": "loss", "profit": -1000},
+                "u25": None,
+                "u35": None,
+                "u45": {"risk": 2227.48, "win": 2000, "result": "win", "profit": 2000},
+                "total_bet": 3227.48,
                 "result": 1000
             },
             {
                 "date": "01/23",
                 "game": "CHI @ TBL",
-                "u15": {"result": "win", "profit": 1000},
+                "u15": {"risk": 1014.49, "win": 1000, "result": "win", "profit": 1000},
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "total_bet": 1014.49,
                 "result": 1000
             },
             {
                 "date": "01/23",
                 "game": "STL @ DAL",
-                "u15": {"result": "loss", "profit": -1050},
-                "u25": {"result": "win", "profit": 2000},
+                "u15": {"risk": 1050, "win": 1000, "result": "loss", "profit": -1050},
+                "u25": {"risk": 5118.41, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 6168.41,
                 "result": 950
             },
             {
                 "date": "01/23",
                 "game": "WSH @ CGY",
-                "u15": {"result": "win", "profit": 1050},
-                "u25": {"result": "win", "profit": 2000},
+                "u15": {"risk": 1050, "win": 1050, "result": "win", "profit": 1050},
+                "u25": {"risk": 4146.52, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 5196.52,
                 "result": 3050
             },
             {
                 "date": "01/23",
                 "game": "NJD @ VAN",
-                "u15": {"result": "win", "profit": 1000},
-                "u25": {"result": "win", "profit": 2000},
+                "u15": {"risk": 1050, "win": 1000, "result": "win", "profit": 1000},
+                "u25": {"risk": 2439.42, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 3489.42,
                 "result": 3000
             },
             {
                 "date": "01/24",
                 "game": "NYI @ BUF",
-                "u15": {"result": "win", "profit": 1074.48},
+                "u15": {"risk": 1000, "win": 1074.48, "result": "win", "profit": 1074.48},
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "total_bet": 1000,
                 "result": 1074.48
             },
             {
                 "date": "01/24",
                 "game": "NSH @ UTA",
-                "u15": {"result": "win", "profit": 1000},
-                "u25": {"result": "win", "profit": 2000},
+                "u15": {"risk": 1014.49, "win": 1000, "result": "win", "profit": 1000},
+                "u25": {"risk": 4620.72, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 5635.21,
                 "result": 3000
             },
             {
                 "date": "01/24",
                 "game": "LAK @ STL",
-                "u15": {"result": "win", "profit": 1000},
-                "u25": {"result": "win", "profit": 2000},
+                "u15": {"risk": 1200, "win": 1000, "result": "win", "profit": 1000},
+                "u25": {"risk": 4489.14, "win": 2000, "result": "win", "profit": 2000},
+                "u35": None,
+                "u45": None,
+                "total_bet": 5689.14,
                 "result": 3000
             },
             {
                 "date": "01/25",
                 "game": "TOR @ COL",
-                "u15": {"result": "loss", "profit": -1000},
-                "u25": {"result": "win", "profit": 2000},
-                "u35": {"result": "win", "profit": 6300},
+                "u15": {"risk": 1000, "win": 1216.95, "result": "loss", "profit": -1000},
+                "u25": {"risk": 4262.05, "win": 2000, "result": "win", "profit": 2000},
+                "u35": {"risk": 14555.27, "win": 6300, "result": "win", "profit": 6300},
+                "u45": None,
+                "total_bet": 19817.32,
                 "result": 7300
             },
             {
                 "date": "01/25",
                 "game": "OTT @ VGK",
-                "o15": {"result": "loss", "profit": -1566.12},
+                "u15": None,
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "o15": {"risk": 1566.12, "win": 1000, "result": "loss", "profit": -1566.12},
+                "total_bet": 1566.12,
                 "result": -1566.12
             },
             {
                 "date": "01/25",
                 "game": "CHI @ FLA",
-                "u15": {"result": "win", "profit": 1000},
+                "u15": {"risk": 1132.30, "win": 1000, "result": "win", "profit": 1000},
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "total_bet": 1132.30,
                 "result": 1000
             },
             {
                 "date": "01/25",
                 "game": "CGY @ ANA",
-                "u15": {"result": "loss", "profit": -1095.45},
-                "u25": {"result": "win", "profit": 2030.37},
+                "u15": {"risk": 1095.45, "win": 1000, "result": "loss", "profit": -1095.45},
+                "u25": {"risk": 4627.51, "win": 2030.37, "result": "win", "profit": 2030.37},
+                "u35": None,
+                "u45": None,
+                "total_bet": 5722.96,
                 "result": 934.92
             }
         ]
         
+        # Calculate summary for this week
+        summary = {
+            "u15": {"wins": 8, "losses": 6, "profit": 1978.91},
+            "u25": {"wins": 7, "losses": 0, "profit": 14030.37},
+            "u35": {"wins": 1, "losses": 0, "profit": 6300},
+            "u45": {"wins": 1, "losses": 0, "profit": 2000},
+            "o15": {"wins": 0, "losses": 1, "profit": -1566.12},
+            "total": {"wins": 17, "losses": 7, "profit": 22743.16}
+        }
+        
+        # Store in historical collection
         await db.first_period_bets_history.update_one(
             {"_id": week_id},
-            {"$set": {"bets": bets, "added_at": datetime.now().isoformat(), "verified": True}},
+            {"$set": {
+                "bets": bets, 
+                "summary": summary,
+                "added_at": datetime.now().isoformat(),
+                "verified": True
+            }},
             upsert=True
         )
         
-        logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} games")
-        return {"status": "success", "message": f"Initialized week {week_id} with {len(bets)} games"}
+        logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} games, profit: ${summary['total']['profit']:.2f}")
+        
+        return {
+            "status": "success",
+            "message": f"Initialized week {week_id} with {len(bets)} games",
+            "summary": summary
+        }
     except Exception as e:
         logger.error(f"Error initializing historical week: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -20226,65 +20386,96 @@ async def init_history_week_0122_0125():
 @api_router.post("/nhl/first-period-bets/init-history-week-0126-0128")
 async def init_history_week_0126_0128():
     """
-    Initialize the confirmed data for week 01/26-01/28.
-    Manually verified from plays888.co screenshots.
-    NYI @ PHI has 2 separate U1.5 tickets (both WIN +$1000 each).
-    Record: 8W-2L, Profit: +$13,022.46
+    Initialize the confirmed data for week 01/26-01/28 (current week).
+    This data was manually verified from plays888.co screenshots.
     """
     try:
         week_id = "2026-01-26_to_2026-01-28"
         
+        # Confirmed data from screenshots - 5 games
         bets = [
             {
                 "date": "01/26",
-                "game": "NYI @ PHI (1)",
-                "u15": {"result": "win", "profit": 1000},
-                "result": 1000
-            },
-            {
-                "date": "01/26",
-                "game": "NYI @ PHI (2)",
-                "u15": {"result": "win", "profit": 1000},
-                "result": 1000
+                "game": "NYI @ PHI",
+                "u15": {"risk": 2100, "win": 2000, "result": "win", "profit": 2000, "count": 2},  # 2 tickets
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "total_bet": 2100,
+                "result": 2000
             },
             {
                 "date": "01/26",
                 "game": "BOS @ NYR",
-                "u25": {"result": "loss", "profit": -7676.54},
-                "u45": {"result": "win", "profit": 4000},
-                "reg_u65": {"result": "win", "profit": 1199},
+                "u15": None,
+                "u25": {"risk": 7676.54, "win": 2000, "result": "loss", "profit": -7676.54},
+                "u35": None,
+                "u45": {"risk": 30276.42, "win": 4000.01, "result": "win", "profit": 4000},
+                "reg_u65": {"risk": 4183.45, "win": 1199, "result": "win", "profit": 1199},
+                "total_bet": 42136.41,
                 "result": -2477.54
             },
             {
                 "date": "01/26",
                 "game": "ANA @ EDM",
-                "u25": {"result": "win", "profit": 2000},
-                "u35": {"result": "win", "profit": 7500},
+                "u15": None,
+                "u25": {"risk": 5424.49, "win": 2000, "result": "win", "profit": 2000},
+                "u35": {"risk": 29832.82, "win": 7499.99, "result": "win", "profit": 7500},
+                "u45": None,
+                "total_bet": 35257.31,
                 "result": 9500
             },
             {
                 "date": "01/27",
                 "game": "DET @ LAK",
-                "u15": {"result": "win", "profit": 2000},
+                "u15": {"risk": 2200, "win": 2000, "result": "win", "profit": 2000},
+                "u25": None,
+                "u35": None,
+                "u45": None,
+                "total_bet": 2200,
                 "result": 2000
             },
             {
                 "date": "01/27",
                 "game": "NJD @ WPG",
-                "u15": {"result": "loss", "profit": -2200},
-                "u25": {"result": "win", "profit": 4200},
+                "u15": {"risk": 2200, "win": 2000, "result": "loss", "profit": -2200},
+                "u25": {"risk": 6559.96, "win": 4200, "result": "win", "profit": 4200},
+                "u35": None,
+                "u45": None,
+                "total_bet": 8759.96,
                 "result": 2000
             }
         ]
         
+        # Calculate summary for this week
+        summary = {
+            "u15": {"wins": 3, "losses": 1, "profit": 1800},
+            "u25": {"wins": 2, "losses": 1, "profit": -1476.54},
+            "u35": {"wins": 1, "losses": 0, "profit": 7500},
+            "u45": {"wins": 1, "losses": 0, "profit": 4000},
+            "reg_u65": {"wins": 1, "losses": 0, "profit": 1199},
+            "total": {"wins": 8, "losses": 2, "profit": 13022.46}
+        }
+        
+        # Store in historical collection
         await db.first_period_bets_history.update_one(
             {"_id": week_id},
-            {"$set": {"bets": bets, "added_at": datetime.now().isoformat(), "verified": True}},
+            {"$set": {
+                "bets": bets, 
+                "summary": summary,
+                "added_at": datetime.now().isoformat(),
+                "verified": True
+            }},
             upsert=True
         )
         
-        logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} entries")
-        return {"status": "success", "message": f"Initialized week {week_id} with {len(bets)} entries"}
+        logger.info(f"[1st Period History] Initialized week {week_id} with {len(bets)} games, profit: ${summary['total']['profit']:.2f}")
+        
+        return {
+            "status": "success",
+            "message": f"Initialized week {week_id} with {len(bets)} games",
+            "summary": summary
+        }
     except Exception as e:
         logger.error(f"Error initializing historical week: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -20292,35 +20483,29 @@ async def init_history_week_0126_0128():
 @api_router.post("/nhl/first-period-bets/init-all-history")
 async def init_all_history():
     """
-    Initialize ALL confirmed historical data.
-    Clears existing data and reinitializes from scratch.
-    
-    Expected final result: 25W-9L, +$35,765.62
-    - Week 01/22-01/25: 13 games, 17W-7L, +$22,743.16
-    - Week 01/26-01/28: 6 entries (NYI@PHI x2), 8W-2L, +$13,022.46
+    Initialize ALL confirmed historical data (both weeks).
+    Calls both week initialization endpoints.
     """
     try:
-        # Clear ALL existing data first
-        await db.first_period_bets_history.delete_many({})
-        await db.first_period_bets.delete_many({})
-        
-        logger.info("[1st Period] Cleared all existing data")
-        
-        # Initialize week 1
         result1 = await init_history_week_0122_0125()
-        
-        # Initialize week 2
         result2 = await init_history_week_0126_0128()
+        
+        # Also clear the old baseline since we now have real data
+        await db.first_period_bets.update_one(
+            {"_id": "enano_bets"},
+            {"$unset": {"baseline_summary": "", "bets": "", "summary": ""}},
+            upsert=True
+        )
         
         return {
             "status": "success",
-            "message": "Initialized all historical data - 25W-9L, +$35,765.62",
+            "message": "Initialized all historical data",
             "week1": result1,
             "week2": result2,
-            "expected": {
-                "total_entries": 19,
-                "record": "25W-9L",
-                "profit": 35765.62
+            "combined": {
+                "total_games": 18,
+                "total_record": "25W - 9L",
+                "total_profit": 35765.62
             }
         }
     except Exception as e:
