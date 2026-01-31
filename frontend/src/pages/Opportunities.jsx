@@ -3183,8 +3183,8 @@ export default function Opportunities() {
             ) : (
               <>
                 {/* Summary by line */}
-                <div className="grid grid-cols-5 gap-3 mb-4">
-                  <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                <div className="grid grid-cols-7 gap-2 mb-4">
+                  <div className="bg-gray-800/50 rounded-lg p-2 text-center">
                     <div className="text-xs text-gray-400">TOTAL</div>
                     <div className="text-lg font-bold">
                       <span className="text-green-400">{firstPeriodBets.summary?.total?.wins || 0}</span>
@@ -3195,7 +3195,7 @@ export default function Opportunities() {
                       {(firstPeriodBets.summary?.total?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.total?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </div>
                   </div>
-                  <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                  <div className="bg-gray-800/50 rounded-lg p-2 text-center">
                     <div className="text-xs text-gray-400">Under 1.5</div>
                     <div className="text-lg font-bold">
                       <span className="text-green-400">{firstPeriodBets.summary?.u15?.wins || 0}</span>
@@ -3206,7 +3206,7 @@ export default function Opportunities() {
                       {(firstPeriodBets.summary?.u15?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.u15?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </div>
                   </div>
-                  <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                  <div className="bg-gray-800/50 rounded-lg p-2 text-center">
                     <div className="text-xs text-gray-400">Under 2.5</div>
                     <div className="text-lg font-bold">
                       <span className="text-green-400">{firstPeriodBets.summary?.u25?.wins || 0}</span>
@@ -3217,7 +3217,7 @@ export default function Opportunities() {
                       {(firstPeriodBets.summary?.u25?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.u25?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </div>
                   </div>
-                  <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                  <div className="bg-gray-800/50 rounded-lg p-2 text-center">
                     <div className="text-xs text-gray-400">Under 3.5</div>
                     <div className="text-lg font-bold">
                       <span className="text-green-400">{firstPeriodBets.summary?.u35?.wins || 0}</span>
@@ -3228,7 +3228,7 @@ export default function Opportunities() {
                       {(firstPeriodBets.summary?.u35?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.u35?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </div>
                   </div>
-                  <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                  <div className="bg-gray-800/50 rounded-lg p-2 text-center">
                     <div className="text-xs text-gray-400">Under 4.5</div>
                     <div className="text-lg font-bold">
                       <span className="text-green-400">{firstPeriodBets.summary?.u45?.wins || 0}</span>
@@ -3237,6 +3237,28 @@ export default function Opportunities() {
                     </div>
                     <div className={`text-xs font-bold ${(firstPeriodBets.summary?.u45?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {(firstPeriodBets.summary?.u45?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.u45?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </div>
+                  </div>
+                  <div className="bg-gray-800/50 rounded-lg p-2 text-center">
+                    <div className="text-xs text-gray-400">Over 1.5</div>
+                    <div className="text-lg font-bold">
+                      <span className="text-green-400">{firstPeriodBets.summary?.o15?.wins || 0}</span>
+                      <span className="text-gray-500 mx-1">-</span>
+                      <span className="text-red-400">{firstPeriodBets.summary?.o15?.losses || 0}</span>
+                    </div>
+                    <div className={`text-xs font-bold ${(firstPeriodBets.summary?.o15?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {(firstPeriodBets.summary?.o15?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.o15?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </div>
+                  </div>
+                  <div className="bg-blue-800/30 rounded-lg p-2 text-center border border-blue-500/30">
+                    <div className="text-xs text-blue-400">Reg U6.5</div>
+                    <div className="text-lg font-bold">
+                      <span className="text-green-400">{firstPeriodBets.summary?.reg_u65?.wins || 0}</span>
+                      <span className="text-gray-500 mx-1">-</span>
+                      <span className="text-red-400">{firstPeriodBets.summary?.reg_u65?.losses || 0}</span>
+                    </div>
+                    <div className={`text-xs font-bold ${(firstPeriodBets.summary?.reg_u65?.profit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {(firstPeriodBets.summary?.reg_u65?.profit || 0) >= 0 ? '+' : ''}${(firstPeriodBets.summary?.reg_u65?.profit || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </div>
                   </div>
                 </div>

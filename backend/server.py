@@ -19706,14 +19706,16 @@ async def scrape_first_period_bets_enano():
             "u25": {"wins": 0, "losses": 0, "profit": 0},
             "u35": {"wins": 0, "losses": 0, "profit": 0},
             "u45": {"wins": 0, "losses": 0, "profit": 0},
+            "o15": {"wins": 0, "losses": 0, "profit": 0},
+            "reg_u65": {"wins": 0, "losses": 0, "profit": 0},
             "total": {"wins": 0, "losses": 0, "profit": 0}
         }
         
         for game_key, game in games.items():
             # Calculate total bet (sum of all risks)
             total_bet = 0
-            # Check both formats: "u15" and "1p_u15"
-            for line_key in ["u15", "u25", "u35", "u45", "1p_u15", "1p_u25", "1p_u35", "1p_u45"]:
+            # Check all bet formats
+            for line_key in ["u15", "u25", "u35", "u45", "1p_u15", "1p_u25", "1p_u35", "1p_u45", "o15", "1p_o15", "reg_u65"]:
                 bet = game.get(line_key)
                 if bet and bet.get("risk"):
                     total_bet += bet["risk"]
@@ -19726,12 +19728,13 @@ async def scrape_first_period_bets_enano():
                 "u25": game.get("u25") or game.get("1p_u25"),
                 "u35": game.get("u35") or game.get("1p_u35"),
                 "u45": game.get("u45") or game.get("1p_u45"),
+                "o15": game.get("o15") or game.get("1p_o15"),  # Over 1.5 bets
                 "reg_u65": game.get("reg_u65"),  # Regulation time bets
                 "total_bet": total_bet,
                 "result": game.get("total_result", 0)
             })
             
-            for line_key in ["u15", "u25", "u35", "u45", "1p_u15", "1p_u25", "1p_u35", "1p_u45"]:
+            for line_key in ["u15", "u25", "u35", "u45", "1p_u15", "1p_u25", "1p_u35", "1p_u45", "o15", "1p_o15", "reg_u65"]:
                 bet = game.get(line_key)
                 if bet and bet.get("result") not in ["cancel", "pending", None]:
                     # Normalize key for summary (remove 1p_ prefix)
