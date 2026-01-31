@@ -19454,11 +19454,11 @@ async def scrape_first_period_bets_enano():
             # Pattern 2: RBL Format for 1st Period
             is_rbl_1st_period = bool(re.search(r'1ST\s*PERIOD\s*/\s*TOTAL\s*/\s*UNDER\s*\d\.5', ticket_upper))
             
-            # Pattern 3: RBL Format for 2nd Period Team Total (Over/Under)
-            is_rbl_2nd_period = bool(re.search(r'2ND\s*PERIOD\s*/\s*[A-Z][A-Za-z\s]+TEAM\s*TOTAL\s*/\s*(?:OVER|UNDER)\s*\d\.5', ticket_upper))
-            
-            # Pattern 4: RBL Format for Regulation Time Total
-            is_rbl_regulation = bool(re.search(r'REGULATION\s*TIME\s*/\s*TOTAL\s*/\s*UNDER\s*\d\.5', ticket_upper))
+            # Pattern 3: RBL Format for 2nd Period Total (Over/Under) - matches both "Total" and "Team Total"
+            is_rbl_2nd_period = bool(re.search(r'2ND\s*PERIOD\s*/\s*(?:[A-Z][A-Za-z\s]*)?TOTAL\s*/\s*(?:OVER|UNDER)\s*\d\.5', ticket_upper))
+
+            # Pattern 4: RBL Format for Regulation Time Total (Over/Under)
+            is_rbl_regulation = bool(re.search(r'REGULATION\s*TIME\s*/\s*TOTAL\s*/\s*(?:OVER|UNDER)\s*\d\.5', ticket_upper))
             
             if is_nhl_1st_period:
                 nhl_count += 1
@@ -19552,10 +19552,12 @@ async def scrape_first_period_bets_enano():
             
             # ===== PATTERN 4: RBL Format (Regulation Time Total) =====
             elif is_rbl_regulation:
-                under_match = re.search(r'UNDER\s*(\d)\.5', ticket_upper)
-                if under_match:
-                    line_num = int(under_match.group(1))
-                
+                # Extract Over or Under and line number
+                ou_match = re.search(r'(OVER|UNDER)\s*(\d)\.5', ticket_upper)
+                if ou_match:
+                    bet_type = "O" if ou_match.group(1) == "OVER" else "U"
+                    line_num = int(ou_match.group(2))
+
                 teams_match = re.search(
                     r'([A-Z][a-zA-Z\.]+(?:\s+[A-Z][a-zA-Z\.]+)*)\s+vs\s+([A-Z][a-zA-Z\.]+(?:\s+[A-Z][a-zA-Z\.]+)*)',
                     ticket,
@@ -19568,7 +19570,7 @@ async def scrape_first_period_bets_enano():
                     team2_abbrev = get_nhl_abbrev(team2_raw.upper())
                     format_type = "RBL"
                     period_type = "REG"
-                    logger.info(f"[Regulation] RBL: {team1_abbrev} vs {team2_abbrev}, U{line_num}.5, Date: {bet_date}")
+                    logger.info(f"[Regulation] RBL: {team1_abbrev} vs {team2_abbrev}, {bet_type}{line_num}.5, Date: {bet_date}")
                 else:
                     logger.warning(f"[Regulation] RBL pattern detected but team extraction failed: {ticket[:100]}...")
             
