@@ -19621,23 +19621,33 @@ async def scrape_first_period_bets_enano():
         
         # Group bets by game (date + sorted teams)
         games = defaultdict(lambda: {
-            "date": "", 
-            "team1": "", 
-            "team2": "", 
-            # 1st Period bets (Under)
-            "1p_u15": None, 
-            "1p_u25": None, 
-            "1p_u35": None, 
+            "date": "",
+            "team1": "",
+            "team2": "",
+            # 1st Period bets (Under/Over)
+            "1p_u15": None,
+            "1p_u25": None,
+            "1p_u35": None,
             "1p_u45": None,
+            "1p_o15": None,
             # 2nd Period bets (Over/Under)
             "2p_o05": None,
             "2p_u05": None,
             "2p_o15": None,
             "2p_u15": None,
-            # Regulation Time bets (Under)
+            "2p_o25": None,
+            "2p_u25": None,
+            "2p_o35": None,
+            "2p_u35": None,
+            "2p_o45": None,
+            "2p_u45": None,
+            # Regulation Time bets (Under/Over)
             "reg_u55": None,
             "reg_u65": None,
             "reg_u75": None,
+            "reg_o55": None,
+            "reg_o65": None,
+            "reg_o75": None,
             "total_result": 0
         })
         
@@ -19675,13 +19685,13 @@ async def scrape_first_period_bets_enano():
             
             # Build line key based on period type and bet type
             if period_type == '1P':
-                line_key = f"1p_u{line_num}5"
+                line_key = f"1p_{bet_type.lower()}{line_num}5"
             elif period_type == '2P':
                 line_key = f"2p_{bet_type.lower()}{line_num}5"
             elif period_type == 'REG':
-                line_key = f"reg_u{line_num}5"
+                line_key = f"reg_{bet_type.lower()}{line_num}5"
             else:
-                line_key = f"u{line_num}5"
+                line_key = f"{bet_type.lower()}{line_num}5"
             
             # Store the bet - ACCUMULATE if duplicate instead of overwriting
             if games[game_key].get(line_key) is not None:
@@ -19702,12 +19712,28 @@ async def scrape_first_period_bets_enano():
         # Convert to list and calculate summary
         bets_list = []
         summary = {
+            # 1st Period
             "u15": {"wins": 0, "losses": 0, "profit": 0},
             "u25": {"wins": 0, "losses": 0, "profit": 0},
             "u35": {"wins": 0, "losses": 0, "profit": 0},
             "u45": {"wins": 0, "losses": 0, "profit": 0},
             "o15": {"wins": 0, "losses": 0, "profit": 0},
+            # 2nd Period
+            "2p_u15": {"wins": 0, "losses": 0, "profit": 0},
+            "2p_u25": {"wins": 0, "losses": 0, "profit": 0},
+            "2p_u35": {"wins": 0, "losses": 0, "profit": 0},
+            "2p_u45": {"wins": 0, "losses": 0, "profit": 0},
+            "2p_o15": {"wins": 0, "losses": 0, "profit": 0},
+            "2p_o25": {"wins": 0, "losses": 0, "profit": 0},
+            "2p_o35": {"wins": 0, "losses": 0, "profit": 0},
+            # Regulation
+            "reg_u55": {"wins": 0, "losses": 0, "profit": 0},
             "reg_u65": {"wins": 0, "losses": 0, "profit": 0},
+            "reg_u75": {"wins": 0, "losses": 0, "profit": 0},
+            "reg_o55": {"wins": 0, "losses": 0, "profit": 0},
+            "reg_o65": {"wins": 0, "losses": 0, "profit": 0},
+            "reg_o75": {"wins": 0, "losses": 0, "profit": 0},
+            # Total
             "total": {"wins": 0, "losses": 0, "profit": 0}
         }
         
@@ -19715,7 +19741,18 @@ async def scrape_first_period_bets_enano():
             # Calculate total bet (sum of all risks)
             total_bet = 0
             # Check all bet formats
-            for line_key in ["u15", "u25", "u35", "u45", "1p_u15", "1p_u25", "1p_u35", "1p_u45", "o15", "1p_o15", "reg_u65"]:
+            all_bet_keys = [
+                # 1st Period
+                "u15", "u25", "u35", "u45", "o15",
+                "1p_u15", "1p_u25", "1p_u35", "1p_u45", "1p_o15",
+                # 2nd Period
+                "2p_u05", "2p_u15", "2p_u25", "2p_u35", "2p_u45",
+                "2p_o05", "2p_o15", "2p_o25", "2p_o35", "2p_o45",
+                # Regulation
+                "reg_u55", "reg_u65", "reg_u75",
+                "reg_o55", "reg_o65", "reg_o75"
+            ]
+            for line_key in all_bet_keys:
                 bet = game.get(line_key)
                 if bet and bet.get("risk"):
                     total_bet += bet["risk"]
@@ -19724,24 +19761,40 @@ async def scrape_first_period_bets_enano():
             bets_list.append({
                 "date": game["date"],
                 "game": f"{game['team1']} @ {game['team2']}",
+                # 1st Period
                 "u15": game.get("u15") or game.get("1p_u15"),
                 "u25": game.get("u25") or game.get("1p_u25"),
                 "u35": game.get("u35") or game.get("1p_u35"),
                 "u45": game.get("u45") or game.get("1p_u45"),
-                "o15": game.get("o15") or game.get("1p_o15"),  # Over 1.5 bets
-                "reg_u65": game.get("reg_u65"),  # Regulation time bets
+                "o15": game.get("o15") or game.get("1p_o15"),
+                # 2nd Period
+                "2p_u15": game.get("2p_u15"),
+                "2p_u25": game.get("2p_u25"),
+                "2p_u35": game.get("2p_u35"),
+                "2p_u45": game.get("2p_u45"),
+                "2p_o15": game.get("2p_o15"),
+                "2p_o25": game.get("2p_o25"),
+                "2p_o35": game.get("2p_o35"),
+                # Regulation
+                "reg_u55": game.get("reg_u55"),
+                "reg_u65": game.get("reg_u65"),
+                "reg_u75": game.get("reg_u75"),
+                "reg_o55": game.get("reg_o55"),
+                "reg_o65": game.get("reg_o65"),
+                "reg_o75": game.get("reg_o75"),
                 "total_bet": total_bet,
                 "result": game.get("total_result", 0)
             })
             
-            for line_key in ["u15", "u25", "u35", "u45", "1p_u15", "1p_u25", "1p_u35", "1p_u45", "o15", "1p_o15", "reg_u65"]:
+            for line_key in all_bet_keys:
                 bet = game.get(line_key)
                 if bet and bet.get("result") not in ["cancel", "pending", None]:
-                    # Normalize key for summary (remove 1p_ prefix)
+                    # Normalize key for summary (remove 1p_ prefix for 1st period bets)
                     summary_key = line_key.replace("1p_", "")
+                    # Keep 2p_ and reg_ prefixes as-is since they're in the summary
                     if summary_key not in summary:
                         summary_key = "total"  # Fallback to total
-                    
+
                     if bet["result"] == "win":
                         if summary_key in summary:
                             summary[summary_key]["wins"] += 1
@@ -19822,18 +19875,18 @@ async def update_first_period_bets():
                         
                         if not existing_backup:
                             # Calculate summary for this week
-                            week_summary = {
-                                "u15": {"wins": 0, "losses": 0, "profit": 0},
-                                "u25": {"wins": 0, "losses": 0, "profit": 0},
-                                "u35": {"wins": 0, "losses": 0, "profit": 0},
-                                "u45": {"wins": 0, "losses": 0, "profit": 0},
-                                "reg_u65": {"wins": 0, "losses": 0, "profit": 0},
-                                "o15": {"wins": 0, "losses": 0, "profit": 0},
-                                "total": {"wins": 0, "losses": 0, "profit": 0}
-                            }
-                            
+                            all_line_keys = [
+                                "u15", "u25", "u35", "u45", "o15",
+                                "2p_u15", "2p_u25", "2p_u35", "2p_u45",
+                                "2p_o15", "2p_o25", "2p_o35",
+                                "reg_u55", "reg_u65", "reg_u75",
+                                "reg_o55", "reg_o65", "reg_o75"
+                            ]
+                            week_summary = {key: {"wins": 0, "losses": 0, "profit": 0} for key in all_line_keys}
+                            week_summary["total"] = {"wins": 0, "losses": 0, "profit": 0}
+
                             for bet in current_bets:
-                                for line_key in ["u15", "u25", "u35", "u45", "reg_u65", "o15"]:
+                                for line_key in all_line_keys:
                                     line_bet = bet.get(line_key)
                                     if line_bet and line_bet.get("result") in ["win", "loss"]:
                                         if line_key not in week_summary:
@@ -19912,18 +19965,18 @@ async def update_first_period_bets():
         merged_bets.sort(key=lambda x: x.get("date", ""), reverse=True)
         
         # Recalculate summary
-        current_summary = {
-            "u15": {"wins": 0, "losses": 0, "profit": 0},
-            "u25": {"wins": 0, "losses": 0, "profit": 0},
-            "u35": {"wins": 0, "losses": 0, "profit": 0},
-            "u45": {"wins": 0, "losses": 0, "profit": 0},
-            "reg_u65": {"wins": 0, "losses": 0, "profit": 0},
-            "o15": {"wins": 0, "losses": 0, "profit": 0},
-            "total": {"wins": 0, "losses": 0, "profit": 0}
-        }
-        
+        all_line_keys = [
+            "u15", "u25", "u35", "u45", "o15",
+            "2p_u15", "2p_u25", "2p_u35", "2p_u45",
+            "2p_o15", "2p_o25", "2p_o35",
+            "reg_u55", "reg_u65", "reg_u75",
+            "reg_o55", "reg_o65", "reg_o75"
+        ]
+        current_summary = {key: {"wins": 0, "losses": 0, "profit": 0} for key in all_line_keys}
+        current_summary["total"] = {"wins": 0, "losses": 0, "profit": 0}
+
         for bet in merged_bets:
-            for line_key in ["u15", "u25", "u35", "u45", "reg_u65", "o15"]:
+            for line_key in all_line_keys:
                 line_bet = bet.get(line_key)
                 if line_bet and line_bet.get("result") in ["win", "loss"]:
                     if line_key not in current_summary:
@@ -20030,18 +20083,18 @@ async def get_first_period_bets():
         all_bets.sort(key=lambda x: x.get("date", ""), reverse=True)
         
         # Calculate combined summary
-        combined_summary = {
-            "u15": {"wins": 0, "losses": 0, "profit": 0},
-            "u25": {"wins": 0, "losses": 0, "profit": 0},
-            "u35": {"wins": 0, "losses": 0, "profit": 0},
-            "u45": {"wins": 0, "losses": 0, "profit": 0},
-            "o15": {"wins": 0, "losses": 0, "profit": 0},
-            "reg_u65": {"wins": 0, "losses": 0, "profit": 0},
-            "total": {"wins": 0, "losses": 0, "profit": 0}
-        }
-        
+        all_line_keys = [
+            "u15", "u25", "u35", "u45", "o15",
+            "2p_u15", "2p_u25", "2p_u35", "2p_u45",
+            "2p_o15", "2p_o25", "2p_o35",
+            "reg_u55", "reg_u65", "reg_u75",
+            "reg_o55", "reg_o65", "reg_o75"
+        ]
+        combined_summary = {key: {"wins": 0, "losses": 0, "profit": 0} for key in all_line_keys}
+        combined_summary["total"] = {"wins": 0, "losses": 0, "profit": 0}
+
         for bet in all_bets:
-            for line_key in ["u15", "u25", "u35", "u45", "o15", "reg_u65"]:
+            for line_key in all_line_keys:
                 line_bet = bet.get(line_key)
                 if line_bet and line_bet.get("result") in ["win", "loss"]:
                     if line_key not in combined_summary:
@@ -20072,7 +20125,7 @@ async def get_first_period_bets():
             # Calculate stats for that date
             for bet in all_bets:
                 if bet.get("date") == most_recent_date:
-                    for line_key in ["u15", "u25", "u35", "u45", "o15", "reg_u65", "1p_u15", "1p_u25", "1p_u35", "1p_u45"]:
+                    for line_key in all_line_keys:
                         line_bet = bet.get(line_key)
                         if line_bet and line_bet.get("result") in ["win", "loss"]:
                             if line_bet["result"] == "win":
